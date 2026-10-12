@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  AKS TIZIM — server sozlash (1-bosqich)        Ubuntu 24.04, v1.0
+#  AKS TIZIM — server sozlash (1-bosqich)        Ubuntu 24.04, v1.2
 #  Tizim muallifi: Kamoliddin Naqiyev
 #
 #  Nima qiladi (hammasi avtomatik, savol bermaydi):
@@ -20,6 +20,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 LOG=/root/aks-setup.log
 exec > >(tee -a "$LOG") 2>&1
+trap 'echo; echo "!!! XATO: $LINENO-qatorda toxtadi: $BASH_COMMAND"; echo "!!! Jurnal: $LOG"' ERR
 echo "=== AKS TIZIM setup boshlandi: $(date) ==="
 
 step() { echo; echo "---------- $1"; }
@@ -28,7 +29,7 @@ step() { echo; echo "---------- $1"; }
 step "1/9 Tizim yangilanmoqda"
 apt-get update -q
 apt-get -y -q -o Dpkg::Options::="--force-confold" upgrade
-apt-get install -y -q curl wget gnupg ca-certificates lsb-release ufw fail2ban unzip htop
+apt-get install -y -q curl wget gnupg ca-certificates lsb-release ufw fail2ban unzip htop openssl
 timedatectl set-timezone Asia/Tashkent || true
 
 # ---------- 2. himoya devori
@@ -67,7 +68,7 @@ if [ -f "$ENV" ]; then
   . "$ENV"
 fi
 if [ -z "${DB_PASS:-}" ]; then
-  DB_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
+  DB_PASS=$(openssl rand -hex 12)
 fi
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<EOF
 DO \$\$ BEGIN
@@ -78,7 +79,7 @@ DO \$\$ BEGIN
   END IF;
 END \$\$;
 EOF
-if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='aks_tizim'" | grep -q 1; then
+if [ "$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='aks_tizim'")" != "1" ]; then
   sudo -u postgres createdb -O aks -E UTF8 aks_tizim
 fi
 # ishlash tezligi uchun asosiy sozlamalar (8 GB RAM uchun)
@@ -155,7 +156,7 @@ find $D -name '*.sql.gz' -mtime +14 -delete
 echo "$(date) zaxira: $F $(du -h "$F" | cut -f1)" >>$D/backup.log
 EOF
 chmod +x /usr/local/bin/aks-backup
-( crontab -l 2>/dev/null | grep -v aks-backup; echo "0 3 * * * /usr/local/bin/aks-backup" ) | crontab -
+{ crontab -l 2>/dev/null | grep -v aks-backup || true; echo "0 3 * * * /usr/local/bin/aks-backup"; } | crontab -
 /usr/local/bin/aks-backup
 
 # ---------- 9. avtomatik xavfsizlik yangilanishlari
