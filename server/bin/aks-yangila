@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# AKS TIZIM — GitHub'dagi yangi kodni olib, o'rnatish. Taymer har daqiqada chaqiradi.
+# Qo'lda: aks-yangila majburiy   (yangi kod bo'lmasa ham qayta o'rnatadi)
+set -uo pipefail
+REPO=/opt/aks/repo
+LOG=/var/log/aks-deploy.log
+exec 9>/run/aks-yangila.lock
+flock -n 9 || exit 0
+
+cd "$REPO" || { echo "$(date '+%F %T') $REPO topilmadi" >>"$LOG"; exit 1; }
+ESKI=$(git rev-parse HEAD 2>/dev/null || echo yoq)
+if ! git fetch -q origin main 2>>"$LOG"; then
+  echo "$(date '+%F %T') GitHub'ga ulanib bo'lmadi" >>"$LOG"; exit 1
+fi
+git reset -q --hard origin/main
+YANGI=$(git rev-parse HEAD)
+ORNATILGAN=$(cat /opt/aks/app/.versiya 2>/dev/null || echo yoq)
+
+if [ "$YANGI" != "$ORNATILGAN" ] || [ "${1:-}" = "majburiy" ]; then
+  if bash "$REPO/server/deploy.sh" >>"$LOG" 2>&1; then
+    echo "$(date '+%F %T') OK: $(git log -1 --format='%h %s')" >>"$LOG"
+  else
+    echo "$(date '+%F %T') !!! O'RNATISHDA XATO ($(git log -1 --format='%h')) — yuqoridagi qatorlarga qarang" >>"$LOG"
+    exit 1
+  fi
+fi

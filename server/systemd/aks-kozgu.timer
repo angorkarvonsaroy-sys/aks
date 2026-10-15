@@ -1,0 +1,10 @@
+[Unit]
+Description=AKS TIZIM — ko'zgu har 5 daqiqada
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

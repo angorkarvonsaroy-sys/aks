@@ -1,0 +1,13 @@
+[Unit]
+Description=AKS TIZIM — ko'zgu: Google jadval -> PostgreSQL
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aks
+Group=aks
+WorkingDirectory=/opt/aks/app
+ExecStart=/usr/bin/node /opt/aks/app/kozgu.js
+TimeoutStartSec=10min
+Nice=5

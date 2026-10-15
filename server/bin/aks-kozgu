@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# AKS TIZIM — ko'zguni hozir, qo'lda yurgizish va natijasini ko'rsatish
+set -uo pipefail
+echo "Ko'zgu ishlayapti (Google jadval → baza)…"
+cd /opt/aks/app && sudo -u aks /usr/bin/node /opt/aks/app/kozgu.js

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# AKS TIZIM — server holati, bir qarashda. Ishlatish: aks-holat
+set -uo pipefail
+q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
+
+echo "================ AKS SERVER HOLATI  $(date '+%d.%m.%Y %H:%M') ================"
+if [ -f /opt/aks/app/.versiya ]; then
+  echo "Kod versiyasi : $(git -C /opt/aks/repo log -1 --format='%h  %ad  %s' --date=format:'%d.%m %H:%M' 2>/dev/null)"
+else
+  echo "Kod versiyasi : hali o'rnatilmagan"
+fi
+echo "Avto-yangilash: $(systemctl is-active aks-yangila.timer 2>/dev/null)   Ko'zgu taymeri: $(systemctl is-active aks-kozgu.timer 2>/dev/null)"
+echo "Xizmatlar     : postgres=$(systemctl is-active postgresql) redis=$(systemctl is-active redis-server) nginx=$(systemctl is-active nginx)"
+free -h | awk '/^Mem/{print "Xotira        : band "$3" / jami "$2" (bo'\''sh "$7")"} /^Swap/{print "Swap          : band "$3" / "$2}'
+df -h / | awk 'NR==2{print "Disk          : band "$3" / "$2" ("$5")"}'
+
+echo
+echo "--- Oxirgi o'rnatishlar ---"
+grep -E "OK:|XATO|ulanib" /var/log/aks-deploy.log 2>/dev/null | tail -3 || echo "(yo'q)"
+if grep -q "!!!" <(tail -40 /var/log/aks-deploy.log 2>/dev/null); then
+  echo "--- O'rnatish xatosi (oxirgi qatorlar) ---"; tail -15 /var/log/aks-deploy.log
+fi
+
+echo
+echo "--- Ko'zgu: oxirgi 5 yurish ---"
+q -c "SELECT to_char(boshlandi,'DD.MM HH24:MI:SS') AS vaqt, holat, varaqlar, ozgargan AS \"o'zgargan\", qatorlar,
+             round(google_ms/1000.0,1) AS google_s, round(baza_ms/1000.0,1) AS baza_s, left(xato,90) AS xato
+      FROM kozgu.yurishlar ORDER BY id DESC LIMIT 5;"
+echo "--- Bazadagi varaqlar (eng kattalari) ---"
+q -c "SELECT varaq, qatorlar, ustunlar, to_char(ozgargan,'DD.MM HH24:MI') AS \"o'zgargan\"
+      FROM kozgu.varaqlar ORDER BY qatorlar DESC LIMIT 12;"
+q -tA -c "SELECT 'Jami: '||count(*)||' varaq, '||coalesce(sum(qatorlar),0)||' qator. Baza hajmi: '||pg_size_pretty(pg_database_size('aks_tizim')) FROM kozgu.varaqlar;"
+echo "=================================================================================="

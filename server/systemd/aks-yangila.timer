@@ -1,0 +1,10 @@
+[Unit]
+Description=AKS TIZIM — har daqiqada yangi kodni tekshirish
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

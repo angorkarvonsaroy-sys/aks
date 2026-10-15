@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  AKS TIZIM — server sozlash (1-bosqich)        Ubuntu 24.04, v1.2
+#  AKS TIZIM — server sozlash (1-bosqich)        Ubuntu 24.04, v1.3
 #  Tizim muallifi: Kamoliddin Naqiyev
 #
 #  Nima qiladi (hammasi avtomatik, savol bermaydi):
@@ -82,14 +82,14 @@ EOF
 if [ "$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='aks_tizim'")" != "1" ]; then
   sudo -u postgres createdb -O aks -E UTF8 aks_tizim
 fi
-# ishlash tezligi uchun asosiy sozlamalar (8 GB RAM uchun)
+# ishlash tezligi uchun asosiy sozlamalar (4 GB RAM uchun; 16.10.2026 da server 4 GB ga tushirildi)
 PGCONF=$(sudo -u postgres psql -tAc 'SHOW config_file')
 PGDIR=$(dirname "$PGCONF")
 mkdir -p "$PGDIR/conf.d" && chown postgres:postgres "$PGDIR/conf.d"
 grep -q "^include_dir = 'conf.d'" "$PGCONF" || echo "include_dir = 'conf.d'" >>"$PGCONF"
 cat >"$PGDIR/conf.d/aks.conf" <<'EOF2'
-shared_buffers = 2GB
-effective_cache_size = 6GB
+shared_buffers = 1GB
+effective_cache_size = 3GB
 work_mem = 32MB
 maintenance_work_mem = 256MB
 timezone = 'Asia/Tashkent'
@@ -174,6 +174,7 @@ DB_USER=aks
 DB_PASS=$DB_PASS
 REDIS_URL=redis://127.0.0.1:6379
 APP_PORT=3000
+GOOGLE_KEY=/opt/aks/google-key.json
 EOF
 chmod 600 "$ENV"
 cp "$ENV" /opt/aks/.env && chown aks:aks /opt/aks/.env && chmod 600 /opt/aks/.env
