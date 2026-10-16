@@ -10,7 +10,7 @@
  *
  * Xavfsizlik: faqat BRIDGE_SECRET ni bilgan (ya'ni server) chaqira oladi. Kalit URL da emas, so'rov tanasida.
  * Sessiya: server xodimni o'zi tekshirib bo'lgan; bu yerda o'sha xodim uchun eski tizim sessiyasi (CacheService) ochiladi
- * va funksiya xuddi ilovadan chaqirilgandek «kod|tok» bilan bajariladi. pin*/tg* funksiyalari — kirish kodining o'zi bilan.
+ * va funksiya xuddi ilovadan chaqirilgandek «kod|tok» bilan bajariladi. pin va tg funksiyalari — kirish kodining o'zi bilan.
  */
 function doPost(e) {
   const javob = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
