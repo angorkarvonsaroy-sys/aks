@@ -61,4 +61,7 @@ async function kirishJurnali(x, usul) {
   await q(`INSERT INTO kirishlar (kompaniya_id, xodim_id, fish, usul) VALUES (1, $1, $2, $3)`, [x.id, x.fish, usul]);
 }
 
+// ---------------- 👤 Mijozlar (Mijoz.gs o'rni) — ko'zgudan, Google'siz
+Object.assign(A, require('./mijoz'));
+
 module.exports = A;
