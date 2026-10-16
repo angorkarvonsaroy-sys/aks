@@ -36,5 +36,13 @@ systemctl enable -q --now aks-yangila.timer aks-kozgu.timer
 # 5. ko'zguni darhol bir marta yurgizish (kutmasdan)
 systemctl start --no-block aks-kozgu.service
 
+# 6. ilova serveri (pm2, aks foydalanuvchisi) — yangi kod bilan qayta yuklanadi
+mkdir -p /opt/aks/private && chown -R aks:aks /opt/aks/private && chmod 750 /opt/aks/private
 git -C "$REPO" rev-parse HEAD >"$APP/.versiya"
+chown aks:aks "$APP/.versiya"
+sudo -u aks -H bash -c "cd $APP && pm2 startOrReload ecosystem.config.js --update-env >/dev/null && pm2 save >/dev/null"
+sleep 2
+if curl -fsS -m 5 http://127.0.0.1:3000/api/holat >/dev/null; then echo "  api: ishlayapti"; else echo "  !!! api javob bermayapti"; sudo -u aks -H pm2 logs aks-api --lines 20 --nostream || true; rm -f "$APP/.versiya"; exit 1; fi
+# pm2 server qayta yonganda o'zi ko'tarilsin (bir marta ro'yxatdan o'tadi)
+systemctl is-enabled -q pm2-aks 2>/dev/null || { env PATH=$PATH:/usr/bin pm2 startup systemd -u aks --hp /home/aks >/dev/null 2>&1 || true; }
 echo "=== o'rnatildi: $(cat "$APP/.versiya" | cut -c1-7) ==="

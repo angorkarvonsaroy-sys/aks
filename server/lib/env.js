@@ -28,6 +28,14 @@ module.exports = {
     password: E.DB_PASS || undefined,
   },
   googleKey: E.GOOGLE_KEY || '/opt/aks/google-key.json',
+  redisUrl: E.REDIS_URL || 'redis://127.0.0.1:6379',
+  appPort: Number(E.APP_PORT || 3000),
+  // Eski tizim (Apps Script) ko'prigi: serverda hali yozilmagan amallar o'sha yerga yuboriladi. Bo'sh bo'lsa — ko'prik yo'q.
+  bridgeUrl: E.BRIDGE_URL || '',
+  bridgeSecret: E.BRIDGE_SECRET || '',
+  // Xodimlar ilovasi (Index.html) — faqat serverda turadi, GitHub'ga qo'yilmaydi
+  uiFayl: E.UI_FAYL || '/opt/aks/private/Index.html',
+  xaritaFayl: E.XARITA_FAYL || '/opt/aks/private/Xarita.html',
   // 1-kompaniya (Angor Karvon Saroy) jadvali; boshqa kompaniyalar bazadagi kompaniyalar jadvalidan olinadi
   aksBazaId: E.AKS_BAZA_ID || '1qqBgS99WeIVEq_BwQ4-qdUWpRoGAKJpUum86aCDSJJE',
 };

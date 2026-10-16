@@ -11,6 +11,12 @@ else
 fi
 echo "Avto-yangilash: $(systemctl is-active aks-yangila.timer 2>/dev/null)   Ko'zgu taymeri: $(systemctl is-active aks-kozgu.timer 2>/dev/null)"
 echo "Xizmatlar     : postgres=$(systemctl is-active postgresql) redis=$(systemctl is-active redis-server) nginx=$(systemctl is-active nginx)"
+API=$(curl -fsS -m 5 http://127.0.0.1:3000/api/holat 2>/dev/null || echo '')
+if [ -n "$API" ]; then
+  echo "Ilova serveri : ishlayapti — $(echo "$API" | tr -d '\n' | sed 's/.*"versiya":"\([^"]*\)".*/versiya \1/') · xodimlar: $(echo "$API" | grep -o '"xodimlar":[0-9]*' | cut -d: -f2) · ko'prik: $(echo "$API" | grep -o '"koprik":[a-z]*' | cut -d: -f2) · Index.html: $(echo "$API" | grep -o '"ui":[a-z]*' | cut -d: -f2)"
+else
+  echo "Ilova serveri : !!! JAVOB YO'Q (pm2 logs aks-api)"
+fi
 free -h | awk '/^Mem/{print "Xotira        : band "$3" / jami "$2" (bo'\''sh "$7")"} /^Swap/{print "Swap          : band "$3" / "$2}'
 df -h / | awk 'NR==2{print "Disk          : band "$3" / "$2" ("$5")"}'
 
@@ -30,4 +36,8 @@ echo "--- Bazadagi varaqlar (eng kattalari) ---"
 q -c "SELECT varaq, qatorlar, ustunlar, to_char(ozgargan,'DD.MM HH24:MI') AS \"o'zgargan\"
       FROM kozgu.varaqlar ORDER BY qatorlar DESC LIMIT 12;"
 q -tA -c "SELECT 'Jami: '||count(*)||' varaq, '||coalesce(sum(qatorlar),0)||' qator. Baza hajmi: '||pg_size_pretty(pg_database_size('aks_tizim')) FROM kozgu.varaqlar;"
+echo
+echo "--- Ilova so'rovlari (oxirgi 24 soat): qaysi amal qayerda, necha ms ---"
+q -c "SELECT fn AS amal, qayerda, soni, ortacha_ms, eng_sekin_ms, xatolar FROM v_rpc_24soat LIMIT 12;" 2>/dev/null | grep -v "^$" || echo "(hali so'rov yo'q)"
+q -tA -c "SELECT 'Kirishlar (24 soat): '||count(*) FROM kirishlar WHERE vaqt > now()-interval '24 hours';" 2>/dev/null
 echo "=================================================================================="
