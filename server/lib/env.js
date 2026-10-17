@@ -28,6 +28,7 @@ module.exports = {
     password: E.DB_PASS || undefined,
   },
   googleKey: E.GOOGLE_KEY || '/opt/aks/google-key.json',
+  hujjatPapka: E.HUJJAT_PAPKA || '/opt/aks/hujjat',      // skanlar serverda (Drive'ga fonda ko'chadi)
   redisUrl: E.REDIS_URL || 'redis://127.0.0.1:6379',
   appPort: Number(E.APP_PORT || 3000),
   // Eski tizim (Apps Script) ko'prigi: serverda hali yozilmagan amallar o'sha yerga yuboriladi. Bo'sh bo'lsa — ko'prik yo'q.

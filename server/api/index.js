@@ -102,6 +102,7 @@ fastify.setNotFoundHandler((req, reply) => { reply.code(404).type('text/plain; c
 async function main() {
   await fastify.listen({ port: env.appPort, host: '127.0.0.1' });
   kesh.boshla();
+  require('./hujjat_yoz').boshla();   // Drive'ga ko'chmagan skanlar — har 15 daqiqada
   console.log(`${new Date().toISOString()} AKS api ${VERSIYA} tinglayapti: 127.0.0.1:${env.appPort}`);
 }
 main().catch(e => { console.error('API ishga tushmadi:', e); process.exit(1); });

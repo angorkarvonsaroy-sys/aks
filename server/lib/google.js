@@ -89,6 +89,12 @@ async function qatorOqi(sheetId, varaq, qatorNo, oxirgiUstun, kalitFayl) {
   const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + qatorNo + ':' + oxirgiUstun + qatorNo)}?${p}`, kalitFayl);
   return (j.values && j.values[0]) || [];
 }
+// Bitta ustunning hamma qiymatlari (Google'dan YANGI, xom): ['A2'..] — 2-qatordan boshlab; bo'sh kataklar '' bo'lib qaytadi
+async function ustunOqi(sheetId, varaq, ustun, kalitFayl) {
+  const p = new URLSearchParams({ majorDimension: 'COLUMNS', valueRenderOption: 'UNFORMATTED_VALUE' });
+  const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!' + ustun + ':' + ustun)}?${p}`, kalitFayl);
+  return ((j.values && j.values[0]) || []).map(v => v == null ? '' : v);
+}
 // Kataklarga yozish — USER_ENTERED: Apps Script setValue(matn) bilan bir xil talqin (sana «2026-10-17» → sana, «27/315» matn ustunida — matn).
 // data: [{ varaq, katak: 'F12' yoki 'F12:H12', qiymat: [[…]] }]
 async function yoz(sheetId, data, kalitFayl) {
@@ -138,4 +144,4 @@ async function driveFayl(faylId, kalitFayl) {
   return { nom: meta.name, mime: meta.mimeType, bytes: Buffer.from(await r.arrayBuffer()) };
 }
 
-module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, yoz, qatorQosh, sanaFormat, sanaYoz, driveFayl, RuxsatYoq };
+module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, yoz, qatorQosh, sanaFormat, sanaYoz, driveFayl, RuxsatYoq };

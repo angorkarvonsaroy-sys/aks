@@ -66,7 +66,7 @@ async function hujjatlarRoyxati([kodSes, no]) {
   if (undCheklov(u) && !(await royxat(u)).some(x => x.no === String(no))) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
   return (await J.hujjatJurnal()).filter(h => h.no === String(no) && h.holati === 'Faol')
     .map(h => ({ id: h.id, turi: h.turi, sana: h.sana, nom: h.nom, kim: h.kim, vaqt: h.vaqt, sahifa: h.sahifa, izoh: h.izoh, tuzat: tuzatHuquq(u, h),
-      url: u.admin ? 'https://drive.google.com/file/d/' + h.faylId + '/view' : '' }));
+      url: u.admin && !/^SRV:/.test(String(h.faylId)) ? 'https://drive.google.com/file/d/' + h.faylId + '/view' : '' }));   // SRV: — hali Drive'ga ko'chmagan
 }
 
 module.exports = { hujjatBoshlang, hujjatlarRoyxati };

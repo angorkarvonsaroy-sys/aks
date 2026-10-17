@@ -318,6 +318,8 @@ async function yuristHujjat(args) {
   const u = await S.ruxsat(kodSes, 'yurist');
   const h = (await J.hujjatJurnal()).find(z => String(z.id) === String(hujjatId) && z.holati === 'Faol'); if (!h) throw new S.Xato('Hujjat topilmadi.');
   if (!u.admin && !(await J.yuIshlar()).some(i => i.no === h.no && i.holati !== 'Rad etildi' && i.holati !== 'Tasdiq kutilmoqda')) throw new S.Xato('Bu hujjat sizdagi ishga tegishli emas.');
+  const sv = require('./hujjat_yoz').srvFayl(h.faylId);   // hali Drive'ga ko'chmagan — serverdagi nusxa
+  if (sv) return { nom: sv.nom, b64: sv.bytes.toString('base64') };
   try {
     const f = await G.driveFayl(h.faylId, env.googleKey);
     return { nom: f.nom, b64: f.bytes.toString('base64') };

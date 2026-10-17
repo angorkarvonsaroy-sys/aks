@@ -87,7 +87,9 @@ Object.assign(A, require('./undiruv'));
 Object.assign(A, require('./monitoring'));
 // 🏠 Bosh sahifa: boshMalumot (Bosh.gs v1.3), 📊 hisobotMalumot (Hisobot.gs v27.10)
 Object.assign(A, require('./bosh'));
+// 📎 Hujjat yuklash — fayl serverda, fonda Drive'ga (Koprik v1.3)
+const HY = require('./hujjat_yoz'); A.hujjatYukla = HY.hujjatYukla;
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla']), enumerable: false });
 module.exports = A;

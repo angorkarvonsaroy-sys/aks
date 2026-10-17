@@ -36,6 +36,9 @@ cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer
 
+# 4a. skanlar papkasi (serverdagi nusxa)
+mkdir -p /opt/aks/hujjat && chown aks:aks /opt/aks/hujjat && chmod 750 /opt/aks/hujjat
+
 # 4b. Nginx: katta skan (25 MB → base64 34 MB) o'tsin, eski tizim javobini 5 daqiqagacha kutsin
 cat > /etc/nginx/conf.d/aks-yuklash.conf <<'NG'
 client_max_body_size 64m;
