@@ -111,6 +111,8 @@ Object.assign(A, require('./xodim_bosh'));
 Object.assign(A, require('./shartnoma'));
 // 📋 reyestrIjara, reyestrSotuv (Reyestr.gs) — onlayn ro'yxat
 Object.assign(A, require('./reyestr'));
+// 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
+Object.assign(A, require('./fayl'));
 
 // amal bo'lmagan eksportlar (Q, _ichki, ro'yxatlar) RPC ga chiqmasin
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];

@@ -121,3 +121,4 @@ async function topXodimlar([kodSes]) {
 }
 
 module.exports = { shartnomalar, devonDirektor, bekorDirektor, devonBoshlang, devonIjroHolat, topXodimlar };
+module.exports._ichki = { devonRows, devonIjro, devonKorishHuquq };   // api/fayl.js uchun (amal emas)
