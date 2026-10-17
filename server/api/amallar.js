@@ -120,5 +120,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish']), enumerable: false });
 module.exports = A;

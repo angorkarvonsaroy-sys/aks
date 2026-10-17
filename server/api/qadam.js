@@ -1,4 +1,4 @@
-// AKS TIZIM — ▶ BUGUNGI ISH (Qadam.gs v2.1) o'qishi serverda: qadamBoshlang, qadamMijoz, qadamNazorat, qadamJamoa (+ Ijro.gs ijroQisqa_).
+// AKS TIZIM — ▶ BUGUNGI ISH (Qadam.gs v2.2) o'qishi serverda: qadamBoshlang, qadamMijoz, qadamNazorat, qadamJamoa (+ Ijro.gs ijroQisqa_); qadamKutish (⏸ Kutyapman) — yozadi.
 // Natija eski tizim bilan bir xil. Yozuvlar (qadamChora, qadamKechiktir, qadamOtkaz, …) — hali ko'prik.
 // qdSnap_ (ertalabki navbat, Script Properties QD_NAVBAT_*) — o'qish/yozish Koprik v1.4 koprikQdSnap orqali: eski tizim bilan BITTA ro'yxat.
 // Koprik eski bo'lsa — Redis'dagi kunlik ro'yxat (faqat server ichida).
@@ -11,9 +11,11 @@ const X = require('../lib/xat_yordam');
 const P = require('../lib/portfel');
 const TS = require('../lib/tasdiq');
 const koprik = require('./koprik');
+const tetik = require('../lib/kozgu_tetik');
 const { redis } = require('../lib/db');
 
 const QD_MAQSAD = 20, QD_TEL = '+998 95-557-88-88';
+const QD_KUTISH = 'Kutilmoqda', QD_KUTISH_TUR = ['skan', 'hj', 'olib'], QD_KUTISH_MAX = 30, QD_SABAB_MIN = 10;   // v2.2
 const QD_KUN = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
 const QD_OY = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const UND_CHORA = ['Телефон', 'Ташриф (манзилига бориб)', 'Офисда суҳбат', 'СМС/Телеграм'];
@@ -77,10 +79,19 @@ async function qdXodimTel(fish) {
 }
 // 06n — bugungi «o'tkazildi»/«kechiktirildi» yozuvlari (xom: A sana, I vaqt)
 async function qdJurnal(bugun) {
-  return (await V.qatorlar('06n_Qadam_kun')).filter(({ x }) => V.iso(x[0]) === bugun)
+  return (await V.qatorlar('06n_Qadam_kun')).filter(({ x }) => V.iso(x[0]) === bugun && s(x[4]) !== QD_KUTISH)   // v2.2
     .map(({ x, r }) => ({ xodim: s(x[1]), no: s(x[2]).trim(), fish: s(x[3]), holat: s(x[4]), sabab: s(x[5]), qadam: s(x[6]),
       vaqt: typeof x[8] === 'number' ? soatDaq(x[8]) : (/(\d{2}):(\d{2})/.exec(s(r[8])) || ['', ''])[0] }));
 }
+// v2.2: 06n — amaldagi «Kutilmoqda» yozuvlari (sana ≤ bugun ≤ gacha). J — Kutish_sana, K — Qadam_kalit
+async function qdKutish(bugun) {
+  return aOxiri(await V.qatorlar('06n_Qadam_kun')).filter(({ x }) => s(x[4]) === QD_KUTISH && typeof x[0] === 'number')
+    .map(({ x, r }) => ({ xodim: s(x[1]), no: s(x[2]).trim(), fish: s(x[3]), sabab: s(x[5]), qadam: s(x[6]), sana: V.iso(x[0]), gacha: typeof x[9] === 'number' ? V.iso(x[9]) : '', k: s(x[10]),
+      vaqt: typeof x[8] === 'number' ? soatDaq(x[8]) : (/(\d{2}):(\d{2})/.exec(s(r[8])) || ['', ''])[0] }))
+    .filter(z => z.gacha && z.sana <= bugun && z.gacha >= bugun);
+}
+const qdDmy = iso => String(iso || '').split('-').reverse().join('.');
+const qdMuddatIso = m => { const z = /(\d{2})\.(\d{2})\.(\d{4})/.exec(String(m || '')); return z ? z[3] + '-' + z[2] + '-' + z[1] : ''; };
 function soatDaq(v) { const sek = Math.round((v - Math.floor(v)) * 86400); return String(Math.floor(sek / 3600)).padStart(2, '0') + ':' + String(Math.floor(sek % 3600 / 60)).padStart(2, '0'); }
 async function qdBekorOchiq() { const B = {}; (await J.bekorJurnal()).forEach(z => { if (BEKOR_YOPIQ.indexOf(z.holati) < 0) B[s(z.no).trim()] = 1; }); return B; }
 // bugungi haqiqiy ishlar (jurnallardan): shartnoma → [{tur, kim, vaqt, srt, ik, matn, chora?, vada?}]
@@ -113,7 +124,9 @@ async function qdBugungi(bugun, dmy, XJ) {
 }
 async function qdTopshiriq(dmy, A, RX, bugun) {
   const T = {}; const R = await J.topRows();
-  if (RX) R.forEach(t => { const p = String(t.kalit || '').split('|'); if (p[0] !== 'otkaz' || p[2] !== bugun) return;
+  if (RX) R.forEach(t => { const p = String(t.kalit || '').split('|');
+    if (p[0] === 'kutish' && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda')) { RX[p[1]] = { holat: 'kutish', izoh: '' }; return; }   // v2.2: kutish ruxsati
+    if (p[0] !== 'otkaz' || p[2] !== bugun) return;
     RX[p[1]] = { holat: (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda') ? 'kutish' : /^Rad/.test(t.dalil) ? 'rad' : 'berildi', izoh: String(t.dalil || '') }; });
   const hm = v => { const m = /(\d{2}):(\d{2})/.exec(s(v)); return m ? m[1] + ':' + m[2] : ''; };
   R.forEach(t => { if (!t.no) return; const no = String(t.no).trim();
@@ -163,7 +176,7 @@ function qdTur(t) {
 }
 const TOP_HJ_NOM = TS.TOP_HJ_NOM;
 const qdYuHj = t => { const r = String(t.kalit || '').split('|')[2] || ''; return r === 'JSHSHIR' || !!TOP_HJ_TUR[r]; };
-function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn) {
+function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn, KT, bugun) {
   const act = act0.filter(a => !a.kim || qdTeng(a.kim, fish));
   const kech = {}; Jn.forEach(r => { if (r.no === x.no && r.holat === 'Kechiktirildi' && qdTeng(r.xodim, fish)) kech[qdKalit(r.qadam)] = r; });
   const yop = Jn.filter(r => r.no === x.no && r.holat !== 'Kechiktirildi' && qdTeng(r.xodim, fish)).pop() || null;
@@ -212,12 +225,19 @@ function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn) {
     } else if (p[0] === 'skanq' && och) {
       qadam.push({ k: 'skanq', t: 'Shartnoma skani yo\'q — ' + (men ? 'arxivdan qidiring' : 'kotiba (' + t.kimga + ') arxivdan qidirmoqda'), d: 'k', tur: 'info', chora: [], holat: 'info', izoh: 'Topilmasa — topshiriq sizga o\'tadi: mijozdan nusxa olib kelasiz.', majburiy: false, maydon: '', raqam: '', seriya: 'AS', sms: '' });
     } });
+  // v2.2: ⏸️ kutishga qo'yilgan qadam — navbatni to'smaydi; «gacha» kuni yana kutadi va mijoz tepada
+  const kutish = []; let kutTug = false;
+  (KT || []).slice().reverse().forEach(r => { const z = qadam.find(q => q.k === r.k && q.holat === 'kutadi'); if (!z) return;
+    if (r.gacha > bugun) { z.holat = 'kutilmoqda'; z.gacha = r.gacha; qoldi--;
+      z.izoh = '⏸️ ' + qdDmy(r.gacha) + ' gacha kutilmoqda: «' + r.sabab + '»' + (z.muddat ? ' · topshiriq muddati ' + z.muddat : '');
+      kutish.push({ k: r.k, t: z.t, gacha: r.gacha, sabab: r.sabab, sana: r.sana }); }
+    else kutTug = true; });
   const ochiqQ = qadam.filter(z => z.holat === 'kutadi');
   let gi = QD_GURUH.findIndex(g => (ochiqQ.length ? ochiqQ : qadam).some(z => g[2](z))); if (gi < 0) gi = QD_GURUH.length - 1;
   const faol = act.length > 0;
   const M = Number(x.muddati) > 100000, xatKech = (x.xatKechikdi > 0 || (x.xatEskirgan && x.xatEskirgan.length)) ? 1 : 0;
   const topQ = qadam.find(z => z.topId && z.holat === 'kutadi'), xavf = (x.xavf || []).slice();
-  const nom = topQ ? '📌 ' + (topQ.tur === 'olib' ? 'Direktor huzuriga olib kelish' : topQ.tur === 'talab' ? 'Talabnoma topshirig\'i' : topQ.tur === 'hj' ? 'Hujjat topshirig\'i' : 'Skan topshirig\'i')
+  const nom = topQ ? (kutTug ? '⏸️ Bugun tayyor — ' : '📌 ') + (topQ.tur === 'olib' ? 'Direktor huzuriga olib kelish' : topQ.tur === 'talab' ? 'Talabnoma topshirig\'i' : topQ.tur === 'hj' ? 'Hujjat topshirig\'i' : 'Skan topshirig\'i')
     : x.davoOtgan && M ? '⚖ Da\'vo muddati o\'tgan — yuristga' : x.davoShosh && M ? '⏳ Da\'vo muddati yaqin (' + x.davoQolgan + ' kun)' : xatKech ? '✉ Xat yetkazilmagan' : xavf.length && M ? '🔥 Undirish imkoni kam' : QD_GURUH[gi][1];
   return { no: x.no, fish: x.fish, mid: x.mid, dokon: x.dokon, tel: String(x.tel || '').split(',').map(z => z.trim()).filter(Boolean), manzil: x.manzil,
     muddati: x.muddati, jami: x.jami, asosiy: x.asosiy, qoshimcha: x.qoshimcha, oylik: x.oylik, kechikkan: x.kechikkan, jimKun: x.jimKun, davoKun: x.davoKun, oxirgiTolov: x.oxirgiTolov || null, sekin: x.sekin || null,
@@ -228,6 +248,7 @@ function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn) {
     qadam, top: top0.filter(t => qdTeng(t.kimga, fish)).map(t => ({ id: t.id, sarlavha: t.sarlavha, izoh: t.izoh, qoida: t.qoida, muddat: t.muddat, holati: t.holati, kechikkan: t.kechikkan,
       avto: /^(davo|vada|tolov|xat|skan|bekor|bufer|talab|hj|skanq|skanu|skanz)$/.test(t.qoida) || (t.qoida === 'yutop' && qdYuHj(t)), qolda: /^(qayta|devon)\|/.test(t.kalit), isbotMaj: t.isbotMaj || '', tasdiqchi: TS.topTasdiqchi(t) })),
     bugun: act.slice().sort((a, b) => a.srt < b.srt ? -1 : 1).map(a => ({ vaqt: a.vaqt, ik: a.ik, matn: a.matn })),
+    kutishda: kutish, kutishTugadi: kutTug,
     qoldi, kutish: kutishN, savat: qoldi === 0 && kutishN > 0, faol, boshlangan: faol && qoldi > 0 ? 1 : 0, tugadi: faol && qoldi === 0 && kutishN === 0, yopildi: yop ? { holat: yop.holat, sabab: yop.sabab } : null };
 }
 
@@ -237,7 +258,7 @@ async function qdHisob(kod, fishlar, bugun, XD) {
   const dmy = bugun.split('-').reverse().join('.');
   const F = {}; fishlar.forEach(f => { const x = XD.find(z => qdTeng(z.fish, f)); const h = x ? x.huquq : [];
     const bor = k => h.indexOf('admin') >= 0 || h.indexOf(k) >= 0;
-    F[f] = { hamma: [], navbat: [], savat: [], bajarildi: [], qoshimcha: [], otkaz: [], kech: [], huquq: { xat: bor('xat'), hujjat: bor('hujjat') }, L: [] }; });
+    F[f] = { hamma: [], navbat: [], savat: [], bajarildi: [], qoshimcha: [], otkaz: [], kech: [], kutilmoqda: [], kutishBugun: [], huquq: { xat: bor('xat'), hujjat: bor('hujjat') }, L: [] }; });
   const egasi = fish => fishlar.find(f => qdTeng(f, fish));
   const Pf = await P.undPortfel(x => !!x.undiruvchi && !!egasi(x.undiruvchi), kod);
   const XJ = await J.xatJurnal();
@@ -247,16 +268,19 @@ async function qdHisob(kod, fishlar, bugun, XD) {
   const TP = await qdTopshiriq(dmy, A, RX, bugun);
   const BO = await qdBekorOchiq();
   const Jn = await qdJurnal(bugun);
+  const KT = await qdKutish(bugun);   // v2.2
   const RAD = {}; (await J.yuIshlar()).forEach(i => { RAD[i.no] = i.holati === 'Rad etildi' ? { sabab: i.izoh || 'oldingi so\'rov rad etilgan', sana: i.tasdiqladi } : null; });
   Jn.forEach(r => { const f = egasi(r.xodim); if (!f) return; if (r.holat === 'Kechiktirildi') F[f].kech.push(r); else F[f].otkaz.push(r); });
+  KT.forEach(r => { const f = egasi(r.xodim); if (f && r.sana === bugun) F[f].kutishBugun.push(r); });
   Pf.royxat.forEach(x => { const f = egasi(x.undiruvchi); if (f) F[f].L.push(x); });
   for (const f of fishlar) {
     const o = F[f];
-    o.L.forEach(x => { x.yuRad = RAD[x.no] || null; const m = qdMijoz(x, f, A[x.no] || [], TP[x.no] || [], !!BO[x.no], o, Jn); m.xatlar = XO[x.no] || [];
+    o.L.forEach(x => { x.yuRad = RAD[x.no] || null; const m = qdMijoz(x, f, A[x.no] || [], TP[x.no] || [], !!BO[x.no], o, Jn, KT.filter(r => r.no === x.no && qdTeng(r.xodim, f)), bugun); m.xatlar = XO[x.no] || [];
       m.qadam.forEach(z => { if (z.tur !== 'talab') return; const t = (TP[x.no] || []).find(y => String(y.id) === String(z.topId)); if (t) z.tx = TS.topTalabHolat(t, XJ); });
       if (RX[x.no]) { m.ruxsat = RX[x.no].holat; m.ruxsatIzoh = RX[x.no].izoh; if (m.ruxsat === 'kutish') { m.guruhNom = '⏳ Direktor ruxsati kutilmoqda'; } }
       o.hamma.push(m); });
     o.savat = o.hamma.filter(m => m.savat && !m.yopildi);
+    o.kutilmoqda = o.hamma.filter(m => m.kutishda.length).map(m => ({ no: m.no, fish: m.fish, dokon: m.dokon, kutish: m.kutishda }));   // v2.2
     const NZ = o.L.map(x => ({ x, n: P.undNazorat(x, bugun) })).filter(z => z.n);
     const nzK = NZ.filter(z => z.n.kerak);
     o.nazorat = { jami: NZ.length, kerak: nzK.length, qilinmadi: nzK.filter(z => !z.n.qilindi).length, eslatma: nzK.filter(z => /^eslatma/.test(z.n.kerak)).length,
@@ -269,7 +293,8 @@ async function qdHisob(kod, fishlar, bugun, XD) {
     const rx = m => m.ruxsat === 'kutish' ? 1 : 0, qz = m => (Number(m.muddati) > 100000 ? 1 : 0);
     const ob = m => (m.qadam || []).some(z => z.topId && z.holat === 'kutadi') ? 1 : 0;
     const dv = m => (m.davoOtgan && Number(m.muddati) > 100000) ? 1 : 0, xv = m => (m.xavf && m.xavf.length) ? 1 : 0;
-    o.navbat = navbat.sort((a, b) => (rx(a) - rx(b)) || (ob(b) - ob(a)) || (b.boshlangan - a.boshlangan) || (b.xatKech - a.xatKech) || (dv(b) - dv(a)) || (xv(b) - xv(a))
+    const kq = m => m.kutishTugadi ? 1 : 0;   // v2.2
+    o.navbat = navbat.sort((a, b) => (rx(a) - rx(b)) || (kq(b) - kq(a)) || (ob(b) - ob(a)) || (b.boshlangan - a.boshlangan) || (b.xatKech - a.xatKech) || (dv(b) - dv(a)) || (xv(b) - xv(a))
       || (qz(b) - qz(a)) || ((Number(b.muddati) || 0) - (Number(a.muddati) || 0)) || ((Number(b.kechikkan) || 0) - (Number(a.kechikkan) || 0)) || (b.jami - a.jami));
     let aloqa = 0, vada = 0, xat = 0;
     Object.keys(A).forEach(no => A[no].forEach(a => { if (!qdTeng(a.kim, f)) return;
@@ -281,10 +306,86 @@ async function qdHisob(kod, fishlar, bugun, XD) {
       davoOtgan: B.filter(x => x.davoOtgan && Number(x.muddati) > 100000).length,
       portfel: B.length, qizil: B.filter(x => (x.buyruq || []).some(b => b.d === 'q')).length, buzilgan: B.filter(x => x.buzilgan && Number(x.muddati) > 100000).length,
       jim: B.filter(x => x.jimKun >= P.UND_JIM_KUN).length, davo: B.filter(x => x.davoXavf).length, yuristga: B.filter(x => (x.buyruq || []).some(b => b.d === 'y' || /shoshilinch yuristga o'tkazishni so'rang/.test(b.t))).length,
-      nazorat: o.nazorat.jami, nazoratQilinmadi: o.nazorat.qilinmadi };
+      nazorat: o.nazorat.jami, nazoratQilinmadi: o.nazorat.qilinmadi, kutilmoqda: o.kutilmoqda.length };
+    await qdKecha(o, f, bugun, XJ);   // v2.2 (faqat server): «⏪ kechadan qolgan»
     delete o.L;
   }
   return F;
+}
+
+// ------------------------------------------------------------------ v2.2 (faqat server): «⏪ kechadan qolgan»
+// Har kuni birinchi hisobda navbatning birinchi 20 tasi (kunlik reja) Redis'ga yoziladi. Ertasiga (yakshanba bo'lsa — oxirgi ish kuni):
+// rejada bo'lgan, o'sha kuni unga hech narsa qilinmagan (chora, xat, skan, topshiriq, 06n yozuvi) va hali navbatdagi mijoz — m.kecha = 'dd.MM.yyyy'.
+// Eski tizimda yo'q (faqat belgi; navbat tartibini o'zgartirmaydi — saralash Index'da).
+const QD_REJA = 20, qdKechaKesh = new Map();
+const kunQosh = (iso, n) => { const p = iso.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
+async function qdKecha(o, f, bugun, XJ) {
+  const fk = Buffer.from(String(f)).toString('base64url');
+  try { await redis.set('qd:reja:' + bugun + ':' + fk, JSON.stringify(o.navbat.slice(0, QD_REJA).map(m => m.no)), 'EX', 9 * 86400, 'NX'); } catch (e) { }
+  let kecha = '', R = null;
+  for (let i = 1; i <= 3 && !R; i++) { const d = kunQosh(bugun, -i); try { const v = await redis.get('qd:reja:' + d + ':' + fk); if (v) { R = JSON.parse(v); kecha = d; } } catch (e) { } }
+  if (!R || !R.length) return;
+  const Rs = new Set(R), nav = o.navbat.filter(m => Rs.has(m.no)); if (!nav.length) return;
+  let k = qdKechaKesh.get(kecha);
+  if (!k || Date.now() - k.t > 10 * 60000) {
+    const dmyK = qdDmy(kecha); const A = await qdBugungi(kecha, dmyK, XJ); await qdTopshiriq(dmyK, A, null, kecha);
+    const J6 = (await V.qatorlar('06n_Qadam_kun')).filter(({ x }) => V.iso(x[0]) === kecha).map(({ x }) => ({ xodim: s(x[1]), no: s(x[2]).trim() }));
+    k = { t: Date.now(), A, J6 }; qdKechaKesh.set(kecha, k); if (qdKechaKesh.size > 5) qdKechaKesh.delete(qdKechaKesh.keys().next().value);
+  }
+  nav.forEach(m => { const tegdi = (k.A[m.no] || []).some(a => !a.kim || qdTeng(a.kim, f)) || k.J6.some(r => r.no === m.no && qdTeng(r.xodim, f));
+    if (!tegdi) m.kecha = qdDmy(kecha); });
+}
+
+// ------------------------------------------------------------------ v2.2: ⏸️ KUTYAPMAN (Qadam.gs v2.2 qadamKutish bilan bir xil tekshiruvlar)
+// Kun topshiriq muddatigacha bo'lsa — 06n ga server o'zi yozadi; keyin bo'lsa — direktor ruxsati so'rovi eski tizim orqali (10_Topshiriqlar).
+// Eski tizim v2.2 bo'lmasa (06n «Kutilmoqda» ni tanimasa) — umuman yozilmaydi.
+const QDV = '06n_Qadam_kun';
+function qdSabab(v, izoh) { const t = String(v || '').replace(/\s+/g, ' ').trim(); if (t.length < QD_SABAB_MIN) throw new S.Xato('Sababini yozing (kamida ' + QD_SABAB_MIN + ' belgi)' + (izoh === undefined ? ': nega bugun qila olmaysiz.' : izoh)); return t.slice(0, 300); }
+let qdV22 = { ok: false, t: 0 };
+async function eskiV22(kod) {
+  if (qdV22.ok && Date.now() - qdV22.t < 6 * 3600000) return true;
+  if (!qdV22.ok && qdV22.t && Date.now() - qdV22.t < 2 * 60000) return false;
+  try { qdV22 = { ok: String(await koprik.chaqir('qadamVersiya', kod, [])) >= '2.2', t: Date.now() }; } catch (e) { qdV22 = { ok: false, t: Date.now() }; }
+  return qdV22.ok;
+}
+async function qdQulf(nom, ish) {
+  const kalit = 'qulf:' + nom, belgi = require('crypto').randomBytes(8).toString('hex'), t0 = Date.now();
+  while (!(await redis.set(kalit, belgi, 'PX', 30000, 'NX'))) { if (Date.now() - t0 > 30000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
+  try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
+}
+function hozirDmyHms() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
+  return { iso: d.toISOString().slice(0, 19).replace('T', ' '), dmy: p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds()) }; }
+async function qadamKutish([kodSes, d0]) {
+  const u = await S.ruxsat(kodSes, 'undiruv'); const d = d0 || {};
+  const sabab = qdSabab(d.sabab, ': nima kutilyapti va nega.');
+  const bugun = V.bugun(); const sana = s(d.sana);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sana) || sana <= bugun) throw new S.Xato('Tayyor bo\'ladigan kunni tanlang (ertadan boshlab).');
+  if (Math.round((Date.parse(sana + 'T12:00:00Z') - Date.parse(bugun + 'T12:00:00Z')) / 86400000) > QD_KUTISH_MAX) throw new S.Xato('Ko\'pi bilan ' + QD_KUTISH_MAX + ' kunga kutishga qo\'yiladi.');
+  const H = (await qdHisob(u.kod, [u.fish], bugun))[u.fish];
+  const m = H.hamma.find(z => z.no === s(d.no));
+  if (!m) throw new S.Xato('Bu mijoz portfelingizda emas.');
+  if (m.yopildi) throw new S.Xato('Bu mijoz bugun allaqachon o\'tkazilgan.');
+  const st = m.qadam.find(z => z.k === s(d.k));
+  if (!st || st.holat !== 'kutadi') throw new S.Xato('Bu qadam hozir kutilayotganlar ro\'yxatida yo\'q — sahifani yangilang.');
+  if (!st.topId || QD_KUTISH_TUR.indexOf(st.tur) < 0) throw new S.Xato('Bu ish o\'zingizga bog\'liq — «⏸️ Kutyapman» faqat skan, hujjat yoki mijozni olib kelish topshirig\'ida. «Bugun qila olmayman» dan foydalaning.');
+  if (!(await eskiV22(u.kod))) throw new S.Xato('«⏸️ Kutyapman» hali ishga tushmagan — eski tizim (Qadam.gs v2.2) yangilanishi kerak. Direktorga ayting.');
+  const mIso = qdMuddatIso(st.muddat);
+  if (!mIso || sana > mIso) { const r = await koprik.chaqir('qadamKutish', u.kod, [d0]); await tetik.yangilaKut(20000); return r; }   // direktor ruxsati — eski tizim (10_Topshiriqlar)
+  const G = require('../lib/google'), env = require('../lib/env');
+  const bm = m.bugun.map(b => (b.vaqt ? b.vaqt + ' ' : '') + b.matn).join(' | ').slice(0, 1000), v = hozirDmyHms();
+  await qdQulf('qadam', async () => {
+    const [A, h1] = await Promise.all([G.ustunOqi(env.aksBazaId, QDV, 'A', env.googleKey), G.qatorOqi(env.aksBazaId, QDV, 1, 'K', env.googleKey)]);
+    const r = await G.qatorQoshR(env.aksBazaId, QDV, A.length + 1, [qdDmy(bugun), u.fish, "'" + m.no, m.fish, QD_KUTISH, sabab, st.t, bm, v.dmy, qdDmy(sana), st.k], env.googleKey);
+    const g = await G.gid(env.aksBazaId, QDV, env.googleKey);
+    const req = [{ repeatCell: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: 2, endColumnIndex: 3 }, cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } }];
+    if (!s(h1[9])) req.push({ updateCells: { range: { sheetId: g, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 9, endColumnIndex: 11 },
+      rows: [{ values: ['Kutish_sana', 'Qadam_kalit'].map(t => ({ userEnteredValue: { stringValue: t }, userEnteredFormat: { backgroundColor: { red: 11 / 255, green: 61 / 255, blue: 46 / 255 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } })) }],
+      fields: 'userEnteredValue,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat' } });
+    await G.soralar(env.aksBazaId, req, env.googleKey);
+    await G.sanaYoz(env.aksBazaId, [{ varaq: QDV, qator: r, ustun: 1, iso: bugun }, { varaq: QDV, qator: r, ustun: 9, iso: v.iso, naqsh: 'dd.MM.yyyy HH:mm:ss' }, { varaq: QDV, qator: r, ustun: 10, iso: sana }], env.googleKey);
+  });
+  await Promise.race([tetik.varaqlarYangila([QDV]).catch(e => console.error('ko\'zgu (qadamKutish):', e.message)), new Promise(r => setTimeout(r, 15000))]);
+  return { ok: true, gacha: sana, matn: m.no + ' — ' + qdDmy(sana) + ' gacha kutishga qo\'yildi. O\'sha kuni navbatga o\'zi qaytadi.' };
 }
 
 // ------------------------------------------------------------------ Ijro.gs ijroQisqa_
@@ -328,6 +429,7 @@ async function qadamBoshlang([kodSes]) {
     sana: QD_KUN[hk].charAt(0).toUpperCase() + QD_KUN[hk].slice(1) + ', ' + d.getUTCDate() + '-' + QD_OY[d.getUTCMonth()],
     maqsad: QD_MAQSAD, son: H.son, navbat: H.navbat, bajarildi: H.bajarildi.map(qdQisqa), qoshimcha: H.qoshimcha.map(qdQisqa),
     savat: H.savat.map(m => ({ no: m.no, fish: m.fish, dokon: m.dokon, xatlar: m.xatlar })),
+    kutilmoqda: H.kutilmoqda,
     nazorat: H.nazorat, ijro,
     otkazildi: H.otkaz, kechiktirildi: H.kech, chora: UND_CHORA, natija: UND_NATIJA, huquq: H.huquq, sms: QD_SMS_MATN.as1, smsMatn: QD_SMS_MATN, tel: await qdXodimTel(u.fish) };
 }
@@ -614,7 +716,9 @@ async function qadamTarix([kodSes, no]) {
       g: gp ? gp[1] + ',' + gp[2] : '', f: j.hujjat && HN[j.hujjat] ? fh(j.hujjat, sms ? 'Skrinshot' : j.chora === 'Ташриф (манзилига бориб)' ? 'Rasm' : 'Hujjat') : [] }); });
   // bugungi ish jurnali: o'tkazildi / kechiktirildi (sababi bilan)
   aOxiri(R6n).filter(({ x: r }) => s(r[2] || '').trim() === no && typeof r[0] === 'number')
-    .forEach(({ x: r }) => E.push({ s: V.iso(r[0]), v: soat(r[8]), t: 'qadam', i: '⏭', h: 'Bugungi ish: ' + s(r[4] || '').toLowerCase(), m: s(r[5] || ''), k: s(r[1] || ''), r: 'o' }));
+    .forEach(({ x: r }) => { const kt = s(r[4]) === QD_KUTISH;   // v2.2
+      E.push({ s: V.iso(r[0]), v: soat(r[8]), t: 'qadam', i: kt ? '⏸️' : '⏭', h: kt ? 'Bugungi ish: kutishga qo\'yildi' + (typeof r[9] === 'number' ? ' — ' + qdDmy(V.iso(r[9])) + ' gacha' : '') : 'Bugungi ish: ' + s(r[4] || '').toLowerCase(),
+        m: s(r[5] || '') + (kt && r[6] ? ' · ' + s(r[6]) : ''), k: s(r[1] || ''), r: 'o' }); });
   // topshiriqlar
   TR.filter(t => t.no === no && (u.admin || t.qoida !== 'tekshir')).forEach(t => E.push({ s: isoX(t.yaratildi.split(' ')[0].split('.').reverse().join('-')), v: soat(t.yaratildi), t: 'top', i: '📌',
     h: 'Topshiriq: ' + t.sarlavha, m: '→ ' + t.kimga + ' · ' + t.holati + (t.dalil ? ' · ' + t.dalil : ''), k: t.kimBerdi }));
@@ -742,7 +846,7 @@ async function ijroKorish([kodSes, d]) {
   return res;
 }
 
-module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish };
+module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
 module.exports._ichki = { qadamXulosa };
