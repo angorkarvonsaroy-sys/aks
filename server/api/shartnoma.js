@@ -107,4 +107,18 @@ async function jadvalHisob([kodSes, d]) {
   return { narx: n.narx, manba: n.manba, qiymat, oylik: oy > 0 ? (jadval.find(j => j.t === 1) || {}).summa : 0, foiz: qiymat ? boshl / qiymat : 0, sovga: sovga(boshl, oy), jadval };
 }
 
-module.exports = { shartnomaBoshlang, bugungiTolovlar, jadvalHisob };
+// 🚶 bugungiTashriflarHammasi (TashrifUmumiy.gs v16.5) — bugungi barcha tashriflar (kim yozgani bilan)
+async function bugungiTashriflarHammasi([kodSes]) {
+  await S.ruxsat(kodSes, 'tashrif');
+  const R = aOxiri(await V.qatorlar('01b_Tashrif_jurnali'));
+  if (!R.length) return { royxat: [] };
+  const last = R[R.length - 1].n;
+  const bugun = V.bugun().split('-').reverse().join('.');
+  const from = Math.max(2, last - 300);
+  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 10));
+  const royxat = v.filter(r => r[0] && r[1] === bugun)
+    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16) }));
+  return { royxat: royxat.reverse() };
+}
+
+module.exports = { shartnomaBoshlang, bugungiTolovlar, jadvalHisob, bugungiTashriflarHammasi };
