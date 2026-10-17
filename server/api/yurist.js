@@ -28,8 +28,8 @@ const YU_FAOL = ['Faol', 'Kelishuv', "Yopish so'ralgan"];
 const YU_KUTISH_KUN = 7;
 const YU_TOLOV_KUN = 90, YU_TOLOV_ULUSH = 0.7;
 const YU_TOP_TUR = [['PASPORT', 'Mijoz pasport nusxasini yuklang'], ['SHARTNOMA', 'Imzolangan shartnoma skanini yuklang'], ['NOTARIAL', 'Notarial hujjat nusxasini yuklang'],
-  ['DALOLATNOMA', 'Qabul-topshirish dalolatnomasini yuklang'], ['XAT_OLDIM', 'Xat topshirilgani (mijoz imzosi) skanini yuklang'], ['POCHTA', 'Pochta kvitansiyasini yuklang'],
-  ['YOZISHMA', 'Mijoz bilan yozishma skrinshotini yuklang'], ['BOSHQA', 'Boshqa (izohda yozing)']];
+  ['QOSHIMCHA_KELISHUV', 'Qo\'shimcha kelishuv / dalolatnoma skanini yuklang'], ['JSHSHIR', 'Mijozning JSHSHIR ini toping (14 raqam)'], ['MANZIL', 'Mijozning yashash manzilini aniqlang'],
+  ['BOSHQA', 'Boshqa']];
 const YUX_TUR = { ALOQA_SSP: 'Алоқа хати (ССП)' };
 
 const kun = U.kun, qosh = U.kunQosh;
