@@ -1,4 +1,5 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.3). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.4). Boshqa fayllar o'zgarmaydi.
+// v1.4: koprikQdSnap — «Bugungi ish» ertalabki navbati (Qadam.gs qdSnap_, Script Properties) — server bilan bitta ro'yxat.
 // v1.3: koprikDriveSaqla — serverga yuklangan skanni direktor Drive'idagi mijoz papkasiga ko'chirish (06d ni server o'zi yozadi).
 // v1.2: yurist yozuvlari serverga ko'chdi — server jadvalga o'zi yozadi, faqat Drive va Telegram shu yerda:
 //       koprikVersiya, koprikHujjatYukla (skan → Drive + 06d, hujjatYukla_ bilan aynan bir xil), koprikTg (xodimga Telegram).
@@ -49,7 +50,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { ruxsat_(kod, 'yurist'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.3'; }
+function koprikVersiya(kod) { return '1.4'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -63,3 +64,5 @@ function koprikDriveSaqla(kod, m) {
   const f = papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64 || '')), 'application/pdf', String(m.nom)));
   return { id: f.getId() };
 }
+// v1.4: ertalabki navbat ro'yxati (Qadam.gs qdSnap_): o'qish — bo'sh ro'yxat bilan; yozish — yangi raqamlar bilan. Qaytaradi {n: [...]}
+function koprikQdSnap(kod, fish, bugun, navbatNo, tugadiNo) { ruxsat_(kod, 'undiruv'); return { n: Object.keys(qdSnap_(String(fish), String(bugun), navbatNo || [], tugadiNo || [])) }; }

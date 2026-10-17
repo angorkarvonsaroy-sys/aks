@@ -89,6 +89,8 @@ Object.assign(A, require('./monitoring'));
 Object.assign(A, require('./bosh'));
 // 📎 Hujjat yuklash — fayl serverda, fonda Drive'ga (Koprik v1.3)
 const HY = require('./hujjat_yoz'); A.hujjatYukla = HY.hujjatYukla;
+// ▶ Bugungi ish: qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat (Qadam.gs v2.1 + Ijro.gs ijroQisqa_)
+Object.assign(A, require('./qadam'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla']), enumerable: false });
