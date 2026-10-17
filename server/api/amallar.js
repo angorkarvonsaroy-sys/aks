@@ -107,6 +107,8 @@ Object.assign(A, require('./hujjat_panel'));
 Object.assign(A, require('./xat'));
 // 🏠 xodimBosh (XodimBosh.gs v1.1) — xodim bosh sahifasi
 Object.assign(A, require('./xodim_bosh'));
+// 📝 shartnomaBoshlang, 💵 bugungiTolovlar — o'qish (Kod.gs)
+Object.assign(A, require('./shartnoma'));
 
 // amal bo'lmagan eksportlar (Q, _ichki, ro'yxatlar) RPC ga chiqmasin
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
