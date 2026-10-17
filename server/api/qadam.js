@@ -673,4 +673,71 @@ async function qadamTalabHolat([kodSes, topId]) {
   return { id: t.id, no: t.no, holati: t.holati, kalit: t.kalit, talab: h };
 }
 
-module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat };
+// ------------------------------------------------------------------ 📒 IJRO INTIZOMI: ijroKorish (Ijro.gs v1.4) — direktor: hamma xodim; xodim — o'zi
+const IJRO_TS = ['ID', 'Tanlandi', 'Jurnal_ID', 'Yozuv_sanasi', 'Shartnoma', 'Mijoz', 'Undiruvchi', 'Chora', 'Mazmun', 'Tekshiruvchi', 'Topshiriq_ID', 'Urinish', 'Holati', 'Izoh', 'Javob_vaqt'];
+const IJRO_TUR = {
+  reja: ['Kunlik reja bajarilmadi', 'o\'rta'], nazorat: ['Nazorat qo\'ng\'irog\'i / va\'da eslatmasi qilinmadi', 'yengil'],
+  xat: ['Xat chiqarilgan kuni yetkazilmadi', 'o\'rta'], xat3: ['Xat 3 kundan beri yetkazilmadi', 'og\'ir'],
+  tashrif: ['Uyiga borish isbotsiz (rasm yo\'q)', 'o\'rta'], top: ['Topshiriq muddati o\'tdi', 'yengil'],
+  otkaz: ['«Bugun qila olmayman» kuniga 3 tadan ko\'p', 'yengil'], soxta: ['Tasodifiy tekshiruvda tasdiqlanmadi', 'og\'ir'],
+  tasdiq: ['Isbotni muddatida tekshirmadi', 'yengil'], yuqabul: ['Yuristga o\'tgan ishni muddatida qabul qilmadi', 'yengil'],
+  yubosqich: ['Sud ishini muddatida yuritmadi (yurist bosqichi)', 'o\'rta'], isbotrad: ['Xat isboti tekshiruvda qaytarildi', 'o\'rta'] };
+// ijroQator_ — A ustunidagi oxirgi qatorgacha (getValues)
+async function ijroQatorA(nom, Sx) { return aOxiri(await V.qatorlar(nom)).map(({ n, x }) => { const o = { qator: n }; Sx.forEach((k, j) => o[k] = x[j] == null ? '' : x[j]); return o; }); }
+function ijroTopKun(T, fish, bugun, hozir) {
+  const ts = T.filter(t => qdTeng(t.kimga, fish) && t.holati !== 'Bekor' && TS.topIso(t.muddat).slice(0, 10) === bugun && TS.topIso(t.muddat) <= hozir);
+  return { rT: 0, rB: 0, nT: 0, nB: 0, xT: 0, xB: 0, tT: ts.length, tB: ts.filter(t => (t.holati === 'Bajarildi' || t.holati === 'Tekshiruvda') && t.kechikdi !== 'Ha').length };
+}
+// trigger holati (ScriptApp) eski tizimda — oxirgi ma'lum javob Redis'da; 6 soatdan eskirsa fonda yangilanadi
+async function ijroTrigger(kod) {
+  const { redis } = require('../lib/db');
+  const ol = async () => { const r = await koprik.chaqir('ijroKorish', kod, [{}]); if (r && r.trigger) { const t = Object.assign({}, r.trigger); delete t.ornatildi; delete t.xato;
+    await redis.set('ijro_trigger', JSON.stringify({ t: Date.now(), v: t })); return t; } return null; };
+  let z = null; try { const s = await redis.get('ijro_trigger'); if (s) z = JSON.parse(s); } catch (e) { }
+  if (z && z.v) { if (Date.now() - z.t > 6 * 3600000) redis.set('ijro_trigger_qulf', '1', 'NX', 'EX', 300).then(ok => { if (ok) ol().catch(() => {}); }).catch(() => {}); return z.v; }
+  try { const v = await ol(); if (v) return v; } catch (e) { console.error('ijro trigger (ko\'prik):', e.message); }
+  return { ok: true, kechki: true, tanla: true };
+}
+const ijroVaqt = v => typeof v === 'number' ? V.dmy(v) + ' ' + soatDaq(v) : String(v || '');
+async function ijroKorish([kodSes, d]) {
+  const u = await S.ruxsat(kodSes);
+  const adm = u.huquq.map(z => String(z).trim()).indexOf('admin') >= 0;
+  const bugun = V.bugun();
+  const oy = /^\d{4}-\d{2}$/.test(String((d || {}).oy || '')) ? d.oy : bugun.slice(0, 7);
+  const joriy = oy === bugun.slice(0, 7);
+  const XD = await qdXodimlar();
+  const U0 = adm ? XD.filter(x => x.huquq.length && x.huquq.indexOf('admin') < 0) : XD.filter(x => qdTeng(x.fish, u.fish));
+  const [L, TL, KL] = await Promise.all([ijroQatorA('06q_Qoidabuzarlik', IJRO_S), ijroQatorA('06p_Tekshiruv', IJRO_TS), ijroQatorA('06r_Ijro_kun', IJRO_KS)]);
+  const UU = U0.filter(x => x.undiruvchi);
+  const H = joriy && UU.length ? await qdHisob(u.kod, UU.map(x => x.fish), bugun, XD) : null;
+  const T0 = joriy ? await J.topRows() : [], hozirI = TS.topHozirIso();
+  const Xj = H ? await J.xatJurnal() : [], T = H ? T0 : [], Sx = {}; if (H) (await U.undShartnomalar()).forEach(x => Sx[x.no] = x);
+  const yakshanba = new Date(bugun + 'T12:00:00Z').getUTCDay() === 0;
+  const xodimlar = U0.map(x => {
+    const K = KL.filter(r => qdTeng(r.Xodim, x.fish) && ijroIso(r.Sana).slice(0, 7) === oy)
+      .map(r => ({ sana: ijroIso(r.Sana), rT: r.Reja_talab, rB: r.Reja_bajardi, nT: r.Nazorat_talab, nB: r.Nazorat_bajardi, xT: r.Xat_talab, xB: r.Xat_ozkunida, tT: r.Top_talab, tB: r.Top_vaqtida, foiz: r.Foiz }));
+    const bk = yakshanba ? null : x.undiruvchi ? (H && H[x.fish] ? ijroKun(H[x.fish], x.fish, bugun, Xj, T, Sx) : null) : (T0.length ? ijroTopKun(T0, x.fish, bugun, hozirI) : null);
+    const M = L.filter(q => qdTeng(q.Xodim, x.fish) && ijroIso(q.Sana).slice(0, 7) === oy && q.Holati !== 'Uzrli');
+    const son = { soni: M.length, ball: M.reduce((a, q) => a + ijroBall(q), 0), soxta: M.filter(q => q.Tur === 'soxta').length, tushuntirishsiz: M.filter(q => !String(q.Tushuntirish || '').trim()).length };
+    const yig = ijroYig(K);
+    const tk = TL.filter(r => qdTeng(r.Undiruvchi, x.fish) && ijroIso(r.Tanlandi).slice(0, 7) === oy);
+    const och = T0.filter(t => qdTeng(t.kimga, x.fish) && t.holati === 'Jarayonda'), kech = och.filter(t => TS.topIso(t.muddat) && TS.topIso(t.muddat) < hozirI);
+    return { fish: x.fish, undiruvchi: !!x.undiruvchi, topOchiq: och.length, topKech: kech.length, topEski: kech.length ? Math.max.apply(null, kech.map(t => kun(TS.topIso(t.muddat).slice(0, 10), bugun))) : 0,
+      foiz: K.length ? ijroFoiz(yig, son.soxta) : null, bugun: bk ? ijroFoiz(bk, 0) : null, bk, yig, kunlar: K.length, ball: son.ball, soni: son.soni, pog: ijroPog(son.ball),
+      tushuntirish: son.tushuntirishsiz, tekshiruv: { jami: tk.length, ha: tk.filter(r => r.Holati === 'Tasdiqlandi').length, yoq: tk.filter(r => r.Holati === 'Tasdiqlanmadi').length,
+        kut: tk.filter(r => r.Holati === 'Kutilmoqda').length } }; });
+  const royxat = L.filter(q => ijroIso(q.Sana).slice(0, 7) === oy && U0.some(x => qdTeng(x.fish, q.Xodim))).reverse()
+    .map(q => ({ id: q.ID, sana: ijroIso(q.Sana), xodim: q.Xodim, tur: q.Tur, nomi: q.Nomi, ogirlik: q.Ogirlik, ball: Number(q.Ball) || 1, no: q.Shartnoma, fish: q.Mijoz, tafsilot: q.Tafsilot,
+      holat: q.Holati, uzr: q.Uzr_sababi, uzrKim: q.Uzr_kim, tush: q.Tushuntirish, tushVaqt: ijroVaqt(q.Tushuntirish_vaqt) }));
+  const res = { ok: true, admin: adm, oy, bugun, xodimlar, royxat, zina: IJRO_ZINA, tur: IJRO_TUR };
+  if (adm) {
+    res.tekshiruv = TL.filter(r => ijroIso(r.Tanlandi).slice(0, 7) === oy).reverse().slice(0, 60).map(r => ({ sana: ijroIso(r.Tanlandi), yozuv: ijroIso(r.Yozuv_sanasi), no: r.Shartnoma, fish: r.Mijoz,
+      und: r.Undiruvchi, chora: r.Chora, kim: r.Tekshiruvchi, holat: r.Holati, izoh: r.Izoh, urinish: r.Urinish }));
+    const tk = XD.filter(x => x.huquq.indexOf('tekshiruv') >= 0 && !x.undiruvchi).map(x => x.fish);
+    res.tekshiruvchi = tk.length ? tk : ['(«tekshiruv» huquqi hech kimda yo\'q — tekshiruv direktorga tushadi)'];
+    res.trigger = await ijroTrigger(u.kod);
+  }
+  return res;
+}
+
+module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish };
