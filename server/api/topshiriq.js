@@ -154,4 +154,38 @@ async function tasdiqFayl([kodSes, k, n]) {
   }
 }
 
-module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl };
+// ------------------------------------------------------------------ 📌 topMening (xodimning o'z topshiriqlari)
+// Eski kod hujjat yuklangan topshiriqni shu yerda «Tekshiruvda»ga o'tkazadi (topHalHujjat_: yozuv + Telegram). Server o'zi yozmaydi:
+// shunday topshiriq bo'lsa — amal eski tizimda bajariladi (yozadi va javob beradi), keyin ko'zgu yangilanadi. Bo'lmasa — hammasi serverda.
+const TOP_HJ_TUR_L = { SHARTNOMA: ['SHARTNOMA'], PASPORT: ['PASPORT'], NOTARIAL: ['NOTARIAL'], QOSHIMCHA_KELISHUV: ['QOSHIMCHA_KELISHUV', 'DALOLATNOMA'], YOZISHMA: ['YOZISHMA'] };
+function topHjHujjat(t, HJ) {
+  const tur = TS.topHjTur(t), no = t.no || String(t.kalit).split('|')[1]; const T = TOP_HJ_TUR_L[tur]; if (!T) return null;
+  const yar = TS.topIso(t.yaratildi);
+  return (HJ || []).filter(z => z.no === no && z.holati === 'Faol' && T.indexOf(z.turi) >= 0 && (tur === 'SHARTNOMA' || TS.topIso(z.vaqt) >= yar)).pop() || null;
+}
+async function topHalKerak(L) {                          // topHalHujjat_ biror topshiriqni o'zgartirarmidi
+  const H = L.filter(t => t.holati === 'Jarayonda' && TS.topHjTur(t) && TS.topHjTur(t) !== 'MANZIL' && TS.topHjTur(t) !== 'BOSHQA'); if (!H.length) return false;
+  const HJ = await J.hujjatJurnal(); const mlM = H.some(t => TS.topHjTur(t) === 'JSHSHIR') ? await topMlMijoz() : {};
+  return H.some(t => TS.topHjTur(t) === 'JSHSHIR' ? !!(mlM[t.mid] || {}).jshshir : !!topHjHujjat(t, HJ));
+}
+async function topMening([kodSes]) {
+  const u = await S.ruxsat(kodSes);
+  const { xodimTeng } = require('../lib/xodim');
+  const bugun = V.bugun().split('-').reverse().join('.');
+  const hafta = new Date(Date.now() + 5 * 3600000 - 7 * 86400000).toISOString().slice(0, 10);
+  const meniki = x => xodimTeng(x.kimga, u.fish);
+  const R = (await J.topRows()).filter(meniki).map(J.topKor);
+  if (await topHalKerak(R.filter(x => x.holati === 'Jarayonda'))) {
+    const r = await koprik.chaqir('topMening', u.kod, []);
+    require('../lib/kozgu_tetik').varaqlarYangila(['10_Topshiriqlar']).catch(() => {});
+    return r;
+  }
+  const ochiq = R.filter(x => x.holati === 'Jarayonda' || x.holati === 'Tekshiruvda');
+  await topTalabBelgi(ochiq);
+  const yopiq = R.filter(x => x.holati === 'Bajarildi' && TS.topIso(x.yopildi).slice(0, 10) >= hafta).reverse().slice(0, 20);
+  ochiq.sort((a, b) => (b.kechikkan - a.kechikkan) || (a.muhim === 'Shoshilinch' ? -1 : 0) - (b.muhim === 'Shoshilinch' ? -1 : 0) || (TS.topIso(a.muddat) < TS.topIso(b.muddat) ? -1 : 1));
+  await topMlHolat(ochiq);
+  return { ok: true, fish: u.fish, ochiq, yopiq, son: { kechikkan: ochiq.filter(x => x.kechikkan).length, bugun: ochiq.filter(x => x.muddat.slice(0, 10) === bugun).length, hafta: yopiq.length, ochiq: ochiq.length } };
+}
+
+module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl, topMening };

@@ -105,6 +105,11 @@ Object.assign(A, require('./xarita'));
 Object.assign(A, require('./hujjat_panel'));
 // ✉ xatBoshlang (Xat.gs) — ro'yxat; xat yasash/yuborish — eski tizimda
 Object.assign(A, require('./xat'));
+// 🏠 xodimBosh (XodimBosh.gs v1.1) — xodim bosh sahifasi
+Object.assign(A, require('./xodim_bosh'));
+
+// amal bo'lmagan eksportlar (Q, _ichki, ro'yxatlar) RPC ga chiqmasin
+for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir']), enumerable: false });

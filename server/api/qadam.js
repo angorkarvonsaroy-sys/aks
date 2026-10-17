@@ -743,3 +743,6 @@ async function ijroKorish([kodSes, d]) {
 }
 
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish };
+// ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
+async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
+module.exports._ichki = { qadamXulosa };
