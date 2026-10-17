@@ -136,8 +136,8 @@ async function driveFayl(faylId, kalitFayl) {
   const t = await token(kalitFayl, SCOPE_DRIVE);
   const id = encodeURIComponent(String(faylId || '').trim());
   const m = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=name,size,mimeType&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
-  if (m.status === 403 || m.status === 404) throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (' + m.status + ')');
-  const meta = await m.json();
+  const meta = await m.json().catch(() => ({}));
+  if (m.status === 403 || m.status === 404) throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (' + m.status + '): ' + ((meta.error && meta.error.message) || '').slice(0, 160));
   if (meta.error) throw new Error('Drive xato ' + meta.error.code + ': ' + meta.error.message);
   const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
   if (!r.ok) throw new Error('Drive fayl yuklanmadi: ' + r.status);
