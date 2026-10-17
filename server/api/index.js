@@ -23,13 +23,26 @@ function jurnal(fn, qayerda, ms, ok, xato) {
 // ---------- ilova sahifasi
 fastify.get('/', async (req, reply) => {
   const kod = String(req.query.k || '').trim();
-  const user = kod ? await S.xodimKod(kod) : null;
   reply.type('text/html; charset=utf-8');
+  if (!kod) return ui.KIRISH;                       // o'rnatilgan ilova ikonasi: saqlangan kod bilan qayta ochiladi
+  const user = await S.xodimKod(kod);
   if (!user) return ui.TAQIQ;
   let html = ui.sahifa(user, kod, String(req.query.b || '').replace(/[^0-9a-f]/gi, '').slice(0, 40));
   if (html === null) return ui.YOQ;
   // 👁 ko'rish rejimi (&sifat=ID) — Sifat.gs mantig'i hali serverda emas; direktor eski havolada ko'raveradi
   return html;
+});
+
+// ---------- ilova sifatida o'rnatish fayllari (manifest, belgi, sw)
+const OCHIQ = { 'manifest.json': 'application/manifest+json', 'sw.js': 'text/javascript; charset=utf-8',
+  'icon-192.png': 'image/png', 'icon-512.png': 'image/png', 'favicon.png': 'image/png' };
+const ochiqFayl = {};
+for (const f of Object.keys(OCHIQ)) { try { ochiqFayl[f] = require('fs').readFileSync(__dirname + '/../public/' + f); } catch (e) {} }
+fastify.get('/:fayl', async (req, reply) => {
+  const f = req.params.fayl;
+  if (!ochiqFayl[f]) { reply.code(404).type('text/plain; charset=utf-8'); return 'AKS TIZIM: topilmadi'; }
+  reply.type(OCHIQ[f]).header('Cache-Control', f === 'sw.js' ? 'no-cache' : 'public, max-age=86400');
+  return ochiqFayl[f];
 });
 
 // ---------- amallar
