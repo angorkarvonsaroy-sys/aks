@@ -188,4 +188,31 @@ async function topMening([kodSes]) {
   return { ok: true, fish: u.fish, ochiq, yopiq, son: { kechikkan: ochiq.filter(x => x.kechikkan).length, bugun: ochiq.filter(x => x.muddat.slice(0, 10) === bugun).length, hafta: yopiq.length, ochiq: ochiq.length } };
 }
 
-module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl, topMening };
+// ------------------------------------------------------------------ ⚖ Yurist qarorlari jurnali (06t): tqRoyxat (Topshiriq.gs v2.2) — o'qish
+const TQ_KUN = 7;
+const tashkentKun = n => new Date(Date.now() + 5 * 3600000 - n * 86400000).toISOString().slice(0, 10);
+async function tqXulosa(L) {
+  const bugun = V.bugun();
+  const B = L.filter(q => String(q.vaqt).slice(0, 10) === bugun && q.tasdiqchi === 'yurist');
+  const yu = B.filter(q => q.rol === 'yurist' && !(q.m || {}).ixtiyoriy), nz = B.filter(q => (q.m || {}).ixtiyoriy && q.rol === 'yurist'), dr = B.filter(q => q.rol === 'direktor');
+  const [kut0, nzL, kor] = await Promise.all([TS.tasdiqNavbat(), TS.skanNazNavbat(), TS.tqKorilmagan(L)]);
+  const kut = kut0.filter(it => it.tasdiqchi === 'yurist');
+  return { bugun, tas: yu.filter(q => q.qaror === 'Tasdiqlandi').length, rad: yu.filter(q => q.qaror === 'Rad').length, kut: kut.length, kech: kut.filter(it => it.kech).length,
+    nzTas: nz.filter(q => q.qaror === 'Tasdiqlandi').length, nzRad: nz.filter(q => q.qaror === 'Rad').length, nzKut: nzL.length,
+    dirTas: dr.filter(q => q.qaror === 'Tasdiqlandi').length, dirRad: dr.filter(q => q.qaror === 'Rad').length, kor: kor.length,
+    tik: L.filter(q => /^Bekor qilindi\|/.test(q.direktor) && String(q.vaqt).slice(0, 10) >= tashkentKun(TQ_KUN)).length };
+}
+async function tqRoyxat([kodSes, d]) {
+  await S.ruxsat(kodSes, 'admin');
+  const kun = Math.max(1, Math.min(30, Number(d && d.kun) || TQ_KUN));
+  const ch = tashkentKun(kun - 1);
+  const Lh = await J.tqRows();
+  const L = Lh.filter(q => q.tasdiqchi === 'yurist' && String(q.vaqt).slice(0, 10) >= ch).reverse();
+  const dp = q => String(q.direktor || '').split('|');
+  return { ok: true, xulosa: await tqXulosa(Lh), kun, royxat: L.map(q => { const m = q.m || {}, p = dp(q);
+    return { id: q.id, vaqt: q.vaqt, k: q.kalit, tur: q.tur, no: q.no, nomi: m.nomi || '', sarlavha: m.sarlavha || '', yukladi: m.kim || q.yukladi, yVaqt: m.vaqt || '', kim: q.kim, rol: q.rol,
+      qaror: q.qaror, sabab: q.sabab, direktor: p[0] || '', dVaqt: p[1] || '', dKim: p[2] || '', fayl: (m.fayl || []).length, ixtiyoriy: !!m.ixtiyoriy,
+      tikla: !!q.tiklash && q.qaror === 'Rad' && q.rol === 'yurist' && !q.direktor, korish: q.qaror === 'Rad' && q.rol === 'yurist' && !q.direktor }; }) };
+}
+
+module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl, topMening, tqRoyxat };

@@ -54,4 +54,57 @@ async function bugungiTolovlar([kodSes]) {
   return { royxat: royxat.reverse(), jami: royxat.reduce((s, x) => s + x.summa, 0) };
 }
 
-module.exports = { shartnomaBoshlang, bugungiTolovlar };
+// ------------------------------------------------------------------ 🧮 jadvalHisob — narx, qiymat va to'lov jadvali (saqlashdan oldin ko'rsatish uchun)
+function narxHisob(baza, boshl, oy) {
+  if (!oy || oy <= 0) return { narx: baza, manba: '100% to\'lov — baza narx' };
+  const j = NARX_JADVAL[baza];
+  if (j) {
+    if (boshl === 0) return { narx: j[0], manba: 'Rasmiy jadval (boshlang\'ichsiz)' };
+    if (boshl === 60000000) return { narx: j[1], manba: 'Rasmiy jadval (60 mln)' };
+    if (boshl === 120000000) return { narx: j[2], manba: 'Rasmiy jadval (120 mln)' };
+  }
+  const x = baza * (1.045 + 0.3795 * Math.pow(0.5, boshl / 60000000));
+  return { narx: Math.round(x / 10000) * 10000, manba: 'Formula bo\'yicha ekstrapolyatsiya — tasdiqlang' };
+}
+function sovga(boshl, oy) {
+  if (!oy) return 'Умра сафарига йўлланма + замонавий телевизор';
+  if (boshl >= 120000000) return '12-ўлчамли кондиционер';
+  if (boshl >= 60000000) return 'Замонавий телевизор';
+  return 'Мотивацион эсдалик совғалари';
+}
+function utc(s) { const p = String(s).split('-').map(Number); if (p.length !== 3 || !p[0]) throw new S.Xato('Sana noto\'g\'ri: ' + s); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
+const isoG = dt => dt.toISOString().slice(0, 10);
+function oyQosh(dt, n, kun) {
+  const y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + n;
+  const oxiri = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, mo, Math.min(kun || dt.getUTCDate(), oxiri)));
+}
+async function jadvalHisob([kodSes, d]) {
+  await S.ruxsat(kodSes, 'shartnoma');
+  d = d || {};
+  const baza = Number(d.baza), maydon = Number(d.maydon), boshl = Math.round(Number(d.boshl) || 0), oy = Math.round(Number(d.oy) || 0);
+  if (!baza || !maydon) throw new S.Xato('Do\'kon tanlanmagan.');
+  let n = narxHisob(baza, boshl, oy);
+  if (d.narxQolda && Number(d.narxQolda) > 0) n = { narx: Math.round(Number(d.narxQolda)), manba: 'Qo\'lda kiritilgan narx (direktor)' };
+  const qiymat = Math.round(maydon * n.narx);
+  if (boshl > qiymat) throw new S.Xato('Boshlang\'ich to\'lov shartnoma qiymatidan katta.');
+  const qoldiq = qiymat - boshl;
+  const jadval = [];
+  const sd = utc(d.sana);
+  const bk = Math.round(Number(d.bkun) || 0);
+  const bsana = new Date(sd.getTime() + bk * 86400000);
+  if (oy > 0 && boshl > 0) jadval.push({ t: 0, sana: isoG(bsana), summa: boshl, turi: 'Boshlang\'ich' });
+  if (oy > 0) {
+    const oylik = Math.floor(qoldiq / oy / 100) * 100;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.birinchi || ''))) throw new S.Xato('Birinchi oylik sanasi kiritilmagan.');
+    let cur = utc(d.birinchi); let yig = 0;
+    for (let i = 1; i <= oy; i++) {
+      const s = (i === oy) ? qoldiq - yig : oylik; yig += s;
+      jadval.push({ t: i, sana: isoG(cur), summa: s, turi: 'Oylik' });
+      cur = oyQosh(cur, 1, Number(d.tkun));
+    }
+  } else jadval.push({ t: 0, sana: isoG(bsana), summa: qiymat, turi: 'Boshlang\'ich' });
+  return { narx: n.narx, manba: n.manba, qiymat, oylik: oy > 0 ? (jadval.find(j => j.t === 1) || {}).summa : 0, foiz: qiymat ? boshl / qiymat : 0, sovga: sovga(boshl, oy), jadval };
+}
+
+module.exports = { shartnomaBoshlang, bugungiTolovlar, jadvalHisob };
