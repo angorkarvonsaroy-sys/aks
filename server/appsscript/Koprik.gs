@@ -1,4 +1,5 @@
-// FAYL: Koprik.gs — Apps Script loyihasiga YANGI fayl sifatida qo'shiladi (v1.0). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasiga YANGI fayl sifatida qo'shiladi (v1.1). Boshqa fayllar o'zgarmaydi.
+// v1.1: koprikZanjir — XAT_ZANJIR (Script Properties) ni serverga beradi (yurist mezoni uchun).
 /**
  * AKS TIZIM — SERVER KO'PRIGI. Yangi server (aks-tizim.uz) hali o'ziga ko'chirilmagan amallarni shu orqali eski tizimda bajaradi.
  * Tizim muallifi va yaratuvchisi: Kamoliddin Naqiyev
@@ -42,3 +43,5 @@ function koprikSessiya_(kod) {
   c.put('srvses_' + kod, tok, PIN_SESSIYA_SEK);
   return tok;
 }
+// v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
+function koprikZanjir(kod) { ruxsat_(kod, 'yurist'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }

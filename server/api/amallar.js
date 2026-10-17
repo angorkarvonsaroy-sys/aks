@@ -75,5 +75,8 @@ A.sifatXodimlar = async ([kodSes]) => {
 Object.assign(A, require('./mijoz'));
 // ---------------- 📎 Hujjatlar: ro'yxatlar (Hujjat.gs o'qiydigan qismi)
 Object.assign(A, require('./hujjat'));
+delete A.HUJJAT_TURLARI;
+// ⚖ Yurist: yuristBoshlang, yuristIsh (Yurist.gs v25.9) — o'qish serverda; yozuvlar hali ko'prikda
+Object.assign(A, require('./yurist'));
 
 module.exports = A;

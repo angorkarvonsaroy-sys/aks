@@ -70,3 +70,4 @@ async function hujjatlarRoyxati([kodSes, no]) {
 }
 
 module.exports = { hujjatBoshlang, hujjatlarRoyxati };
+module.exports.HUJJAT_TURLARI = HUJJAT_TURLARI;   // Yurist bo'limi ham ishlatadi (amal emas)

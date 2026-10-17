@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — serverdagi amal javobini eski tizim bilan solishtirish. Ishlatish: aks-solishtir <amal> <xodim_kirish_kodi> [arg…]
+cd /opt/aks/app && exec sudo -u aks -H node bin/solishtir.js "$@"
