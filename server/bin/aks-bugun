@@ -2,7 +2,13 @@
 # AKS TIZIM — bugungi faollik: kim kirdi (yangi server orqali) va qaysi amallar qancha vaqt oldi.
 # Ishlatish: aks-bugun            — umumiy
 #            aks-bugun und        — nomida «und» bor amallarning bugungi oxirgi 20 chaqiruvi (vaqti, qayerda, ms, xato)
+#            aks-bugun koprik     — hali eski tizimga boradigan amallar, umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
+if [ "$1" = "koprik" ]; then
+  echo "================ AKS — hali ESKI TIZIMGA boradigan amallar (oxirgi 3 kun), umumiy kutish bo'yicha ================"
+  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '3 days' AND qayerda = 'koprik' GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
+  exit 0
+fi
 if [ -n "$1" ]; then
   F=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9_')
   echo "================ AKS — «$F» amallari, bugun $(date '+%d.%m.%Y %H:%M') ================"
