@@ -35,15 +35,18 @@ async function undJurnal() {
     .sort((a, b) => a.sana < b.sana ? -1 : a.sana > b.sana ? 1 : a.qator - b.qator);
 }
 
-// 06b_Yuridik_ishlar — getValues (xom)
-async function yuIshlar() {
+// 06b_Yuridik_ishlar — getValues (xom). yuIshQator — bitta qator (n — qator raqami, x — xom qiymatlar); Google'dan yangi o'qilgan qatorga ham.
+function yuIshQator(n, x) {
   const s = v => String(v == null ? '' : v);
-  return (await V.qatorlar('06b_Yuridik_ishlar')).map(({ n, x, r }) => ({ qator: n, id: x[0] == null ? '' : x[0], no: s(x[1]), topshirilgan: V.iso(x[2]), yurist: s(x[3]),
+  return { qator: n, id: x[0] == null ? '' : x[0], no: s(x[1]), topshirilgan: V.iso(x[2]), yurist: s(x[3]),
     davoNo: s(x[5]), davoSana: V.iso(x[6]), sudNomi: s(x[7]), sudIshNo: s(x[8]), qarorSana: V.iso(x[9]), qaror: s(x[10]),
     ijroNo: s(x[11]), ijroSana: V.iso(x[12]), ijrochi: s(x[13]), holati: s(x[14]), izoh: s(x[15]), fish: s(x[16]), dokon: s(x[17]),
     bosqich: Number(x[19]) || 0, bosqichSana: V.iso(x[20]), majlis: V.iso(x[21]), qabulSana: V.iso(x[22]), kuchSana: V.iso(x[23]), mibSana: V.iso(x[24]),
     yol: s(x[25]), undiruvchi: s(x[26]), sorovSabab: s(x[27]), sorovVaqt: typeof x[28] === 'number' ? V.dmy(x[28]) + ' ' + soatDaq(x[28]) : s(x[28]),
-    tasdiqladi: s(x[29]), yopishSabab: s(x[30]), tartib: s(x[31]).trim() === 'Buyruq' ? 'Buyruq' : (s(x[31]).trim() === 'Davo' ? 'Davo' : ''), radIzoh: s(x[32]) }))
+    tasdiqladi: s(x[29]), yopishSabab: s(x[30]), tartib: s(x[31]).trim() === 'Buyruq' ? 'Buyruq' : (s(x[31]).trim() === 'Davo' ? 'Davo' : ''), radIzoh: s(x[32]) };
+}
+async function yuIshlar() {
+  return (await V.qatorlar('06b_Yuridik_ishlar')).map(({ n, x }) => yuIshQator(n, x))
     .filter(i => i.id !== '' && i.id !== null && i.no && i.holati);
 }
 
@@ -62,4 +65,4 @@ function topKor(x) {
   return Object.assign({}, x, { kechikkan: !!kech, tasdiqchi: topTasdiqchi(x), tgx: undefined });
 }
 
-module.exports = { xatJurnal, hujjatJurnal, undJurnal, yuIshlar, topRows, topKor };
+module.exports = { xatJurnal, hujjatJurnal, undJurnal, yuIshlar, yuIshQator, topRows, topKor };

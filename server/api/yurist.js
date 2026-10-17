@@ -179,3 +179,5 @@ async function yuristIsh([kodSes, id]) {
 }
 
 module.exports = { yuristBoshlang, yuristIsh };
+// yozadigan amallar (yurist_yoz.js) uchun umumiy qoidalar — amal emas
+module.exports.Q = { YU_TREK, YU_FAOL, YU_QARORLAR, YU_SUD, YU_TOP_TUR, yuTrek, yuKeyingiB, yuDmy, yuQabulMap };

@@ -27,7 +27,7 @@ const OQISH = new Set(('qadamBoshlang qadamMijoz qadamNazorat qadamTarix qadamJa
   'shartnomalar shartnomaBoshlang reyestrSotuv reyestrIjara hisobotMalumot bugungiTolovlar bugungiTashriflarHammasi ' +
   'devonBoshlang devonIjroHolat taminotBoshlang taminotSvodOl qaytaOchiq qaytaKor qaytaHujjatlar ijroKorish kbHolat tahrirHolat ' +
   'mijozKarta jadvalHisob').split(/\s+/));
-const FAYL = new Set('qadamFayl kbFayl devonFayl bekorFayl tqFayl tasdiqFayl yhAloqaFayl'.split(' '));
+const FAYL = new Set('qadamFayl kbFayl devonFayl bekorFayl tqFayl tasdiqFayl yhAloqaFayl yuristHujjat'.split(' '));
 
 const oqishmi = fn => OQISH.has(fn) || FAYL.has(fn);
 const kalit = (kod, fn, args) => 'kk:' + kod + ':' + fn + ':' + crypto.createHash('sha1').update(JSON.stringify(args || [])).digest('hex').slice(0, 16);

@@ -12,19 +12,19 @@ const BOLAK = 2000; // bitta INSERT dagi qatorlar soni
 
 function vaqt() { return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }); }
 
-async function kompaniyaKozgusi(db, k) {
+// faqat — varaq nomlari ro'yxati berilsa, faqat o'shalar o'qiladi (server o'zi yozgandan keyin: 1–2 soniya). Berilmasa — hammasi.
+async function kompaniyaKozgusi(db, k, faqat) {
   // bir kompaniya uchun bir vaqtda bitta yurish (taymer va ilova serveri to'qnashmasin)
   await db.query('SELECT pg_advisory_lock(424242, $1)', [k.id]);
-  try { return await kompaniyaKozgusiIch(db, k); }
+  try { return await kompaniyaKozgusiIch(db, k, faqat); }
   finally { await db.query('SELECT pg_advisory_unlock(424242, $1)', [k.id]).catch(() => {}); }
 }
-async function kompaniyaKozgusiIch(db, k) {
+async function kompaniyaKozgusiIch(db, k, faqat) {
   const yur = await db.query('INSERT INTO kozgu.yurishlar (kompaniya_id) VALUES ($1) RETURNING id', [k.id]);
   const yurId = yur.rows[0].id;
   const t0 = Date.now();
   try {
-    const meta = await google.varaqlar(k.sheet_id, env.googleKey);
-    const nomlar = meta.varaqlar.map(v => v.title);
+    const nomlar = faqat && faqat.length ? faqat.slice() : (await google.varaqlar(k.sheet_id, env.googleKey)).varaqlar.map(v => v.title);
     const qiymat = await google.qiymatlar(k.sheet_id, nomlar, env.googleKey);
     const googleMs = Date.now() - t0;
 
@@ -65,7 +65,7 @@ async function kompaniyaKozgusiIch(db, k) {
         [k.id, nom, toliq.length, ustun, xesh]);
     }
     // Google'da o'chirilgan varaqlar bazadan ham olib tashlanadi
-    const yoq = [...eski.keys()].filter(n => !nomlar.includes(n));
+    const yoq = faqat && faqat.length ? [] : [...eski.keys()].filter(n => !nomlar.includes(n));
     for (const nom of yoq) {
       await db.query('DELETE FROM kozgu.qatorlar WHERE kompaniya_id=$1 AND varaq=$2', [k.id, nom]);
       await db.query('DELETE FROM kozgu.varaqlar WHERE kompaniya_id=$1 AND varaq=$2', [k.id, nom]);

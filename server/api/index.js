@@ -55,7 +55,10 @@ fastify.post('/api/rpc', async (req, reply) => {
   if (!fn) return { ok: false, xato: 'Amal nomi yo\'q' };
   try {
     let r, qayerda;
-    if (typeof A[fn] === 'function') { qayerda = 'server'; r = await A[fn](args); }
+    if (typeof A[fn] === 'function') {
+      qayerda = 'server'; r = await A[fn](args);
+      if (A.YOZUV.has(fn)) { const kod = String(args[0] || '').split('|')[0]; if (kod) kesh.yozuvdanKeyin(kod).catch(() => {}); }   // serverdagi yozuv — xodimning tayyor javoblari eskirdi
+    }
     else {
       qayerda = 'koprik';
       // eski tizimga faqat tirik sessiya bilan; kod «kod|tok» ko'rinishida keladi

@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasiga YANGI fayl sifatida qo'shiladi (v1.1). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.2). Boshqa fayllar o'zgarmaydi.
+// v1.2: yurist yozuvlari serverga ko'chdi — server jadvalga o'zi yozadi, faqat Drive va Telegram shu yerda:
+//       koprikVersiya, koprikHujjatYukla (skan → Drive + 06d, hujjatYukla_ bilan aynan bir xil), koprikTg (xodimga Telegram).
 // v1.1: koprikZanjir — XAT_ZANJIR (Script Properties) ni serverga beradi (yurist mezoni uchun).
 /**
  * AKS TIZIM — SERVER KO'PRIGI. Yangi server (aks-tizim.uz) hali o'ziga ko'chirilmagan amallarni shu orqali eski tizimda bajaradi.
@@ -11,7 +13,7 @@
  *
  * Xavfsizlik: faqat BRIDGE_SECRET ni bilgan (ya'ni server) chaqira oladi. Kalit URL da emas, so'rov tanasida.
  * Sessiya: server xodimni o'zi tekshirib bo'lgan; bu yerda o'sha xodim uchun eski tizim sessiyasi (CacheService) ochiladi
- * va funksiya xuddi ilovadan chaqirilgandek «kod|tok» bilan bajariladi. pin va tg funksiyalari — kirish kodining o'zi bilan.
+ * va funksiya xuddi ilovadan chaqirilgandek «kod|tok» bilan bajariladi. pin va tg funksiyalari (va sifatBilet) — kirish kodining o'zi bilan.
  */
 function doPost(e) {
   const javob = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
@@ -27,7 +29,7 @@ function doPost(e) {
   if (typeof f !== 'function') return javob({ ok: false, xato: 'Eski tizimda funksiya topilmadi: ' + fn });
   if (!foydalanuvchiKod_(kod)) return javob({ ok: false, xato: 'Kirish taqiqlangan.' });
   try {
-    const birinchi = /^(pin|tg|sifat)/.test(fn) ? kod : kod + '|' + koprikSessiya_(kod);
+    const birinchi = (/^(pin|tg)/.test(fn) || fn === 'sifatBilet') ? kod : kod + '|' + koprikSessiya_(kod);   // v1.2: sifatHavola/sifatAsosiy ham sessiya bilan
     const r = f.apply(null, [birinchi].concat(args));
     return javob({ ok: true, r: r === undefined ? null : r });
   } catch (err) {
@@ -45,3 +47,9 @@ function koprikSessiya_(kod) {
 }
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { ruxsat_(kod, 'yurist'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }
+// v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
+function koprikVersiya(kod) { return '1.2'; }
+// v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
+function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
+// v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
+function koprikTg(kod, fish, matn) { ruxsat_(kod, 'yurist'); yuTgXodim_(SpreadsheetApp.openById(SS_ID), fish, matn); return { ok: true }; }

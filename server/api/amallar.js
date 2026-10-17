@@ -78,5 +78,10 @@ Object.assign(A, require('./hujjat'));
 delete A.HUJJAT_TURLARI;
 // ⚖ Yurist: yuristBoshlang, yuristIsh (Yurist.gs v25.9) — o'qish serverda; yozuvlar hali ko'prikda
 Object.assign(A, require('./yurist'));
+delete A.Q;
+// ⚖ Yurist yozuvlari: yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq — server o'zi yozadi
+Object.assign(A, require('./yurist_yoz'));
 
+// serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq']), enumerable: false });
 module.exports = A;
