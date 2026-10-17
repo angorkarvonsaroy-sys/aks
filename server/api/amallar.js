@@ -64,6 +64,14 @@ async function kirishJurnali(x, usul) {
 }
 
 // ---------------- 👤 Mijozlar (Mijoz.gs o'rni) — ko'zgudan, Google'siz
+// 👁 Sifat.gs sifatXodimlar — direktor uchun xodimlar ro'yxati (ko'prik bu amalga eski sessiyani bermasdi → «Kirish taqiqlangan»)
+A.sifatXodimlar = async ([kodSes]) => {
+  await S.ruxsat(kodSes, 'admin');
+  const r = await q(`SELECT xodim_id, fish, lavozim, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1 AND holat = 'Ishlayapti' AND huquqlar IS NOT NULL ORDER BY qator_no`);
+  return r.rows.filter(x => !x.huquqlar.includes('admin'))
+    .map(x => ({ id: x.xodim_id, fish: x.fish, lavozim: x.lavozim, huquq: x.huquqlar.join(', '), komp: x.huquqlar.includes('kompyuter_rejim') }));
+};
+
 Object.assign(A, require('./mijoz'));
 // ---------------- 📎 Hujjatlar: ro'yxatlar (Hujjat.gs o'qiydigan qismi)
 Object.assign(A, require('./hujjat'));
