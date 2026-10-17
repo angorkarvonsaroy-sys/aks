@@ -311,4 +311,20 @@ async function yuristTasdiq(args) {
   }));
 }
 
-module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq };
+// ------------------------------------------------------------------ skanni yuklab olish (Yurist.gs yuristHujjat) — Drive'dan to'g'ridan-to'g'ri (robot «Читатель»)
+// Robot faylni ko'ra olmasa (papka ulashilmagan / boshqa papkadagi eski fayl) — eski tizim orqali (avvalgidek).
+async function yuristHujjat(args) {
+  const [kodSes, hujjatId] = args;
+  const u = await S.ruxsat(kodSes, 'yurist');
+  const h = (await J.hujjatJurnal()).find(z => String(z.id) === String(hujjatId) && z.holati === 'Faol'); if (!h) throw new S.Xato('Hujjat topilmadi.');
+  if (!u.admin && !(await J.yuIshlar()).some(i => i.no === h.no && i.holati !== 'Rad etildi' && i.holati !== 'Tasdiq kutilmoqda')) throw new S.Xato('Bu hujjat sizdagi ishga tegishli emas.');
+  try {
+    const f = await G.driveFayl(h.faylId, env.googleKey);
+    return { nom: f.nom, b64: f.bytes.toString('base64') };
+  } catch (e) {
+    if (!(e instanceof G.RuxsatYoq)) console.error('yuristHujjat (Drive):', e.message);
+    return koprik.chaqir('yuristHujjat', u.kod, [hujjatId]);
+  }
+}
+
+module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat };

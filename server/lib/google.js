@@ -7,6 +7,7 @@ const fs = require('fs');
 
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 const SCOPE_YOZ = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPE_DRIVE = 'https://www.googleapis.com/auth/drive.readonly';   // skanlarni o'qish (papka robotga «Читатель» qilib berilgan)
 const keshlar = {};   // ruxsat → { token, tugaydi }
 
 function b64(o) { return Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64url'); }
@@ -124,4 +125,17 @@ async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
 }
 
-module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, yoz, qatorQosh, sanaFormat, sanaYoz, RuxsatYoq };
+// ------------------------------------------------------------------ DRIVE (faqat o'qish): fayl nomi + tanasi (Buffer)
+async function driveFayl(faylId, kalitFayl) {
+  const t = await token(kalitFayl, SCOPE_DRIVE);
+  const id = encodeURIComponent(String(faylId || '').trim());
+  const m = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=name,size,mimeType&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  if (m.status === 403 || m.status === 404) throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (' + m.status + ')');
+  const meta = await m.json();
+  if (meta.error) throw new Error('Drive xato ' + meta.error.code + ': ' + meta.error.message);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  if (!r.ok) throw new Error('Drive fayl yuklanmadi: ' + r.status);
+  return { nom: meta.name, mime: meta.mimeType, bytes: Buffer.from(await r.arrayBuffer()) };
+}
+
+module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, yoz, qatorQosh, sanaFormat, sanaYoz, driveFayl, RuxsatYoq };
