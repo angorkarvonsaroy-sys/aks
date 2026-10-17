@@ -99,6 +99,8 @@ Object.assign(A, require('./direktor'));
 Object.assign(A, require('./taminot'));
 // 📌 topRoyxat (direktor topshiriqlari) — serverda; topQoidaYoz — eski tizim + server nusxasi
 Object.assign(A, require('./topshiriq'));
+// 🗺 xaritaMalumot (Kod.gs 5-bo'lim)
+Object.assign(A, require('./xarita'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir']), enumerable: false });
