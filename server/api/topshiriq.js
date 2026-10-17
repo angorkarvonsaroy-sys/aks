@@ -95,4 +95,63 @@ async function topQoidaYoz([kodSes, cfg]) {
   return r;
 }
 
-module.exports = { topRoyxat, topQoidaYoz };
+// ------------------------------------------------------------------ 🔎 Tekshiruvdagi isbotlar (tasdiqRoyxat, tasdiqFayl) — o'qish; tasdiqQil — eski tizimda
+const TOP_RAD_SABAB = {
+  hujjat: ['Sahifa yetishmaydi', 'O\'qib bo\'lmaydi — xira', 'Boshqa hujjat yuklangan', 'Imzo yo\'q'],
+  xat: ['Mijoz imzosi yo\'q', 'Kvitansiya o\'qilmaydi', 'Pochta raqami mos emas', 'Boshqa xatning isboti'],
+  oddiy: ['Isbot yetarli emas', 'Ish to\'liq bajarilmagan', 'Boshqa fayl yuklangan'] };
+async function tasdiqRoyxat([kodSes, d]) {
+  const u = await S.ruxsat(kodSes);
+  const adm = u.huquq.indexOf('admin') >= 0, yu = u.huquq.indexOf('yurist') >= 0;
+  if (!adm && !yu) throw new S.Xato('Bu ro\'yxat faqat yurist va direktor uchun.');
+  let L = d && d.ixtiyoriy ? await TS.skanNazNavbat() : await TS.tasdiqNavbat();
+  if (d && d.kech) L = L.filter(it => it.tasdiqchi === 'yurist' && it.kech);
+  else if (!adm) L = L.filter(it => it.tasdiqchi === 'yurist');
+  L.sort((a, b) => (b.kech - a.kech) || (b.shosh - a.shosh) || (a.muddat < b.muddat ? -1 : 1));
+  return { ok: true, admin: adm, sabab: TOP_RAD_SABAB, royxat: L.map(it => { const o = Object.assign({}, it); delete o.caption; delete o.tgx; o.fayl = it.fayl.length; return o; }) };
+}
+// tasdiqItem_: bitta (hali tekshirilmagan) isbot — 't<ID>', 'x<raqam>' yoki 'n<hujjat ID>'
+async function tasdiqItem(k) {
+  k = String(k || '');
+  if (k.charAt(0) === 't') {
+    const t = (await J.topRows()).find(z => String(z.id) === k.slice(1));
+    if (!(t && t.holati === 'Tekshiruvda' && !/^(qayta|devon|malumot)\|/.test(String(t.kalit || '')))) return null;
+    const [sh, HJ, XJ] = await Promise.all([TS.topShosh(), J.hujjatJurnal(), J.xatJurnal()]);
+    return TS.tasdiqTopItem(t, sh, HJ, XJ);
+  }
+  if (k.charAt(0) === 'x') {
+    const XJ = await J.xatJurnal(); const h = XJ.find(z => z.raqam === k.slice(1)); if (!h) return null;
+    const [sh, HJ] = await Promise.all([TS.topShosh(), J.hujjatJurnal()]);
+    return TS.xatTasdiqItem(h, sh, HJ);
+  }
+  if (k.charAt(0) === 'n') {
+    const r = (await V.qatorlar('06d_Hujjatlar')).map(({ r }) => ({ id: r[0] || '', no: r[1] || '', fish: r[3] || '', turi: r[5] || '', nom: r[7] || '', faylId: r[8] || '', kim: r[11] || '', vaqt: r[12] || '', holati: r[13] || '', naz: r[15] || '', tgx: r[16] || '' }))
+      .find(h => h.id && h.turi === 'SHARTNOMA' && String(h.id) === k.slice(1));
+    return r ? TS.skanNazItem(r) : null;
+  }
+  return null;
+}
+const MIME = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic' };
+async function tasdiqFayl([kodSes, k, n]) {
+  const u = await S.ruxsat(kodSes);
+  const it = await tasdiqItem(k);
+  if (!it) throw new S.Xato('Isbot topilmadi yoki allaqachon tekshirilgan.');
+  if (!(u.huquq.indexOf('admin') >= 0 || (it.tasdiqchi === 'yurist' && u.huquq.indexOf('yurist') >= 0))) throw new S.Xato('Bu isbotni ' + (it.tasdiqchi === 'yurist' ? 'yurist' : 'direktor') + ' tekshiradi.');
+  const f = it.fayl[Number(n) || 0]; if (!f) throw new S.Xato('Isbot fayli topilmadi.');
+  let fid = '', nom = '', no = '';
+  if (f.hj) { const h = (await J.hujjatJurnal()).find(z => String(z.id) === String(f.hj)); if (!h || !h.faylId) throw new S.Xato('Isbot fayli topilmadi.'); fid = h.faylId; nom = h.nom; no = h.no; }
+  else if (f.f) fid = f.f;
+  else throw new S.Xato('Isbot fayli topilmadi.');
+  const sv = require('./hujjat_yoz').srvFayl(fid, no, nom);
+  if (sv) { const e = (/\.([a-z0-9]+)$/i.exec(sv.nom) || ['', 'pdf'])[1].toLowerCase(); return { nom: nom || sv.nom, b64: sv.bytes.toString('base64'), mime: MIME[e] || 'application/pdf' }; }
+  const G = require('../lib/google'), env = require('../lib/env');
+  try {
+    const d = await G.driveFayl(fid, env.googleKey);
+    return { nom: nom || d.nom, b64: d.bytes.toString('base64'), mime: d.mime || 'application/pdf' };
+  } catch (e) {
+    if (!(e instanceof G.RuxsatYoq)) console.error('tasdiqFayl (Drive):', e.message);
+    return koprik.chaqir('tasdiqFayl', u.kod, [k, n]);
+  }
+}
+
+module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl };

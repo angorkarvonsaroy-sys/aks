@@ -102,4 +102,4 @@ async function tqKorilmagan(L) {
   return (L || await J.tqRows()).filter(q => q.rol === 'yurist' && q.qaror === 'Rad' && !q.direktor && String(q.vaqt).slice(0, 10) >= ch);
 }
 
-module.exports = { tasdiqNavbat, skanNazNavbat, tqKorilmagan, topShosh, topIshKun, topIso, topHozirIso, topTasdiqchi, topHjTur, topTalabHolat, TOP_HJ_NOM };
+module.exports = { tasdiqTopItem, xatTasdiqItem, skanNazItem, xatTekKutadi, tasdiqNavbat, skanNazNavbat, tqKorilmagan, topShosh, topIshKun, topIso, topHozirIso, topTasdiqchi, topHjTur, topTalabHolat, TOP_HJ_NOM };
