@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — xodimni yangi tizimga o'tkazishdan oldin tekshirish. Ishlatish: aks-xodim <ism>
+cd /opt/aks/app && exec sudo -u aks -H node bin/xodim.js "$@"
