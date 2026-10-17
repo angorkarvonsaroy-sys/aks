@@ -103,6 +103,8 @@ Object.assign(A, require('./topshiriq'));
 Object.assign(A, require('./xarita'));
 // 📎 Hujjatlar kartasi panellari: tahrirHolat, bekorHolat — o'qish
 Object.assign(A, require('./hujjat_panel'));
+// ✉ xatBoshlang (Xat.gs) — ro'yxat; xat yasash/yuborish — eski tizimda
+Object.assign(A, require('./xat'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir']), enumerable: false });
