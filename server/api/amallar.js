@@ -93,6 +93,8 @@ const HY = require('./hujjat_yoz'); A.hujjatYukla = HY.hujjatYukla;
 Object.assign(A, require('./qadam'));
 // undiruvchi yozuvlari: undYoz, qadamChora, qadamNazoratYoz, qadamKechiktir — server jadvalga o'zi yozadi
 Object.assign(A, require('./undiruv_yoz'));
+// shartnomalar, devonDirektor, bekorDirektor
+Object.assign(A, require('./direktor'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir']), enumerable: false });
