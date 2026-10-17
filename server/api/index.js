@@ -11,6 +11,7 @@ const { q, pool, redis } = require('../lib/db');
 const S = require('./sessiya');
 const A = require('./amallar');
 const koprik = require('./koprik');
+const kesh = require('./kesh');
 const ui = require('./ui');
 
 const VERSIYA = (() => { try { return require('fs').readFileSync(__dirname + '/../.versiya', 'utf8').trim().slice(0, 7); } catch (e) { return 'dev'; } })();
@@ -46,7 +47,13 @@ fastify.post('/api/rpc', async (req, reply) => {
       // eski tizimga faqat tirik sessiya bilan; kod «kod|tok» ko'rinishida keladi
       const u = await S.foydalanuvchi(args[0]);
       if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
-      r = await koprik.chaqir(fn, u.kod, args.slice(1));
+      if (kesh.oqishmi(fn)) {
+        const n = await kesh.oqi(u.kod, fn, args.slice(1));      // o'qish: keshdan (tayyor) yoki ko'prikdan
+        r = n.r; qayerda = n.qayerda;
+      } else {
+        r = await koprik.chaqir(fn, u.kod, args.slice(1));        // yozuv: faqat ko'prik
+        kesh.yozuvdanKeyin(u.kod).catch(() => {});                // xodimning tayyor javoblari eskirdi — qayta tayyorlanadi
+      }
     }
     jurnal(fn, qayerda, Date.now() - t0, true);
     return { ok: true, r: r === undefined ? null : r };
@@ -76,6 +83,7 @@ fastify.setNotFoundHandler((req, reply) => { reply.code(404).type('text/plain; c
 
 async function main() {
   await fastify.listen({ port: env.appPort, host: '127.0.0.1' });
+  kesh.boshla();
   console.log(`${new Date().toISOString()} AKS api ${VERSIYA} tinglayapti: 127.0.0.1:${env.appPort}`);
 }
 main().catch(e => { console.error('API ishga tushmadi:', e); process.exit(1); });
