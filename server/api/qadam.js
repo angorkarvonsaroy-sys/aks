@@ -698,6 +698,8 @@ async function ijroTrigger(kod) {
   try { const v = await ol(); if (v) return v; } catch (e) { console.error('ijro trigger (ko\'prik):', e.message); }
   return { ok: true, kechki: true, tanla: true };
 }
+// eski tizim «27/5» kabi raqamni (N ≤ 12) jadvalga yozganda Sheets uni sanaga aylantirgan (27.05.2026) — asl raqam tiklanadi
+const shNo = v => { if (typeof v !== 'number') return v; const i = V.iso(v); return i && i.slice(8, 10) === '27' ? '27/' + Number(i.slice(5, 7)) : v; };
 const ijroVaqt = v => typeof v === 'number' ? V.dmy(v) + ' ' + soatDaq(v) : String(v || '');
 async function ijroKorish([kodSes, d]) {
   const u = await S.ruxsat(kodSes);
@@ -727,11 +729,11 @@ async function ijroKorish([kodSes, d]) {
       tushuntirish: son.tushuntirishsiz, tekshiruv: { jami: tk.length, ha: tk.filter(r => r.Holati === 'Tasdiqlandi').length, yoq: tk.filter(r => r.Holati === 'Tasdiqlanmadi').length,
         kut: tk.filter(r => r.Holati === 'Kutilmoqda').length } }; });
   const royxat = L.filter(q => ijroIso(q.Sana).slice(0, 7) === oy && U0.some(x => qdTeng(x.fish, q.Xodim))).reverse()
-    .map(q => ({ id: q.ID, sana: ijroIso(q.Sana), xodim: q.Xodim, tur: q.Tur, nomi: q.Nomi, ogirlik: q.Ogirlik, ball: Number(q.Ball) || 1, no: q.Shartnoma, fish: q.Mijoz, tafsilot: q.Tafsilot,
+    .map(q => ({ id: q.ID, sana: ijroIso(q.Sana), xodim: q.Xodim, tur: q.Tur, nomi: q.Nomi, ogirlik: q.Ogirlik, ball: Number(q.Ball) || 1, no: shNo(q.Shartnoma), fish: q.Mijoz, tafsilot: q.Tafsilot,
       holat: q.Holati, uzr: q.Uzr_sababi, uzrKim: q.Uzr_kim, tush: q.Tushuntirish, tushVaqt: ijroVaqt(q.Tushuntirish_vaqt) }));
   const res = { ok: true, admin: adm, oy, bugun, xodimlar, royxat, zina: IJRO_ZINA, tur: IJRO_TUR };
   if (adm) {
-    res.tekshiruv = TL.filter(r => ijroIso(r.Tanlandi).slice(0, 7) === oy).reverse().slice(0, 60).map(r => ({ sana: ijroIso(r.Tanlandi), yozuv: ijroIso(r.Yozuv_sanasi), no: r.Shartnoma, fish: r.Mijoz,
+    res.tekshiruv = TL.filter(r => ijroIso(r.Tanlandi).slice(0, 7) === oy).reverse().slice(0, 60).map(r => ({ sana: ijroIso(r.Tanlandi), yozuv: ijroIso(r.Yozuv_sanasi), no: shNo(r.Shartnoma), fish: r.Mijoz,
       und: r.Undiruvchi, chora: r.Chora, kim: r.Tekshiruvchi, holat: r.Holati, izoh: r.Izoh, urinish: r.Urinish }));
     const tk = XD.filter(x => x.huquq.indexOf('tekshiruv') >= 0 && !x.undiruvchi).map(x => x.fish);
     res.tekshiruvchi = tk.length ? tk : ['(«tekshiruv» huquqi hech kimda yo\'q — tekshiruv direktorga tushadi)'];
