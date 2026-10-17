@@ -101,6 +101,8 @@ Object.assign(A, require('./taminot'));
 Object.assign(A, require('./topshiriq'));
 // 🗺 xaritaMalumot (Kod.gs 5-bo'lim)
 Object.assign(A, require('./xarita'));
+// 📎 Hujjatlar kartasi panellari: tahrirHolat, bekorHolat — o'qish
+Object.assign(A, require('./hujjat_panel'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir']), enumerable: false });

@@ -37,6 +37,13 @@ const qisqa = v => { const s = typeof v === 'string' ? v : JSON.stringify(v); re
   if (parsed[0] === 'navbat') { const I = await require('../lib/jurnallar').yuIshlar();
     ishlar = [...new Set(I.filter(i => i.holati === 'Tasdiq kutilmoqda').map(i => i.no))].map(no => [no, ...parsed.slice(1)]);
     console.log('Tasdiq kutayotganlar: ' + (ishlar.map(z => z[0]).join(', ') || 'yo\'q')); }
+  // «namuna» — har xil shartnomalar bilan: oxirgi 3 ta sotuv, oxirgi 3 ta ijara, ochiq bekor so'rovlari (2 tagacha)
+  if (parsed[0] === 'namuna') { const V = require('../lib/varaq'), Jr = require('../lib/jurnallar');
+    const ol = async (v, re) => (await V.qatorlar(v)).map(z => String(z.x[0] == null ? '' : z.x[0]).trim()).filter(n => re.test(n)).slice(-3);
+    const B = (await Jr.bekorJurnal()).filter(z => ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'].indexOf(z.holati) < 0).map(z => z.no).slice(-2);
+    const N = [...new Set([...(await ol('03_Sotuv_shartnomalar', /^27\/\d+$/)), ...(await ol('04_Ijara_shartnomalar', /^IJ-27\/\d+$/)), ...B])];
+    ishlar = N.map(no => [no, ...parsed.slice(1)]);
+    console.log('Namuna: ' + N.join(', ')); }
   let jamiF = 0;
   for (const P of ishlar) {
     if (ishlar.length > 1) console.log('--- ' + P.join(' '));
