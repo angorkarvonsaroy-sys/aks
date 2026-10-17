@@ -48,7 +48,7 @@ function koprikSessiya_(kod) {
   return tok;
 }
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
-function koprikZanjir(kod) { ruxsat_(kod, 'yurist'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }
+function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
 function koprikVersiya(kod) { return '1.4'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
