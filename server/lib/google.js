@@ -134,16 +134,35 @@ async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
 }
 
 // ------------------------------------------------------------------ DRIVE (faqat o'qish): fayl nomi + tanasi (Buffer)
+// Disk keshi: <hujjatPapka>/.drive/<id>.bin (+ .json: modifiedTime, nom, mime). Har safar faqat metama'lumot so'raladi (tez);
+// fayl o'zgarmagan bo'lsa — diskdan, o'zgargan bo'lsa — qayta yuklanadi. Kesh yozilmasa ham (ruxsat) — oddiy yuklab berish.
+const path = require('path');
+const DRIVE_KESH_MAX = 30 * 1048576;
+function keshYol(id) { const env = require('./env'); return path.join(env.hujjatPapka, '.drive', String(id).replace(/[^A-Za-z0-9_-]/g, '_')); }
 async function driveFayl(faylId, kalitFayl) {
   const t = await token(kalitFayl, SCOPE_DRIVE);
-  const id = encodeURIComponent(String(faylId || '').trim());
-  const m = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=name,size,mimeType&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  const id0 = String(faylId || '').trim(), id = encodeURIComponent(id0);
+  const ky = keshYol(id0);
+  let k = null; try { k = JSON.parse(fs.readFileSync(ky + '.json', 'utf8')); if (!fs.existsSync(ky + '.bin')) k = null; } catch (e) { k = null; }
+  const metaP = fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=name,size,mimeType,modifiedTime&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  const media = () => fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  let mediaP = k ? null : media();                    // keshda yo'q — tanasini darhol (parallel) so'raymiz
+  if (mediaP) mediaP.catch(() => {});                  // meta xato bersa — kutilmagan rad etish jarayonni yiqitmasin
+  const m = await metaP;
   const meta = await m.json().catch(() => ({}));
-  if (m.status === 403 || m.status === 404) throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (' + m.status + '): ' + ((meta.error && meta.error.message) || '').slice(0, 160));
+  if (m.status === 403 || m.status === 404) { throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (' + m.status + '): ' + ((meta.error && meta.error.message) || '').slice(0, 160)); }
   if (meta.error) throw new Error('Drive xato ' + meta.error.code + ': ' + meta.error.message);
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + t } });
+  if (k && k.mt === meta.modifiedTime) {
+    try { return { nom: meta.name, mime: meta.mimeType, bytes: fs.readFileSync(ky + '.bin') }; } catch (e) { }
+  }
+  if (!mediaP) mediaP = media();
+  const r = await mediaP;
   if (!r.ok) throw new Error('Drive fayl yuklanmadi: ' + r.status);
-  return { nom: meta.name, mime: meta.mimeType, bytes: Buffer.from(await r.arrayBuffer()) };
+  const bytes = Buffer.from(await r.arrayBuffer());
+  if (bytes.length <= DRIVE_KESH_MAX) {
+    try { fs.mkdirSync(path.dirname(ky), { recursive: true }); fs.writeFileSync(ky + '.bin', bytes); fs.writeFileSync(ky + '.json', JSON.stringify({ mt: meta.modifiedTime, nom: meta.name, mime: meta.mimeType })); } catch (e) { }
+  }
+  return { nom: meta.name, mime: meta.mimeType, bytes };
 }
 
 module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, yoz, qatorQosh, sanaFormat, sanaYoz, driveFayl, RuxsatYoq };
