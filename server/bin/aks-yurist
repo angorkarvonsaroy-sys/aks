@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — yurist bo'limi serverda to'liq ishlashga tayyormi (yozish huquqi + Koprik v1.2). Ishlatish: aks-yurist
+cd /opt/aks/app && exec sudo -u aks -H node bin/yurist_tekshir.js
