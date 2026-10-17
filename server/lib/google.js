@@ -124,9 +124,11 @@ async function sanaFormat(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
 async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   if (!kataklar.length) return;
   if (!gidKesh[sheetId]) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
-  const seriya = iso => { const [y, m, d] = iso.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000); };
+  // iso: 'yyyy-MM-dd' yoki 'yyyy-MM-dd HH:mm:ss' (Toshkent vaqti) → seriya raqami (kasr — soat); c.naqsh — katakning o'z formati
+  const seriya = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(String(iso)); if (!m) return 0;
+    return (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 + ((+m[4] || 0) * 3600 + (+m[5] || 0) * 60 + (+m[6] || 0)) / 86400; };
   const requests = kataklar.map(c => ({ updateCells: { range: { sheetId: gidKesh[sheetId][c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
-    rows: [{ values: [{ userEnteredValue: { numberValue: seriya(c.iso) }, userEnteredFormat: { numberFormat: { type: 'DATE', pattern: naqsh } } }] }],
+    rows: [{ values: [{ userEnteredValue: { numberValue: seriya(c.iso) }, userEnteredFormat: { numberFormat: { type: c.naqsh && /H/.test(c.naqsh) ? 'DATE_TIME' : 'DATE', pattern: c.naqsh || naqsh } } }] }],
     fields: 'userEnteredValue,userEnteredFormat.numberFormat' } }));
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
 }
