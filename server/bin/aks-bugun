@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# AKS TIZIM — bugungi faollik: kim kirdi (yangi server orqali) va qaysi amallar qancha vaqt oldi. Ishlatish: aks-bugun
+# AKS TIZIM — bugungi faollik: kim kirdi (yangi server orqali) va qaysi amallar qancha vaqt oldi.
+# Ishlatish: aks-bugun            — umumiy
+#            aks-bugun und        — nomida «und» bor amallarning bugungi oxirgi 20 chaqiruvi (vaqti, qayerda, ms, xato)
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
+if [ -n "$1" ]; then
+  F=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9_')
+  echo "================ AKS — «$F» amallari, bugun $(date '+%d.%m.%Y %H:%M') ================"
+  q -c "SELECT to_char(vaqt,'HH24:MI:SS') vaqt, fn AS amal, qayerda, ms, CASE WHEN ok THEN '' ELSE left(xato,60) END xato FROM rpc_jurnal WHERE vaqt::date = current_date AND fn ILIKE '%$F%' ORDER BY id DESC LIMIT 20;"
+  exit 0
+fi
 echo "================ AKS — BUGUN  $(date '+%d.%m.%Y %H:%M') ================"
 echo "--- Yangi server orqali kirganlar ---"
 q -c "SELECT to_char(min(vaqt),'HH24:MI') birinchi, to_char(max(vaqt),'HH24:MI') oxirgi, count(*) marta, fish FROM kirishlar WHERE vaqt::date = current_date GROUP BY fish ORDER BY 1;"
