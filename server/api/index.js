@@ -5,7 +5,7 @@
 //   GET  /api/holat   — server holati (JSON)
 // Tizim muallifi va yaratuvchisi: Kamoliddin Naqiyev
 'use strict';
-const fastify = require('fastify')({ logger: false, bodyLimit: 30 * 1024 * 1024, trustProxy: true });
+const fastify = require('fastify')({ logger: false, bodyLimit: 64 * 1024 * 1024, trustProxy: true });
 const env = require('../lib/env');
 const { q, pool, redis } = require('../lib/db');
 const S = require('./sessiya');

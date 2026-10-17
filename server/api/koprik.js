@@ -9,7 +9,7 @@ const env = require('../lib/env');
 
 const NAVBAT = 4;            // Google'ga bir vaqtda ketadigan so'rovlar soni
 const URINISH = 3;           // jami urinishlar
-const MUDDAT_MS = 70000;     // bitta urinish uchun
+const MUDDAT_MS = 70000;     // bitta urinish uchun (katta fayl yuborilsa — har MB ga +3 s)
 
 let band = 0;
 const kutayotganlar = [];
@@ -22,7 +22,8 @@ class Vaqtinchalik extends Error {}   // qayta urinsa bo'ladigan xato
 
 async function birUrinish(tana) {
   const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), MUDDAT_MS);
+  const muddat = MUDDAT_MS + Math.round(tana.length / 1048576) * 3000;
+  const t = setTimeout(() => ac.abort(), muddat);
   let r, matn;
   try {
     r = await fetch(env.bridgeUrl, {
@@ -32,7 +33,7 @@ async function birUrinish(tana) {
     });
     matn = await r.text();
   } catch (e) {
-    throw new Vaqtinchalik(e.name === 'AbortError' ? 'Eski tizim ' + (MUDDAT_MS / 1000) + ' soniyada javob bermadi' : 'Eski tizimga ulanib bo\'lmadi: ' + e.message);
+    throw new Vaqtinchalik(e.name === 'AbortError' ? 'Eski tizim ' + Math.round(muddat / 1000) + ' soniyada javob bermadi' : 'Eski tizimga ulanib bo\'lmadi: ' + e.message);
   } finally { clearTimeout(t); }
   let j;
   try { j = JSON.parse(matn); } catch (e) { j = null; }

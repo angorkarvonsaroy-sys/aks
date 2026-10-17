@@ -36,6 +36,14 @@ cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer
 
+# 4b. Nginx: katta skan (25 MB → base64 34 MB) o'tsin, eski tizim javobini 5 daqiqagacha kutsin
+cat > /etc/nginx/conf.d/aks-yuklash.conf <<'NG'
+client_max_body_size 64m;
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+NG
+nginx -t -q && systemctl reload nginx || echo "!!! nginx sozlamasi qabul qilinmadi"
+
 # 5. ko'zguni darhol bir marta yurgizish (kutmasdan)
 systemctl start --no-block aks-kozgu.service
 
