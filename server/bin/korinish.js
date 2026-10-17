@@ -17,7 +17,8 @@ const { xodimTeng } = require('../lib/xodim');
   else {
     console.log('================ SHARTNOMA HOLATI BO\'YICHA KO\'RINISH ================');
     console.log('Hozir: ' + ((await KR.yoqilgan()) ? 'YOQILGAN' : 'o\'chiq (hamma narsa avvalgidek ko\'rinadi)'));
-    console.log('Qoida: Aktiv, Kredit asosida, Yakunlangan — hamma · Bekor qilindi — «bekor_korish» · Noqonuniy hududda — «yurist» yoki «noqonuniy_korish» · qolganlari — faqat direktor\n');
+    console.log('Qoida: Aktiv, Kredit asosida, Yakunlangan — hamma · Bekor qilindi — «bekor_korish» · Noqonuniy hududda — «yurist» yoki «noqonuniy_korish» · qolganlari — faqat direktor');
+    console.log('Istisno: undiruvchi o\'ziga biriktirilgan shartnomani (03 «Undiruvchi») holatidan qat\'i nazar ko\'radi\n');
     const SH = [];
     (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r }) => { const no = String(r[0] == null ? '' : r[0]).trim(); if (no) SH.push({ no, tur: 'sotuv', holati: String(r[13] == null ? '' : r[13]).trim(), und: String(r[17] == null ? '' : r[17]).trim(), fish: String(r[20] == null ? '' : r[20]).trim() }); });
     (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r }) => { const no = String(r[0] == null ? '' : r[0]).trim(); if (no) SH.push({ no, tur: 'ijara', holati: String(r[2] == null ? '' : r[2]).trim(), und: String(r[20] == null ? '' : r[20]).trim(), fish: String(r[23] == null ? '' : r[23]).trim() }); });
@@ -28,14 +29,12 @@ const { xodimTeng } = require('../lib/xodim');
     for (const x of X) {
       const H = x.huquqlar || []; if (!H.length || H.includes('admin')) continue;
       const u = { admin: false, huquq: H, fish: x.fish };
-      const yop = SH.filter(s => !KR.korinadi(u, s.holati));
+      const yop = SH.filter(s => !KR.korinadi(u, s.holati, s.und));
       const g = {}; yop.forEach(s => { const k = s.holati || '(bo\'sh)'; g[k] = (g[k] || 0) + 1; });
       console.log('\n• ' + x.fish + '  [' + H.join(', ') + ']');
       console.log('   jami ' + yop.length + ' ta: ' + Object.keys(g).map(k => k + ' ' + g[k]).join(', '));
-      if (H.includes('undiruv')) {
-        const p = yop.filter(s => s.tur === 'sotuv' && s.und && xodimTeng(s.und, x.fish));
-        console.log('   undiruv portfelidan chiqadigan: ' + (p.length ? p.map(s => s.no + ' (' + s.holati + ', ' + s.fish.split(/\s+/).slice(0, 2).join(' ') + ')').join('; ') : 'yo\'q'));
-      }
+      const oz = SH.filter(s => s.tur === 'sotuv' && s.und && xodimTeng(s.und, x.fish) && !KR.korinadi({ admin: false, huquq: H, fish: '' }, s.holati));
+      if (oz.length) console.log('   o\'z portfelidagi (holati yopiq, lekin ko\'rinadi): ' + oz.length + ' ta — ' + oz.map(s => s.no + ' ' + s.holati).join(', '));
     }
     console.log('\n1-bosqichda qo\'llanadigan bo\'limlar: mijoz qidiruvi va kartasi, to\'lov ro\'yxati, bugungi to\'lovlar, reyestr, hisobot ro\'yxatlari, 👁 skan.');
     console.log('Hisobot va bosh sahifadagi JAMI summalar o\'zgarmaydi (kassa tushumi to\'liq qoladi) — faqat shartnoma ko\'rinadigan qatorlar yashiriladi.');
