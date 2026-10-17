@@ -4,6 +4,7 @@
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const SHARTNOMA_TURLARI = ['Тайёр дўкон (Муддатли тўлов шартномаси)', 'Қурилаётган дўкон (Муддатли тўлов шартномаси)',
   'Тайёр дўкон (100% тўлов шартномаси)', 'Қурилаётган дўкон (100% тўлов шартномаси)'];
@@ -49,7 +50,8 @@ async function bugungiTolovlar([kodSes]) {
   const bugun = V.bugun().split('-').reverse().join('.');
   const from = Math.max(2, last - 400);
   const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 14));
-  const royxat = v.filter(r => String(r[10]).indexOf(bugun) === 0 && (u.admin || r[9] === u.fish))
+  const Y = await KR.yopiqlar(u);
+  const royxat = v.filter(r => String(r[10]).indexOf(bugun) === 0 && (u.admin || r[9] === u.fish) && !Y.has(String(r[2]).trim()))
     .map(r => ({ id: r[0], sana: r[1], no: r[2], summa: Number(String(r[3]).replace(/[^\d]/g, '')), shakl: r[4], fish: r[13], kim: r[9], vaqt: String(r[10]).slice(11, 16) }));
   return { royxat: royxat.reverse(), jami: royxat.reduce((s, x) => s + x.summa, 0) };
 }

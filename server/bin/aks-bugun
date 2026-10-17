@@ -3,11 +3,22 @@
 # Ishlatish: aks-bugun            — umumiy
 #            aks-bugun und        — nomida «und» bor amallarning bugungi oxirgi 20 chaqiruvi (vaqti, qayerda, ms, xato)
 #            aks-bugun koprik     — hali eski tizimga boradigan amallar, umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
+#            aks-bugun skan       — kim qaysi skanni ochdi (huquq «skan»)
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
 if [ "$1" = "koprik" ]; then
   echo "================ AKS — hali ESKI TIZIMGA boradigan amallar (oxirgi 3 kun), umumiy kutish bo'yicha ================"
   q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '3 days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '3 days') GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
   echo "(Serverga ko'chib bo'lgan amallar bu ro'yxatda ko'rinmaydi — ular ko'chishdan oldin eski tizimga borgan bo'lsa ham.)"
+  exit 0
+fi
+if [ "$1" = "skan" ]; then
+  echo "================ AKS — kim qaysi skanni ochdi (oxirgi 40 ta, yangilari tepada) ================"
+  redis-cli --raw lrange skan_jurnal 0 39 | python3 -c "import sys,json
+for l in sys.stdin:
+  l=l.strip()
+  if not l: continue
+  try: x=json.loads(l); print(x.get('vaqt',''),'|',x.get('fish',''),'|',x.get('no',''),'|',x.get('nom',''))
+  except Exception: print(l)"
   exit 0
 fi
 if [ -n "$1" ]; then

@@ -5,6 +5,7 @@ const S = require('./sessiya');
 const V = require('../lib/varaq');
 const U = require('../lib/undiruv_yordam');
 const P = require('../lib/portfel');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const BOSH_REJA_USTUN = 26, BOSH_PASPORT_KUN = 30, BOSH_BEPUL_KUN = 30;
 const num = x => { const n = Number(x); return isNaN(n) ? 0 : Math.round(n); };   // Kod.gs num_
@@ -78,6 +79,10 @@ async function hisobotMalumot([kodSes, davr]) {
   const [b, o, nom] = davrChegara(davr, bugun);
   const h = await hisobotHisobla(b, o); h.nom = nom;
   if (!u.admin) delete h.buf;
+  const Y = await KR.yopiqlar(u);   // yashirin shartnomalar ro'yxatlardan olinadi; jami summalar o'zgarmaydi
+  if (Y.size) { const no = t => String(t).split(' · ')[0].trim();
+    h.tol.katta = h.tol.katta.filter(x => !Y.has(String(x[1]).trim()));
+    ['royxat', 'bekor'].forEach(k => { h.sot[k] = h.sot[k].filter(t => !Y.has(no(t))); h.ij[k] = h.ij[k].filter(t => !Y.has(no(t))); }); }
   const [hb, ho] = davrChegara('hafta', bugun); const [ob, oo] = davrChegara('oy', bugun);
   h.haftaTushum = davr === 'hafta' ? h.tol.jami : (await hisobotHisobla(hb, ho)).tol.jami;
   h.oyTushum = davr === 'oy' ? h.tol.jami : (await hisobotHisobla(ob, oo)).tol.jami;

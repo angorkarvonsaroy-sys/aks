@@ -1,5 +1,6 @@
 // AKS TIZIM — fayllarni ko'rish / yuklab olish serverda (robot «AKS TIZIM» papkasida «Читатель», 17.10.2026):
 //   devonFayl (Devon.gs) · bekorFayl (Bekor.gs) · kbFayl (KelishuvBekor.gs) · tqFayl (Topshiriq.gs) · yhAloqaFayl (Yurhujjat.gs)
+//   hujjatFayl — FAQAT serverda (eski tizimda yo'q): mijoz kartasidagi skanni «skan» huquqi bilan ko'rish
 // Tartib: serverdagi nusxa → Drive (robot, faqat o'qish) → bo'lmasa eski tizim. Word (.docx) nusxasi va yon ta'sirli holatlar — eski tizim.
 'use strict';
 const S = require('./sessiya');
@@ -92,4 +93,23 @@ async function yhAloqaFayl([kodSes, raqam, format]) {
   return { nom: f.nom, mime: 'application/pdf', b64: f.bytes.toString('base64') };
 }
 
-module.exports = { devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl };
+// ------------------------------------------------------------------ 👁 hujjatFayl — mijoz kartasidagi skanni ko'rish / yuklab olish (huquq «skan», 18.10.2026)
+// Faqat «Faol» hujjat, faqat xodimga ko'rinadigan shartnomaniki (lib/korinish). Kim qachon qaysi skanni ochgani — Redis «skan_jurnal» (aks-bugun skan).
+async function hujjatFayl([kodSes, id]) {
+  const u = await S.ruxsat(kodSes);
+  if (!u.admin && !u.huquq.includes('skan')) throw new S.Xato('Skanlarni ko\'rishga ruxsatingiz yo\'q (huquq: «skan»). Direktorga murojaat qiling.');
+  const h = (await J.hujjatJurnal()).find(z => String(z.id) === String(id));
+  if (!h || (h.holati !== 'Faol' && !u.admin)) throw new S.Xato('Hujjat topilmadi.');
+  if ((await require('../lib/korinish').yopiqlar(u)).has(String(h.no).trim())) throw new S.Xato('Hujjat topilmadi.');
+  const f = await ol(h.faylId, h.no, h.nom);
+  if (!f) throw new S.Xato('Fayl hali serverga yetib kelmagan — birozdan keyin qayta urinib ko\'ring.');
+  try {
+    const { redis } = require('../lib/db');
+    const d = new Date(Date.now() + 5 * 3600000), p = n => String(n).padStart(2, '0');
+    await redis.lpush('skan_jurnal', JSON.stringify({ vaqt: p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()), fish: u.fish, id: h.id, no: h.no, nom: h.nom }));
+    await redis.ltrim('skan_jurnal', 0, 1999);
+  } catch (e) { console.error('skan jurnali:', e.message); }
+  return { nom: h.nom || f.nom, mime: f.mime || 'application/pdf', b64: f.bytes.toString('base64') };
+}
+
+module.exports = { devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl, hujjatFayl };

@@ -3,6 +3,7 @@
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const REY_SOT_HOLAT = ['Aktiv', 'Kredit asosida', 'Shartnoma olmagan', 'Yakunlangan'];
 function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== null && x[0] !== undefined && x[0] !== '') m = n; }); return rows.filter(z => z.n <= m); }
@@ -15,10 +16,12 @@ async function mijozlar() {
 
 async function reyestrIjara([kodSes]) {
   const u = await S.ruxsat(kodSes, 'reyestr');
+  const k = await KR.korish(u);
   const [MIJ, R4] = await Promise.all([mijozlar(), V.qatorlar('04_Ijara_shartnomalar')]);
   const L = [];
   aOxiri(R4).map(z => kor(z.r, 29)).forEach(r => {
     const no = String(r[0] || '').trim(); if (!/^IJ-27\/\d+$/.test(no)) return;
+    if (!k(r[2])) return;
     const m = MIJ[String(r[5]).trim()] || {};
     L.push({ no, sana: r[1], holati: String(r[2] || ''), dokon: String(r[4] || ''), mid: String(r[5] || ''),
       fish: String(r[23] || m.fish || ''), tel: String(r[24] || m.tel || ''),
@@ -35,12 +38,14 @@ async function reyestrIjara([kodSes]) {
 
 async function reyestrSotuv([kodSes]) {
   const u = await S.ruxsat(kodSes, 'reyestr');
+  const k = await KR.korish(u);
   const [MIJ, R3] = await Promise.all([mijozlar(), V.qatorlar('03_Sotuv_shartnomalar')]);
   const num = v => Number(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')) || 0;
   const L = [];
   aOxiri(R3).map(z => kor(z.r, 33)).forEach(r => {
     const no = String(r[0] || '').trim(); if (!/^27\/\d+$/.test(no)) return;
     if (REY_SOT_HOLAT.indexOf(String(r[13] || '').trim()) < 0) return;
+    if (!k(r[13])) return;
     const m = MIJ[String(r[4]).trim()] || {};
     L.push({ no, sana: r[2], mid: String(r[4] || ''), dokon: String(r[5] || ''), m2: num(r[6]), holati: String(r[13] || ''), undiruvchi: String(r[17] || ''),
       fish: String(r[20] || m.fish || ''), tel: String(m.tel || ''), qiymat: num(r[25]), oylik: num(r[26]), tolangan: num(r[27]), qarz: num(r[30]), muddati: num(r[31]), kechikkan: num(r[32]) });

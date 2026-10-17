@@ -4,16 +4,19 @@
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const num = x => { const n = Number(x); return isNaN(n) ? 0 : Math.round(n); };   // Kod.gs num_
 const s = v => String(v == null ? '' : v);
 
 // ------------------------------------------------------------------ Kod.gs shartnomalar (to'lov kiritish uchun ro'yxat)
 async function shartnomalar([kodSes]) {
-  await S.ruxsat(kodSes, 'tolov');
+  const u = await S.ruxsat(kodSes, 'tolov');
+  const k = await KR.korish(u);
   const out = [];
   (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ x: r }) => {
     if (r[0] == null || r[0] === '' || r[0] === false || r[0] === 0) return;
+    if (!k(r[13])) return;   // holati bo'yicha yashirin
     out.push({ no: s(r[0]), fish: s(r[20]), dokon: s(r[5]), holati: s(r[13]), oylik: num(r[26]), qarz: num(r[30]), muddati: num(r[31]), undiruvchi: s(r[17]) });
   });
   return out;

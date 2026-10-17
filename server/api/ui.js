@@ -19,6 +19,7 @@ function xaritaMatn() { try { return fs.readFileSync(env.xaritaFayl, 'utf8'); } 
 const SHIM = `<script>
 /* AKS TIZIM — server ko'prigi: google.script.run → /api/rpc (Index.html kodi o'zgarmaydi) */
 (function(){
+  window.AKS_SRV=1;   // Index.html: faqat serverdagi imkoniyatlar (masalan, 👁 skan) shu bilan yoqiladi
   function run(ok,yoq,uo){
     return new Proxy({},{get:function(_,k){
       if(k==='withSuccessHandler') return function(f){return run(f,yoq,uo);};

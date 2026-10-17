@@ -4,6 +4,7 @@
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const MJ_HUQUQ = ['shartnoma', 'undiruv', 'hujjat', 'tolov', 'xat', 'yurist'];
 
@@ -35,7 +36,8 @@ async function shartnomalar() {
 }
 
 async function mijozQidir([kodSes, q]) {
-  await mjRuxsat(kodSes);
+  const u = await mjRuxsat(kodSes);
+  const k = await KR.korish(u);
   q = String(q || '').trim(); if (q.length < 2) return { royxat: [] };
   const ql = lat(q), qd = q.replace(/\D/g, ''), qu = q.toUpperCase().replace(/\s/g, '');
   const SH = await shartnomalar();
@@ -43,7 +45,8 @@ async function mijozQidir([kodSes, q]) {
   (await V.qatorlar('02_Mijozlar')).forEach(({ r }) => {
     if (!r[0]) return;
     const id = String(r[0]).trim(), fish = String(r[2] || ''), tel = String(r[4] || '').replace(/\D/g, ''), tel2 = String(r[5] || '').replace(/\D/g, ''), pas = String(r[6] || '').toUpperCase().replace(/\s/g, '');
-    const sh = SH[id] || [];
+    const shA = SH[id] || [], sh = shA.filter(s => k(s.holati));
+    if (shA.length && !sh.length) return;   // faqat yashirin shartnomalari bor mijoz — ko'rinmaydi
     const mos = lat(fish).indexOf(ql) >= 0 || (qd.length >= 4 && (tel.indexOf(qd) >= 0 || tel2.indexOf(qd) >= 0)) || (qu.length >= 4 && pas.indexOf(qu) >= 0) || id === q
       || sh.some(s => s.no.toUpperCase().indexOf(qu) >= 0 && qu.length >= 3) || sh.some(s => s.dokon.toUpperCase() === qu);
     if (mos) R.push({ id, fish, tel: r[4] || '', pasport: r[6] || '', shartnomalar: sh.map(s => s.no + (s.holati && /bekor|yakun/i.test(s.holati) ? ' (' + s.holati + ')' : '')), dokonlar: sh.map(s => s.dokon).filter(Boolean) });
@@ -62,12 +65,14 @@ async function mijozKarta([kodSes, mid]) {
   const mijoz = { id: mid, turi: r[1] || '', fish: r[2] || '', tel: r[4] || '', tel2: r[5] || '', pasport: r[6] || '', iib: [r[7], r[8]].filter(Boolean).join(', '), pSana: r[9] || '', pMuddat: r[10] || '', jshshir: r[11] || '',
     manzil: [r[13], r[14], r[15], r[16], r[17] ? r[17] + '-uy' : '', r[18] ? r[18] + '-xonadon' : ''].filter(Boolean).join(', '), izoh: r[23] || '' };
   const num = V.son;
+  const k = await KR.korish(u), YO = {};
   // shartnomalar
   const SH = [], NO = {};
-  (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[4] || '').trim() !== mid) return; NO[String(x[0]).trim()] = 1;
+  (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[4] || '').trim() !== mid) return; if (!k(x[13])) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
     SH.push({ no: String(x[0]).trim(), tur: 'sotuv', sana: x[2] || '', dokon: x[5] || '', maydon: x[6] || '', holati: x[13] || '', qiymat: num(x[25]), oylik: num(x[26]), tolangan: num(x[27]), asosiy: num(x[28]), qoshimcha: num(x[29]), jami: num(x[30]), muddati: num(x[31]), kechikkan: num(x[32]), undiruvchi: x[17] || '', bekorSana: x[14] || '' }); });
-  (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[5] || '').trim() !== mid) return; NO[String(x[0]).trim()] = 1;
+  (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[5] || '').trim() !== mid) return; if (!k(x[2])) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
     SH.push({ no: String(x[0]).trim(), tur: 'ijara', sana: x[1] || '', dokon: x[4] || '', maydon: x[13] || '', holati: x[2] || '', bosh: x[9] || '', tugash: x[10] || '', muddat: x[11] || '', bepul: x[12] || '', oylik: num(x[14]), faoliyat: x[18] || '', masul: x[20] || '', bepulTugash: x[28] || '', bekorSana: x[3] || '' }); });
+  if (!SH.length && Object.keys(YO).length) throw new S.Xato('Mijoz topilmadi: ' + mid);   // faqat yashirin shartnomalari bor
   // 03b: keyingi to'lov sanasi va jadval tugashi
   const bugunIso = V.bugun(); const JD = {};
   (await V.qatorlar('03b_Tolov_jadvali')).forEach(({ x }) => { const no = String(x[1] == null ? '' : x[1]).trim(); if (!NO[no]) return; const d = V.iso(x[3]); if (!d) return; (JD[no] = JD[no] || []).push(d); });
@@ -80,11 +85,11 @@ async function mijozKarta([kodSes, mid]) {
       zona: r[16] || '', no: s.no, tur: s.tur, egasi: r[18] || '', ijaraNo: r[21] || '', ijarachi: r[22] || '', faoliyat: r[23] || '', savdo: r[24] || '', xarita: r[25] || '', hujjat: r[26] || '', narx: num(r[6]) }); });
   // to'lovlar
   const T = [];
-  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x }) => { if (!x[0]) return; if (NO[String(x[2] || '').trim()] || String(x[12] || '').trim() === mid) T.push({ sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
+  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || String(x[12] || '').trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
   T.reverse();
   // xatlar, hujjatlar, undiruv, yurist
   const X = (await J.xatJurnal()).filter(h => NO[h.no]).map(h => ({ raqam: h.raqam, no: h.no, sana: h.sana, shablon: h.shablon, bosqich: h.bosqich, holati: h.holati, yetSana: h.yetSana, kim: h.kim })).reverse();
-  const H = (await J.hujjatJurnal()).filter(h => NO[h.no]).map(h => ({ no: h.no, turi: h.turi, sana: h.sana, nom: h.nom, kim: h.kim, vaqt: h.vaqt, holati: h.holati, faylId: h.faylId })).reverse();
+  const H = (await J.hujjatJurnal()).filter(h => NO[h.no]).map(h => ({ id: h.id, no: h.no, turi: h.turi, sana: h.sana, nom: h.nom, kim: h.kim, vaqt: h.vaqt, holati: h.holati, faylId: h.faylId })).reverse();
   const U = (await J.undJurnal()).filter(j => NO[j.no]).map(j => ({ sana: j.sana ? String(j.sana).split('-').reverse().join('.') : '', no: j.no, chora: j.chora, mazmun: j.mazmun, vada: j.vadaSana ? String(j.vadaSana).split('-').reverse().join('.') : '', vadaSumma: j.vadaSumma, natija: j.vadaNatija || j.natija, kim: j.kim })).reverse();
   const Y = (await J.yuIshlar()).filter(i => NO[i.no]).map(i => ({ no: i.no, holati: i.holati, yurist: i.yurist, topshirilgan: i.topshirilgan, davoNo: i.davoNo, qaror: i.qaror }));
   // tashriflar (telefon bo'yicha)
@@ -100,7 +105,7 @@ async function mijozKarta([kodSes, mid]) {
     { turi: 'PASPORT', nom: 'Pasport nusxasi', bor: bor[s.no + '|PASPORT'] || pasBor || null },
     { turi: 'DALOLATNOMA', nom: 'Qabul-topshirish dalolatnomasi', bor: bor[s.no + '|DALOLATNOMA'] || null }] }));
   // topshiriqlar
-  const TP = (await J.topRows()).filter(t => NO[t.no] || t.mid === mid).map(J.topKor).reverse();
+  const TP = (await J.topRows()).filter(t => (NO[t.no] || t.mid === mid) && !YO[t.no]).map(J.topKor).reverse();
   return { ok: true, mijoz, shartnomalar: SH, dokonlar: DK, nazorat, pasportQolgan: pQ, topshiriqlar: TP.slice(0, 40), tolovlar: T.slice(0, 60), xatlar: X, hujjatlar: H, chora: U.slice(0, 60), yurist: Y, tashriflar: TS.slice(0, 40),
     jami: { shartnoma: SH.length, faol: faol.length, qiymat: faol.reduce((a, s) => a + (s.qiymat || 0), 0), qarz: faol.reduce((a, s) => a + (s.jami || 0), 0), asosiy: faol.reduce((a, s) => a + (s.asosiy || 0), 0), qoshimcha: faol.reduce((a, s) => a + (s.qoshimcha || 0), 0),
       muddati: faol.reduce((a, s) => a + (s.muddati || 0), 0), tolangan: SH.reduce((a, s) => a + (s.tolangan || 0), 0), tolovSoni: T.length, oxirgiTolov: T[0] || null },
