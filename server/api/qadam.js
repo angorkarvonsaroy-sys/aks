@@ -53,7 +53,7 @@ const IJRO_ZINA = [1, 3, 5], IJRO_OGIR_BALL = 3, IJRO_SOXTA_MINUS = 10;
 
 const s = v => String(v == null ? '' : v);
 const kun = U.kun;
-const qdPul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[ ,]/g, ' ');
+const qdPul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[\u00a0,]/g, ' ');
 const qdKalit = t => String(t || '').replace(/\d+/g, 'N').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
 const qdQisqa = m => ({ no: m.no, fish: m.fish, dokon: m.dokon, bugun: m.bugun });
 function qdXatNom(h) { return /^QM_/.test(String(h.shablon || '')) ? (['', 'Maydon farqi bildirishnomasi', 'Maydon farqi ogohlantirish xati', 'Maydon farqi talabnomasi'][h.bosqich] || 'Maydon farqi xati')

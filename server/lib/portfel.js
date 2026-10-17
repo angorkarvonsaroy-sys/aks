@@ -100,7 +100,7 @@ function yuHimoya(x, t) {
   const ox = x && x.oxirgiTolov; if (!ox || !ox.sana || !(t >= 0 && t <= YU_TOLOV_KUN) || x.sekin) return null;
   const s90 = Number(ox.s90) || 0, oy = Number(x.oylik) || 0, kerak = Math.round(oy * 3 * YU_TOLOV_ULUSH);
   if (oy > 0 ? s90 < kerak : !(s90 > 0)) return null;
-  const p = n => Math.round(n || 0).toLocaleString('ru-RU').replace(/[ ,]/g, ' ');
+  const p = n => Math.round(n || 0).toLocaleString('ru-RU').replace(/[\u00a0,]/g, ' ');
   return { s90, kerak, matn: '90 kunda jadvalning ' + Math.round(YU_TOLOV_ULUSH * 100) + ' % i to\'langan (' + p(s90) + (oy > 0 ? ' / ' + p(kerak) : '') + ' so\'m) — yuristga hali erta' };
 }
 function yuMezon(x, XJ, UJ, H, bugun, Z) {

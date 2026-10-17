@@ -19,7 +19,7 @@ const BEKOR_YOPIQ = ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'], BEKOR_SKAN_IS
 
 const kun = U.kun, qosh = U.kunQosh, s = v => String(v == null ? '' : v);
 const monQisqa = f => String(f || '').trim().split(/\s+/).slice(0, 2).join(' ');
-const monPul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[ ,]/g, ' ');
+const monPul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[\u00a0,]/g, ' ');
 const monDmy = iso => iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : '';
 const monBekorOchiq = b => BEKOR_YOPIQ.indexOf(String(b.holati || '')) < 0;
 function monKunlar(bugun, n) { const L = []; for (let i = n - 1; i >= 0; i--) L.push(qosh(bugun, -i)); return L; }
