@@ -21,7 +21,7 @@ async function reyestrIjara([kodSes]) {
   const L = [];
   aOxiri(R4).map(z => kor(z.r, 29)).forEach(r => {
     const no = String(r[0] || '').trim(); if (!/^IJ-27\/\d+$/.test(no)) return;
-    if (!k(r[2])) return;
+    if (!k(r[2], '', no)) return;
     const m = MIJ[String(r[5]).trim()] || {};
     L.push({ no, sana: r[1], holati: String(r[2] || ''), dokon: String(r[4] || ''), mid: String(r[5] || ''),
       fish: String(r[23] || m.fish || ''), tel: String(r[24] || m.tel || ''),
@@ -45,7 +45,7 @@ async function reyestrSotuv([kodSes]) {
   aOxiri(R3).map(z => kor(z.r, 33)).forEach(r => {
     const no = String(r[0] || '').trim(); if (!/^27\/\d+$/.test(no)) return;
     if (REY_SOT_HOLAT.indexOf(String(r[13] || '').trim()) < 0) return;
-    if (!k(r[13], r[17])) return;
+    if (!k(r[13], r[17], no)) return;
     const m = MIJ[String(r[4]).trim()] || {};
     L.push({ no, sana: r[2], mid: String(r[4] || ''), dokon: String(r[5] || ''), m2: num(r[6]), holati: String(r[13] || ''), undiruvchi: String(r[17] || ''),
       fish: String(r[20] || m.fish || ''), tel: String(m.tel || ''), qiymat: num(r[25]), oylik: num(r[26]), tolangan: num(r[27]), qarz: num(r[30]), muddati: num(r[31]), kechikkan: num(r[32]) });

@@ -16,7 +16,7 @@ async function shartnomalar([kodSes]) {
   const out = [];
   (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ x: r }) => {
     if (r[0] == null || r[0] === '' || r[0] === false || r[0] === 0) return;
-    if (!k(r[13], r[17])) return;   // holati bo'yicha yashirin (o'z portfeli — ko'rinadi)
+    if (!k(r[13], r[17], s(r[0]).trim())) return;   // holati / portfel bo'yicha yashirin
     out.push({ no: s(r[0]), fish: s(r[20]), dokon: s(r[5]), holati: s(r[13]), oylik: num(r[26]), qarz: num(r[30]), muddati: num(r[31]), undiruvchi: s(r[17]) });
   });
   return out;
