@@ -20,10 +20,10 @@ A.pinKir = async ([kod, pin]) => {
   if (!x) throw new S.Xato('Kirish taqiqlangan. Havolani qayta oching.');
   const b = await S.blokDaq(kod); if (b) throw new S.Xato('Kirish ' + b + ' daqiqaga bloklangan. Keyinroq urinib ko\'ring.');
   pin = String(pin || '');
-  let togri = !!x.pin && S.pinTekshir(x.pin, kod, pin);
+  let togri = !!x.pin && S.pinTekshir(x.pin, kod, pin), koprikdan = false;
   // PIN hozirgina o'rnatilgan/almashtirilgan bo'lishi mumkin (ko'zgu 5 daqiqada keladi) — eski tizimdan tasdiq olinadi
   if (!togri && koprik.bor()) {
-    try { const r = await koprik.chaqir('pinKir', kod, [pin]); if (r && r.tok) togri = true; }
+    try { const r = await koprik.chaqir('pinKir', kod, [pin]); if (r && r.tok) { togri = true; koprikdan = true; } }
     catch (e) { if (!x.pin || !/noto'g'ri|bloklan/i.test(e.message)) throw new S.Xato(e.message); }
   }
   if (!x.pin && !togri) throw new S.Xato('PIN hali o\'rnatilmagan.');
@@ -34,6 +34,8 @@ A.pinKir = async ([kod, pin]) => {
   }
   await S.xatoToza(kod);
   kirishJurnali(x, 'PIN').catch(() => {});
+  // eski tizimning 07b_Kirish_jurnali ham bilsin (direktor «Ishlar», «Jamoa bugun», ijro intizomi shundan o'qiydi) — fonda, kutmasdan
+  if (!koprikdan && koprik.bor()) koprik.chaqir('pinKir', kod, [pin]).catch(e => console.error('07b kirish (ko\'prik):', e.message));
   return { tok: await S.sessiyaOch(kod) };
 };
 

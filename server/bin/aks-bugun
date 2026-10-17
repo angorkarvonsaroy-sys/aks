@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# AKS TIZIM — bugungi faollik: kim kirdi (yangi server orqali) va qaysi amallar qancha vaqt oldi. Ishlatish: aks-bugun
+q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
+echo "================ AKS — BUGUN  $(date '+%d.%m.%Y %H:%M') ================"
+echo "--- Yangi server orqali kirganlar ---"
+q -c "SELECT to_char(min(vaqt),'HH24:MI') birinchi, to_char(max(vaqt),'HH24:MI') oxirgi, count(*) marta, fish FROM kirishlar WHERE vaqt::date = current_date GROUP BY fish ORDER BY 1;"
+echo "--- Amallar (bugun): qayerda, nechta, o'rtacha va eng sekin (ms), xatolar ---"
+q -c "SELECT fn AS amal, qayerda, count(*) soni, round(avg(ms)) ortacha_ms, max(ms) eng_sekin, count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE vaqt::date = current_date GROUP BY 1,2 ORDER BY 3 DESC LIMIT 25;"
+echo "--- Oxirgi xatolar ---"
+q -c "SELECT to_char(vaqt,'HH24:MI:SS') vaqt, fn, left(xato,80) xato FROM rpc_jurnal WHERE vaqt::date = current_date AND NOT ok ORDER BY id DESC LIMIT 6;"
