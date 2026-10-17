@@ -1,6 +1,6 @@
 // AKS TIZIM — shartnoma tuzish va to'lov bo'limlarining o'qish amallari serverda (Kod.gs v9.7; natija eski tizim bilan bir xil):
 //   shartnomaBoshlang (forma uchun ro'yxatlar) · bugungiTolovlar (bugun kiritilgan to'lovlar)
-// Saqlash (shartnomaSaqlash, mijozSaqlash, tolovSaqlash, ijaraSaqlash, tashrifSaqlash) — eski tizimda (ko'prik).
+// Saqlash (shartnomaSaqlash, mijozSaqlash, ijaraSaqlash) — eski tizimda (ko'prik); tolovSaqlash, tashrifSaqlash — api/kassa.js.
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');

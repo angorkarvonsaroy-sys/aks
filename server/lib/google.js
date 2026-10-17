@@ -133,6 +133,39 @@ async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
 }
 
+// Oraliqni YANGI o'qish (ko'zgu emas): a1 — «B2:D500»; render — 'FORMATTED_VALUE' (getDisplayValues) yoki 'UNFORMATTED_VALUE' (getValues)
+async function oraliqOqi(sheetId, varaq, a1, kalitFayl, render = 'FORMATTED_VALUE') {
+  const p = new URLSearchParams({ valueRenderOption: render, dateTimeRenderOption: 'SERIAL_NUMBER', majorDimension: 'ROWS' });
+  const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!' + a1)}?${p}`, kalitFayl);
+  return j.values || [];
+}
+// Varaq nomi → ichki raqami (sheetId / gid)
+async function gid(sheetId, varaq, kalitFayl, yangila) {
+  if (yangila || !gidKesh[sheetId] || gidKesh[sheetId][varaq] === undefined) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
+  if (gidKesh[sheetId][varaq] === undefined) throw new Error('Varaq topilmadi: ' + varaq);
+  return gidKesh[sheetId][varaq];
+}
+// spreadsheets:batchUpdate — bir nechta so'rov bitta urinishda (format, formula nusxasi, varaq nusxasi …); hammasi yoki hech biri
+async function soralar(sheetId, requests, kalitFayl) {
+  if (!requests.length) return {};
+  return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
+}
+// Jurnal oxiriga qator (appendRow o'rni) — n: kutilgan qator (A ustunidagi oxirgi to'ldirilgandan keyingi). Google qo'shishni o'zi navbatga qo'yadi:
+// shu orada boshqa yozuv n-qatorni egallagan bo'lsa — yangi qator undan keyingisiga tushadi (ustma-ust yozilmaydi). Haqiqiy qator raqami qaytadi.
+async function qatorQoshR(sheetId, varaq, n, qator, kalitFayl) {
+  const j = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
+    { majorDimension: 'ROWS', values: [qator] }, kalitFayl);
+  const m = /!\$?[A-Z]+\$?(\d+)/.exec((j.updates && j.updates.updatedRange) || '');
+  return m ? Number(m[1]) : n;
+}
+// Kataklar haqida to'liq ma'lumot (qiymat turi, format, formula) — yozuvni eski tizim yozganiga solishtirish uchun
+async function kataklarOqi(sheetId, varaq, a1, kalitFayl) {
+  const p = new URLSearchParams({ ranges: q(varaq) + '!' + a1, fields: 'sheets.data.rowData.values(userEnteredValue,effectiveValue,formattedValue,userEnteredFormat.numberFormat)' });
+  const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?${p}`, kalitFayl);
+  const d = (((j.sheets || [])[0] || {}).data || [])[0] || {};
+  return (d.rowData || []).map(r => r.values || []);
+}
+
 // ------------------------------------------------------------------ DRIVE (faqat o'qish): fayl nomi + tanasi (Buffer)
 // Disk keshi: <hujjatPapka>/.drive/<id>.bin (+ .json: modifiedTime, nom, mime). Har safar faqat metama'lumot so'raladi (tez);
 // fayl o'zgarmagan bo'lsa — diskdan, o'zgargan bo'lsa — qayta yuklanadi. Kesh yozilmasa ham (ruxsat) — oddiy yuklab berish.
@@ -165,4 +198,4 @@ async function driveFayl(faylId, kalitFayl) {
   return { nom: meta.name, mime: meta.mimeType, bytes };
 }
 
-module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, yoz, qatorQosh, sanaFormat, sanaYoz, driveFayl, RuxsatYoq };
+module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };

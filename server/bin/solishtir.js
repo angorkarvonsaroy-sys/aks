@@ -51,6 +51,13 @@ const qisqa = v => { const s = typeof v === 'string' ? v : JSON.stringify(v); re
   // «xatlar» — oxirgi 3 ta PDF i bor xat raqami bilan (xatPdf uchun)
   if (parsed[0] === 'xatlar') { const N = (await require('../lib/jurnallar').xatJurnal()).filter(h => h.pdf).map(h => h.raqam).slice(-3);
     ishlar = N.map(r => [r, ...parsed.slice(1)]); console.log('Xatlar: ' + N.join(', ')); }
+  // «tellar» — har xil telefonlar bilan (tashrifTekshir uchun): oxirgi 3 tashrif, mijoz, xodim, noto'g'ri va yangi raqam
+  if (parsed[0] === 'tellar') { const V = require('../lib/varaq');
+    const t1 = (await V.qatorlar('01b_Tashrif_jurnali')).map(z => z.r[3]).filter(Boolean).slice(-3);
+    const t2 = (await V.qatorlar('02_Mijozlar')).map(z => z.r[4]).filter(Boolean).slice(-2);
+    const t7 = (await V.qatorlar('07_Xodimlar')).map(z => String(z.x[5] == null ? '' : z.x[5])).filter(v => v.replace(/\D/g, '').length >= 9).slice(0, 1);
+    const N = [...t1, ...t2, ...t7, '12345', '901112233', '+998 (93) 000 00 00'];
+    ishlar = N.map(t => [t, ...parsed.slice(1)]); console.log('Telefonlar: ' + N.length + ' ta'); }
   let jamiF = 0;
   for (const P of ishlar) {
     if (ishlar.length > 1) console.log('--- ' + P.join(' '));

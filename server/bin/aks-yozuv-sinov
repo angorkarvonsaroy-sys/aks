@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — to'lov va tashrifni serverda yozishni sinash (nusxa varaqda) va yoqish. Ishlatish: aks-yozuv-sinov [ochir]
+cd /opt/aks/app && exec sudo -u aks -H node bin/yozuv_sinov.js "$@"
