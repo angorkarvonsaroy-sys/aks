@@ -116,7 +116,7 @@ async function taminotSinov() {
     else console.log('(eski tizim tasdiqlagan qator yo\'q — N–O solishtirilmadi)');
     if (rad) x += solishtir(await kat(rad.qator), YB, [14, 15, 16], '\n— Rad etilgan (N–P) va eski tizim rad etgan qator ' + rad.qator + ':');
     else console.log('(eski tizim rad etgan qator yo\'q — N–P solishtirilmadi)');
-    const qiy = r => r.slice(13, 16).map(c => (c && c.formattedValue) || '').join(' | ');
+    const qiy = r => [13, 14, 15].map(i => (r[i] && r[i].formattedValue) || '').join(' | ');   // Google oxirgi bo'sh kataklarni qaytarmaydi
     console.log('Yozilgan qiymatlar: 1) ' + qiy(YA) + '   2) ' + qiy(YB));
     if (!/^Tasdiqlandi \| SINOV, \d{2}\.\d{2}\.\d{4} \d{2}:\d{2} \| $/.test(qiy(YA)) || !/^Rad etildi \| SINOV, .* \| SINOV rad sababi$/.test(qiy(YB))) { console.log('⚠ N–P qiymatlari kutilgandek emas'); x++; }
   } finally {
