@@ -37,7 +37,7 @@ function iso(v) {
   if (typeof v === 'string') { const m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(v); return m ? m[3] + '-' + m[2] + '-' + m[1] : (/^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : ''); }
   const n = Number(v);
   if (!isFinite(n) || n < 20000 || n > 80000) return '';
-  const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000);
+  const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(n + 1e-7) * 86400000);   // kasr qismi — soat; sana yaxlitlanmaydi (20:54 ertangi kunga o'tib ketmasin)
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
 const dmy = v => { const s = iso(v); return s ? s.split('-').reverse().join('.') : ''; };   // "DD.MM.YYYY"
