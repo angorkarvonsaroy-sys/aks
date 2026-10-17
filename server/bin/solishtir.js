@@ -48,13 +48,18 @@ const qisqa = v => { const s = typeof v === 'string' ? v : JSON.stringify(v); re
   if (parsed[0] === 'devon') { const V = require('../lib/varaq');
     const N = (await V.qatorlar('11_Devonxona')).map(z => z.x[0]).filter(v => v !== null && v !== undefined && v !== '').slice(-4);
     ishlar = N.map(id => [id, ...parsed.slice(1)]); console.log('Devon ID: ' + N.join(', ')); }
+  // «xatlar» — oxirgi 3 ta PDF i bor xat raqami bilan (xatPdf uchun)
+  if (parsed[0] === 'xatlar') { const N = (await require('../lib/jurnallar').xatJurnal()).filter(h => h.pdf).map(h => h.raqam).slice(-3);
+    ishlar = N.map(r => [r, ...parsed.slice(1)]); console.log('Xatlar: ' + N.join(', ')); }
   let jamiF = 0;
   for (const P of ishlar) {
     if (ishlar.length > 1) console.log('--- ' + P.join(' '));
-    let t = Date.now(); const srv = await A[fn]([kod + '|' + tok, ...P]); const tS = Date.now() - t;
-    t = Date.now(); const esk = await koprik.chaqir(fn, kod, P); const tE = Date.now() - t;
+    // xato ham javob sifatida solishtiriladi (ikkalasi bir xil xato bersa — BIR XIL)
+    let t = Date.now(); let srv; try { srv = await A[fn]([kod + '|' + tok, ...P]); } catch (e) { srv = { xato: e.message }; } const tS = Date.now() - t;
+    t = Date.now(); let esk; try { esk = await koprik.chaqir(fn, kod, P); } catch (e) { esk = { xato: e.message }; } const tE = Date.now() - t;
     console.log(`server: ${tS} ms · eski tizim: ${tE} ms`);
-    const F = []; farqlar(JSON.parse(JSON.stringify(srv)), JSON.parse(JSON.stringify(esk)), '', F); jamiF += F.length;
+    const b64q = o => { if (o && typeof o.b64 === 'string') { const c = require('crypto').createHash('md5').update(o.b64).digest('hex').slice(0, 12); return Object.assign({}, o, { b64: 'md5:' + c + ' (' + o.b64.length + ')' }); } return o; };
+    const F = []; farqlar(JSON.parse(JSON.stringify(b64q(srv))), JSON.parse(JSON.stringify(b64q(esk))), '', F); jamiF += F.length;
     if (!F.length) console.log('✅ Javoblar BIR XIL.');
     else { console.log(`⚠ ${F.length} ta farq (server ← → eski):`); F.slice(0, 40).forEach(([y, a, b]) => console.log('  ' + y + ':  ' + qisqa(a) + '  ←→  ' + qisqa(b))); if (F.length > 40) console.log('  … yana ' + (F.length - 40) + ' ta'); }
   }
