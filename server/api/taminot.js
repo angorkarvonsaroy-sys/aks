@@ -2,7 +2,7 @@
 //   📦 Ta'minot (Taminot.gs v26.11): taminotDirektor, taminotSvodOl, taminotBoshlang
 //   🤝 Kelishuv bilan bekor (KelishuvBekor.gs v1.0): kbDirektor
 //   ✕ Imzolanmagan ijara (ImzosizBekor.gs v1.1): ijaraImzosizRoyxat
-// Yozuvlar (taminotKiritish, taminotTasdiq, taminotTolov, kbTasdiq, ijaraImzosizJavob …) hali eski tizimda (ko'prik).
+// Yozuvlar: taminotKiritish, taminotTasdiq — api/taminot_yoz.js; taminotTolov, kbTasdiq, ijaraImzosizJavob … hali eski tizimda (ko'prik).
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -221,3 +221,4 @@ async function ijaraImzosizHolat([kodSes, no]) {
 }
 
 module.exports = { taminotDirektor, taminotSvodOl, taminotBoshlang, kbDirektor, ijaraImzosizRoyxat, kbHolat, ijaraImzosizHolat };
+module.exports._ichki = { tamRows, tamJismoniy, tamFirmalar };

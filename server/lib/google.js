@@ -158,6 +158,13 @@ async function qatorQoshR(sheetId, varaq, n, qator, kalitFayl) {
   const m = /!\$?[A-Z]+\$?(\d+)/.exec((j.updates && j.updates.updatedRange) || '');
   return m ? Number(m[1]) : n;
 }
+// Bir nechta qatorni oxiriga (setValues(l+1, …) o'rni) — qatorQoshR kabi, lekin qatorlar ro'yxati; birinchi qatorning haqiqiy raqami qaytadi.
+async function qatorlarQoshR(sheetId, varaq, n, qatorlar, kalitFayl) {
+  const j = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
+    { majorDimension: 'ROWS', values: qatorlar }, kalitFayl);
+  const m = /!\$?[A-Z]+\$?(\d+)/.exec((j.updates && j.updates.updatedRange) || '');
+  return m ? Number(m[1]) : n;
+}
 // Kataklar haqida to'liq ma'lumot (qiymat turi, format, formula) — yozuvni eski tizim yozganiga solishtirish uchun
 async function kataklarOqi(sheetId, varaq, a1, kalitFayl) {
   const p = new URLSearchParams({ ranges: q(varaq) + '!' + a1, fields: 'sheets.data.rowData.values(userEnteredValue,effectiveValue,formattedValue,userEnteredFormat.numberFormat)' });
@@ -198,4 +205,4 @@ async function driveFayl(faylId, kalitFayl) {
   return { nom: meta.name, mime: meta.mimeType, bytes };
 }
 
-module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };
+module.exports = { token, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };

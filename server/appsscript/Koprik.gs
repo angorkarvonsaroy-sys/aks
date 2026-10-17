@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.4). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.5). Boshqa fayllar o'zgarmaydi.
+// v1.5: koprikTgYubor — direktor(lar)ga Telegram (tgYubor_), koprikTgChat — istalgan Telegram chatga (tgYuborChat_).
+//       Server o'zi yozadigan amallar (ta'minot va keyingilari) xabarni shu orqali yuboradi — xodim kutmaydi.
 // v1.4: koprikQdSnap — «Bugungi ish» ertalabki navbati (Qadam.gs qdSnap_, Script Properties) — server bilan bitta ro'yxat.
 // v1.3: koprikDriveSaqla — serverga yuklangan skanni direktor Drive'idagi mijoz papkasiga ko'chirish (06d ni server o'zi yozadi).
 // v1.2: yurist yozuvlari serverga ko'chdi — server jadvalga o'zi yozadi, faqat Drive va Telegram shu yerda:
@@ -50,7 +52,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.4'; }
+function koprikVersiya(kod) { return '1.5'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -66,3 +68,7 @@ function koprikDriveSaqla(kod, m) {
 }
 // v1.4: ertalabki navbat ro'yxati (Qadam.gs qdSnap_): o'qish — bo'sh ro'yxat bilan; yozish — yangi raqamlar bilan. Qaytaradi {n: [...]}
 function koprikQdSnap(kod, fish, bugun, navbatNo, tugadiNo) { ruxsat_(kod, 'undiruv'); return { n: Object.keys(qdSnap_(String(fish), String(bugun), navbatNo || [], tugadiNo || [])) }; }
+// v1.5: direktor(lar)ga Telegram — tgYubor_ ning o'zi (07_Xodimlar: admin + U ustuni; topilmasa — guruhga)
+function koprikTgYubor(kod, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYubor_(String(matn || '')); return { ok: true }; }
+// v1.5: istalgan chatga (xodimning Telegram ID si — serverda 07_Xodimlar U ustunidan) — tgYuborChat_ ning o'zi
+function koprikTgChat(kod, chat, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYuborChat_(String(chat || ''), String(matn || '')); return { ok: true }; }
