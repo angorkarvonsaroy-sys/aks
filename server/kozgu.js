@@ -13,6 +13,12 @@ const BOLAK = 2000; // bitta INSERT dagi qatorlar soni
 function vaqt() { return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }); }
 
 async function kompaniyaKozgusi(db, k) {
+  // bir kompaniya uchun bir vaqtda bitta yurish (taymer va ilova serveri to'qnashmasin)
+  await db.query('SELECT pg_advisory_lock(424242, $1)', [k.id]);
+  try { return await kompaniyaKozgusiIch(db, k); }
+  finally { await db.query('SELECT pg_advisory_unlock(424242, $1)', [k.id]).catch(() => {}); }
+}
+async function kompaniyaKozgusiIch(db, k) {
   const yur = await db.query('INSERT INTO kozgu.yurishlar (kompaniya_id) VALUES ($1) RETURNING id', [k.id]);
   const yurId = yur.rows[0].id;
   const t0 = Date.now();
@@ -29,12 +35,13 @@ async function kompaniyaKozgusi(db, k) {
     let ozgargan = 0, jamiQator = 0;
     await db.query('BEGIN');
     for (const nom of nomlar) {
-      const rows = qiymat[nom] || [];
-      const json = JSON.stringify(rows);
+      const rows = qiymat.xom[nom] || [];
+      const kor = qiymat.korinish[nom] || [];
+      const json = JSON.stringify([rows, kor]);
       const xesh = crypto.createHash('sha1').update(json).digest('hex');
       const ustun = rows.reduce((m, r) => Math.max(m, r.length), 0);
       const toliq = [];
-      rows.forEach((r, i) => { if (r.length && r.some(v => v !== '' && v !== null)) toliq.push([i + 1, r]); });
+      rows.forEach((r, i) => { if (r.length && r.some(v => v !== '' && v !== null)) toliq.push([i + 1, r, kor[i] || []]); });
       jamiQator += toliq.length;
 
       if (eski.get(nom) === xesh) {
@@ -45,8 +52,8 @@ async function kompaniyaKozgusi(db, k) {
       await db.query('DELETE FROM kozgu.qatorlar WHERE kompaniya_id=$1 AND varaq=$2', [k.id, nom]);
       for (let i = 0; i < toliq.length; i += BOLAK) {
         await db.query(
-          `INSERT INTO kozgu.qatorlar (kompaniya_id, varaq, qator_no, data)
-           SELECT $1, $2, (x->>0)::int, x->1 FROM jsonb_array_elements($3::jsonb) AS x`,
+          `INSERT INTO kozgu.qatorlar (kompaniya_id, varaq, qator_no, data, korinish)
+           SELECT $1, $2, (x->>0)::int, x->1, x->2 FROM jsonb_array_elements($3::jsonb) AS x`,
           [k.id, nom, JSON.stringify(toliq.slice(i, i + BOLAK))]);
       }
       await db.query(

@@ -44,13 +44,19 @@ async function varaqlar(sheetId, kalitFayl) {
   return { nom: j.properties.title, varaqlar: j.sheets.map(s => s.properties) };
 }
 
-// Hamma varaqni bitta so'rov bilan o'qish. Qiymatlar formatlanmagan (raqam — raqam, sana — seriya raqami).
+// Hamma varaqni o'qish. Har varaq uchun ikki ko'rinish: xom (raqam — raqam, sana — seriya raqami; getValues o'rni)
+// va ko'rinish (katakda ko'ringan matn: «12.05.2026», «1 234 567»; getDisplayValues o'rni). Eski kod ikkalasini ham ishlatadi.
 async function qiymatlar(sheetId, nomlar, kalitFayl) {
+  const xom = await qiymatlarBir(sheetId, nomlar, kalitFayl, 'UNFORMATTED_VALUE');
+  const korinish = await qiymatlarBir(sheetId, nomlar, kalitFayl, 'FORMATTED_VALUE');
+  return { xom, korinish };
+}
+async function qiymatlarBir(sheetId, nomlar, kalitFayl, render) {
   const natija = {};
   const BOLAK = 25; // URL juda uzun bo'lmasligi uchun bo'lib-bo'lib
   for (let i = 0; i < nomlar.length; i += BOLAK) {
     const qism = nomlar.slice(i, i + BOLAK);
-    const p = new URLSearchParams({ valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'SERIAL_NUMBER', majorDimension: 'ROWS' });
+    const p = new URLSearchParams({ valueRenderOption: render, dateTimeRenderOption: 'SERIAL_NUMBER', majorDimension: 'ROWS' });
     for (const n of qism) p.append('ranges', `'${n.replace(/'/g, "''")}'`);
     const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet?${p}`, kalitFayl);
     (j.valueRanges || []).forEach((vr, idx) => { natija[qism[idx]] = vr.values || []; });

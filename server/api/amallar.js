@@ -63,5 +63,7 @@ async function kirishJurnali(x, usul) {
 
 // ---------------- 👤 Mijozlar (Mijoz.gs o'rni) — ko'zgudan, Google'siz
 Object.assign(A, require('./mijoz'));
+// ---------------- 📎 Hujjatlar: ro'yxatlar (Hujjat.gs o'qiydigan qismi)
+Object.assign(A, require('./hujjat'));
 
 module.exports = A;

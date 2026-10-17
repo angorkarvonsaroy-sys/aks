@@ -12,6 +12,7 @@ const S = require('./sessiya');
 const A = require('./amallar');
 const koprik = require('./koprik');
 const kesh = require('./kesh');
+const tetik = require('../lib/kozgu_tetik');
 const ui = require('./ui');
 
 const VERSIYA = (() => { try { return require('fs').readFileSync(__dirname + '/../.versiya', 'utf8').trim().slice(0, 7); } catch (e) { return 'dev'; } })();
@@ -66,6 +67,7 @@ fastify.post('/api/rpc', async (req, reply) => {
       } else {
         r = await koprik.chaqir(fn, u.kod, args.slice(1));        // yozuv: faqat ko'prik
         kesh.yozuvdanKeyin(u.kod).catch(() => {});                // xodimning tayyor javoblari eskirdi — qayta tayyorlanadi
+        await tetik.yangilaKut(20000);                            // ko'zgu darhol yangilansin — serverdagi amallar yangi yozuvni ko'rsin
       }
     }
     jurnal(fn, qayerda, Date.now() - t0, true);
