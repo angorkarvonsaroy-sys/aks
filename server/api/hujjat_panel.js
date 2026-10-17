@@ -169,4 +169,24 @@ async function bekorHolat([kodSes, no]) {
   return { no, s: null, oxirgi, mumkin: t.ok, sabab: t.sabab || '', ogoh: t.ogoh || [], admin: u.admin };
 }
 
-module.exports = { tahrirHolat, bekorHolat };
+// ------------------------------------------------------------------ 🗂 hujjatNazorat (Hujjat.gs) — nusxasi yuklanmagan shartnomalar, arxiv holati
+const HUJJAT_NAZORAT_BOSHI = '2026-09-29', HUJJAT_NAZORAT_KUN = 3;
+async function hujjatNazorat([kodSes]) {
+  await S.ruxsat(kodSes, 'admin');
+  const r = (await require('./hujjat').hujjatBoshlang([kodSes])).royxat;
+  const bugun = V.bugun();
+  const chegara = new Date(Date.now() + 5 * 3600000 - HUJJAT_NAZORAT_KUN * 86400000).toISOString().slice(0, 10);
+  const kim = {};
+  aOxiri(await V.qatorlar('04_Ijara_shartnomalar')).map(z => xom(z.x, 21)).forEach(x => { if (x[0]) kim[String(x[0])] = String(x[20] || ''); });
+  aOxiri(await V.qatorlar('03b_Tolov_jadvali')).map(z => xom(z.x, 8)).forEach(x => { const m = /^Web App: (.+)$/.exec(String(x[7] || '')); if (m && !kim[String(x[1])]) kim[String(x[1])] = m[1]; });
+  const nusxasiz = r.filter(x => x.sana >= HUJJAT_NAZORAT_BOSHI && x.sana <= chegara && !x.skan && !/Bekor/i.test(x.holati))
+    .map(x => ({ no: x.no, fish: x.fish, dokon: x.dokon, sana: x.sana, kun: Math.round((new Date(bugun) - new Date(x.sana)) / 86400000), kim: kim[x.no] || '—' }))
+    .sort((a, b) => b.kun - a.kun);
+  const faol = r.filter(x => !/Bekor/i.test(x.holati));
+  const arxiv = { sotuv: [faol.filter(x => x.tur === 'sotuv' && x.skan).length, faol.filter(x => x.tur === 'sotuv').length],
+    ijara: [faol.filter(x => x.tur === 'ijara' && x.skan).length, faol.filter(x => x.tur === 'ijara').length],
+    jami: (await J.hujjatJurnal()).filter(h => h.holati === 'Faol').length };
+  return { nusxasiz, arxiv, kun: HUJJAT_NAZORAT_KUN };
+}
+
+module.exports = { tahrirHolat, bekorHolat, hujjatNazorat };

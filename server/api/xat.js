@@ -46,4 +46,14 @@ async function xatBoshlang([kodSes]) {
   return { royxat: L, bugun, admin: u.admin, bosqich: XAT_BOSQICH, bosqichQM: XAT_BOSQICH_QM };
 }
 
-module.exports = { xatBoshlang };
+// 🔎 xatNazorat (Xat.gs) — yetkazilishi kechikkan xatlar (direktor)
+async function xatNazorat([kodSes]) {
+  await S.ruxsat(kodSes, 'admin');
+  const bugun = V.bugun();
+  const fish = {}; (await P.xatShartnomalar(bugun)).forEach(x => fish[x.no] = { fish: x.fish, und: x.undiruvchi });
+  const L = (await J.xatJurnal()).map(h => ({ raqam: h.raqam, no: h.no, sana: h.sana, holati: h.holati, kim: h.kim, kun: X.xatKechikkan(h, bugun),
+    fish: (fish[h.no] || {}).fish || '', und: (fish[h.no] || {}).und || '' })).filter(h => h.kun).sort((a, b) => b.kun - a.kun);
+  return { royxat: L, chegara: 3 };   // XAT_YETKAZISH_KUN
+}
+
+module.exports = { xatBoshlang, xatNazorat };

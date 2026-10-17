@@ -155,4 +155,69 @@ async function ijaraImzosizRoyxat([kodSes]) {
     .map(s => ({ id: s.id, vaqt: s.vaqt, no: s.no, fish: s.fish, dokon: s.dokon, kim: s.kim, sabab: s.sabab }));
 }
 
-module.exports = { taminotDirektor, taminotSvodOl, taminotBoshlang, kbDirektor, ijaraImzosizRoyxat };
+// ------------------------------------------------------------------ 📎 Hujjatlar paneli: kbHolat (KelishuvBekor.gs), ijaraImzosizHolat (ImzosizBekor.gs) — faqat tekshiruv
+const J = require('../lib/jurnallar');
+const { xodimTeng } = require('../lib/xodim');
+const BEKOR_YOPIQ = ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'];
+const KB_OCHIQ = ['Hujjat tayyorlandi', 'Tasdiq kutilmoqda', 'Rad etildi'];
+const xom = (x, n) => { const o = []; for (let i = 0; i < n; i++) o.push(x[i] == null ? '' : x[i]); return o; };
+async function ijara04(no, ust) {
+  const V4 = aOxiri(await V.qatorlar('04_Ijara_shartnomalar')).map(z => ({ n: z.n, r: xom(z.x, ust) }));
+  const top = V4.filter(z => String(z.r[0]).trim() === no);
+  if (!top.length) throw new S.Xato('Ijara shartnomasi topilmadi: ' + no);
+  if (top.length > 1) throw new S.Xato(no + ' raqami 04 da ' + top.length + ' marta uchraydi — avval bazada qo\'lda tekshiring.');
+  return top[0].r;
+}
+// kbTekshir_ — tekshiruv qismi (hujjat ma'lumotlari kerak emas)
+async function kbTekshir(no, ozId) {
+  no = String(no || '').trim();
+  if (!/^IJ-27\/\d+$/.test(no)) throw new S.Xato('Bu yo\'l faqat ijara shartnomasi (IJ-27/…) uchun: ' + no);
+  const r = await ijara04(no, 29);
+  const holati = String(r[2] || '').trim();
+  if (holati !== 'Aktiv') throw new S.Xato(no + ' holati «' + (holati || 'bo\'sh') + '» — faqat «Aktiv» shartnoma bekor qilinadi.');
+  if (String(r[6] || '').trim() !== 'MChJ') throw new S.Xato(no + ' bo\'yicha ijaraga beruvchi — «' + r[6] + '». Bu yo\'l faqat MChJ nomidan tuzilgan shartnoma uchun — Kamoliddinga ayting.');
+  if (!(await J.hujjatJurnal()).some(h => h.no === no && h.turi === 'SHARTNOMA' && h.holati === 'Faol'))
+    throw new S.Xato(no + ' ning imzolangan skani yuklanmagan — demak shartnoma imzolanmagan. Uni «✕ Imzolanmagan» yo\'li bilan bekor qiling.');
+  const och = (await J.bekorJurnal()).find(z => z.no === no && BEKOR_YOPIQ.indexOf(z.holati) < 0);
+  if (och) throw new S.Xato(no + ' bo\'yicha bir tomonlama bekor qilish so\'rovi ochiq: ' + (och.raqam || 'ID ' + och.id) + ' (' + och.holati + ') — avval uni yoping.');
+  const boshqa = (await kbRows()).find(z => z.no === no && KB_OCHIQ.indexOf(z.holati) >= 0 && String(z.id) !== String(ozId || ''));
+  if (boshqa) throw new S.Xato(no + ' bo\'yicha kelishuv so\'rovi allaqachon ochiq (' + boshqa.holati + ', ' + boshqa.kim + ').');
+}
+async function kbHolat([kodSes, no]) {
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const h = u.huquq || []; const adm = h.indexOf('admin') >= 0;
+  if (!(adm || h.indexOf('ijara_kelishuv') >= 0)) return { huquq: false };
+  no = String(no || '').trim();
+  const sr = (await kbRows()).filter(z => z.no === no && KB_OCHIQ.indexOf(z.holati) >= 0).pop();
+  if (sr) return { huquq: true, admin: adm, ozi: sr.kim === u.fish, s: kbKor(sr) };
+  try { await kbTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { huquq: true, admin: adm, mumkin: false, sabab: e.message }; }
+  return { huquq: true, admin: adm, mumkin: true };
+}
+// imzTekshir_ — tekshiruv qismi; masul qaytaradi
+async function imzTekshir(no) {
+  no = String(no || '').trim();
+  if (!/^IJ-27\/\d+$/.test(no)) throw new S.Xato('Bu yo\'l faqat ijara shartnomasi (IJ-27/…) uchun: ' + no);
+  const r = await ijara04(no, 24);
+  const holati = String(r[2] || '').trim();
+  if (holati !== 'Aktiv') throw new S.Xato(no + ' holati «' + (holati || 'bo\'sh') + '» — faqat «Aktiv» shartnoma shu yo\'l bilan bekor qilinadi.');
+  if ((await J.hujjatJurnal()).some(h => h.no === no && h.turi === 'SHARTNOMA' && h.holati === 'Faol'))
+    throw new S.Xato(no + ' ga imzolangan shartnoma skani yuklangan — demak u imzolangan. Bu yo\'l faqat imzolanmagan shartnoma uchun; «✂ Bekor qilishga kiritish» tartibidan foydalaning.');
+  const soni = async (nom, shart) => aOxiri(await V.qatorlar(nom)).map(z => xom(z.x, 7)).filter(z => String(z[2]).trim() === no && (!shart || shart(z))).length;
+  const t5 = await soni('05_Tolovlar'), t5b = await soni('05b_Bufer_tolovlar', z => String(z[6]).trim() === 'Буферда');
+  if (t5 || t5b) throw new S.Xato(no + ' bo\'yicha to\'lov bor (' + (t5 ? '05_Tolovlar: ' + t5 + ' ta' : '') + (t5 && t5b ? ', ' : '') + (t5b ? 'buferda: ' + t5b + ' ta' : '') + ') — imzolanmagan deb bekor qilib bo\'lmaydi.');
+  const och = (await J.bekorJurnal()).find(z => z.no === no && BEKOR_YOPIQ.indexOf(z.holati) < 0);
+  if (och) throw new S.Xato(no + ' bo\'yicha ochiq bekor so\'rovi bor: ' + och.raqam + ' (' + och.holati + ') — avval uni yoping.');
+  return { masul: String(r[20] || '').trim() };
+}
+async function ijaraImzosizHolat([kodSes, no]) {
+  let u; try { u = await S.ruxsat(kodSes, 'shartnoma'); } catch (e) { return { admin: false, mumkin: false, sorov: null, sabab: '' }; }
+  no = String(no || '').trim();
+  const sr = (await imzSorovlar()).find(z => z.no === no && z.holati === 'Kutilmoqda');
+  const sorov = sr ? { id: sr.id, vaqt: sr.vaqt, kim: sr.kim, sabab: sr.sabab } : null;
+  let x; try { x = await imzTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { admin: u.admin, mumkin: false, sorov, sabab: e.message }; }
+  if (u.admin) return { admin: true, mumkin: true, sorov, sabab: '' };
+  if (!(x.masul && xodimTeng(x.masul, u.fish))) return { admin: false, mumkin: false, sorov, sabab: 'Bu shartnomani ' + (x.masul || 'boshqa xodim') + ' tuzgan — so\'rovni faqat u yuboradi.' };
+  return { admin: false, mumkin: true, sorov, sabab: '' };
+}
+
+module.exports = { taminotDirektor, taminotSvodOl, taminotBoshlang, kbDirektor, ijaraImzosizRoyxat, kbHolat, ijaraImzosizHolat };
