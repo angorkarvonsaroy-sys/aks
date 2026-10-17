@@ -26,7 +26,6 @@ const YU_QARORLAR = ['Қаноатлантирилди', 'Қисман қано�
 const YU_SUD = 'Шеробод туманлараро фуқаролик ишлари бўйича суди';
 const YU_FAOL = ['Faol', 'Kelishuv', "Yopish so'ralgan"];
 const YU_KUTISH_KUN = 7;
-const YU_TOLOV_KUN = 90, YU_TOLOV_ULUSH = 0.7;
 const YU_TOP_TUR = [['PASPORT', 'Mijoz pasport nusxasini yuklang'], ['SHARTNOMA', 'Imzolangan shartnoma skanini yuklang'], ['NOTARIAL', 'Notarial hujjat nusxasini yuklang'],
   ['QOSHIMCHA_KELISHUV', 'Qo\'shimcha kelishuv / dalolatnoma skanini yuklang'], ['JSHSHIR', 'Mijozning JSHSHIR ini toping (14 raqam)'], ['MANZIL', 'Mijozning yashash manzilini aniqlang'],
   ['BOSHQA', 'Boshqa']];
@@ -94,38 +93,7 @@ function yuKorinish(i, x, bugun, K) {
     undiruvchi: i.undiruvchi, sorovSabab: i.sorovSabab, yopishSabab: i.yopishSabab, tasdiqladi: i.tasdiqladi };
 }
 
-function yuHimoya(x, t) {
-  const ox = x && x.oxirgiTolov; if (!ox || !ox.sana || !(t >= 0 && t <= YU_TOLOV_KUN) || x.sekin) return null;
-  const s90 = Number(ox.s90) || 0, oy = Number(x.oylik) || 0, kerak = Math.round(oy * 3 * YU_TOLOV_ULUSH);
-  if (oy > 0 ? s90 < kerak : !(s90 > 0)) return null;
-  const p = n => Math.round(n || 0).toLocaleString('ru-RU').replace(/[ ,]/g, ' ');
-  return { s90, kerak, matn: '90 kunda jadvalning ' + Math.round(YU_TOLOV_ULUSH * 100) + ' % i to\'langan (' + p(s90) + (oy > 0 ? ' / ' + p(kerak) : '') + ' so\'m) — yuristga hali erta' };
-}
-// U4 mezoni — Yurist.gs yuMezon_ bilan bir xil. Z — xat zanjiri (XAT_ZANJIR)
-function yuMezon(x, XJ, UJ, H, bugun, Z) {
-  const yet = []; let sana = '';
-  const xat = (sr, b) => XJ.filter(h => h.no === x.no && h.holati === 'Yuborildi' && X.xatSeriya(h.shablon) === sr && h.bosqich === b && X.xatJoriy(h, Z) && !/^Kutilmoqda/.test(String(h.tek || ''))).pop();
-  const tAS = xat('AS', 3), tQM = xat('QM', 3);
-  const shAS = !!tAS && /Shoshilinch/i.test(String(tAS.izoh || ''));
-  const shosh = shAS || ((Number(x.muddati) || 0) > 0 && (Number(x.davoKun != null ? x.davoKun : x.kechikkan) || 0) >= 1095 - 90);
-  const ikkiAS = !!(xat('AS', 1) && xat('AS', 2)), ikkiQM = !!(xat('QM', 1) && xat('QM', 2));
-  const okAS = tAS && bugun > X.xatIso(tAS.muddat) && x.muddati > X.XAT_MIN_QARZ && (shosh || ikkiAS);
-  const okQM = tQM && bugun > X.xatIso(tQM.muddat) && x.qoshimcha > X.XAT_MIN_QARZ && (shosh || ikkiQM);
-  if (!okAS && !okQM) {
-    if (!tAS && !tQM) yet.push(shosh ? 'shoshilinch talabnoma isboti bilan yuborilmagan' : 'uchala ogohlantirish xati (talabnomagacha) isboti bilan yuborilmagan');
-    else if (!shosh && ((tAS && !ikkiAS) || (tQM && !ikkiQM)) && !(tAS && ikkiAS) && !(tQM && ikkiQM)) yet.push('talabnomadan oldingi 1- va 2-xat isboti bilan yuborilmagan');
-    else yet.push('talabnomadagi to\'lov muddati hali o\'tmagan yoki qarz qolmagan');
-  } else sana = [okAS ? X.xatIso(tAS.muddat) : '', okQM ? X.xatIso(tQM.muddat) : ''].filter(Boolean).sort()[0];
-  const my = UJ.filter(j => j.no === x.no);
-  if (!shosh) {
-    if (!my.some(j => j.chora === 'Телефон')) yet.push('jurnalda telefon orqali ogohlantirish yo\'q');
-    if (!my.some(j => j.chora === 'СМС/Телеграм')) yet.push('jurnalda SMS / Telegram orqali ogohlantirish yo\'q');
-    if (!my.some(j => j.chora === 'Ташриф (манзилига бориб)')) yet.push('jurnalda uyiga borib ogohlantirish yo\'q');
-  }
-  if (!H.some(h => h.no === x.no && h.turi === 'SHARTNOMA')) yet.push('imzolangan shartnoma skani yuklanmagan');
-  const ox = x.oxirgiTolov; if (ox && ox.sana) { const h = yuHimoya(x, kun(ox.sana, bugun)); if (h) yet.push(h.matn); }
-  return { ok: !yet.length, yetishmaydi: yet, kun: sana ? kun(sana, bugun) : 0 };
-}
+const { yuMezon } = require('../lib/portfel');   // U4 mezoni — portfel bilan umumiy
 
 // ------------------------------------------------------------------ yurist / direktor ekrani
 async function yuristBoshlang([kodSes]) {

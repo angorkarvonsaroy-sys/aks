@@ -81,6 +81,8 @@ Object.assign(A, require('./yurist'));
 delete A.Q;
 // ⚖ Yurist yozuvlari: yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq — server o'zi yozadi
 Object.assign(A, require('./yurist_yoz'));
+// 💰 Undiruv: undBoshlang (portfel) — lib/portfel.js
+Object.assign(A, require('./undiruv'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq']), enumerable: false });
