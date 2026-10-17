@@ -134,6 +134,12 @@ async function qolganlarniKochir() {
 function boshla() { const t = setInterval(() => qolganlarniKochir().catch(() => {}), 15 * 60000); t.unref(); setTimeout(() => qolganlarniKochir().catch(() => {}), 60000).unref(); }
 
 // Serverdagi fayl (SRV:) — o'quvchilar uchun
-function srvFayl(faylId) { const y = srvYol(faylId); if (!y) return null; try { return { nom: path.basename(y), bytes: fs.readFileSync(y) }; } catch (e) { return null; } }
+// faylId «SRV:…» bo'lsa — o'sha; aks holda (Drive ID) aks-skan nusxalagan joy: /opt/aks/hujjat/<shartnoma>/<nom>
+function srvFayl(faylId, no, nom) {
+  let y = srvYol(faylId);
+  if (!y && no && nom) y = path.join(ILDIZ, String(no).replace(/\//g, '-'), path.basename(String(nom)));
+  if (!y) return null;
+  try { const b = fs.readFileSync(y); return b.length ? { nom: path.basename(y), bytes: b } : null; } catch (e) { return null; }
+}
 
 module.exports = { hujjatYukla, srvFayl, srvYol, boshla };
