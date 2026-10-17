@@ -1,5 +1,5 @@
 // AKS TIZIM — hujjatlar bo'limining O'QIYDIGAN qismi (Hujjat.gs v25.9 dagi hujjatBoshlang / hujjatlarRoyxati bilan bir xil).
-// Yuklash (hujjatYukla), tuzatish (hujjatTuzat), nazorat (hujjatNazorat) — hali ko'prik orqali eski tizimda (Drive'ga yozadi).
+// Yuklash (hujjatYukla) va tuzatish (hujjatTuzat) — api/hujjat_yoz.js.
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');

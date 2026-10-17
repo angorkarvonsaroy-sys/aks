@@ -2,6 +2,7 @@
 // Fayl avval SERVERDA saqlanadi (/opt/aks/hujjat/<shartnoma>/<nom>.pdf) — xodim 2–3 soniyada javob oladi.
 // Keyin fonda eski tizim (Koprik.gs v1.3 koprikDriveSaqla → hujjatPapka_) faylni direktorning Drive'iga o'sha papkaga ko'chiradi:
 // fayllar egasi avvalgidek direktor, Drive — asosiy arxiv. Ko'chguncha 06d «Fayl_ID» = «SRV:<yo'l>», ko'chgach Drive ID yoziladi.
+// ✎ Tuzatish (hujjatTuzat) ham shu yerda — pastda.
 // Server o'quvchilari (yuristHujjat, hujjatlarRoyxati) SRV ni tushunadi; eski tizimdagi o'quvchilar faqat Drive ID ni — shuning uchun ko'chirish darhol boshlanadi.
 'use strict';
 const fs = require('fs');
@@ -109,6 +110,8 @@ async function driveGaKochir(kod, f, urinish = 0) {
     const i = ids.findIndex(v => String(v) === String(f.id));   // ids[0] — sarlavha (1-qator)
     if (i < 0) throw new Error('06d da ' + f.id + ' topilmadi');
     await G.yoz(env.aksBazaId, [{ varaq: HUJ, katak: 'I' + (i + 1), qiymat: [[r.id]] }], env.googleKey);
+    const hol = await G.qatorOqi(env.aksBazaId, HUJ, i + 1, 'N', env.googleKey).catch(() => []);   // shu orada «✎ Tuzatish» bilan bekor qilingan bo'lsa
+    if (String(hol[13] || '') === 'Bekor') koprik.chaqir('koprikHujjatBekorFayl', kod, [r.id, 'BEKOR_' + f.id + '_' + f.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
     tetik.varaqlarYangila([HUJ]).catch(() => {});
     console.log(new Date().toISOString(), 'hujjat Drive ga ko\'chdi:', f.rel, '→', r.id);
   } catch (e) {
@@ -142,4 +145,109 @@ function srvFayl(faylId, no, nom) {
   try { const b = fs.readFileSync(y); return b.length ? { nom: path.basename(y), bytes: b } : null; } catch (e) { return null; }
 }
 
-module.exports = { hujjatYukla, srvFayl, srvYol, boshla };
+// ------------------------------------------------------------------ ✎ TUZATISH (bekor qilish) — Hujjat.gs v25.9 hujjatTuzat bilan bir xil
+// 06d N «Bekor», O izoh; xat isboti bo'lsa — 06e qatori «Tayyorlandi» ga (xatHujjatBekor_) va 06 undiruv jurnalida belgi (undXatBelgi_);
+// bekor qilish buyrug'i / xabarnomasi bo'lsa — 06h holati orqaga (bekorHujjatBekor_). Drive'dagi fayl «_BEKOR QILINGANLAR» ga — eski tizim
+// orqali (Koprik v1.6 koprikHujjatBekorFayl), xodim kutmaydi. Yoqilishi: «aks-yozuv-sinov hujjat» (Redis yozuv_yondi:hujjat) va Koprik ≥ 1.6.
+const XAT = '06e_Xatlar', BEK = '06h_Bekor_sorovlari', UND = '06_Undiruv_jurnali';
+const BEKOR_YOPIQ = ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'];
+const s_ = v => String(v == null ? '' : v);
+function hozirHm() { return hozir().slice(0, 16); }
+let kv16 = { ok: false, t: 0 };
+async function koprik16(kod) {
+  if (kv16.t && Date.now() - kv16.t < (kv16.ok ? 30 : 2) * 60000) return kv16.ok;
+  try { kv16 = { ok: koprik.bor() && String(await koprik.chaqir('koprikVersiya', kod, [])) >= '1.6', t: Date.now() }; } catch (e) { kv16 = { ok: false, t: Date.now() }; }
+  return kv16.ok;
+}
+async function tuzatServerda(kod) {
+  try { if ((await redis.get('yozuv_yondi:hujjat')) !== '1') return false; } catch (e) { return false; }
+  return koprik16(kod);
+}
+// Varaqni Google'dan YANGI o'qish (getDisplayValues yoki getValues), A ustunining oxirgi to'ldirilgan qatorigacha; har qator {qator, r}
+async function yangiQatorlar(varaq, gacha, xom) {
+  const X = await G.oraliqOqi(env.aksBazaId, varaq, 'A2:' + gacha, env.googleKey, xom ? 'UNFORMATTED_VALUE' : 'FORMATTED_VALUE');
+  let m = -1; X.forEach((r, i) => { if (r[0] !== '' && r[0] != null) m = i; });
+  return X.slice(0, m + 1).map((r, i) => ({ qator: i + 2, r }));
+}
+const harf_ = n => { let x = ''; while (n > 0) { const m = (n - 1) % 26; x = String.fromCharCode(65 + m) + x; n = Math.floor((n - 1) / 26); } return x; };
+const kat = (varaq, qator, ustun, qiymatlar) => ({ varaq, katak: harf_(ustun) + qator + (qiymatlar.length > 1 ? ':' + harf_(ustun + qiymatlar.length - 1) + qator : ''), qiymat: [qiymatlar] });
+
+// 06d qatori — Google'dan YANGI (hujjatJurnal_ ko'rinishi)
+async function hujjatYangi(varaq, id) {
+  return (await yangiQatorlar(varaq, 'O')).map(({ qator, r }) => ({ qator, id: s_(r[0]), no: s_(r[1]), turi: s_(r[5]), sana: s_(r[6]), nom: s_(r[7]), faylId: s_(r[8]),
+    kim: s_(r[11]), vaqt: s_(r[12]), holati: s_(r[13]), izoh: s_(r[14]) })).filter(h => h.id).find(x => String(x.id) === String(id));
+}
+// Yozuv yadrosi (sinov ham shuni ishlatadi): 06d N, O — qaytaradi yozilgan kataklar ro'yxati
+function tuzatKataklar(varaq, h, sabab, fish, vaqt) {
+  return [kat(varaq, h.qator, 14, ['Bekor']), kat(varaq, h.qator, 15, [(h.izoh ? h.izoh + ' | ' : '') + 'Bekor: ' + sabab + ' (' + fish + ', ' + vaqt + ')'])];
+}
+// xatHujjatBekor_ + undXatBelgi_
+async function xatKataklar(hj, sabab, fish, vaqt) {
+  const Y = [], xabar = [];
+  const L = (await yangiQatorlar(XAT, 'Y')).map(({ qator, r }) => ({ qator, raqam: s_(r[0]), no: s_(r[2]), holati: s_(r[13]), skan: s_(r[15]), isbot: s_(r[18]), izoh: s_(r[21]) })).filter(h => h.raqam);
+  let U = null;
+  for (const h of L) {
+    if (!(h.no === hj.no && h.holati === 'Yuborildi')) continue;
+    if (!hj.nom || (h.isbot !== hj.nom && h.skan !== hj.nom)) continue;
+    Y.push(kat(XAT, h.qator, 14, ['Tayyorlandi']), kat(XAT, h.qator, 16, ['']), kat(XAT, h.qator, 17, ['', '', '']), kat(XAT, h.qator, 23, ['']),
+      kat(XAT, h.qator, 22, [(h.izoh ? h.izoh + ' | ' : '') + 'Етказиш исботи бекор қилинди: ' + sabab + ' (' + fish + ', ' + vaqt + ')']));
+    U = U || await yangiQatorlar(UND, 'R', true);
+    for (let i = U.length - 1; i >= 0; i--) {
+      const v = U[i].r;
+      if (s_(v[8]) === h.raqam && s_(v[4]) === 'Ёзма огоҳлантириш') {
+        Y.push(kat(UND, U[i].qator, 18, ['Исбот бекор қилинди']), kat(UND, U[i].qator, 12, [(v[11] ? v[11] + ' | ' : '') + 'Етказиш исботи бекор қилинди (' + vaqt + ')']));
+        break;
+      }
+    }
+    xabar.push(h.raqam + ' xati «Tayyorlandi» holatiga qaytdi — isbotini qayta yuklang («✉ Yuborildi»).');
+  }
+  return { Y, matn: xabar.join(' ') };
+}
+// bekorHujjatBekor_
+async function bekKataklar(hj, sabab, fish, vaqt) {
+  const Y = [], xabar = [];
+  if (hj.turi !== 'BEKOR_BUYRUQ' && hj.turi !== 'BEKOR_XABARNOMA') return { Y, matn: '' };
+  const L = (await yangiQatorlar(BEK, 'AE')).map(({ qator, r }) => ({ qator, id: s_(r[0]), no: s_(r[1]), holati: s_(r[6]), raqam: s_(r[7]), bSkan: s_(r[18]), xSkan: s_(r[22]), izoh: s_(r[29]) })).filter(z => z.id);
+  for (const z of L) {
+    if (z.no !== hj.no) continue;
+    if (hj.turi === 'BEKOR_BUYRUQ' ? z.bSkan !== hj.nom : z.xSkan !== hj.nom) continue;
+    if (BEKOR_YOPIQ.indexOf(z.holati) >= 0) { xabar.push(z.raqam + ' so\'rovi allaqachon «' + z.holati + '» — skan bekor qilingani bekor qilish holatini o\'zgartirmaydi, direktor bilan hal qiling.'); continue; }
+    if (hj.turi === 'BEKOR_BUYRUQ') { Y.push(kat(BEK, z.qator, 19, [''])); z.bSkan = ''; }
+    else { Y.push(kat(BEK, z.qator, 20, ['', '', '', ''])); z.xSkan = ''; }
+    Y.push(kat(BEK, z.qator, 7, [z.bSkan || z.xSkan ? 'Hujjatlar kutilmoqda' : 'Hujjatlar tayyorlandi']),
+      kat(BEK, z.qator, 30, [(z.izoh ? z.izoh + ' | ' : '') + (hj.turi === 'BEKOR_BUYRUQ' ? 'Buyruq' : 'Xabarnoma') + ' skani bekor qilindi: ' + sabab + ' (' + fish + ', ' + vaqt + ')']));
+    xabar.push(z.raqam + ' so\'rovi holati orqaga qaytdi — skanni qayta yuklang.');
+  }
+  return { Y, matn: xabar.join(' ') };
+}
+function driveBekor(kod, faylId, nom) {   // eski tizimda: try { moveTo + setName } catch (e) {} — xato e'tiborsiz
+  if (!faylId || /^SRV:/.test(faylId)) return;   // hali Drive'ga ko'chmagan — driveGaKochir ko'chgach o'zi «_BEKOR QILINGANLAR» ga qo'yadi
+  koprik.chaqir('koprikHujjatBekorFayl', kod, [faylId, nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
+}
+async function hujjatTuzat(args) {
+  const [kodSes, id, sabab0] = args;
+  const u = await S.ruxsat(kodSes, 'hujjat');
+  if (!(await tuzatServerda(u.kod))) { const r = await koprik.chaqir('hujjatTuzat', u.kod, [id, sabab0]); await tetik.yangilaKut(20000); return r; }
+  const sabab = s_(sabab0).replace(/\s+/g, ' ').trim();
+  if (sabab.length < 5) throw new S.Xato('Sababini yozing (kamida 5 belgi) — masalan: «xat sanasi noto\'g\'ri».');
+  let yoq = false;
+  const w = await qulfBilan(async () => {
+    const h = await hujjatYangi(HUJ, id);
+    if (!h) throw new S.Xato('Hujjat topilmadi (ID ' + id + ').');
+    if (h.holati !== 'Faol') throw new S.Xato('Bu hujjat allaqachon «' + h.holati + '».');
+    const bugun = V.bugun().split('-').reverse().join('.');
+    if (!(u.admin || (h.kim === u.fish && String(h.vaqt).indexOf(bugun) === 0))) throw new S.Xato('Bu hujjatni tuzata olmaysiz: o\'zingiz yuklagan hujjatni faqat o\'sha kuni tuzatish mumkin. Keyin — faqat direktor.');
+    const vaqt = hozirHm();
+    const [x, b] = await Promise.all([xatKataklar(h, sabab, u.fish, vaqt), bekKataklar(h, sabab, u.fish, vaqt)]);
+    try { await G.yoz(env.aksBazaId, tuzatKataklar(HUJ, h, sabab, u.fish, vaqt).concat(x.Y, b.Y), env.googleKey); }
+    catch (e) { if (e instanceof G.RuxsatYoq) { yoq = true; return null; } throw e; }
+    return { h, xat: [x.matn, b.matn].filter(Boolean).join(' '), varaqlar: [HUJ].concat(x.Y.length ? [XAT, UND] : [], b.Y.length ? [BEK] : []) };
+  });
+  if (yoq) { const r = await koprik.chaqir('hujjatTuzat', u.kod, [id, sabab0]); await tetik.yangilaKut(20000); return r; }   // hech narsa yozilmagan
+  driveBekor(u.kod, w.h.faylId, 'BEKOR_' + w.h.id + '_' + w.h.nom);
+  await Promise.race([tetik.varaqlarYangila(w.varaqlar).catch(e => console.error('ko\'zgu (tuzatish):', e.message)), new Promise(r => setTimeout(r, 15000))]);
+  return { ok: true, id: w.h.id, nom: w.h.nom, no: w.h.no, turi: w.h.turi, xat: w.xat };
+}
+
+module.exports = { hujjatYukla, hujjatTuzat, srvFayl, srvYol, boshla };
+module.exports._ichki = { hujjatYangi, tuzatKataklar, xatKataklar, bekKataklar, yangiQatorlar, koprik16, hozirHm };

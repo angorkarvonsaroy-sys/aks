@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.5). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.6). Boshqa fayllar o'zgarmaydi.
+// v1.6: koprikHujjatBekorFayl — «✎ Tuzatish» qilingan skanni Drive'da «_BEKOR QILINGANLAR» papkasiga ko'chirish va nomini BEKOR_… qilish
+//       (hujjatTuzat dagi bilan bir xil; 06d va boshqa jurnallarni server o'zi yozadi).
 // v1.5: koprikTgYubor — direktor(lar)ga Telegram (tgYubor_), koprikTgChat — istalgan Telegram chatga (tgYuborChat_).
 //       Server o'zi yozadigan amallar (ta'minot va keyingilari) xabarni shu orqali yuboradi — xodim kutmaydi.
 // v1.4: koprikQdSnap — «Bugungi ish» ertalabki navbati (Qadam.gs qdSnap_, Script Properties) — server bilan bitta ro'yxat.
@@ -52,7 +54,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.5'; }
+function koprikVersiya(kod) { return '1.6'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -72,3 +74,11 @@ function koprikQdSnap(kod, fish, bugun, navbatNo, tugadiNo) { ruxsat_(kod, 'undi
 function koprikTgYubor(kod, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYubor_(String(matn || '')); return { ok: true }; }
 // v1.5: istalgan chatga (xodimning Telegram ID si — serverda 07_Xodimlar U ustunidan) — tgYuborChat_ ning o'zi
 function koprikTgChat(kod, chat, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYuborChat_(String(chat || ''), String(matn || '')); return { ok: true }; }
+// v1.6: skanni bekor qilinganlar papkasiga (Hujjat.gs hujjatTuzat: moveTo + setName) — fayl topilmasa xato qaytadi, server e'tiborsiz qoldiradi
+function koprikHujjatBekorFayl(kod, faylId, nom) {
+  ruxsat_(kod, 'hujjat');
+  const f = DriveApp.getFileById(String(faylId));
+  f.moveTo(papka_(HUJJAT_ILDIZ.concat([HUJJAT_BEKOR_PAPKA])));
+  f.setName(String(nom));
+  return { ok: true };
+}

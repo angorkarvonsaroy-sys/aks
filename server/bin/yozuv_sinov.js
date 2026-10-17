@@ -6,6 +6,7 @@
 // Hammasi bir xil bo'lsa — serverda yozish YOQILADI (Redis yozuv_yondi:*). «ochir» — o'chiradi (eski tizimga qaytadi).
 // Ishlatish: aks-yozuv-sinov           — to'lov va tashrifni sinash va yoqish
 //            aks-yozuv-sinov taminot   — ta'minot (kiritish + tasdiq/rad) ni sinash va yoqish (Koprik v1.5 kerak)
+//            aks-yozuv-sinov hujjat    — hujjatni tuzatish (06d «Bekor») ni sinash va yoqish (Koprik v1.6 kerak)
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -15,6 +16,7 @@ const V = require('../lib/varaq');
 const { pool, redis } = require('../lib/db');
 const K = require('../api/kassa')._ichki;
 const TY = require('../api/taminot_yoz')._ichki;
+const HY = require('../api/hujjat_yoz')._ichki;
 const koprik = require('../api/koprik');
 const ID = env.aksBazaId, KEY = env.googleKey;
 
@@ -132,17 +134,67 @@ async function taminotSinov() {
   else console.log('⚠ ' + x + ' ta farq — ta\'minot YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ✎ HUJJAT TUZATISH: 06d nusxasida oxirgi «Faol» qatorga server yozuvi (N «Bekor», O izoh) — eski tizim «Bekor» qilgan qator bilan solishtiriladi
+async function hujjatSinov() {
+  const varaq = '06d_Hujjatlar';
+  console.log('\n=== HUJJAT TUZATISH (' + varaq + ') ===');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
+  let ver = '?';
+  try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k16 = ver >= '1.6' && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k16 ? ' ✅' : ' ⚠ (1.6 kerak — Koprik.gs yangilanmagan)'));
+  const M = await G.varaqlar(ID, KEY);
+  const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+  const nusxa = 'zz_sinov_' + varaq;
+  const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length, newSheetName: nusxa } }], KEY);
+  const ng = j.replies[0].duplicateSheet.properties.sheetId;
+  let x = 0;
+  try {
+    await G.gid(ID, nusxa, KEY, true);
+    const L = (await HY.yangiQatorlar(nusxa, 'O')).map(({ qator, r }) => ({ qator, id: String(r[0] == null ? '' : r[0]), holati: String(r[13] == null ? '' : r[13]) })).filter(z => z.id);
+    const faol = L.filter(z => z.holati === 'Faol').pop(), bek = L.filter(z => z.holati === 'Bekor').pop();
+    if (!faol) throw new Error('06d da «Faol» hujjat yo\'q — sinab bo\'lmaydi');
+    const h = await HY.hujjatYangi(nusxa, faol.id);
+    const t0 = Date.now();
+    await G.yoz(ID, HY.tuzatKataklar(nusxa, h, 'SINOV sababi', 'SINOV', HY.hozirHm()), KEY);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + h.qator + ' (ID ' + h.id + ')');
+    const kat = async n => (await G.kataklarOqi(ID, nusxa, 'A' + n + ':O' + n, KEY))[0] || [];
+    const Y = await kat(h.qator);
+    if (bek) x += solishtir(await kat(bek.qator), Y, [14, 15], '\n— Bekor qilingan (N–O) va eski tizim bekor qilgan qator ' + bek.qator + ':');
+    else console.log('(eski tizim bekor qilgan qator yo\'q — N–O solishtirilmadi)');
+    const n = (Y[13] && Y[13].formattedValue) || '', o = (Y[14] && Y[14].formattedValue) || '';
+    console.log('Yozilgan qiymatlar: ' + n + ' | ' + o);
+    if (n !== 'Bekor' || !/Bekor: SINOV sababi \(SINOV, \d{2}\.\d{2}\.\d{4} \d{2}:\d{2}\)$/.test(o)) { console.log('⚠ N–O qiymatlari kutilgandek emas'); x++; }
+  } finally {
+    await G.soralar(ID, [{ deleteSheet: { sheetId: ng } }], KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('Nusxa varaq o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k16) {
+    await redis.set('yozuv_yondi:hujjat', '1');
+    console.log('✅ HAMMASI BIR XIL — hujjatni tuzatish endi server orqali saqlanadi.');
+    console.log('   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
+  } else if (!x) console.log('⚠ Yozuv bir xil, lekin Koprik.gs v1.6 o\'rnatilmagan — YOQILMADI. Koprik.gs ni yangilab, qayta ishga tushiring.');
+  else console.log('⚠ ' + x + ' ta farq — hujjatni tuzatish YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot');
-    console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif va ta\'minot yana eski tizim orqali saqlanadi.');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat');
+    console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot va hujjat tuzatish yana eski tizim orqali saqlanadi.');
   } else if (arg === 'taminot') {
     console.log('Hozir: ta\'minot — ' + ((await redis.get('yozuv_yondi:taminot')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await taminotSinov();
+  } else if (arg === 'hujjat') {
+    console.log('Hozir: hujjat tuzatish — ' + ((await redis.get('yozuv_yondi:hujjat')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await hujjatSinov();
   } else {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';
     console.log('Hozir: to\'lov — ' + await holat('tolov') + ', tashrif — ' + await holat('tashrif'));

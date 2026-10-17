@@ -88,7 +88,7 @@ Object.assign(A, require('./monitoring'));
 // 🏠 Bosh sahifa: boshMalumot (Bosh.gs v1.3), 📊 hisobotMalumot (Hisobot.gs v27.10)
 Object.assign(A, require('./bosh'));
 // 📎 Hujjat yuklash — fayl serverda, fonda Drive'ga (Koprik v1.3)
-const HY = require('./hujjat_yoz'); A.hujjatYukla = HY.hujjatYukla;
+const HY = require('./hujjat_yoz'); A.hujjatYukla = HY.hujjatYukla; A.hujjatTuzat = HY.hujjatTuzat;   // tuzatish — aks-yozuv-sinov hujjat va Koprik v1.6 bilan, aks holda eski tizim
 // ▶ Bugungi ish: qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat (Qadam.gs v2.1 + Ijro.gs ijroQisqa_)
 Object.assign(A, require('./qadam'));
 // undiruvchi yozuvlari: undYoz, qadamChora, qadamNazoratYoz, qadamKechiktir — server jadvalga o'zi yozadi
@@ -122,5 +122,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat']), enumerable: false });
 module.exports = A;
