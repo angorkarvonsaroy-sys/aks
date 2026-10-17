@@ -16,7 +16,7 @@ async function xatJurnal() {
 // 06d_Hujjatlar — getDisplayValues
 async function hujjatJurnal() {
   return (await V.qatorlar('06d_Hujjatlar')).map(({ n, r }) => ({ qator: n, id: r[0] || '', no: r[1] || '', turi: r[5] || '', sana: r[6] || '', nom: r[7] || '',
-    faylId: r[8] || '', sahifa: r[10] || '', kim: r[11] || '', vaqt: r[12] || '', holati: r[13] || '', izoh: r[14] || '' }))
+    faylId: r[8] || '', sahifa: r[10] || '', kim: r[11] || '', vaqt: r[12] || '', holati: r[13] || '', izoh: r[14] || '', naz: r[15] || '', tgx: r[16] || '' }))
     .filter(h => h.id);
 }
 
@@ -65,4 +65,36 @@ function topKor(x) {
   return Object.assign({}, x, { kechikkan: !!kech, tasdiqchi: topTasdiqchi(x), tgx: undefined });
 }
 
-module.exports = { xatJurnal, hujjatJurnal, undJurnal, yuIshlar, yuIshQator, topRows, topKor };
+// 06g_Yuridik_xatlar (Yurhujjat.gs yuxJurnal_) — getDisplayValues
+async function yuxJurnal() {
+  return (await V.qatorlar('06g_Yuridik_xatlar')).map(({ n, r }) => ({ qator: n, raqam: r[0] || '', sana: r[1] || '', ishId: r[2] || '', no: r[3] || '', fish: r[4] || '',
+    turi: r[5] || '', qabul: r[6] || '', holati: r[7] || '', pdf: r[8] || '', doc: r[9] || '', usul: r[10] || '', yetSana: r[11] || '', isbot: r[12] || '', pochta: r[13] || '', kim: r[14] || '', vaqt: r[15] || '', izoh: r[16] || '' }))
+    .filter(h => h.raqam);
+}
+// 06h_Bekor_sorovlari (Bekor.gs bekorJurnal_) — getDisplayValues
+async function bekorJurnal() {
+  const n = v => Number(String(v == null ? '' : v).replace(/[^\d.-]/g, '')) || 0;
+  return (await V.qatorlar('06h_Bekor_sorovlari')).map(({ n: q, r }) => ({ qator: q, id: r[0] || '', no: r[1] || '', tur: r[2] || '', fish: r[3] || '', dokon: r[4] || '', sabab: r[5] || '', holati: r[6] || '', raqam: r[7] || '', sana: r[8] || '',
+    shablon: r[9] || '', jami: n(r[10]), tolangan: n(r[11]), jarima: n(r[12]), qaytar: n(r[13]),
+    bPdf: r[14] || '', bDoc: r[15] || '', xPdf: r[16] || '', xDoc: r[17] || '', bSkan: r[18] || '', usul: r[19] || '', yetSana: r[20] || '', pochta: r[21] || '', xSkan: r[22] || '',
+    xatOgoh: r[23] === 'Ha', kim: r[24] || '', vaqt: r[25] || '', tKim: r[26] || '', tVaqt: r[27] || '', eski: r[28] || '', izoh: r[29] || '', xRaqam: r[30] || '' }))
+    .filter(s => s.id);
+}
+// 06j_Tahrir_jurnali (Tahrir.gs tahrirJurnal_) — oxirgi 60 yozuv, yangilari tepada
+async function tahrirJurnal() {
+  const L = (await V.qatorlar('06j_Tahrir_jurnali')).map(({ r }) => ({ id: r[0] || '', vaqt: r[1] || '', no: r[2] || '', tur: r[3] || '', mid: r[4] || '', maydon: r[5] || '', eski: r[6] || '', yangi: r[7] || '', kim: r[8] || '', usul: r[9] || '' })).filter(x => x.id);
+  return L.slice(-60).reverse();
+}
+// 06i_Direktor_sorovlari (Monitoring.gs monSorovlar_)
+async function monSorovlar() {
+  return (await V.qatorlar('06i_Direktor_sorovlari')).map(({ n, r }) => ({ qator: n, id: r[0] || '', vaqt: r[1] || '', kim: r[2] || '', tur: r[3] || '', kalit: r[4] || '', sabab: r[5] || '', holati: r[6] || '', javob: r[7] || '', javobVaqt: r[8] || '', javobKim: r[9] || '', malumot: r[10] || '' }))
+    .filter(s => s.id);
+}
+// 06t_Tasdiq_qarorlari (Topshiriq.gs tqRows_)
+async function tqRows() {
+  return (await V.qatorlar('06t_Tasdiq_qarorlari')).map(({ n, r }) => { let m = {}; try { m = JSON.parse(r[11] || '{}'); } catch (e) { }
+    return { qator: n, id: r[0] || '', vaqt: r[1] || '', kalit: r[2] || '', tur: r[3] || '', no: r[4] || '', yukladi: r[5] || '', tasdiqchi: r[6] || '', kim: r[7] || '', rol: r[8] || '', qaror: r[9] || '', sabab: r[10] || '', m, tiklash: r[12] || '', direktor: r[13] || '', tgx: r[14] || '' }; })
+    .filter(q => q.id);
+}
+
+module.exports = { xatJurnal, hujjatJurnal, undJurnal, yuIshlar, yuIshQator, topRows, topKor, yuxJurnal, bekorJurnal, tahrirJurnal, monSorovlar, tqRows };

@@ -83,6 +83,8 @@ delete A.Q;
 Object.assign(A, require('./yurist_yoz'));
 // 💰 Undiruv: undBoshlang (portfel) — lib/portfel.js
 Object.assign(A, require('./undiruv'));
+// 👔 Direktor bo'limi: monBoshlang (Monitoring.gs v26.4) — lib/portfel.js + lib/tasdiq.js
+Object.assign(A, require('./monitoring'));
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
 Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq']), enumerable: false });
