@@ -582,4 +582,114 @@ async function qadamYuristYol([kodSes]) {
   return { ok: true, bugun, hamma, royxat: L, son, undiruvchilar: hamma ? [...new Set(L.map(z => z.und).filter(Boolean))].sort() : [] };
 }
 
-module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol };
+// ------------------------------------------------------------------ 📜 TARIX · 📎 FAYL · ✈ TELEFON · talab holati (Qadam.gs v2.1)
+const QD_CHORA_LAT = { 'Телефон': 'Telefon', 'Ташриф (манзилига бориб)': 'Uyiga borildi', 'Офисда суҳбат': 'Ofisda suhbat', 'СМС/Телеграм': 'SMS / Telegram', 'Ёзма огоҳлантириш': 'Yozma ogohlantirish' };
+const QD_CHORA_IKON = { 'Телефон': '📞', 'Ташриф (манзилига бориб)': '🏠', 'Офисда суҳбат': '🏢', 'СМС/Телеграм': '💬', 'Ёзма огоҳлантириш': '✉' };
+const QD_VADA_LAT = { 'Вадада': 'kutilmoqda', 'Тўлади': 'to\'ladi', 'Вадасини бузди': 'bajarmadi', 'Қисман тўлади': 'qisman to\'ladi', 'Кўчирилди': 'yangi sana bilan almashtirildi' };
+async function qdShartnoma(u, no) {
+  const x = (await U.undShartnomalar()).find(z => z.no === no); if (!x) throw new S.Xato('Shartnoma topilmadi: ' + no);
+  if (!qdKoradi(u, x)) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
+  return x;
+}
+// 📜 bitta shartnoma bo'yicha qilingan hamma ish — bitta lentada (yangisi tepada)
+async function qadamTarix([kodSes, no]) {
+  const u = await qdKim(kodSes);
+  no = String(no || '').trim();
+  const x = await qdShartnoma(u, no);
+  const [HJ, R5, XJ, UJall, Tall, R6n, TR, YI, R6f] = await Promise.all([J.hujjatJurnal(), V.qatorlar('05_Tolovlar'), J.xatJurnal(), J.undJurnal(), U.undTolovlar(),
+    V.qatorlar('06n_Qadam_kun'), J.topRows(), J.yuIshlar(), V.qatorlar('06f_Yurist_tarix')]);
+  const isoX = v => typeof v === 'number' ? V.iso(v) : X.xatIso(String(v || '').slice(0, 10));
+  const soat = v => typeof v === 'number' ? soatDaq(v) : ((String(v || '').match(/\b(\d{2}:\d{2})/) || [])[1] || '');
+  const dmy = v => v ? String(v).split('-').reverse().join('.') : '';
+  const E = []; const ishl = {};
+  const H = HJ.filter(h => h.no === no);
+  const HN = {}; H.forEach(h => { if (h.holati === 'Faol') HN[h.nom] = h; });
+  const HT = {}; require('./hujjat').HUJJAT_TURLARI.forEach(t => HT[t[0]] = t[1]);
+  const fh = (nom, y) => { const h = HN[nom]; if (!h) return []; ishl[h.id] = 1; return [{ t: 'hujjat', id: h.id, y }]; };
+  // shartnoma
+  if (x.sana) E.push({ s: x.sana, v: '', t: 'shartnoma', i: '📝', h: 'Shartnoma tuzildi', m: 'Do\'kon ' + x.dokon });
+  // to'lovlar (undTolovlar_: A to'ldirilgan va B sana)
+  aOxiri(R5).filter(({ x: r }) => r[0] && typeof r[1] === 'number' && s(r[2] || '') === no)
+    .forEach(({ x: r }) => E.push({ s: V.iso(r[1]), v: '', t: 'tolov', i: '💵', h: 'To\'lov: ' + qdPul(Number(r[3]) || 0) + ' so\'m', m: s(r[4] || ''), r: 'g' }));
+  // xatlar: chiqarildi → yetkazildi (isbot) / bekor
+  const xr = {};
+  XJ.filter(h => h.no === no).forEach(h => { xr[h.raqam] = 1; const nom = qdXatNom(h), sh = /Shoshilinch/i.test(String(h.izoh || ''));
+    E.push({ s: X.xatIso(h.sana), v: soat(h.vaqt), t: 'xat', i: '✉', h: (sh ? 'Shoshilinch ' + nom.toLowerCase() : nom) + ' chiqarildi — ' + h.raqam,
+      m: (h.muddat ? 'Mijozga to\'lov muddati: ' + h.muddat : '') + (h.holati === 'Bekor' ? ' · ✕ BEKOR QILINGAN' + (h.izoh && !sh ? ' — ' + h.izoh : '') : h.holati === 'Tayyorlandi' ? ' · hali yetkazilmagan' : ''),
+      k: h.kim, r: h.holati === 'Bekor' ? 'x' : '', f: h.pdf ? [{ t: 'xat', id: h.raqam, y: 'Xat' }] : [] });
+    if (h.holati === 'Yuborildi') E.push({ s: X.xatIso(h.yetSana || h.sana), v: '', t: 'xat', i: '✅', h: nom + ' mijozga yetkazildi — ' + h.raqam,
+      m: (h.usul || '') + (h.pochta ? ' · pochta № ' + h.pochta : ''), r: 'g', f: fh(h.isbot || h.skan, 'Isbot'), tg: /^pochta$/i.test(String(h.usul || '').trim()) ? h.raqam : '' }); });
+  // undiruv jurnali: qo'ng'iroq, SMS, tashrif, ofis, va'da (va'da natijasi to'lovlarga qarab — undVadaYangila_ yozadigan qiymat)
+  UJall.filter(j => j.no === no).forEach(j => {
+    j.vadaNatija = P.vadaNatija(j, Tall, V.bugun());
+    if (j.chora === 'Ёзма огоҳлантириш' && xr[j.hujjat]) return;
+    const sms = j.chora === 'СМС/Телеграм', ketmadi = sms && /^SMS yuborilmadi/i.test(j.mazmun), tgX = sms && /^Telegramda yuborildi/.test(j.mazmun);
+    const gp = /📍\s*(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/.exec(String(j.izoh || ''));
+    const nt = j.chora === 'Ёзма огоҳлантириш' ? '' : sms ? (ketmadi ? 'SMS ketmadi' : j.natija === 'Боғланилди' ? 'javob berdi' : j.natija === 'Тўлашдан бош тортди' ? 'to\'lamasligini yozdi' : 'javob yo\'q')
+      : j.natija === 'Боғланилди' ? 'bog\'lanildi' : j.natija === 'Боғланиб бўлмади' ? 'bog\'lanib bo\'lmadi' : j.natija === 'Тўлашдан бош тортди' ? 'to\'lashdan bosh tortdi' : j.natija;
+    E.push({ s: j.sana, v: j.vaqt === '00:00' ? '' : j.vaqt, t: sms ? 'sms' : 'aloqa', i: tgX ? '✈' : QD_CHORA_IKON[j.chora] || '•', h: tgX ? 'Telegram — xat PDF yuborildi' : (QD_CHORA_LAT[j.chora] || j.chora) + (nt ? ' — ' + nt : ''), m: j.mazmun,
+      va: j.vadaSana ? 'Va\'da: ' + dmy(j.vadaSana) + ' gacha ' + qdPul(j.vadaSumma) + ' so\'m — ' + (QD_VADA_LAT[j.vadaNatija] || j.vadaNatija || 'kutilmoqda') : '',
+      iz: j.izoh, k: j.kim, r: tgX ? '' : ketmadi || j.natija === 'Тўлашдан бош тортди' ? 'r' : j.natija === 'Боғланиб бўлмади' ? 'o' : j.natija === 'Боғланилди' ? 'g' : '',
+      g: gp ? gp[1] + ',' + gp[2] : '', f: j.hujjat && HN[j.hujjat] ? fh(j.hujjat, sms ? 'Skrinshot' : j.chora === 'Ташриф (манзилига бориб)' ? 'Rasm' : 'Hujjat') : [] }); });
+  // bugungi ish jurnali: o'tkazildi / kechiktirildi (sababi bilan)
+  aOxiri(R6n).filter(({ x: r }) => s(r[2] || '').trim() === no && typeof r[0] === 'number')
+    .forEach(({ x: r }) => E.push({ s: V.iso(r[0]), v: soat(r[8]), t: 'qadam', i: '⏭', h: 'Bugungi ish: ' + s(r[4] || '').toLowerCase(), m: s(r[5] || ''), k: s(r[1] || ''), r: 'o' }));
+  // topshiriqlar
+  TR.filter(t => t.no === no && (u.admin || t.qoida !== 'tekshir')).forEach(t => E.push({ s: isoX(t.yaratildi.split(' ')[0].split('.').reverse().join('-')), v: soat(t.yaratildi), t: 'top', i: '📌',
+    h: 'Topshiriq: ' + t.sarlavha, m: '→ ' + t.kimga + ' · ' + t.holati + (t.dalil ? ' · ' + t.dalil : ''), k: t.kimBerdi }));
+  // yurist: so'rov, tasdiq, bosqichlar
+  const YQ = require('./yurist').Q;
+  YI.filter(i => i.no === no).forEach(i => { if (i.sorovVaqt) E.push({ s: X.xatIso(i.sorovVaqt.slice(0, 10)), v: soat(i.sorovVaqt), t: 'yurist', i: '⚖', h: 'Yuristga o\'tkazish so\'raldi', m: i.sorovSabab, k: i.undiruvchi });
+    if (i.topshirilgan && i.holati !== 'Tasdiq kutilmoqda' && i.holati !== 'Rad etildi') E.push({ s: i.topshirilgan, v: '', t: 'yurist', i: '⚖', h: 'Yuristga o\'tdi' + (i.tasdiqladi ? ' (tasdiqladi: ' + i.tasdiqladi + ')' : ''), m: 'Holati: ' + i.holati + (i.bosqich ? ' · ' + (YQ.yuTrek(i).bosqich[i.bosqich] || '') : ''), r: 'g' });
+    if (i.holati === 'Rad etildi') E.push({ s: X.xatIso((i.sorovVaqt || '').slice(0, 10)) || i.topshirilgan, v: '', t: 'yurist', i: '⚖', h: 'Yuristga o\'tkazish rad etildi', m: i.izoh || i.yopishSabab, r: 'r' }); });
+  R6f.filter(({ r }) => String(r[2] || '').trim() === no)
+    .forEach(({ r }) => E.push({ s: X.xatIso(String(r[0] || '').slice(0, 10)), v: soat(r[0]), t: 'yurist', i: '⚖', h: 'Yurist: ' + (r[3] || ''), m: r[5] || '', k: r[4] || '', f: r[6] && HN[r[6]] ? fh(r[6], 'Hujjat') : [] }));
+  // yuklangan hujjatlar (yuqorida biriktirilmaganlari)
+  H.filter(h => h.holati === 'Faol' && !ishl[h.id]).forEach(h => { const ys = X.xatIso(h.vaqt.slice(0, 10)), hs = h.sana ? X.xatIso(h.sana) : ys;
+    const xt = ['OGOHLANTIRISH', 'XAT_CHIQUVCHI', 'POCHTA', 'XAT_OLDIM'].indexOf(h.turi) >= 0;
+    E.push({ s: hs, v: hs === ys ? soat(h.vaqt) : '', t: xt ? 'xat' : 'hujjat', i: xt ? '✉' : '📎', h: (HT[h.turi] || h.turi) + (hs === ys ? ' yuklandi' : ''),
+      m: (h.izoh ? h.izoh + ' · ' : '') + (hs !== ys ? 'tizimga yuklandi ' + h.vaqt.slice(0, 10) : ''), k: h.kim, f: [{ t: 'hujjat', id: h.id, y: 'Ko\'rish' }] }); });
+  E.forEach((e, n) => e.n = n);
+  E.sort((a, b) => (a.s < b.s ? 1 : a.s > b.s ? -1 : 0) || ((a.v || '') < (b.v || '') ? 1 : (a.v || '') > (b.v || '') ? -1 : 0) || (b.n - a.n));
+  const son = {}; E.forEach(e => son[e.t] = (son[e.t] || 0) + 1);
+  return { ok: true, no, fish: x.fish, dokon: x.dokon, und: x.undiruvchi, jami: x.jami, muddati: x.muddati, qoshimcha: x.qoshimcha, kechikkan: x.kechikkan,
+    tel: String(x.tel || ''), voqealar: E, son, bugun: V.bugun() };
+}
+// 📎 xat PDF yoki yuklangan hujjat (isbot, skrinshot, skan) — ko'rish / yuklab olish. Avval serverdagi nusxa, keyin Drive (robot), bo'lmasa eski tizim.
+const MIME = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic' };
+async function qadamFayl([kodSes, d]) {
+  const u = await qdKim(kodSes);
+  d = d || {}; let no = '', fid = '', nom = '';
+  if (d.t === 'xat') { const h = (await J.xatJurnal()).find(z => z.raqam === String(d.id || '')); if (!h || !h.pdf) throw new S.Xato('Xat topilmadi: ' + d.id); no = h.no; fid = h.pdf; }
+  else { const h = (await J.hujjatJurnal()).find(z => String(z.id) === String(d.id || '')); if (!h || !h.faylId) throw new S.Xato('Hujjat topilmadi.'); no = h.no; fid = h.faylId; nom = h.nom; }
+  const x = (await U.undShartnomalar()).find(z => z.no === no);
+  if (!x ? !u.admin : !qdKoradi(u, x)) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
+  const sv = require('./hujjat_yoz').srvFayl(fid, no, nom);
+  if (sv) { const e = (/\.([a-z0-9]+)$/i.exec(sv.nom) || ['', 'pdf'])[1].toLowerCase(); return { nom: nom || sv.nom, b64: sv.bytes.toString('base64'), mime: MIME[e] || 'application/pdf' }; }
+  const G = require('../lib/google'), env = require('../lib/env');
+  try {
+    const f = await G.driveFayl(fid, env.googleKey);
+    return { nom: nom || f.nom, b64: f.bytes.toString('base64'), mime: f.mime || 'application/pdf' };
+  } catch (e) {
+    if (!(e instanceof G.RuxsatYoq)) console.error('qadamFayl (Drive):', e.message);
+    return koprik.chaqir('qadamFayl', u.kod, [d]);
+  }
+}
+// ✈ qarzdorning telefon raqamlari — xat isbotini Telegramda yuborish uchun
+async function qadamTgTel([kodSes, no]) {
+  const u = await qdKim(kodSes);
+  const x = await qdShartnoma(u, String(no || '').trim());
+  return { no: x.no, fish: x.fish, tel: String(x.tel || '').split(',').map(t => t.trim()).filter(Boolean) };
+}
+// talab topshirig'idagi xatlar (planshet / 🔔 kartasi uchun)
+async function qadamTalabHolat([kodSes, topId]) {
+  const u = await qdKim(kodSes);
+  const t = (await J.topRows()).find(z => String(z.id) === String(topId)); if (!t || !/^talab\|/.test(t.kalit)) throw new S.Xato('Topshiriq topilmadi.');
+  if (!u.admin && !qdTeng(t.kimga, u.fish)) throw new S.Xato('Bu topshiriq sizga berilmagan.');
+  const [XJ, HJ] = await Promise.all([J.xatJurnal(), J.hujjatJurnal()]);
+  const h = TS.topTalabHolat(t, XJ); const fid = nom => { const z = HJ.find(y => y.nom === nom); return z ? z.id : ''; };   // topTalabBelgi_
+  ['as', 'qm'].forEach(k => { if (h[k] && h[k].isbot) h[k].hujjatId = fid(h[k].isbot); });
+  return { id: t.id, no: t.no, holati: t.holati, kalit: t.kalit, talab: h };
+}
+
+module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat };
