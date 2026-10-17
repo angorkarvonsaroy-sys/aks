@@ -394,4 +394,192 @@ async function qadamNazorat([kodSes]) {
     smsMatn: QD_SMS_MATN, tel: await qdXodimTel(u.fish), chora: UND_CHORA, natija: UND_NATIJA, muhlatKun: UND_MUHLAT_KUN };
 }
 
-module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat };
+// ------------------------------------------------------------------ ⚖ SUD KARTASI va ⚖ YURISTGA YO'LDA (Qadam.gs v2.1: qadamSudKarta, qadamYuristYol)
+// Faqat o'qiydi. Kim ko'radi: direktor, yurist — hammasi; undiruvchi — faqat o'z portfeli (qdKim_ / qdKoradi_).
+const SK_DAVO_YIL = 3;
+async function qdKim(kodSes) {
+  const u = await S.ruxsat(kodSes);
+  const h = (u.huquq || []).map(z => String(z).trim());
+  const o = Object.assign({}, u, { admin: h.indexOf('admin') >= 0, und: h.indexOf('undiruv') >= 0, yur: h.indexOf('yurist') >= 0 });
+  if (!o.admin && !o.und && !o.yur) throw new S.Xato('Bu bo\'limga ruxsatingiz yo\'q.');
+  return o;
+}
+const qdKoradi = (u, x) => u.admin || u.yur || qdTeng(x.undiruvchi, u.fish);
+// ustunA_oxiri_ — A ustunidagi oxirgi to'ldirilgan qatorgacha (eski kod getRange(2,1,l-1,…) shunday o'qiydi)
+function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== null && x[0] !== undefined && x[0] !== '') m = n; }); return rows.filter(z => z.n <= m); }
+// eski: v instanceof Date → sana; 'yyyy-MM-dd…' matn → shu; boshqasi → ''
+const skIso = v => typeof v === 'number' ? V.iso(v) : (/^\d{4}-\d{2}-\d{2}/.test(String(v || '')) ? String(v).slice(0, 10) : '');
+const yilQosh = (iso, n) => { const p = iso.split('-'); return new Date(Date.UTC(+p[0] + n, +p[1] - 1, +p[2], 12)).toISOString().slice(0, 10); };
+const skDmy = v => v ? String(v).slice(0, 10).split('-').reverse().join('.') : '';
+
+async function qadamSudKarta([kodSes, no]) {
+  const u = await qdKim(kodSes); const bugun = V.bugun();
+  no = String(no || '').trim();
+  const SH = await U.undShartnomalar();
+  const x = SH.find(z => z.no === no); if (!x) throw new S.Xato('Shartnoma topilmadi: ' + no);
+  if (!qdKoradi(u, x)) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
+  const [R3, R2, Tall, RJ, HJ, XJ, UJall, YI, TR0, Z, Pf, XSL] = await Promise.all([V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('02_Mijozlar'), U.undTolovlar(),
+    V.qatorlar('03b_Tolov_jadvali'), J.hujjatJurnal(), J.xatJurnal(), J.undJurnal(), J.yuIshlar(), J.topRows(), X.xatZanjir(u.kod),
+    P.undPortfel(q => q.no === no, u.kod).catch(() => null), P.xatShartnomalar(bugun)]);
+  // --- shartnoma (03)
+  const r = (aOxiri(R3).find(({ x: z }) => s(z[0]).trim() === no) || { x: [] }).x;
+  const nm = v => Number(v) || 0;
+  const sh = { sana: skIso(r[2]), turi: s(r[3] || ''), holati: s(r[13] || ''), notarial: skIso(r[15]), qmSana: skIso(r[16]), maydon: nm(r[6]), real: nm(r[21]),
+    farq: nm(r[23]), qiymat: nm(r[22]), qoshQiymat: nm(r[24]), umumiy: nm(r[25]), tolangan: nm(r[27]), oylik: nm(r[26]), muddatOy: nm(r[11]) };
+  // --- mijoz (02)
+  const m2r = aOxiri(R2).find(({ x: z }) => s(z[0]) === x.mid);
+  const m2 = m2r ? m2r.x.map(v => v == null ? '' : v) : [];
+  const j14 = s(m2[11] || '').trim(), pMud = skIso(m2[10]);
+  const mijoz = { fish: s(m2[2] || x.fish), pasport: s(m2[6] || '').trim(), pMuddat: pMud, pOtgan: !!(pMud && pMud < bugun), jshshir: /^\d{14}$/.test(j14) ? j14 : '', jshXato: !!j14 && !/^\d{14}$/.test(j14),
+    tel: [m2[4], m2[5]].filter(Boolean).map(String).join(', '), manzil: m2.length ? U.mijozManzil(m2) : x.manzil || '', ota: x.ota !== false };
+  // --- to'lovlar va jadval (da'vo muddati)
+  const T = Tall.filter(t => t.no === no && t.summa > 0).sort((a, b) => a.sana < b.sana ? -1 : 1);
+  const ox = T.length ? T[T.length - 1] : null;
+  const Jd = aOxiri(RJ).filter(({ x: z }) => s(z[1]).trim() === no).map(({ x: z }) => ({ sana: skIso(z[3]), summa: Number(z[4]) || 0 })).filter(z => z.sana && z.summa > 0).sort((a, b) => a.sana < b.sana ? -1 : 1);
+  const chek = yilQosh(bugun, -SK_DAVO_YIL);
+  let cum = 0, qol = sh.tolangan; const B = [];   // asosiy qarz bo'laklari (shartnoma qiymatigacha), to'lovlar eskisidan yopiladi
+  Jd.forEach(z => { if (cum >= sh.qiymat && sh.qiymat > 0) return; const a = sh.qiymat > 0 ? Math.min(z.summa, sh.qiymat - cum) : z.summa; cum += a;
+    const yop = Math.min(a, Math.max(0, qol)); qol -= a; if (a - yop > 0.5) B.push({ sana: z.sana, summa: Math.round(a - yop) }); });
+  if (!Jd.length && x.muddati > 0 && x.kechikkan > 0) B.push({ sana: U.kunQosh(bugun, -x.kechikkan), summa: Math.round(x.muddati), taxmin: true });
+  let otgan = 0, ichida = 0, kelmagan = 0, keyingi = '';
+  B.forEach(b => { if (b.sana > bugun) { kelmagan += b.summa; return; }
+    const bosh = ox && ox.sana >= b.sana ? ox.sana : b.sana; const tug = yilQosh(bosh, SK_DAVO_YIL); b.bosh = bosh; b.tug = tug;
+    if (bosh <= chek) otgan += b.summa; else { ichida += b.summa; if (!keyingi || tug < keyingi) keyingi = tug; } });
+  const davo = { jadval: Jd.length ? { bosh: Jd[0].sana, oxir: Jd[Jd.length - 1].sana, soni: Jd.length } : null, taxmin: !Jd.length,
+    tolov: { soni: T.length, jami: T.reduce((a, t) => a + t.summa, 0), birinchi: T.length ? T[0].sana : '', oxirgi: ox ? { sana: ox.sana, summa: ox.summa, shakl: ox.shakl, kun: kun(ox.sana, bugun), tug: yilQosh(ox.sana, SK_DAVO_YIL) } : null },
+    otgan: Math.round(otgan), ichida: Math.round(ichida), kelmagan: Math.round(kelmagan), keyingiTugash: keyingi, kechikkan: x.kechikkan, davoKun: x.davoKun,
+    boklar: B.filter(b => b.sana <= bugun).slice(0, 24).map(b => ({ sana: b.sana, summa: b.summa, tug: b.tug, otgan: b.bosh <= chek })) };
+  // --- hujjatlar (06d) va xatlar (06e)
+  const HF = HJ.filter(h => h.holati === 'Faol');
+  const H = HF.filter(h => h.no === no);
+  const HN = {}; H.forEach(h => HN[h.nom] = h);
+  const hf = t => H.filter(h => h.turi === t).map(h => ({ id: h.id, y: (h.sana || h.vaqt.slice(0, 10)) + (h.izoh ? ' · ' + String(h.izoh).slice(0, 60) : '') }));
+  const xat = XJ.filter(h => h.no === no && h.holati !== 'Bekor').map(h => { const isb = HN[h.isbot] || HN[h.skan];
+    return { raqam: h.raqam, nom: qdXatNom(h), qm: /^QM_/.test(String(h.shablon || '')), bosqich: Number(h.bosqich) || 0, sana: h.sana, holati: h.holati,
+      yet: h.yetSana || '', usul: h.usul || '', pochta: h.pochta || '', muddat: h.muddat || '', otdi: !!(h.muddat && X.xatIso(h.muddat) < bugun), shosh: /Shoshilinch/i.test(String(h.izoh || '')),
+      isbot: isb ? { id: isb.id } : null, pdf: !!h.pdf }; });
+  const tal = xat.filter(h => !h.qm && h.bosqich === 3 && h.holati === 'Yuborildi').pop();
+  const talQ = xat.filter(h => h.qm && h.bosqich === 3 && h.holati === 'Yuborildi').pop();
+  const tashR = H.filter(h => h.turi === 'BOSHQA' && /ТАШРИФ/.test(h.izoh || '')).length;
+  const hujjat = [
+    { k: 'SHARTNOMA', y: 'Imzolangan shartnoma skani', ok: H.some(h => h.turi === 'SHARTNOMA'), f: hf('SHARTNOMA'), muhim: 1 },
+    { k: 'NOTARIAL', y: 'Notarial oldi-sotdi', ok: !!sh.notarial || H.some(h => h.turi === 'NOTARIAL'), izoh: sh.notarial ? skDmy(sh.notarial) : '', f: hf('NOTARIAL') },
+    { k: 'PASPORT', y: 'Pasport nusxasi', ok: H.some(h => h.turi === 'PASPORT'), f: hf('PASPORT') },
+    { k: 'JSHSHIR', y: 'JSHSHIR (14 raqam)', ok: !!mijoz.jshshir, izoh: mijoz.jshshir || (mijoz.jshXato ? 'bazada noto\'g\'ri yozilgan' : 'yo\'q'), muhim: 1 },
+    { k: 'QK', y: 'Qo\'shimcha kelishuv / dalolatnoma', ok: H.some(h => h.turi === 'QOSHIMCHA_KELISHUV' || h.turi === 'DALOLATNOMA'), f: hf('QOSHIMCHA_KELISHUV').concat(hf('DALOLATNOMA')), ixt: !(x.qoshimcha >= 1000) },
+    { k: 'TAL', y: 'Talabnoma (isboti bilan)', ok: !!(tal && tal.isbot), izoh: tal ? tal.raqam + ' · ' + (tal.usul || '') + (tal.pochta ? ' № ' + tal.pochta : '') + ' · muddati ' + tal.muddat + (tal.otdi ? ' (o\'tgan)' : ' (hali o\'tmagan)') : 'yuborilmagan', muhim: 1 },
+    { k: 'TALQ', y: 'Qo\'shimcha maydon talabnomasi', ok: !!(talQ && talQ.isbot), izoh: talQ ? talQ.raqam + ' · muddati ' + talQ.muddat : 'yuborilmagan', ixt: !(x.qoshimcha >= 1000) },
+    { k: 'YOZ', y: 'SMS / Telegram skrinshotlari', ok: H.some(h => h.turi === 'YOZISHMA'), izoh: H.filter(h => h.turi === 'YOZISHMA').length + ' ta', f: hf('YOZISHMA').slice(-3), ixt: 1 },
+    { k: 'TASH', y: 'Uyiga borilgan rasmlar', ok: tashR > 0, izoh: tashR + ' ta', ixt: 1 } ];
+  // --- choralar (06). Va'da natijasi to'lovlarga qarab (eski tizim undVadaYangila_ bilan jadvalga yozib qo'yadigan qiymat)
+  const UJ = UJall.filter(j => j.no === no); UJ.forEach(j => { j.vadaNatija = P.vadaNatija(j, T, bugun); });
+  const sn = c => UJ.filter(j => j.chora === c).length;
+  const chora = { tel: sn('Телефон'), telOk: UJ.filter(j => j.chora === 'Телефон' && j.natija === 'Боғланилди').length, tash: sn('Ташриф (манзилига бориб)'), sms: sn('СМС/Телеграм'), ofis: sn('Офисда суҳбат'),
+    xat: sn('Ёзма огоҳлантириш'), vada: UJ.filter(j => j.vadaSana).length, buzilgan: UJ.filter(j => j.vadaNatija === 'Вадасини бузди').length, rad: UJ.filter(j => j.natija === 'Тўлашдан бош тортди').length,
+    oxirgi: UJ.length ? { sana: UJ[UJ.length - 1].sana, chora: UJ[UJ.length - 1].chora, mazmun: String(UJ[UJ.length - 1].mazmun || '').slice(0, 120) } : null };
+  // --- U4 mezoni va so'rov
+  const mez = P.yuMezon(x, XJ, UJall, HF, bugun, Z);
+  const yi = YI.filter(i => i.no === no && i.holati !== 'Rad etildi').pop() || null;
+  const TR = TR0.map(J.topKor);
+  const ob = TR.filter(t => /^olib\|/.test(String(t.kalit || '')) && t.no === no).pop() || null;
+  const talT = TR.filter(t => /^talab\|/.test(String(t.kalit || '')) && String(t.kalit).split('|')[1] === no).pop() || null;
+  if (talT) { const h = TS.topTalabHolat(talT, XJ); const fid = nom => { const z = HJ.find(y => y.nom === nom); return z ? z.id : ''; };   // topTalabBelgi_
+    ['as', 'qm'].forEach(k => { if (h[k] && h[k].isbot) h[k].hujjatId = fid(h[k].isbot); }); talT.talab = h; }
+  const hjT = {}; TR.filter(t => /^(hj|skanq|skanu|skanz|yutop)\|/.test(String(t.kalit || '')) && String(t.kalit).split('|')[1] === no && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda'))
+    .forEach(t => { const k = { SHARTNOMA: 'SHARTNOMA', PASPORT: 'PASPORT', NOTARIAL: 'NOTARIAL', QOSHIMCHA_KELISHUV: 'QK', YOZISHMA: 'YOZ', JSHSHIR: 'JSHSHIR' }[TS.topHjTur(t)];
+      if (k) hjT[k] = { id: t.id, kimga: t.kimga, muddat: t.muddat, holati: t.holati, kechikkan: t.kechikkan }; });
+  const IY = YI.filter(i => i.no === no);
+  const radlar = IY.filter(i => i.holati === 'Rad etildi').map(i => ({ vaqt: i.sorovVaqt, und: i.undiruvchi, sorov: i.sorovSabab, sabab: i.izoh || '—' }));
+  const yuristda = IY.some(i => i.holati !== 'Rad etildi');
+  const xavfL = (() => { const z = Pf && Pf.royxat[0]; return z ? (z.xavf || []) : []; })();
+  const xsQ = XSL.find(z => z.no === no) || {};
+  // yuTalabBor_: isbotli talabnoma (tekshiruvdagisi hisoblanmaydi) yoki «Ogohlantirish xati» turidagi talabnoma skani
+  const talabBor = XJ.some(h => h.no === no && h.holati === 'Yuborildi' && Number(h.bosqich) === 3 && !/^Kutilmoqda/.test(String(h.tek || '')))
+    || H.some(h => h.no === no && h.turi === 'OGOHLANTIRISH' && /талаб|talab/i.test(String(h.izoh || '') + ' ' + String(h.nom || '')));
+  // --- xulosa
+  const Zx = []; const k = m => Zx.push({ t: 'k', m }), w = m => Zx.push({ t: 'x', m }), inf = m => Zx.push({ t: 'i', m });
+  const pul = qdPul, dmy = skDmy;
+  if (x.sekin) w('🐢 Sekin to\'lovchi: to\'lov jadvali ' + dmy(x.sekin.jadval) + ' da tugagan, oxirgi 12 oyda ' + pul(x.sekin.s12) + ' so\'m to\'lagan — shu sur\'atda qarz '
+    + (x.sekin.oy >= 120 ? Math.round(x.sekin.oy / 12) + ' yilda' : x.sekin.oy + ' oyda') + ' yopiladi. Yo\'l: shartnomani qayta tuzish (mijozni direktor huzuriga olib kelish). 90 kunlik «yaqinda to\'lagan» himoyasi unga ishlamaydi.');
+  if (davo.otgan > 0) w('Asosiy qarzning ' + pul(davo.otgan) + ' so\'mi bo\'yicha 3 yillik da\'vo muddati o\'tgan' + (ox ? ' (oxirgi to\'lov ' + dmy(ox.sana) + ' ham hisobga olingan)' : '') + '. Mijoz sudda arz qilsa (FK 153), bu qism rad etilishi mumkin. Yo\'l: shartnomani qayta tuzish — yangi shartnoma qarzni tan olish bo\'ladi (FK 157).');
+  if (davo.ichida > 0) k('Asosiy qarzning ' + pul(davo.ichida) + ' so\'mi 3 yil ichida — eng yaqin tugash ' + dmy(davo.keyingiTugash) + '.');
+  if (ox) { const t = kun(ox.sana, bugun), him = P.yuHimoya(x, t);
+    if (him) w('Mijoz oxirgi 90 kunda ' + pul(him.s90) + ' so\'m to\'lagan — jadvalning 70 % i (' + pul(him.kerak) + ') bajarilgan: yuristga hali erta (oxirgi to\'lov ' + dmy(ox.sana) + ').');
+    else if (t <= 90 && !x.sekin) inf('Oxirgi to\'lov ' + t + ' kun oldin (' + dmy(ox.sana) + ', ' + pul(ox.summa) + ' so\'m) — qarz tan olingan; lekin 90 kunda jadvalning 70 % i to\'lanmagan (' + pul((ox.s90 != null ? ox.s90 : (x.oxirgiTolov || {}).s90) || 0) + ' so\'m), himoya yo\'q.');
+    else if (t <= 90) inf('Oxirgi to\'lov ' + t + ' kun oldin (' + dmy(ox.sana) + ', ' + pul(ox.summa) + ' so\'m) — qarz tan olingan; lekin sur\'at juda sekin.');
+    else if (t < 365 * SK_DAVO_YIL) k('Oxirgi to\'lov ' + dmy(ox.sana) + ' — qarz tan olingan (FK 157); muddat ' + dmy(yilQosh(ox.sana, SK_DAVO_YIL)) + ' gacha.'); }
+  else if (sh.tolangan <= 0) w('Mijoz birorta ham to\'lov qilmagan.');
+  if (xavfL.length) w('🔥 Undirish imkoni kam: ' + xavfL.join('; ') + '.');
+  radlar.forEach(z => inf('Oldingi so\'rov rad etilgan' + (z.vaqt ? ' (' + z.vaqt + ', ' + (z.und || '') + ')' : '') + ': «' + z.sabab + '»'));
+  if (!hujjat[0].ok) w('Imzolangan shartnoma skani yo\'q — sud uchun asosiy hujjat yetishmaydi.'); else k('Imzolangan shartnoma skani bor.');
+  if (sh.notarial) k('Notarial oldi-sotdi: ' + dmy(sh.notarial) + '.'); else inf('Notarial oldi-sotdi qilinmagan.');
+  if (!mijoz.jshshir) w('JSHSHIR ' + (mijoz.jshXato ? 'bazada noto\'g\'ri' : 'yo\'q') + ' — da\'vo arizasida javobgar ma\'lumoti to\'liq emas.');
+  if (mijoz.pOtgan) w('Pasport muddati o\'tgan (' + dmy(mijoz.pMuddat) + ') — yangi pasport ma\'lumoti kerak.');
+  if (tal && tal.isbot && tal.otdi) k('Talabnoma ' + tal.raqam + ' isboti bilan yetkazilgan' + (tal.pochta ? ' (pochta № ' + tal.pochta + ')' : '') + ', to\'lov muddati ' + tal.muddat + ' da o\'tgan.');
+  else if (tal && tal.isbot && !tal.otdi) inf('Talabnoma ' + tal.raqam + ' isboti bilan yetkazilgan' + (tal.pochta ? ' (pochta № ' + tal.pochta + ')' : '') + ', to\'lov muddati ' + tal.muddat + ' hali o\'tmagan — direktor yuristga to\'g\'ridan-to\'g\'ri o\'tkaza oladi, muddat kutilmaydi.');
+  else if (tal && !tal.otdi) w('Talabnomadagi to\'lov muddati (' + tal.muddat + ') hali o\'tmagan.');
+  else if (!tal) w('Asosiy qarz bo\'yicha talabnoma yuborilmagan.');
+  xat.filter(h => h.holati !== 'Yuborildi').forEach(h => w('Xat ' + h.raqam + ' (' + h.nom + ') hali yetkazilmagan.'));
+  xat.filter(h => h.holati === 'Yuborildi' && !h.isbot).forEach(h => w('Xat ' + h.raqam + ' yetkazilgan deb belgilangan, lekin isbot fayli topilmadi.'));
+  if (!chora.tel && !chora.tash && !chora.sms && !chora.ofis) w('Jurnalda qo\'ng\'iroq, uyiga borish yoki SMS yo\'q — undirish choralari ko\'rilmagan.');
+  if (chora.buzilgan) k('Mijoz ' + chora.buzilgan + ' marta va\'da berib bajarmagan (jurnalda).');
+  if (chora.rad) k('Mijoz ' + chora.rad + ' marta to\'lashdan bosh tortgan (jurnalda).');
+  if (/kredit/i.test(sh.holati)) inf('Shartnoma holati «' + sh.holati + '» — yurist alohida ko\'rib chiqsin.');
+  if (x.qoshimcha >= 1000 && !xsQ.qm) inf('Qo\'shimcha maydon uchun hisob ' + pul(x.qoshimcha) + ' so\'m (haqiqiy maydon ' + sh.real + ' m², shartnomada ' + sh.maydon + ' m², farq ' + sh.farq + ' m²) — hozir talab qilinmaydi: '
+    + (xsQ.qmSabab ? String(xsQ.qmSabab).replace(/\.$/, '') : 'xat shabloni yo\'q') + '. Sudga asosiy qarz bilan boriladi.');
+  else if (x.qoshimcha >= 1000) inf('Qo\'shimcha maydon uchun qarz ' + pul(x.qoshimcha) + ' so\'m — alohida talab: haqiqiy maydon ' + sh.real + ' m², shartnomada ' + sh.maydon + ' m² (farq ' + sh.farq + ' m²)' + (talQ ? ', talabnoma ' + talQ.raqam : xat.some(h => h.qm && h.holati === 'Yuborildi') ? ', maydon farqi xati yetkazilgan' : ', maydon farqi xati yuborilmagan') + '.');
+  return { ok: true, no, fish: x.fish, dokon: x.dokon, und: x.undiruvchi, bugun, sh, mijoz,
+    qarz: { asosiy: x.asosiy, muddati: x.muddati, qoshimcha: x.qoshimcha, jami: x.jami, tolangan: sh.tolangan, umumiy: sh.umumiy },
+    davo, hujjat, xat, chora, mezon: mez, sorov: yi ? { holati: yi.holati, sabab: yi.sorovSabab, vaqt: yi.sorovVaqt, und: yi.undiruvchi } : null, xulosa: Zx,
+    mid: x.mid, sekin: x.sekin || null, admin: !!u.admin, olib: ob ? { id: ob.id, holati: ob.holati, muddat: ob.muddat, kimga: ob.kimga, dalil: ob.dalil || '', yopildi: ob.yopildi || '' } : null,
+    xavf: xavfL, radlar, hjTop: hjT, qmMumkin: !!xsQ.qm, qmSabab: xsQ.qmSabab || '',
+    talab: talT ? { id: talT.id, holati: talT.holati, kimga: talT.kimga, muddat: talT.muddat, kechikkan: !!talT.kechikkan, dalil: talT.dalil || '', yopildi: talT.yopildi || '', qm: String(talT.kalit).split('|')[2] === 'qm', x: talT.talab || null } : null,
+    yuOtkaz: { mumkin: !!u.admin && !yuristda && hujjat[0].ok && talabBor, yuristda, skan: hujjat[0].ok, talab: talabBor, sorov: !!yi && yi.holati === 'Tasdiq kutilmoqda' } };
+}
+
+// ⚖ yuristga yo'lda: yo'li yuristga olib boradigan mijozlar — nima tayyor, nima yetishmaydi (yuMezon bilan bir xil)
+async function qadamYuristYol([kodSes]) {
+  const u = await qdKim(kodSes); const bugun = V.bugun();
+  const hamma = u.admin || !u.und;
+  const mos = x => hamma ? true : qdTeng(x.undiruvchi, u.fish);
+  const YQ = require('./yurist').Q;
+  const [Pf, XJ, UJ, HJ, Z, I, SH] = await Promise.all([P.undPortfel(mos, u.kod), J.xatJurnal(), J.undJurnal(), J.hujjatJurnal(), X.xatZanjir(u.kod), J.yuIshlar(), U.undShartnomalar()]);
+  const H = HJ.filter(h => h.holati === 'Faol');
+  const joriy = h => /^QM_/.test(String(h.shablon || '')) || X.xatJoriy(h, Z);
+  const XJn = {}, UJn = {}; XJ.forEach(h => (XJn[h.no] = XJn[h.no] || []).push(h)); UJ.forEach(j => (UJn[j.no] = UJn[j.no] || []).push(j));
+  const dmy = v => v ? X.xatIso(v).split('-').reverse().join('.') : '';
+  const L = [];
+  Pf.royxat.forEach(x => {
+    const M = x.muddati > X.XAT_MIN_QARZ, Q = x.qoshimcha > X.XAT_MIN_QARZ;
+    if (!(M || Q) || (x.tolovSoni === 0 && x.boshOtgan)) return;                       // qarz yo'q yoki bekor qilish yo'lida
+    const Xm = XJn[x.no] || [], my = UJn[x.no] || [];
+    const yub = Xm.filter(h => h.holati === 'Yuborildi' && joriy(h));
+    const xt = (sr, b) => yub.filter(h => X.xatSeriya(h.shablon) === sr && h.bosqich === b).pop();
+    const tAS = xt('AS', 3), tQM = xt('QM', 3);
+    if (!(x.yuSorov || (M && (x.davoOtgan || x.davoShosh || tAS)) || (Q && tQM))) return;
+    const m = P.yuMezon(x, Xm, my, H, bugun, Z);
+    const sr = (M && (tAS || !tQM)) ? 'AS' : 'QM', t3 = sr === 'AS' ? tAS : tQM;
+    const shosh = (sr === 'AS' && !!tAS && /Shoshilinch/i.test(String(tAS.izoh || ''))) || ((Number(x.muddati) || 0) > 0 && (Number(x.davoKun != null ? x.davoKun : x.kechikkan) || 0) >= P.UND_DAVO_KUN - P.UND_DAVO_OGOH);
+    const ch = [{ y: 'Shartnoma skani', ok: !!x.skan }];
+    if (!shosh) { const a = xt(sr, 1), b = xt(sr, 2); ch.push({ y: sr === 'QM' ? 'Bildirishnoma' : '1-xat', ok: !!a, s: a ? dmy(a.yetSana || a.sana) : '' }, { y: '2-xat', ok: !!b, s: b ? dmy(b.yetSana || b.sana) : '' }); }
+    ch.push({ y: shosh ? 'Shoshilinch talabnoma' : 'Talabnoma', ok: !!t3, s: t3 ? dmy(t3.yetSana || t3.sana) : '' });
+    if (t3) ch.push({ y: 'Talabnoma muddati o\'tdi', ok: bugun > X.xatIso(t3.muddat), s: t3.muddat });
+    if (!shosh) [['Телефон', 'Telefon'], ['СМС/Телеграм', 'SMS'], ['Ташриф (манзилига бориб)', 'Uyiga borildi']].forEach(c => ch.push({ y: c[1], ok: my.some(j => j.chora === c[0]) }));
+    const rad = I.filter(i => i.no === x.no && i.holati === 'Rad etildi').pop();
+    L.push({ no: x.no, fish: x.fish, mid: x.mid, dokon: x.dokon, und: x.undiruvchi, muddati: x.muddati, qoshimcha: x.qoshimcha, jami: x.jami, kechikkan: x.kechikkan,
+      davoOtgan: !!x.davoOtgan, davoQolgan: x.davoQolgan, shosh, holat: x.yuSorov ? 'sorov' : m.ok ? 'tayyor' : 'yetishmaydi', yet: m.yetishmaydi, kun: m.kun, ch,
+      rad: rad ? (rad.izoh || rad.yopishSabab || 'oldingi so\'rov rad etilgan') : '' });
+  });
+  // allaqachon yuristda (undPortfel ularni ko'rsatmaydi)
+  const SM = {}; SH.forEach(x => SM[x.no] = x);
+  I.filter(i => YQ.YU_FAOL.indexOf(i.holati) >= 0 && SM[i.no] && mos(SM[i.no])).forEach(i => { const x = SM[i.no];
+    L.push({ no: i.no, fish: x.fish, mid: x.mid, dokon: x.dokon, und: x.undiruvchi, muddati: x.muddati, qoshimcha: x.qoshimcha, jami: x.jami, kechikkan: x.kechikkan,
+      holat: 'yuristda', bosqich: (YQ.yuTrek(i).bosqich[i.bosqich] || i.holati) + (i.bosqichSana ? ' · ' + i.bosqichSana.split('-').reverse().join('.') : ''), ishHolati: i.holati, ch: [], yet: [] }); });
+  const tar = { tayyor: 0, yetishmaydi: 1, sorov: 2, yuristda: 3 };
+  L.sort((a, b) => (tar[a.holat] - tar[b.holat]) || ((b.davoOtgan ? 1 : 0) - (a.davoOtgan ? 1 : 0)) || ((b.kechikkan || 0) - (a.kechikkan || 0)));
+  const son = { tayyor: 0, yetishmaydi: 0, sorov: 0, yuristda: 0, davoOtgan: 0 };
+  L.forEach(z => { son[z.holat]++; if (z.davoOtgan && z.holat !== 'yuristda') son.davoOtgan++; });
+  return { ok: true, bugun, hamma, royxat: L, son, undiruvchilar: hamma ? [...new Set(L.map(z => z.und).filter(Boolean))].sort() : [] };
+}
+
+module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol };

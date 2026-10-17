@@ -32,11 +32,21 @@ const qisqa = v => { const s = typeof v === 'string' ? v : JSON.stringify(v); re
   const tok = await S.sessiyaOch(kod);
   const parsed = args.map(a => { try { return JSON.parse(a); } catch (e) { return a; } });
   console.log(`=== ${fn} — ${x.fish} (${x.admin ? 'direktor' : x.huquq.join(',')}) ===`);
-  let t = Date.now(); const srv = await A[fn]([kod + '|' + tok, ...parsed]); const tS = Date.now() - t;
-  t = Date.now(); const esk = await koprik.chaqir(fn, kod, parsed); const tE = Date.now() - t;
-  console.log(`server: ${tS} ms · eski tizim: ${tE} ms`);
-  const F = []; farqlar(JSON.parse(JSON.stringify(srv)), JSON.parse(JSON.stringify(esk)), '', F);
-  if (!F.length) console.log('✅ Javoblar BIR XIL.');
-  else { console.log(`⚠ ${F.length} ta farq (server ← → eski):`); F.slice(0, 40).forEach(([y, a, b]) => console.log('  ' + y + ':  ' + qisqa(a) + '  ←→  ' + qisqa(b))); if (F.length > 40) console.log('  … yana ' + (F.length - 40) + ' ta'); }
+  // «navbat» — yuristga o'tkazish tasdig'ini kutayotgan har bir shartnoma bilan (qadamSudKarta uchun)
+  let ishlar = [parsed];
+  if (parsed[0] === 'navbat') { const I = await require('../lib/jurnallar').yuIshlar();
+    ishlar = [...new Set(I.filter(i => i.holati === 'Tasdiq kutilmoqda').map(i => i.no))].map(no => [no, ...parsed.slice(1)]);
+    console.log('Tasdiq kutayotganlar: ' + (ishlar.map(z => z[0]).join(', ') || 'yo\'q')); }
+  let jamiF = 0;
+  for (const P of ishlar) {
+    if (ishlar.length > 1) console.log('--- ' + P.join(' '));
+    let t = Date.now(); const srv = await A[fn]([kod + '|' + tok, ...P]); const tS = Date.now() - t;
+    t = Date.now(); const esk = await koprik.chaqir(fn, kod, P); const tE = Date.now() - t;
+    console.log(`server: ${tS} ms · eski tizim: ${tE} ms`);
+    const F = []; farqlar(JSON.parse(JSON.stringify(srv)), JSON.parse(JSON.stringify(esk)), '', F); jamiF += F.length;
+    if (!F.length) console.log('✅ Javoblar BIR XIL.');
+    else { console.log(`⚠ ${F.length} ta farq (server ← → eski):`); F.slice(0, 40).forEach(([y, a, b]) => console.log('  ' + y + ':  ' + qisqa(a) + '  ←→  ' + qisqa(b))); if (F.length > 40) console.log('  … yana ' + (F.length - 40) + ' ta'); }
+  }
+  if (ishlar.length > 1) console.log(jamiF ? '⚠ JAMI ' + jamiF + ' ta farq' : '✅ HAMMASI BIR XIL');
   await redis.del('ses:' + tok); await pool.end(); redis.disconnect(); process.exit(0);
 })().catch(e => { console.error('XATO:', e.message); process.exit(1); });
