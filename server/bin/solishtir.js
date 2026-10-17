@@ -44,6 +44,10 @@ const qisqa = v => { const s = typeof v === 'string' ? v : JSON.stringify(v); re
     const N = [...new Set([...(await ol('03_Sotuv_shartnomalar', /^27\/\d+$/)), ...(await ol('04_Ijara_shartnomalar', /^IJ-27\/\d+$/)), ...B])];
     ishlar = N.map(no => [no, ...parsed.slice(1)]);
     console.log('Namuna: ' + N.join(', ')); }
+  // «devon» — oxirgi 4 ta devonxona yozuvi (ID) bilan
+  if (parsed[0] === 'devon') { const V = require('../lib/varaq');
+    const N = (await V.qatorlar('11_Devonxona')).map(z => z.x[0]).filter(v => v !== null && v !== undefined && v !== '').slice(-4);
+    ishlar = N.map(id => [id, ...parsed.slice(1)]); console.log('Devon ID: ' + N.join(', ')); }
   let jamiF = 0;
   for (const P of ishlar) {
     if (ishlar.length > 1) console.log('--- ' + P.join(' '));
