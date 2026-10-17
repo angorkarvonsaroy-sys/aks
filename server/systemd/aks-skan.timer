@@ -1,0 +1,10 @@
+[Unit]
+Description=AKS TIZIM — skanlar nusxasi har kecha 02:30
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — Drive'dagi skanlarni serverga nusxalash (bir yurishda ko'pi bilan N ta, default 400). Ishlatish: aks-skan [N]
+cd /opt/aks/app && exec sudo -u aks -H node bin/skan_kochir.js "$@"

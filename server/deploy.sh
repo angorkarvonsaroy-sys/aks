@@ -32,9 +32,10 @@ install -m 755 "$APP/bin/aks-kozgu"   /usr/local/bin/aks-kozgu
 install -m 755 "$APP/bin/aks-bugun"   /usr/local/bin/aks-bugun
 install -m 755 "$APP/bin/aks-solishtir" /usr/local/bin/aks-solishtir
 install -m 755 "$APP/bin/aks-yurist"  /usr/local/bin/aks-yurist
+install -m 755 "$APP/bin/aks-skan"    /usr/local/bin/aks-skan
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable -q --now aks-yangila.timer aks-kozgu.timer
+systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer
 
 # 4a. skanlar papkasi (serverdagi nusxa)
 mkdir -p /opt/aks/hujjat && chown aks:aks /opt/aks/hujjat && chmod 750 /opt/aks/hujjat

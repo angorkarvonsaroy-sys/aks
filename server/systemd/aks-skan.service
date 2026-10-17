@@ -1,0 +1,13 @@
+[Unit]
+Description=AKS TIZIM — Drive skanlarini serverga nusxalash
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aks
+Group=aks
+WorkingDirectory=/opt/aks/app
+ExecStart=/usr/bin/node /opt/aks/app/bin/skan_kochir.js 400
+TimeoutStartSec=2h
+Nice=10
