@@ -29,13 +29,14 @@ const XARITA = {
   'undiruv,yurist': 'qadamFayl qadamSudKarta qadamTarix qadamTgTel qadamYuristYol',
   'xat': 'xatBekor xatBoshlang xatPdf xatQaytaYasa xatTayyorla xatYuborildi',
   'xat,shartnoma,undiruv': 'monSorovYubor',
+  'xarita': 'xaritaMalumot',
   'yurist': 'tasdiqFayl tasdiqQil tasdiqRoyxat yhAloqa yhAloqaBekor yhAloqaFayl yhAloqaYuborildi yuristBoshlang yuristHolat yuristHujjat yuristIsh yuristKeyingi yuristMajlis yuristQabul yuristRad yuristTopBer',
 };
 // amallar.js da bor, lekin ichida baribir eski tizimga boradi (Telegram bot, PIN o'rnatish, qoida yozish)
 const ICHI_ESKI = new Set(['tgUlanishBoshla', 'tgUlanishTekshir', 'pinKodYubor', 'pinOrnat', 'topQoidaYoz']);
 const serverda = f => typeof A[f] === 'function' && !ICHI_ESKI.has(f);
 const NOM = { '*': 'umumiy (har xodimda)', admin: 'faqat direktor', devon: 'devonxona', hisobot: 'hisobot', hujjat: 'hujjatlar (skan)', ijara_kelishuv: 'ijarani kelishuv bilan bekor',
-  reyestr: 'reyestr', shartnoma: 'shartnoma tuzish', taminot: "ta'minot", tashrif: 'tashrif', tekshiruv: 'tekshiruv', tolov: "to'lov", undiruv: 'undiruv',
+  reyestr: 'reyestr', shartnoma: 'shartnoma tuzish', taminot: "ta'minot", tashrif: 'tashrif', tekshiruv: 'tekshiruv', tolov: "to'lov", undiruv: 'undiruv', xarita: 'xarita (Xarita.html)',
   xat: 'xatlar', yurist: 'yurist',
   'shartnoma,undiruv,hujjat,tolov,xat,yurist': 'mijozlar (qidiruv, karta)', 'undiruv,hujjat': 'shartnomani bekor qilish', 'undiruv,yurist': 'sud kartasi, mijoz tarixi',
   'xat,shartnoma,undiruv': 'direktorga so\'rov' };
