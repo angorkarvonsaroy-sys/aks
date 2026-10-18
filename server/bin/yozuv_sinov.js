@@ -290,18 +290,20 @@ async function maydaSinov() {
 }
 
 // Yangi qator(lar)ni oldingi qator bilan ustunma-ustun: qiymat turi, format, formula (oldingi qatordagi formula bir qator pastga surilgan bo'lishi kerak)
-async function qatorSolishtir(nx, r1, soni, oxirgi, sarlavha) {
+const surD = (f, d) => String(f).replace(/(\$?)([A-Z]{1,3})(\$?)(\d+)/g, (m, d1, c, d2, n) => d1 + c + d2 + (d2 ? n : String(+n + d)));
+async function qatorSolishtir(nx, r1, soni, oxirgi, sarlavha, eskiQ) {   // eskiQ — solishtiriladigan eski qator (berilmasa — oldingi qator)
   let xato = 0;
   const R = await G.kataklarOqi(ID, nx, 'A' + (r1 - 1) + ':' + harf(oxirgi) + (r1 + soni - 1), KEY);
+  const E = eskiQ ? ((await G.kataklarOqi(ID, nx, 'A' + eskiQ + ':' + harf(oxirgi) + eskiQ, KEY))[0] || []) : null;
   for (let k = 0; k < soni; k++) {
-    const o = R[k] || [], y = R[k + 1] || [];
-    console.log(sarlavha + (soni > 1 ? ' — ' + (k + 1) + '/' + soni : '') + ' (qator ' + (r1 + k) + ', oldingisi ' + (r1 + k - 1) + ')');
+    const o = E && k === 0 ? E : (R[k] || []), y = R[k + 1] || [], dq = E && k === 0 ? r1 - eskiQ : 1;
+    console.log(sarlavha + (soni > 1 ? ' — ' + (k + 1) + '/' + soni : '') + ' (qator ' + (r1 + k) + ', eski tizim yozgani ' + (E && k === 0 ? eskiQ : r1 + k - 1) + ')');
     const yomon = [];
     for (let i = 0; i < oxirgi; i++) {
       const a = o[i] || {}, b = y[i] || {}, ta = tur(a), tb = tur(b), fa = fmt(a), fb = fmt(b);
       let ok = (ta === 'bo\'sh' || tb === 'bo\'sh') ? true : (fa === fb && ta === tb);
       if ((ta === 'formula') !== (tb === 'formula') && !(ta === 'bo\'sh' && tb !== 'formula')) ok = false;
-      if (ta === 'formula' && tb === 'formula' && sur(a.userEnteredValue.formulaValue) !== b.userEnteredValue.formulaValue) ok = false;
+      if (ta === 'formula' && tb === 'formula' && surD(a.userEnteredValue.formulaValue, dq) !== b.userEnteredValue.formulaValue) ok = false;
       if (!ok) yomon.push(harf(i + 1) + ': eski ' + ta + ' ' + fa + ' «' + qisqa(a.formattedValue || (a.userEnteredValue && a.userEnteredValue.formulaValue), 30) + '» | server ' + tb + ' ' + fb + ' «' + qisqa(b.formattedValue || (b.userEnteredValue && b.userEnteredValue.formulaValue), 30) + '»');
     }
     if (yomon.length) { xato += yomon.length; yomon.forEach(z => console.log('  ⚠ ' + z)); } else console.log('  ✅ ' + oxirgi + ' ustun — qiymat turi, format va formulalar bir xil');
@@ -337,7 +339,11 @@ async function shartnomaSinov() {
     t0 = Date.now();
     const w = await SY.shartnomaYoz(n3, n3b, u, d, 1, dr, h);
     console.log('Yozish: ' + (Date.now() - t0) + ' ms · ' + w.no + ' (do\'kon ' + dr[0] + '), 03 qator ' + w.qator + ', 03b qatorlar ' + w.jQator + '–' + (w.jQator + w.jSoni - 1));
-    x += await qatorSolishtir(n3, w.qator, 1, 42, '— Yangi shartnoma (A–AP) va oldingi qator');
+    // solishtirish uchun — oddiy (Kod.gs shartnomaSaqlash yozgan) shartnoma: «Qayta tuzish» yozgan qatorlar (06k Yangi_№) o'tkaziladi — ularda I «0.00%»
+    const Q6 = await G.oraliqOqi(ID, '06k_Qayta_tuzish', 'E2:E', KEY).catch(() => []); const qtNo = new Set(Q6.map(r => String(r[0] || '').trim()).filter(Boolean));
+    const A3 = await G.ustunOqi(ID, n3, 'A', KEY); let eskiQ = 0;
+    for (let i = w.qator - 2; i >= 1; i--) { const v = String(A3[i] || '').trim(); if (/^27\/\d+$/.test(v) && !qtNo.has(v)) { eskiQ = i + 1; break; } }
+    x += await qatorSolishtir(n3, w.qator, 1, 42, '— Yangi shartnoma (A–AP) va eski tizim yozgan oxirgi oddiy shartnoma', eskiQ || null);
     x += await qatorSolishtir(n3b, w.jQator, w.jSoni, 8, '— To\'lov jadvali (A–H)');
     console.log('\n=== IJARA (04_Ijara_shartnomalar) ===');
     const n4 = await nusxala(SY.T04);
