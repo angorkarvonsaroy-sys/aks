@@ -5,6 +5,8 @@
 //   qadamMalumot    — ⓘ topilgan JSHSHIR / otasining ismi / telefon — 06i_Direktor_sorovlari ga tahrir so'rovi + Telegram (qdMalumotYoz_)
 //   qadamMuhlatSora — 📅 qo'shimcha muddat so'rash: suhbat jurnali (undYoz) + direktorga topshiriq + Telegram
 //   qadamTgYubordim — ✈ xat Telegramda yuborildi — jurnalga (undYoz)
+// Direktor javoblari (📌 Topshiriqlar → ✓ Ruxsat / ✕ Rad): qadamOtkazRuxsat, qadamMuhlatRuxsat, qadamKutishRuxsat — xodimga Telegram (koprikTgChat).
+//   Yoqilishi: Redis yozuv_yondi:qadam_ruxsat («aks-yozuv-sinov qadam» bilan birga).
 // Telegram — Koprik v1.5 koprikTgYubor (eski tizimning tgYubor_ ining o'zi). Yozish faqat «aks-yozuv-sinov qadam» nusxa varaqda tekshirgach yoqiladi
 // (Redis yozuv_yondi:qadam). Aks holda yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
 'use strict';
@@ -19,6 +21,7 @@ const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
 const { redis } = require('../lib/db');
 const { qisqaIsm } = require('../lib/ism');
+const { xodimTeng } = require('../lib/xodim');
 const Q = require('./qadam');
 const UY = require('./undiruv_yoz');
 const TP = require('./topshiriq_yoz')._ichki;
@@ -273,5 +276,119 @@ async function qadamTgYubordim(args) {
   return { ok: true, no: h.no, id: w.id };
 }
 
-module.exports = { qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim };
-module.exports._ichki = { qdYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, QDV, SOR_V };
+// ------------------------------------------------------------------ 👔 direktor javoblari
+async function serverdaR(kod) {
+  try { if ((await redis.get('yozuv_yondi:qadam_ruxsat')) !== '1') return false; } catch (e) { return false; }
+  return TP.koprik15(kod);
+}
+async function tgXodim(kod, fish, matn) {   // tgYuborChat_(x.tg, …) — xato e'tiborsiz
+  const x = (await TP.topXodimlar()).find(z => xodimTeng(z.fish, fish));
+  if (x && x.tg) koprik.chaqir('koprikTgChat', kod, [x.tg, matn]).catch(e => console.error('qadam tg xodim (ko\'prik):', e.message));
+}
+async function ruxsatTop(id, tur, xabar) {   // topRows_ → t (Google'dan yangi); kalit turi tekshiriladi
+  const R = await TP.topRowsYangi(TOP_V);
+  const t = R.L.find(z => String(z.id) === String(id)); if (!t) throw new S.Xato('Topshiriq topilmadi.');
+  const p = s(t.kalit).split('|'); if (p[0] !== tur) throw new S.Xato(xabar);
+  if (t.holati !== 'Jarayonda') throw new S.Xato('Bu so\'rovga allaqachon javob berilgan.');
+  return { R, t, p };
+}
+async function topYopish(t, kim, dalil) { try { await TP.topYop(TOP_V, t, 'Bajarildi', kim, dalil); } catch (e) { throw yozilmadi(e); } }
+// qdKutishYoz_: 06n oxiriga 11 ustun (J — Kutish_sana, K — Qadam_kalit); C — matn (@); A, I, J — sana
+async function kutishYoz(varaq, bugun, q) {
+  const v = hozir();
+  try {
+    const [A, h1] = await Promise.all([G.ustunOqi(env.aksBazaId, varaq, 'A', env.googleKey), G.qatorOqi(env.aksBazaId, varaq, 1, 'K', env.googleKey)]);
+    const r = await G.qatorQoshR(env.aksBazaId, varaq, A.length + 1, [dmy(bugun), q.xodim, "'" + q.no, q.fish, 'Kutilmoqda', q.sabab, q.qadam, q.bugun, v.dmyHms, dmy(q.gacha), q.k], env.googleKey);
+    const g = await G.gid(env.aksBazaId, varaq, env.googleKey);
+    const sana = (u, iso, naqsh) => ({ updateCells: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: u - 1, endColumnIndex: u },
+      rows: [{ values: [{ userEnteredValue: { numberValue: seriya(iso) }, userEnteredFormat: { numberFormat: { type: /H/.test(naqsh) ? 'DATE_TIME' : 'DATE', pattern: naqsh } } }] }], fields: 'userEnteredValue,userEnteredFormat.numberFormat' } });
+    const req = [sana(1, bugun, 'dd.MM.yyyy'), sana(9, v.iso, 'dd.MM.yyyy HH:mm:ss'), sana(10, q.gacha, 'dd.MM.yyyy'),
+      { repeatCell: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: 2, endColumnIndex: 3 }, cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } }];
+    if (!s(h1[9])) req.push({ updateCells: { range: { sheetId: g, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 9, endColumnIndex: 11 },
+      rows: [{ values: ['Kutish_sana', 'Qadam_kalit'].map(t => ({ userEnteredValue: { stringValue: t }, userEnteredFormat: { backgroundColor: { red: 11 / 255, green: 61 / 255, blue: 46 / 255 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } })) }],
+      fields: 'userEnteredValue,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat' } });
+    await G.soralar(env.aksBazaId, req, env.googleKey);
+    return r;
+  } catch (e) { throw yozilmadi(e); }
+}
+
+async function qadamOtkazRuxsat(args) {
+  const [kodSes, id, ha, izoh0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverdaR(u.kod))) return eskiTizim('qadamOtkazRuxsat', u, args.slice(1));
+  const bugun = V.bugun();
+  const { t, p } = await ruxsatTop(id, 'otkaz', 'Bu ruxsat so\'rovi emas.');
+  const izoh = s(izoh0).replace(/\s+/g, ' ').trim();
+  const xodim = t.kimBerdi, sabab = s(t.izoh).split(' | ')[0];
+  try {
+    if (ha) {
+      if (p[2] === bugun) {
+        const H = (await Q._ichki.qdHisob(u.kod, [xodim], bugun))[xodim]; const m = H && H.hamma.find(z => z.no === p[1]);
+        await qulf('qadam', () => qdYoz(QDV, bugun, { xodim, no: p[1], fish: m ? m.fish : '', holat: m && m.faol ? 'Qisman' : 'O\'tkazildi', sabab: sabab + ' (direktor ruxsati' + (izoh ? ': ' + izoh : '') + ')',
+          qadam: m ? m.qadam.filter(z => z.holat === 'kutadi').map(z => z.t).join(' | ') : '', bugun: m ? m.bugun.map(b => (b.vaqt ? b.vaqt + ' ' : '') + b.matn).join(' | ').slice(0, 1000) : '' }));
+      }
+      await topYopish(t, u.fish, 'Ruxsat berildi' + (izoh ? ': ' + izoh : ''));
+    } else {
+      if (izoh.length < 3) throw new S.Xato('Rad etish sababini yozing.');
+      await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
+    }
+  } catch (e) { if (e.yozilmadi) return eskiTizim('qadamOtkazRuxsat', u, args.slice(1)); throw e; }
+  await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + p[1] + '</b> bugun o\'tkazildi.' : '✖ Direktor ruxsat bermadi: <b>' + p[1] + '</b> — «' + izoh + '». Bugun shu mijoz bilan ishlang.');
+  await yangila([TOP_V, QDV]);
+  return { ok: true, natija: ha ? p[1] + ' bugun o\'tkazildi (sizning ruxsatingiz bilan).' : p[1] + ' — rad etildi, undiruvchi shu mijoz bilan ishlaydi.' };
+}
+async function qadamMuhlatRuxsat(args) {
+  const [kodSes, id, ha, izoh0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverdaR(u.kod))) return eskiTizim('qadamMuhlatRuxsat', u, args.slice(1));
+  const bugun = V.bugun();
+  const { t, p } = await ruxsatTop(id, 'muhlat', 'Bu muddat so\'rovi emas.');
+  const izoh = s(izoh0).replace(/\s+/g, ' ').trim();
+  const no = p[1], sana = p[2], summa = Number(p[3]) || 0, xodim = t.kimBerdi;
+  try {
+    if (ha) {
+      if (sana < bugun) throw new S.Xato('So\'ralgan sana (' + dmy(sana) + ') o\'tib ketgan — rad eting, xodim yangi sana bilan qayta so\'rasin.');
+      await UY.undYoz([kodSes, { no, chora: 'Телефон', natija: 'Боғланилди', mazmun: 'Direktor ruxsati bilan yangi muddat: ' + dmy(sana) + ' gacha ' + qdPul(summa) + ' so\'m' + (izoh ? ' (' + izoh + ')' : ''),
+        vadaSana: sana, vadaSumma: summa, izoh: '📅 direktor ruxsati (so\'ragan: ' + xodim + ')' }]);
+      await topYopish(t, u.fish, 'Ruxsat berildi' + (izoh ? ': ' + izoh : ''));
+    } else {
+      if (izoh.length < 3) throw new S.Xato('Rad etish sababini yozing.');
+      await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
+    }
+  } catch (e) { if (e.yozilmadi) return eskiTizim('qadamMuhlatRuxsat', u, args.slice(1)); throw e; }
+  await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + no + '</b> — yangi muddat ' + dmy(sana) + ' gacha ' + qdPul(summa) + ' so\'m. Va\'da jurnalga yozildi; bir kun oldin va o\'sha kuni eslating.'
+    : '✖ Direktor qo\'shimcha muddatga ruxsat bermadi: <b>' + no + '</b> — «' + izoh + '». Keyingi chora navbatga chiqadi.');
+  await yangila([TOP_V]);
+  return { ok: true, natija: ha ? no + ': yangi muddat ' + dmy(sana) + ' — va\'da jurnalga yozildi.' : no + ': rad etildi, xodimga xabar ketdi.' };
+}
+async function qadamKutishRuxsat(args) {
+  const [kodSes, id, ha, izoh0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverdaR(u.kod))) return eskiTizim('qadamKutishRuxsat', u, args.slice(1));
+  const bugun = V.bugun();
+  const { R, t, p } = await ruxsatTop(id, 'kutish', 'Bu kutish so\'rovi emas.');
+  const izoh = s(izoh0).replace(/\s+/g, ' ').trim();
+  const no = p[1], k = s(p[2]).replace(/~/g, '|'), sana = p[3] || '', topId = p[4] || '', xodim = t.kimBerdi;
+  const iz = s(t.izoh).split(' | '), sabab = iz[0] || '', qadamT = (iz.find(z => /^qadam: /.test(z)) || '').replace(/^qadam: /, '');
+  try {
+    if (ha) {
+      if (!(sana > bugun)) throw new S.Xato('So\'ralgan kun (' + dmy(s(sana)) + ') o\'tib ketgan — rad eting, xodim yangi kun bilan qayta so\'rasin.');
+      const x = (await U.undShartnomalar()).find(z => z.no === no);
+      await qulf('qadam', async () => {
+        await kutishYoz(QDV, bugun, { xodim, no, fish: x ? x.fish : '', sabab: sabab + ' (direktor ruxsati' + (izoh ? ': ' + izoh : '') + ')', qadam: qadamT, bugun: '', gacha: sana, k });
+        if (topId) { const tt = R.L.find(z => String(z.id) === String(topId)); if (tt && tt.holati === 'Jarayonda') await G.yoz(env.aksBazaId, [{ varaq: TOP_V, katak: 'L' + tt.qator, qiymat: [[dmy(sana) + ' 18:00']] }], env.googleKey); }
+      });
+      await topYopish(t, u.fish, 'Ruxsat berildi' + (izoh ? ': ' + izoh : ''));
+    } else {
+      if (izoh.length < 3) throw new S.Xato('Rad etish sababini yozing.');
+      await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
+    }
+  } catch (e) { if (e.yozilmadi) return eskiTizim('qadamKutishRuxsat', u, args.slice(1)); throw e; }
+  await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + no + '</b> — «' + qadamT + '» ' + dmy(sana) + ' gacha kutadi, topshiriq muddati ham shu kunga surildi.'
+    : '✖ Direktor ruxsat bermadi: <b>' + no + '</b> — «' + izoh + '». Topshiriq muddati o\'zgarmadi.');
+  await yangila([TOP_V, QDV]);
+  return { ok: true, natija: ha ? no + ': ' + dmy(sana) + ' gacha kutishga qo\'yildi, topshiriq muddati surildi.' : no + ': rad etildi, xodimga xabar ketdi.' };
+}
+
+module.exports = { qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim, qadamOtkazRuxsat, qadamMuhlatRuxsat, qadamKutishRuxsat };
+module.exports._ichki = { qdYoz, kutishYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, QDV, SOR_V };

@@ -541,6 +541,22 @@ async function qadamSinov() {
     const r = await QY.qdYoz(n, V.bugun(), { xodim: 'SINOV', no: String(eq[2] || '27/1'), fish: String(eq[3] || 'SINOV'), holat: 'O\'tkazildi', sabab: 'SINOV — nusxa varaq, o\'chiriladi', qadam: 'Qo\'ng\'iroq qiling | 1-xatni chiqaring', bugun: '10:15 📞 SINOV' });
     console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + r);
     x += await qatorSolishtir(n, r, 1, 9, '— O\'tkazish qatori (A–I)');
+    // ⏸️ kutish ruxsati (direktor): 06n «Kutilmoqda» qatori (11 ustun) — avvalgi «Kutilmoqda» qatori bilan; 10_Topshiriqlar L (muddat) — yuqoridagi L bilan
+    console.log('\n=== ⏸️ KUTISHGA RUXSAT (06n «Kutilmoqda» + topshiriq muddati) ===');
+    let ki = -1; R.forEach((q, i) => { if (String(q[4] || '') === 'Kutilmoqda') ki = i; });
+    const gacha = new Date(Date.parse(V.bugun()) + 3 * 86400000).toISOString().slice(0, 10);
+    t0 = Date.now();
+    const rk = await QY.kutishYoz(n, V.bugun(), { xodim: 'SINOV', no: String(eq[2] || '27/1'), fish: String(eq[3] || 'SINOV'), sabab: 'SINOV — nusxa varaq (direktor ruxsati)', qadam: 'SINOV', bugun: '', gacha, k: 'olib' });
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + rk);
+    x += await qatorSolishtir(n, rk, 1, 11, '— Kutish qatori (A–K)', ki >= 0 ? ki + 2 : null);
+    const n10 = await nusxala('10_Topshiriqlar');
+    const A10 = await G.oraliqOqi(ID, n10, 'A2:A', KEY); const r10 = A10.length + 1;
+    await G.yoz(ID, [{ varaq: n10, katak: 'L' + r10, qiymat: [[gacha.split('-').reverse().join('.') + ' 18:00']] }], KEY);
+    const L = await G.kataklarOqi(ID, n10, 'L' + (r10 - 1) + ':L' + r10, KEY);
+    const la = (L[0] || [])[0] || {}, lb = (L[1] || [])[0] || {}, lt = c => (fmt(c).split(' ')[0]);
+    const lok = tur(la) === tur(lb) && lt(la) === lt(lb);
+    console.log('— Topshiriq muddati (L' + r10 + '): eski ' + tur(la) + ' ' + fmt(la) + ' «' + (la.formattedValue || '') + '» | server ' + tur(lb) + ' ' + fmt(lb) + ' «' + (lb.formattedValue || '') + '» ' + (lok ? '✅' : '⚠'));
+    if (!lok) x++;
     console.log('\n=== ⓘ TOPILGAN MA\'LUMOT — TAHRIR SO\'ROVI (06i_Direktor_sorovlari) ===');
     const n6 = await nusxala(QY.SOR_V);
     const S6 = await QY.sorovlar(n6);
@@ -554,14 +570,14 @@ async function qadamSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:qadam', '1'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ⏭ o\'tkazish, 📣 direktorga, ⓘ ma\'lumot, 📅 muddat so\'rash, ✈ Telegram endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await redis.set('yozuv_yondi:qadam', '1'); await redis.set('yozuv_yondi:qadam_ruxsat', '1'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ⏭ o\'tkazish, 📣 direktorga, ⓘ ma\'lumot, 📅 muddat so\'rash, ✈ Telegram\n   va direktorning ✓ ruxsat / ✕ rad javoblari (o\'tkazish, muddat, kutish) endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'ko\'prik javob bermadi') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'qadam') {
     console.log('Hozir: Bugungi ish amallari — ' + ((await redis.get('yozuv_yondi:qadam')) === '1' ? 'serverda' : 'eski tizimda'));
