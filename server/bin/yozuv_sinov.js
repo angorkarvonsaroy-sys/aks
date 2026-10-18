@@ -739,11 +739,55 @@ async function xatSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 📌 BAJARDIM: topshiriq holati (topYop) va yangi topshiriq (topYoz) — avval sinovdan o'tgan; bu yerda 10_Topshiriqlar U ni tozalash va G izohi (eski yozgan katak bilan); Koprik ≥ 1.7
+async function bajardimSinov() {
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k17 = ver >= '1.7' && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k17 ? ' ✅' : ' ⚠ (1.7 kerak)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  try {
+    console.log('\n=== 📌 TOPSHIRIQ KATAKLARI (10_Topshiriqlar: U tozalash, G izoh) ===');
+    const R = await G.oraliqOqi(ID, '10_Topshiriqlar', 'A2:V', KEY);
+    const src = M.varaqlar.find(v => v.title === '10_Topshiriqlar');
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length, newSheetName: 'zz_sinov_10_Topshiriqlar' } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); const n10 = 'zz_sinov_10_Topshiriqlar'; await G.gid(ID, n10, KEY, true);
+    let iu = -1; R.forEach((r, k) => { if (String(r[20] || '')) iu = k; });
+    const qu = iu >= 0 ? iu + 2 : R.length + 1;
+    await G.yoz(ID, [{ varaq: n10, katak: 'U' + qu, qiymat: [['']] }], KEY);
+    const bu = ((await G.kataklarOqi(ID, n10, 'U' + qu, KEY))[0] || [])[0] || {};
+    const oku = tur(bu) === 'bo\'sh'; if (!oku) x++;
+    console.log('  U' + qu + ' («' + (iu >= 0 ? R[iu][20] : '') + '») → tozalandi: ' + tur(bu) + ' ' + (oku ? '✅' : '⚠'));
+    let ig = -1; R.forEach((r, k) => { if (/(Qaytarildi|Rad etildi|Kotiba): /.test(String(r[6] || ''))) ig = k; });
+    if (ig >= 0) {
+      const qg = ig + 2, v = String(R[ig][6]);
+      await G.soralar(ID, [{ updateCells: { range: { sheetId: await G.gid(ID, n10, KEY), startRowIndex: qg - 1, endRowIndex: qg, startColumnIndex: 6, endColumnIndex: 7 }, rows: [{ values: [{}] }], fields: 'userEnteredValue' } }], KEY);
+      await G.yoz(ID, [{ varaq: n10, katak: 'G' + qg, qiymat: [[v]] }], KEY);
+      const a = ((await G.kataklarOqi(ID, '10_Topshiriqlar', 'G' + qg, KEY))[0] || [])[0] || {}, b = ((await G.kataklarOqi(ID, n10, 'G' + qg, KEY))[0] || [])[0] || {};
+      const ok = tur(a) === tur(b) && fmt(a) === fmt(b) && String(a.formattedValue || '') === String(b.formattedValue || ''); if (!ok) x++;
+      console.log('  G' + qg + ' eski ' + tur(a) + ' ' + fmt(a) + ' | server ' + tur(b) + ' ' + fmt(b) + ' «' + qisqa(b.formattedValue, 40) + '» ' + (ok ? '✅' : '⚠'));
+    } else console.log('  (G izohi — eski tizim yozgan «Qaytarildi/Kotiba» izohi yo\'q, o\'tkazildi)');
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaq o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k17) { await redis.set('yozuv_yondi:bajardim', '1'); console.log('✅ HAMMASI BIR XIL — 📌 topshiriqdagi «✓ Bajardim» (faylsiz), 🤝 nusxani kotibaga topshirish va ✖ «menga berilmagan»\n   endi server orqali (tekshiruvchiga Telegram — eski tizim). Isbot fayli bilan «Bajardim» — hali eski tizim orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'bajardim') {
+    console.log('Hozir: topshiriq «Bajardim», nusxa kotibaga — ' + ((await redis.get('yozuv_yondi:bajardim')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await bajardimSinov();
   } else if (arg === 'xat') {
     console.log('Hozir: xat isboti (yetkazildi) — ' + ((await redis.get('yozuv_yondi:xat_isbot')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
