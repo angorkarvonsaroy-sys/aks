@@ -1,0 +1,12 @@
+[Unit]
+Description=AKS TIZIM — jadvaldagi BUGUN katagini bugungi sanaga yangilash (eski bugunYangila_ o'rni)
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aks
+Group=aks
+WorkingDirectory=/opt/aks/app
+ExecStart=/usr/bin/node /opt/aks/app/bin/sana.js yangila
+TimeoutStartSec=5min

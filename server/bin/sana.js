@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // AKS TIZIM — jadvaldagi «BUGUN» katagi (formulalar bugungi sanani shundan oladi) bugungi sanadami — tekshirish.
-// Eski tizimda bu katakni doGet (xodim eski havolani ochganda) yangilardi. Ishlatish: aks-sana
+// Eski tizimda bu katakni doGet (xodim eski havolani ochganda) yangilardi. Endi server o'zi ham yangilaydi (aks-sana.timer, har soat :01).
+// Ishlatish: aks-sana — ko'rsatish · aks-sana yangila — bugungi bo'lmasa bugungi sanani yozadi (taymer shuni chaqiradi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { pool, redis } = require('../lib/db');
@@ -9,7 +10,26 @@ const env = require('../lib/env');
 const V = require('../lib/varaq');
 const harf = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
 
+async function yangila() {   // BUGUN (nomlangan oraliq) bugungi bo'lmasa — bugungi sana (seriya raqami + dd.MM.yyyy), eski bugunYangila_ o'rni
+  const iso = V.bugun(), bugun = iso.split('-').reverse().join('.');
+  const j = await G.ol(`https://sheets.googleapis.com/v4/spreadsheets/${env.aksBazaId}?fields=namedRanges(name,range),sheets.properties(sheetId,title)`, env.googleKey);
+  const NOM = {}; (j.sheets || []).forEach(x => { NOM[x.properties.sheetId] = x.properties.title; });
+  const n = (j.namedRanges || []).find(x => x.name === 'BUGUN'); if (!n) throw new Error('«BUGUN» nomlangan oraliq topilmadi');
+  const r = n.range || {}, varaq = NOM[r.sheetId || 0], qator = (r.startRowIndex || 0) + 1, ustun = (r.startColumnIndex || 0) + 1;
+  const c = ((await G.kataklarOqi(env.aksBazaId, varaq, harf(ustun - 1) + qator, env.googleKey))[0] || [])[0] || {};
+  const eski = String(c.formattedValue == null ? '' : c.formattedValue);
+  if (eski.indexOf(bugun) === 0) return null;
+  await G.sanaYoz(env.aksBazaId, [{ varaq, qator, ustun, iso }], env.googleKey);
+  const yoz = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' }) + ' · ' + varaq + '!' + harf(ustun - 1) + qator + ': «' + eski + '» → «' + bugun + '»';
+  try { await redis.lpush('sana_jurnal', yoz); await redis.ltrim('sana_jurnal', 0, 29); } catch (e) { }
+  return yoz;
+}
+
 (async () => {
+  if (process.argv[2] === 'yangila') {
+    const y = await yangila(); if (y) console.log('BUGUN katagi yangilandi: ' + y);
+    await pool.end(); redis.disconnect(); process.exit(0);
+  }
   const bugun = V.bugun().split('-').reverse().join('.');
   console.log('================ «BUGUN» KATAGI ================');
   console.log('Bugun (Toshkent): ' + bugun);
@@ -33,5 +53,9 @@ const harf = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s =
   R.forEach(({ varaq, qator_no, korinish }) => { (korinish || []).forEach((c, i) => { const s = String(c || '').trim(); if (s.length <= 25 && /^bugun\b/i.test(s)) T.push(varaq + '!' + harf(i) + qator_no + ' «' + s + '» → yonida: ' + korinish.slice(i + 1, i + 4).map(x => JSON.stringify(x)).join(', ')); }); });
   console.log('\n«BUGUN» yorlig\'i bor kataklar: ' + (T.length ? T.length + ' ta' : 'topilmadi'));
   T.slice(0, 20).forEach(x => console.log('  • ' + x));
+  const SJ = await redis.lrange('sana_jurnal', 0, 4).catch(() => []);
+  console.log('\nServer yangilagan oxirgi marta: ' + (SJ.length ? '' : 'hali yo\'q (katak bugungi bo\'lsa server tegmaydi)'));
+  SJ.forEach(x => console.log('  • ' + x));
+  console.log('Taymer: har soat :01 da tekshiradi (aks-sana.timer). Qo\'lda: aks-sana yangila');
   await pool.end(); redis.disconnect(); process.exit(0);
 })().catch(async e => { console.error('XATO:', e.message); try { await pool.end(); redis.disconnect(); } catch (z) { } process.exit(1); });
