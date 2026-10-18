@@ -14,6 +14,7 @@
 //            aks-yozuv-sinov xatpdf    — ogohlantirish xati PDF'i serverda lokal natija bilan bir xil chiqishini tekshirish (hech narsa yoqmaydi)
 //            aks-yozuv-sinov xatchiqar — xat chiqarish (06e qatori nusxada + PDF + Drive'ga ko'chirish, Koprik v1.8) ni sinash va yoqish
 //            aks-yozuv-sinov bekor     — shartnomani bekor qilish (06h qatori nusxada + buyruq/xabarnoma PDF + Drive va Word nusxasi, Koprik v1.9) ni sinash va yoqish
+//            aks-yozuv-sinov yuristish — to'g'ridan-to'g'ri yuristga o'tkazish va yurist → undiruvchiga topshiriq ni sinash va yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 const { verOk } = require('../lib/versiya');
@@ -782,6 +783,43 @@ async function bajardimSinov() {
 }
 
 // ⚖ YURISTGA SO'ROV: 06b yangi ish qatori (eski «Tasdiq kutilmoqda»/U4 qator bilan; Q:S formulalari), 06f tarix qatori (oldingi qator bilan)
+// ⚖ YURIST: to'g'ridan-to'g'ri o'tkazish (06b «Faol» qatori + AD) va yurist → undiruvchiga topshiriq (10_Topshiriqlar) — nusxa varaqlarda
+async function yuristIshSinov() {
+  const YS = require('../api/yurist_sorov')._ichki, TP = require('../api/topshiriq_yoz')._ichki;
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  try {
+    console.log('\n=== ⚖ TO\'G\'RIDAN-TO\'G\'RI YURISTGA (06b_Yuridik_ishlar, «Faol») ===');
+    const R = await G.oraliqOqi(ID, YS.YU_V, 'A2:AG', KEY);
+    let ei = -1; R.forEach((r, k) => { if (String(r[25] || '') === 'Togridan') ei = k; });
+    if (ei < 0) R.forEach((r, k) => { if (String(r[14] || '') === 'Faol' && String(r[2] || '') && String(r[29] || '')) ei = k; });
+    if (ei < 0) { console.log('  (eski tizim yozgan faol ish topilmadi)'); x++; }
+    else {
+      const n = await nusxala(YS.YU_V), er = R[ei];
+      const t0 = Date.now();
+      const i = await YS.yuYangi(n, { no: String(er[1] || '27/1'), undiruvchi: String(er[26] || 'SINOV') }, 'Faol', 'Togridan', 'SINOV', 'SINOV — nusxa varaq, o\'chiriladi (to\'g\'ridan-to\'g\'ri)');
+      await G.yoz(ID, [{ varaq: n, katak: 'AD' + i.qator, qiymat: [['SINOV, 19.10.2026 03:00']] }], KEY);
+      console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + i.qator + ' · eski tizim yozgan qator ' + (ei + 2) + ' (' + (er[14] || '') + ', ' + (er[25] || '') + ')');
+      x += await qatorSolishtir(n, i.qator, 1, 33, '— Ish qatori (A–AG)', ei + 2);
+    }
+    console.log('\n=== 📌 YURIST → UNDIRUVCHIGA TOPSHIRIQ (10_Topshiriqlar) ===');
+    const nt = await nusxala(TP.TOP_V);
+    const Rt = await TP.topRowsYangi(nt);
+    const ey = [...Rt.L].reverse().find(t => /^yutop\|/.test(t.kalit)) || Rt.L[Rt.L.length - 1];
+    const row = await TP.topYoz(nt, { manba: 'Yurist', qoida: 'yutop', kalit: 'yutop|27/0|PASPORT|0', sarlavha: '⚖ Yurist: SINOV', izoh: 'SINOV — nusxa varaq', no: '27/0', mid: '', kimga: 'SINOV', kimBerdi: 'SINOV',
+      muddat: '25.10.2026 18:00', muhim: 'Shoshilinch' }, Rt);
+    x += await qatorSolishtir(nt, row.qator, 1, 22, '— Topshiriq qatori (A–V)', ey ? ey.qator : undefined);
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x) { await redis.set('yozuv_yondi:yurist_ish', '1'); console.log('✅ HAMMASI BIR XIL — ⚖ ishni to\'g\'ridan-to\'g\'ri yuristga o\'tkazish va yuristning topshirig\'i endi server orqali. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
 async function yuristSorovSinov() {
   const YS = require('../api/yurist_sorov')._ichki;
   const M = await G.varaqlar(ID, KEY);
@@ -967,8 +1005,14 @@ async function bekorSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'yuristish') {
+    console.log('Hozir: to\'g\'ridan-to\'g\'ri yuristga va yurist topshirig\'i — ' + ((await redis.get('yozuv_yondi:yurist_ish')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await yuristIshSinov();
   } else if (arg === 'yurist') {
     console.log('Hozir: yuristga o\'tkazish so\'rovi — ' + ((await redis.get('yozuv_yondi:yurist_sorov')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
