@@ -88,7 +88,7 @@ function shapka() {
     + '<img src="' + LOGO12 + '" style="left:' + X(174.3) + 'pt;top:' + (101.42 - SAH.tepa).toFixed(2) + 'pt;width:135pt;height:45pt">'
     + t('ЎЗБЕКИСТОН РЕСПУБЛИКАСИ', 339.87, 88.45, 12, 1) + t('СУРХОНДАРЁ ВИЛОЯТИ', 361.42, 102.25, 12, 1) + t('АНГОР ТУМАНИ', 384.69, 116.05, 12, 1)
     + t('“ANGOR KARVON SAROY” M.CH.J', 335.59, 137.85, 12, 1)
-    + t('Манзил: Ангор тумани, Aт Термизий кўчаси 198-уй', 346.64, 147.91, 8) + t('Банк: АТ Халқ банк Сурхондарё минтакавий филиали', 343.06, 157.11, 8)
+    + t('Манзил: Ангор тумани, Aт Термизий кўчаси 198-уй', 346.64, 147.91, 8) + t('Банк: АТ Халқ банк Сурхондарё минтакавий филиали\u200b', 343.06, 157.11, 8)
     + t('ИНН:308489492 МФО:01125  Тел: +998 95-557-88-88', 345.25, 166.31, 8)
     + '<div class="ch" style="left:' + X(86.55) + 'pt;top:' + (184.86 - SAH.tepa).toFixed(2) + 'pt;width:465.75pt"></div>'
     + '</div>';
@@ -110,7 +110,7 @@ function xatHtml(o) {
     // «№» ni Chromium tekislashda ieroglif kabi ko'radi va yoniga bo'sh joy qo'shadi — inline-block buni to'xtatadi.
     // Ikki tomonga tekislash (justify) Docs'dagidek TEKISLA skripti bilan qilinadi: har bo'sh joy alohida <span class="sp">.
     const soz = w => /[-\/№]/.test(w) ? '<span class="nw">' + esc(w) + '</span>' : esc(w);
-    const ich = !matn ? '&#8203;' : tek ? matn.split(' ').map(soz).join('<span class="sp"> </span>') + '<span class="so"></span>' : matn.split(' ').map(soz).join(' ');
+    const ich = !matn ? '<br>' : tek ? matn.split(' ').map(soz).join('<span class="sp"> </span>') + '<span class="so"></span>' : matn.split(' ').map(soz).join(' ');
     html += '<p' + (tek ? ' class="j"' : '') + ' style="' + st.join(';') + '">' + ich + '</p>';
   };
   o.bloklar.forEach(bl => {
@@ -131,7 +131,7 @@ function xatHtml(o) {
   const ij = 'Ижрочи: ' + s(o.q['{{Ундирувчи}}']) + ', тел.: ' + s(o.q['{{Ундирувчи_тел}}']);
   const asl = 'Асл нусхасини олдим: ___________ (имзо) ___________________ (Ф.И.Ш.) «___» ________ ' + o.yil + ' й.';
   const imzo = '<p class="dir">Директор<span class="n">______________________</span>&#8203;<span class="f">Ҳайдаров К.Ҳ.</span></p>'
-    + '<p class="k9">&#8203;</p><p class="k9">&#8203;</p>' + (o.sinov ? '' : '<p class="k9">&#8203;</p><p class="k9">' + esc(ij) + '</p>')
+    + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
     + '<p class="k9" style="margin-bottom:0">' + esc(asl) + '</p>';
   return kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body>' + shapka()
     + '<p class="no">№ ' + esc(o.raqam) + '&#8203;<span class="o">' + esc(o.sanaMatn) + '</span></p>'
