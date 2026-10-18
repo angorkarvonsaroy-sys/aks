@@ -48,7 +48,10 @@ async function bekorFayl([kodSes, id, hujjat, format]) {
   if (!u.admin && !u.huquq.includes('undiruv') && !u.huquq.includes('hujjat')) throw new S.Xato('Bu bo\'limga ruxsatingiz yo\'q.');
   const s = (await J.bekorJurnal()).find(z => String(z.id) === String(id));
   if (!s) throw new S.Xato('So\'rov topilmadi (ID ' + id + ').');
-  if (String(format) === 'doc') return eski('bekorFayl', u.kod, [id, hujjat, format]);
+  if (String(format) === 'doc') {   // Word — eski tizimdagi Google Doc (serverda yasalgan hujjatniki fonda yasaladi: Koprik v1.9 koprikBekorSaqla)
+    if (!(hujjat === 'xab' ? s.xDoc : s.bDoc) && /^SRV:/.test(hujjat === 'xab' ? s.xPdf : s.bPdf)) throw new S.Xato('Word nusxasi hali tayyorlanmoqda (1–2 daqiqa) — birozdan keyin qayta bosing.');
+    return eski('bekorFayl', u.kod, [id, hujjat, format]);
+  }
   const pdfId = hujjat === 'xab' ? s.xPdf : s.bPdf;
   if (!pdfId) throw new S.Xato('PDF topilmadi.');
   const f = await ol(pdfId); if (!f) return eski('bekorFayl', u.kod, [id, hujjat, format]);

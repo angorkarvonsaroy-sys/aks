@@ -1,4 +1,7 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.8). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.9). Boshqa fayllar o'zgarmaydi.
+// v1.9: koprikBekorSaqla — server yasagan shartnomani bekor qilish BUYRUG'I va XABARNOMASI (PDF) ni «AKS TIZIM / 07 BEKOR QILISH / <yil>» ga qo'yish;
+//       «Word» tugmasi uchun Google Doc nusxasini Bekor.gs ning o'z funksiyalari (bekorBuyruq_, bekorXabarnoma_) shu ma'lumotdan yasaydi
+//       (ular yasagan PDF savatga — PDF serverniki). Qayta yasalganda eski fayllar savatga. 06h ni server o'zi yozadi.
 // v1.8: koprikXatSaqla — server yasagan ogohlantirish xati PDF ini direktor Drive'idagi «AKS TIZIM / 06 XATLAR / <yil>» papkasiga qo'yish
 //       (xatChiqar_ dagi papka va nom bilan bir xil); qayta yasalganda eski PDF savatga (xatQaytaYasa dagi setTrashed). 06e ni server o'zi yozadi.
 //       koprikIsbotSaqla — topshiriq isboti faylini «AKS TIZIM / 06 TOPSHIRIQ ISBOTLARI» ga (topIsbotSaqla_ papkasi).
@@ -59,7 +62,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.8'; }
+function koprikVersiya(kod) { return '1.9'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -132,4 +135,31 @@ function koprikIsbotSaqla(kod, m) {
   var papka = papka_(TOP_ISBOT_PAPKA);
   var bor = papka.getFilesByName(nom); if (bor.hasNext()) return { id: bor.next().getId(), bor: true };
   return { id: papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64 || '')), 'application/pdf', nom)).getId() };
+}
+// v1.9: shartnomani bekor qilish hujjatlari → «AKS TIZIM / 07 BEKOR QILISH / <yil>» (bekorHujjatYasa_ papkasi va nomlari).
+//   m = { yil, bNom, xNom, bB64, xB64, x, X, P, raqam, xRaqam, sana, fish, eski }. bB64 bo'lsa: ikkala PDF qo'yiladi va Google Doc nusxalari yasaladi
+//   (qayta urinishda shu nomli fayl bor bo'lsa — o'shasi qaytadi, ikkinchi nusxa bo'lmaydi). eski — almashtirilgan fayllar (Drive ID), faqat
+//   «07 BEKOR QILISH» ichidagilari savatga. Qaytaradi { bPdf, bDoc, xPdf, xDoc } (faqat eski bo'lsa — { ok }).
+function koprikBekorSaqla(kod, m) {
+  bekorKirish_(kod);
+  m = m || {};
+  var eski = (m.eski || []).map(String), r = { ok: true };
+  if (m.bB64) {
+    var yil = String(m.yil || '').replace(/\D/g, '').slice(0, 4);
+    var nomOk = function (n) { return /^Bekor_(buyruq|xabarnoma)_[^\/\\]{3,160}$/.test(String(n || '')); };
+    if (yil.length !== 4 || !nomOk(m.bNom) || !nomOk(m.xNom) || !m.xB64) throw new Error('Bekor hujjati nomi noto\'g\'ri.');
+    var ss = SpreadsheetApp.openById(SS_ID), papka = papka_(BEKOR_PAPKA.concat([yil]));
+    var top = function (nom, mime) { var it = papka.getFilesByName(nom); while (it.hasNext()) { var f = it.next(); if (eski.indexOf(f.getId()) < 0 && !f.isTrashed() && f.getMimeType() === mime) return f; } return null; };
+    var pdf = function (nom, b64) { return top(nom + '.pdf', 'application/pdf') || papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(b64)), 'application/pdf', nom + '.pdf')); };
+    var doc = function (nom, yasa) { var f = top(nom, MimeType.GOOGLE_DOCS); if (f) return f.getId(); var h = yasa(); try { DriveApp.getFileById(h.pdfId).setTrashed(true); } catch (e) { } return h.docId; };
+    var bp = pdf(m.bNom, m.bB64), xp = pdf(m.xNom, m.xB64);
+    var bDoc = doc(m.bNom, function () { return bekorBuyruq_(papka, m.bNom, m.x, m.X, m.P, m.raqam, m.sana); });
+    var xDoc = doc(m.xNom, function () { return bekorXabarnoma_(ss, papka, m.xNom, m.x, m.X, m.P, m.raqam, m.xRaqam, m.sana, { fish: String(m.fish || '') }); });
+    r = { bPdf: bp.getId(), bDoc: bDoc, xPdf: xp.getId(), xDoc: xDoc };
+  }
+  eski.forEach(function (id) {
+    try { var e = DriveApp.getFileById(id), p = e.getParents(), ota = p.hasNext() ? p.next().getParents() : null;
+      if (ota && ota.hasNext() && ota.next().getName() === BEKOR_PAPKA[BEKOR_PAPKA.length - 1]) e.setTrashed(true); } catch (x) { }
+  });
+  return r;
 }

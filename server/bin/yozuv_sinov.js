@@ -13,6 +13,7 @@
 //            aks-yozuv-sinov shartnoma — yangi mijoz (02), sotuv shartnomasi (03 + 03b jadval) va ijara (04) ni sinash va yoqish
 //            aks-yozuv-sinov xatpdf    — ogohlantirish xati PDF'i serverda lokal natija bilan bir xil chiqishini tekshirish (hech narsa yoqmaydi)
 //            aks-yozuv-sinov xatchiqar — xat chiqarish (06e qatori nusxada + PDF + Drive'ga ko'chirish, Koprik v1.8) ni sinash va yoqish
+//            aks-yozuv-sinov bekor     — shartnomani bekor qilish (06h qatori nusxada + buyruq/xabarnoma PDF + Drive va Word nusxasi, Koprik v1.9) ni sinash va yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -868,9 +869,74 @@ async function xatChiqarSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.8 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ✂ SHARTNOMANI BEKOR QILISH: 06h qatori nusxada (eski tizim yozgan oxirgi qator bilan), buyruq/xabarnoma PDF (soxta ma'lumot), Drive + Word nusxasi (Koprik v1.9)
+async function bekorSinov() {
+  const BY = require('../api/bekor_yoz')._ichki, XC = require('../api/xat_chiqar')._ichki, BS = require('../lib/bekor_sinov'), BH = require('../lib/bekor_hujjat');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k19 = !/^xato/.test(ver) && XC.verOk(ver, '1.9');
+  console.log('Eski tizim ko\'prigi: v' + ver + (k19 ? ' ✅' : ' ⚠ (1.9 kerak — Koprik.gs ni yangilang)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  try {
+    console.log('\n=== ✂ YANGI BEKOR SO\'ROVI QATORI (06h_Bekor_sorovlari) ===');
+    const BJ = await BY.bekorJurnalYangi();
+    const ey = [...BJ].reverse().find(z => /^BQ-\d{4}\/\d{4}$/.test(z.raqam) && /^[A-Za-z0-9_-]{20,}$/.test(z.bPdf));
+    if (!ey) { console.log('  (eski tizim kiritgan so\'rov topilmadi)'); x++; }
+    else {
+      const n6 = await nusxala('06h_Bekor_sorovlari');
+      const v = (await G.oraliqOqi(ID, '06h_Bekor_sorovlari', 'K' + ey.qator + ':N' + ey.qator, KEY, 'UNFORMATTED_VALUE'))[0] || [];
+      const A = await G.ustunOqi(ID, n6, 'A', KEY), t0 = Date.now();
+      await BY.qatorYoz(n6, A.length + 1, [9999, ey.no, ey.tur, ey.fish, ey.dokon, 'SINOV — nusxa varaq, o\'chiriladi', 'Hujjatlar tayyorlandi', ey.raqam.replace(/\d{4}$/, '9999'), ey.sana, ey.shablon,
+        Number(v[0]) || 0, Number(v[1]) || 0, Number(v[2]) || 0, Number(v[3]) || 0, 'SRV:bekor/sinov/b.pdf', '', 'SRV:bekor/sinov/x.pdf', '', '', '', '', '', '', ey.xatOgoh ? 'Ha' : '', 'SINOV',
+        ey.vaqt || '19.10.2026 01:00:00', '', '', '', '', (ey.xRaqam || 'BX-2026/0001').replace(/\d{4}$/, '9999')]);
+      console.log('Yozish: ' + (Date.now() - t0) + ' ms · nusxada qator ' + (A.length + 1) + ', eski tizim yozgan qator ' + ey.qator + ' (' + ey.raqam + ')');
+      x += await qatorSolishtir(n6, A.length + 1, 1, 31, '— Bekor so\'rovi qatori (A–AE)', ey.qator,
+        i => i >= 14 && i <= 17 ? 'fayl ustuni — eski: Drive ID, server: «SRV:…» / bo\'sh (Drive\'ga ko\'chguncha)' : '');
+    }
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaq o\'chirildi.');
+  }
+  console.log('\n=== 📄 BUYRUQ VA XABARNOMA PDF (soxta ma\'lumotli 7 holat — eski Google Docs bilan bir xil joylashuv) ===');
+  if (!(await PDF.bor())) { console.log('  ⏳ PDF dasturi (Chromium) hali tayyor emas'); x++; }
+  else { const r = await BS.tekshir(); r.chiqish.forEach(z => console.log('  ' + z)); x += r.farq; }
+  console.log('\n=== ☁ DRIVE + WORD NUSXASI (Koprik v1.9: «AKS TIZIM / 07 BEKOR QILISH / ' + V.bugun().slice(0, 4) + '») ===');
+  if (!k19) { console.log('  ⏭ Koprik 1.9 emas — o\'tkazildi'); }
+  else {
+    try {
+      const n = BS.NAMUNALAR.yangi_tayyor, P = BH.bekorPul(n.x), sana = V.bugun();
+      const b = await BH.buyruqYasa(n.x, n.X, P, n.raqam, sana), h = await BH.xabarnomaYasa(n.x, n.X, P, n.raqam, n.xRaqam, sana, BS.IJ);
+      const belgi = 'SINOV_' + Date.now().toString(36), t0 = Date.now();
+      const r = await koprik.chaqir('koprikBekorSaqla', adm.kirish_kodi, [{ yil: sana.slice(0, 4), bNom: 'Bekor_buyruq_' + belgi, xNom: 'Bekor_xabarnoma_' + belgi, bB64: b.pdf.toString('base64'), xB64: h.pdf.toString('base64'),
+        x: n.x, X: n.X, P, raqam: n.raqam, xRaqam: n.xRaqam, sana, fish: 'SINOV', eski: [] }]);
+      const ok = r && r.bPdf && r.bDoc && r.xPdf && r.xDoc;
+      console.log('  Drive\'ga qo\'yildi va Word nusxasi yasaldi: ' + Math.round((Date.now() - t0) / 1000) + ' s · ' + (ok ? '4 ta fayl ✅' : 'fayllar to\'liq emas ⚠ ' + JSON.stringify(r)));
+      if (!ok) x++;
+      if (r && r.bPdf) {
+        try { const d = await G.driveFayl(r.bPdf, KEY); const t = d.bytes.length === b.pdf.length; console.log('  Robot PDF ni o\'qiy oladi: ' + (t ? '✅ (' + d.bytes.length + ' bayt)' : '⚠ hajm farq qiladi')); if (!t) x++; }
+        catch (e) { console.log('  ⚠ Robot o\'qiy olmadi: ' + e.message); x++; }
+      }
+      if (r) { await koprik.chaqir('koprikBekorSaqla', adm.kirish_kodi, [{ eski: [r.bPdf, r.bDoc, r.xPdf, r.xDoc].filter(Boolean) }]); console.log('  SINOV fayllar savatga tashlandi ✅'); }
+    } catch (e) { console.log('  ⚠ Drive: ' + e.message); x++; }
+  }
+  console.log('');
+  if (!x && k19) { await redis.set('yozuv_yondi:bekor', '1'); console.log('✅ HAMMASI BIR XIL — ✂ shartnomani bekor qilish so\'rovi, buyruq va xabarnoma, ularning skanlari endi serverda\n   (PDF darhol, Drive\'ga nusxa va Word — fonda). Direktor tasdig\'i hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.9 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
-  if (arg === 'xatchiqar') {
+  if (arg === 'bekor') {
+    console.log('Hozir: bekor qilish — ' + ((await redis.get('yozuv_yondi:bekor')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await bekorSinov();
+  } else if (arg === 'xatchiqar') {
     console.log('Hozir: xat chiqarish — ' + ((await redis.get('yozuv_yondi:xat_chiqar')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
@@ -886,7 +952,7 @@ async function xatChiqarSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurist') {
     console.log('Hozir: yuristga o\'tkazish so\'rovi — ' + ((await redis.get('yozuv_yondi:yurist_sorov')) === '1' ? 'serverda' : 'eski tizimda'));

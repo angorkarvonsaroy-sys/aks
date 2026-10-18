@@ -137,6 +137,8 @@ Object.assign(A, require('./bajardim'));
 Object.assign(A, require('./yurist_sorov'));
 // ✉ xatTayyorla, xatQaytaYasa, xatTopTayyorla (Xat.gs v26.1), qadamXatChiqar, qadamTalabChiqar (Qadam.gs v2.2) — xat PDF serverda (lib/xat_pdf.js); aks-yozuv-sinov xatchiqar bilan yoqiladi (Koprik v1.8)
 Object.assign(A, require('./xat_chiqar'));
+// ✂ shartnomani bekor qilish: bekorKirit, bekorQaytaYasa, bekorBuyruqSkan, bekorXabarnomaSkan, qadamBekorKirit — serverda (yoqilgan bo'lsa), aks holda eski tizim
+Object.assign(A, require('./bekor_yoz'));
 // 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
@@ -146,5 +148,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat', 'tahrirSaqlash', 'monSorovYubor', 'monSorovJavob', 'topMalumotKirit', 'topMalumotTasdiq', 'qadamXatBekor', 'qadamSkan', 'qadamHujjat', 'xatYuborildi', 'xatTopYuborildi', 'topBajardim', 'topSkanZaynabga', 'topSkanBerilmagan', 'yuristgaSorov', 'xatTayyorla', 'xatQaytaYasa', 'xatTopTayyorla', 'qadamXatChiqar', 'qadamTalabChiqar']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat', 'tahrirSaqlash', 'monSorovYubor', 'monSorovJavob', 'topMalumotKirit', 'topMalumotTasdiq', 'qadamXatBekor', 'qadamSkan', 'qadamHujjat', 'xatYuborildi', 'xatTopYuborildi', 'topBajardim', 'topSkanZaynabga', 'topSkanBerilmagan', 'yuristgaSorov', 'xatTayyorla', 'xatQaytaYasa', 'xatTopTayyorla', 'qadamXatChiqar', 'qadamTalabChiqar', 'bekorKirit', 'bekorQaytaYasa', 'bekorBuyruqSkan', 'bekorXabarnomaSkan', 'qadamBekorKirit']), enumerable: false });
 module.exports = A;
