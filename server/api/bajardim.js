@@ -1,7 +1,8 @@
 // AKS TIZIM — 📌 xodimning topshiriq amallari serverda (Topshiriq.gs v2.2 bilan bir xil tekshiruvlar, xato matnlari, javob va kataklar):
 //   topBajardim       — «✓ Bajardim» (dalil bilan): xodim — «Tekshiruvda» (tekshiruvchiga Telegram — Koprik v1.7 koprikTopTasdiqTg), direktor — «Bajarildi»;
 //                       hujjat topshirig'i — yuklangan hujjat bilan «Tekshiruvda» (JSHSHIR — «Bajarildi»); ma'lumot topshirig'i «Topa olmadim» — direktorga Telegram.
-//                       Isbot FAYLI bilan (Drive «06 TOPSHIRIQ ISBOTLARI» papkasiga) — hali eski tizim orqali (fayl direktor Drive'iga eski tizimning o'zi saqlaydi).
+//                       Isbot FAYLI bilan — fayl topIsbotSaqla_ dagidek tekshiriladi va direktor Drive'idagi «AKS TIZIM / 06 TOPSHIRIQ ISBOTLARI» ga
+//                       eski tizim orqali (Koprik v1.8 koprikIsbotSaqla) DARHOL qo'yiladi — U «F:<Drive ID>» eski tizimdagidek (Telegram fayli shu ID dan).
 //   topSkanZaynabga   — 🤝 undiruvchi nusxani kotibaga berdi → kotibaga «skanz» topshirig'i (1 ish kuni) + Telegram
 //   topSkanBerilmagan — ✖ kotiba: «menga berilmagan» → undiruvchining topshirig'i qaytadi + Telegram
 // Yoqilishi: Redis yozuv_yondi:bajardim («aks-yozuv-sinov bajardim») va Koprik ≥ 1.7. Aks holda — eski tizim.
@@ -49,14 +50,28 @@ async function hjTekshir(kod, R, t, h) {
   else yubor().catch(e => console.error('koprikTopTasdiqTg (bajardim):', e.message));
 }
 
+// topIsbotSaqla_: isbot fayli (PDF) → «AKS TIZIM / 06 TOPSHIRIQ ISBOTLARI» (Koprik v1.8 koprikIsbotSaqla — Drive'ga eski tizim yozadi). Qaytaradi Drive ID.
+function hozirNom() { const d = new Date(Date.now() + 5 * 3600 * 1000); return d.toISOString().slice(0, 10) + '_' + d.toISOString().slice(11, 16).replace(':', ''); }
+async function isbotSaqla(kod, x, f) {
+  const bayt = Buffer.from(s(f.b64 || ''), 'base64');
+  if (bayt.length < 1000) throw new S.Xato('Isbot fayli bo\'sh yoki buzilgan.');
+  if (bayt.length > 25 * 1024 * 1024) throw new S.Xato('Isbot fayli 25 MB dan katta.');
+  if (bayt.slice(0, 5).toString('latin1') !== '%PDF-') throw new S.Xato('Isbot PDF bo\'lishi kerak (rasmga olsangiz — ilova o\'zi PDF qiladi).');
+  const nom = 'top' + x.id + (x.no ? '_' + s(x.no).replace(/\//g, '-') : '') + '_' + hozirNom() + '.pdf';
+  const r = await koprik.chaqir('koprikIsbotSaqla', kod, [{ nom, b64: bayt.toString('base64') }]);
+  if (!r || !r.id) throw new Error('koprikIsbotSaqla: Drive ID qaytmadi');
+  return r.id;
+}
+
 // ------------------------------------------------------------------ ✓ Bajardim
 async function topBajardim(args) {
   const [kodSes, id, dalil0, f] = args;
   const u = await S.ruxsat(kodSes);
-  if (!(await serverda(u.kod)) || (f && f.b64)) return eskiTizim('topBajardim', u, args.slice(1));   // isbot fayli — eski tizim (Drive)
+  const fBor = !!(f && f.b64);
+  if (!(await serverda(u.kod)) || (fBor && !(await require('./xat_chiqar')._ichki.koprik18(u.kod)))) return eskiTizim('topBajardim', u, args.slice(1));   // isbot fayli — Koprik v1.8 kerak
   const admin = u.admin;
   let dalil = s(dalil0 || '').replace(/\s+/g, ' ').trim();
-  if (dalil.length < 5) throw new S.Xato('Nima qilganingizni qisqa yozing (dalil) — kamida 5 belgi.');
+  if (dalil.length < 5 && !fBor) throw new S.Xato('Nima qilganingizni qisqa yozing (dalil) — kamida 5 belgi.');
   const R = await TP.topRowsYangi(TOP_V); const x = R.L.find(t => s(t.id) === s(id));
   if (!x) throw new S.Xato('Topshiriq topilmadi.');
   if (!admin && !xodimTeng(x.kimga, u.fish)) throw new S.Xato('Bu topshiriq sizga berilmagan.');
@@ -77,10 +92,20 @@ async function topBajardim(args) {
     await hjTekshir(u.kod, R, x, h); await yangila([TOP_V]); return { ok: true, holati: 'Tekshiruvda' };
   }
   const ml = /^malumot\|/.test(x.kalit);
-  if (x.isbotMaj === 'Ha' && !admin) throw new S.Xato('Bu topshiriqda isbot fayli majburiy — rasmga oling yoki PDF tanlang.');
-  if (admin) { await TP.topYop(TOP_V, x, 'Bajarildi', u.fish, dalil); await yangila([TOP_V]); return { ok: true, holati: 'Bajarildi' }; }
+  if (x.isbotMaj === 'Ha' && !fBor && !admin) throw new S.Xato('Bu topshiriqda isbot fayli majburiy — rasmga oling yoki PDF tanlang.');
+  let fid = '';
+  if (fBor) {   // hali hech narsa yozilmagan — Drive'ga saqlab bo'lmasa (Koprik xatosi) butun amal eski tizimga o'tadi
+    try { fid = await isbotSaqla(u.kod, x, f); }
+    catch (e) { if (e instanceof S.Xato) throw e; console.error('koprikIsbotSaqla:', e.message); return eskiTizim('topBajardim', u, args.slice(1)); }
+  }
+  if (!dalil) dalil = 'isbot fayli yuklandi';
+  if (admin) {
+    await TP.topYop(TOP_V, x, 'Bajarildi', u.fish, dalil);
+    if (fid) await G.yoz(env.aksBazaId, [{ varaq: TOP_V, katak: 'U' + x.qator, qiymat: [['F:' + fid]] }], env.googleKey);
+    await yangila([TOP_V]); return { ok: true, holati: 'Bajarildi' };
+  }
   await TP.topYop(TOP_V, x, 'Tekshiruvda', u.fish, dalil);
-  await G.yoz(env.aksBazaId, [{ varaq: TOP_V, katak: 'U' + x.qator, qiymat: [['']] }], env.googleKey);
+  await G.yoz(env.aksBazaId, [{ varaq: TOP_V, katak: 'U' + x.qator, qiymat: [[fid ? 'F:' + fid : '']] }], env.googleKey);
   await yangila([TOP_V]);
   if (ml) { tgFon(u.kod, 'koprikTgYubor', ['📌 <b>' + u.fish + '</b> ma\'lumotni topa olmadi — qarovingiz kerak:\n«' + x.sarlavha + '»' + (x.no ? ' · ' + x.no : '') + '\nDalil: ' + dalil]); return { ok: true, holati: 'Tekshiruvda' }; }
   tgFon(u.kod, 'koprikTopTasdiqTg', [x.id]);
