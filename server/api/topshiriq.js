@@ -105,6 +105,7 @@ async function tasdiqRoyxat([kodSes, d]) {
   const adm = u.huquq.indexOf('admin') >= 0, yu = u.huquq.indexOf('yurist') >= 0;
   if (!adm && !yu) throw new S.Xato('Bu ro\'yxat faqat yurist va direktor uchun.');
   let L = d && d.ixtiyoriy ? await TS.skanNazNavbat() : await TS.tasdiqNavbat();
+  const KUT = await require('./tasdiq_navbat')._ichki.kutilmoqda(); L = L.filter(it => !KUT[it.k]);   // navbatdagi qarorlar (fonda eski tizim bajaryapti)
   if (d && d.kech) L = L.filter(it => it.tasdiqchi === 'yurist' && it.kech);
   else if (!adm) L = L.filter(it => it.tasdiqchi === 'yurist');
   L.sort((a, b) => (b.kech - a.kech) || (b.shosh - a.shosh) || (a.muddat < b.muddat ? -1 : 1));
@@ -216,3 +217,4 @@ async function tqRoyxat([kodSes, d]) {
 }
 
 module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl, topMening, tqRoyxat };
+module.exports._ichki = { tasdiqItem };   // api/tasdiq_navbat.js

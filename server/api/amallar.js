@@ -103,6 +103,8 @@ Object.assign(A, require('./taminot_yoz'));
 Object.assign(A, require('./topshiriq'));
 // 📌 topBer (topshiriq berish), topSkanTopilmadi — server o'zi yozadi (aks-yozuv-sinov topshiriq yoqgandan keyin va Koprik v1.5 bilan); aks holda eski tizim
 Object.assign(A, require('./topshiriq_yoz'));
+// 🔎 tasdiqQil, topTasdiq — tekshiruv serverda, qarorni eski tizim fonda bajaradi (navbat); aks-yozuv-sinov tasdiq bilan yoqiladi
+Object.assign(A, require('./tasdiq_navbat'));
 // 🗺 xaritaMalumot (Kod.gs 5-bo'lim)
 Object.assign(A, require('./xarita'));
 // 📎 Hujjatlar kartasi panellari: tahrirHolat, bekorHolat — o'qish
@@ -124,5 +126,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq']), enumerable: false });
 module.exports = A;

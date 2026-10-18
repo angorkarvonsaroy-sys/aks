@@ -52,7 +52,10 @@ async function yuIshlar() {
 
 // 10_Topshiriqlar — getDisplayValues
 async function topRows() {
-  return (await V.qatorlar('10_Topshiriqlar')).map(({ n, r }) => ({ qator: n, id: r[0] || '', yaratildi: r[1] || '', manba: r[2] || '', qoida: r[3] || '', kalit: r[4] || '', sarlavha: r[5] || '', izoh: r[6] || '',
+  // 🔎 navbatdagi qaror (api/tasdiq_navbat.js) — topshiriq kutilgan holatda ko'rinadi: tasdiq → «Bajarildi», qaytarish → «Jarayonda»
+  let K = {}; try { K = (await require('./db').redis.hgetall('tasdiq_kutish')) || {}; } catch (e) { }
+  const kut = x => { const v = K['t' + x.id]; if (!v) return x; let o = {}; try { o = JSON.parse(v); } catch (e) { } x.holati = o.ha ? 'Bajarildi' : 'Jarayonda'; return x; };
+  return (await V.qatorlar('10_Topshiriqlar')).map(({ n, r }) => kut({ qator: n, id: r[0] || '', yaratildi: r[1] || '', manba: r[2] || '', qoida: r[3] || '', kalit: r[4] || '', sarlavha: r[5] || '', izoh: r[6] || '',
     no: r[7] || '', mid: r[8] || '', kimga: r[9] || '', kimBerdi: r[10] || '', muddat: r[11] || '', muhim: r[12] || '', holati: r[13] || '', yopildi: r[14] || '', yopdi: r[15] || '', dalil: r[16] || '', kechikdi: r[17] || '',
     isbotMaj: r[19] || '', isbot: r[20] || '', tgx: r[21] || '' }))
     .filter(x => x.id);
