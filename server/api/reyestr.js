@@ -121,7 +121,10 @@ function reySotFiltr(L, filtr) {
 const BOSH_XATO = 'Ro\'yxat bo\'sh — bu filtrda shartnoma yo\'q.';
 const bugunDmy = () => V.bugun().split('-').reverse().join('.');
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const SAHIFA = 'size:A4;margin:10mm 0';   // eski HTML'da sahifa o'lchami yo'q (Google o'zi qo'yardi); chap/o'ng chekka — body margin
+// Eski HTML'da sahifa o'lchami yo'q (Google o'zgartirgichi A4 qo'yardi); chap/o'ng chekka — body margin.
+// Google o'zgartirgichi «white-space:nowrap» ga qaramay matnni keyingi qatorga o'tkazadi — aks holda uzun telefon (bir nechta raqam)
+// jadvalni sahifadan kengaytirib, oxirgi ustun («Ундирувчи») kesilib qoladi (18.10 sinovi). Shuning uchun bu yerda ham o'tkaziladi.
+const SAHIFA = '@page{size:A4;margin:10mm 0}td{white-space:normal!important}';
 
 // Eski kod (reyestrPdf) yasaydigan HTML — belgima-belgi bir xil
 function ijaraHtml(L, filtr, bugun) {

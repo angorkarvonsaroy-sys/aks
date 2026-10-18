@@ -9,9 +9,9 @@ function bor() {
   return new Promise(res => execFile('weasyprint', ['--version'], { timeout: 15000 }, e => { borKesh = !e; setTimeout(() => { borKesh = null; }, 600000); res(borKesh); }));
 }
 
-// sahifa: '@page' qoidasi (masalan 'size:A4;margin:10mm 0') — HTML'ning <style> boshiga qo'shiladi
-function yasa(html, sahifa) {
-  if (sahifa) html = html.replace('<style>', '<style>@page{' + sahifa + '}');
+// css: qo'shimcha qoidalar (masalan '@page{size:A4;margin:10mm 0}') — HTML'ning <style> boshiga qo'shiladi
+function yasa(html, css) {
+  if (css) html = html.replace('<style>', '<style>' + css);
   return new Promise((res, rej) => {
     const p = spawn('weasyprint', ['--quiet', '-e', 'utf-8', '-', '-'], { stdio: ['pipe', 'pipe', 'pipe'] });
     const chiq = [], xato = [];

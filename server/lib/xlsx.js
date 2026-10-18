@@ -43,7 +43,9 @@ function zipOqi(buf) {   // → { nom: Buffer }
 }
 
 // ------------------------------------------------------------------ Google jadval matnni qanday tushunadi (setValues, «Россия» hududi)
-// '' → bo'sh; «123» → 123; «22.09.2026» → sana (seriya raqami, dd.mm.yyyy); qolgani — matn.
+// '' → bo'sh; «123» → 123; «05.10.2026» → sana (seriya raqami); qolgani — matn.
+// Sana formati yozilishiga qarab (18.10 sinovi, eski tizim fayli bilan): kun yoki oyda boshlovchi nol bo'lsa («05.10.2026», «15.09.2026») —
+// «dd.mm.yyyy»; nol ko'rinmasa («16.10.2026», «5.1.2026») — Google «d.m.yyyy» qo'yadi.
 function seriya(y, m, d) { return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000); }
 function sheetsQiymat(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -52,7 +54,7 @@ function sheetsQiymat(v) {
   const s = String(v), t = s.trim();
   if (/^[+-]?\d+$/.test(t) && t.replace(/^[+-]/, '').length <= 15) return { t: 'n', v: Number(t) };
   const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(t);
-  if (m) { const d = +m[1], mo = +m[2], y = +m[3]; const dt = new Date(Date.UTC(y, mo - 1, d)); if (mo >= 1 && mo <= 12 && dt.getUTCDate() === d) return { t: 'n', v: seriya(y, mo, d), sana: true }; }
+  if (m) { const d = +m[1], mo = +m[2], y = +m[3]; const dt = new Date(Date.UTC(y, mo - 1, d)); if (mo >= 1 && mo <= 12 && dt.getUTCDate() === d) return { t: 'n', v: seriya(y, mo, d), sana: /^0/.test(m[1]) || /^0/.test(m[2]) ? 'dd.mm.yyyy' : 'd.m.yyyy' }; }
   return { t: 's', v: s };
 }
 
@@ -78,7 +80,7 @@ function yasa(v) {
     row.forEach((val, u) => {
       const sarl = v.sarlavha && q === 0;
       let p = sheetsQiymat(val), f = fmtQ(q, u);
-      if (p && p.sana && f == null) f = sanaF;
+      if (p && p.sana && f == null) f = typeof p.sana === 'string' ? p.sana : sanaF;
       const s = (f != null || sarl) ? uslub(f, sarl) : 0;
       const r = harf(u) + (q + 1);
       if (!p) { if (s) cx += '<c r="' + r + '" s="' + s + '"/>'; return; }
