@@ -406,8 +406,32 @@ function pdfSolishtir(eskiB, yangiB) {
     const farqBet = []; for (let i = 0; i < a.bet; i++) if (!tengM(belgilar(a.betlar[i] || ''), belgilar(b.betlar[i] || ''))) farqBet.push(i + 1);
     if (farqBet.length) { x++; console.log('  ✖ sahifa chegaralari farq: ' + farqBet.slice(0, 10).join(', ') + '-bet'); }
     else console.log('  ✅ ' + a.bet + ' bet — har sahifadagi matn ham bir xil (sahifa chegaralari aynan bir joyda)');
+    try { const f = rasmFarq(eskiB, yangiB); if (f !== null) console.log('  ' + (f < 1 ? '✅' : 'ℹ') + ' ko\'rinishi: ' + f.toFixed(2) + '% nuqta farq (eng ko\'p farqli sahifada)'); } catch (e) { }
   }
   return x;
+}
+// Ikkala PDF'ni rasm qilib (kulrang, 50 dpi) nuqtama-nuqta solishtirish — faqat ma'lumot uchun
+function pgmOqi(buf) {
+  let i = 0; const tok = () => { while (/\s/.test(String.fromCharCode(buf[i]))) i++; if (buf[i] === 35) { while (buf[i] !== 10) i++; return tok(); } let t = ''; while (!/\s/.test(String.fromCharCode(buf[i]))) t += String.fromCharCode(buf[i++]); return t; };
+  if (tok() !== 'P5') return null; const w = +tok(), h = +tok(); tok(); i++;
+  return { w, h, d: buf.slice(i, i + w * h) };
+}
+function rasmFarq(eskiB, yangiB) {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const papka = fs.mkdtempSync(path.join(os.tmpdir(), 'aks_rasm_'));
+  try {
+    fs.writeFileSync(path.join(papka, 'a.pdf'), eskiB); fs.writeFileSync(path.join(papka, 'b.pdf'), yangiB);
+    execFileSync('pdftoppm', ['-gray', '-r', '50', path.join(papka, 'a.pdf'), path.join(papka, 'a')]);
+    execFileSync('pdftoppm', ['-gray', '-r', '50', path.join(papka, 'b.pdf'), path.join(papka, 'b')]);
+    const A = fs.readdirSync(papka).filter(f => /^a-.*\.pgm$/.test(f)).sort(), B = fs.readdirSync(papka).filter(f => /^b-.*\.pgm$/.test(f)).sort();
+    if (!A.length || A.length !== B.length) return null;
+    let eng = 0;
+    A.forEach((f, k) => { const p = pgmOqi(fs.readFileSync(path.join(papka, f))), q = pgmOqi(fs.readFileSync(path.join(papka, B[k])));
+      if (!p || !q || p.w !== q.w || p.h !== q.h) { eng = 100; return; }
+      let n = 0; for (let j = 0; j < p.d.length; j++) if (Math.abs(p.d[j] - q.d[j]) > 80) n++;
+      eng = Math.max(eng, 100 * n / p.d.length); });
+    return eng;
+  } finally { try { fs.rmSync(papka, { recursive: true, force: true }); } catch (e) { } }
 }
 function xlsSolishtir(eskiB, yangiB) {
   const a = XL.oqi(eskiB), b = XL.oqi(yangiB); let x = 0;
@@ -463,11 +487,46 @@ async function eksportSinov() {
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ------------------------------------------------------------------ 📊 hisobot PDF (HisobotPDF.gs): eski tizim fayli bilan solishtirish
+async function hisobotSinov() {
+  const HP = require('../api/hisobot_pdf')._ichki;
+  let pb = await PDF.bor(); let ptt = true; try { execFileSync('pdftotext', ['-v'], { stdio: 'ignore' }); } catch (e) { ptt = false; }
+  if (!pb || !ptt) { console.log('⏳ PDF dasturi serverga hali o\'rnatilmagan — 3 daqiqadan keyin qayta ishga tushiring.'); return; }
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  const tok = await S.sessiyaOch(adm.kirish_kodi), ks = adm.kirish_kodi + '|' + tok;
+  const u = await S.ruxsat(ks, 'hisobot');
+  await tetik.varaqlarYangila(['01b_Tashrif_jurnali', '03_Sotuv_shartnomalar', '04_Ijara_shartnomalar', '05_Tolovlar']).catch(e => console.log('(ko\'zgu yangilanmadi: ' + e.message + ')'));
+  const bugun = V.bugun(), kunQosh = (iso, d) => new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) + d * 86400000).toISOString().slice(0, 10);
+  const hk = new Date(bugun + 'T12:00:00Z').getUTCDay(), dushanba = kunQosh(bugun, -((hk + 6) % 7));
+  const ishlar = [['SHU HAFTA (ustunlar — kunlar)', dushanba, bugun], ['SHU OY (ustunlar — haftalar + kunma-kun)', bugun.slice(0, 8) + '01', bugun], ['SHU YIL (ustunlar — oylar + haftama-hafta)', bugun.slice(0, 5) + '01-01', bugun]];
+  let x = 0;
+  try {
+    for (const [nom, b, o] of ishlar) {
+      console.log('\n=== HISOBOT PDF — ' + nom + ': ' + b + ' … ' + o + ' ===');
+      let t = Date.now(), e;
+      try { e = await koprik.chaqir('hisobotPdf', adm.kirish_kodi, [b, o]); } catch (er) { console.log('  ✖ eski tizim: ' + er.message); x++; continue; }
+      const te = Date.now() - t;
+      const eb = Buffer.from(e.b64, 'base64');
+      const vaqt = (/Шакллантирилди:\s*(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})/.exec(pdfMatn(eb).matn) || [])[1] || '';
+      t = Date.now(); const y = await HP.hisobotYasa(u.fish, b, o, vaqt); const ty = Date.now() - t;
+      console.log('  vaqt: eski tizim ' + (te / 1000).toFixed(1) + ' s · server ' + (ty / 1000).toFixed(1) + ' s');
+      if (e.nom !== y.nom || e.davr !== y.davr) { x++; console.log('  ✖ fayl: eski ' + e.nom + ' «' + e.davr + '» | server ' + y.nom + ' «' + y.davr + '»'); } else console.log('  fayl: ' + y.nom + ' · ' + y.davr);
+      x += pdfSolishtir(eb, Buffer.from(y.b64, 'base64'));
+    }
+  } finally { await redis.del('ses:' + tok); }
+  console.log('');
+  if (!x) { await redis.set('yozuv_yondi:hisobot_pdf', '1'); console.log('✅ HAMMASI BIR XIL — sotuv bo\'limi hisoboti (PDF) endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'hisobot') {
+    console.log('Hozir: hisobot PDF — ' + ((await redis.get('yozuv_yondi:hisobot_pdf')) === '1' ? 'serverda' : 'eski tizimda'));
+    await hisobotSinov();
   } else if (arg === 'eksport') {
     console.log('Hozir: reyestr PDF/Excel — ' + ((await redis.get('yozuv_yondi:eksport')) === '1' ? 'serverda' : 'eski tizimda'));
     await eksportSinov();

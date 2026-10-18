@@ -121,6 +121,8 @@ Object.assign(A, require('./xodim_bosh'));
 Object.assign(A, require('./shartnoma'));
 // 📋 reyestrIjara, reyestrSotuv (Reyestr.gs) — onlayn ro'yxat
 Object.assign(A, require('./reyestr'));
+// 📊 hisobotPdf (HisobotPDF.gs) — sotuv bo'limi hisoboti PDF (aks-yozuv-sinov hisobot bilan yoqiladi)
+Object.assign(A, require('./hisobot_pdf'));
 // 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
