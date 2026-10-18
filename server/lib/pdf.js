@@ -32,8 +32,10 @@ async function bor() {
   yoqHolat = ok; yoqVaqt = Date.now(); return ok;
 }
 
-// css: qo'shimcha qoidalar (masalan '@page{size:A4;margin:0.5in}') — HTML'ning <style> boshiga qo'shiladi
-async function yasa(html, css) {
+// css: qo'shimcha qoidalar (masalan '@page{size:A4;margin:0.5in}') — HTML'ning <style> boshiga qo'shiladi;
+// opt: page.pdf ga qo'shimcha (masalan { scale: 0.125 } — xat_pdf.js: Chromium qatorlarni butun px ga yaxlitlamasligi uchun);
+//      opt.skript — PDF dan oldin sahifada bajariladigan JS (print media'da), masalan xat_pdf.js TEKISLA
+async function yasa(html, css, opt) {
   if (!pw) throw new Error('PDF dasturi (playwright-core) o\'rnatilmagan');
   if (css) html = html.replace('<style>', '<style>' + css);
   faol++;
@@ -44,7 +46,9 @@ async function yasa(html, css) {
     const ish = (async () => {
       const p = await ctx.newPage();
       await p.setContent(html, { waitUntil: 'load', timeout: MUDDAT_MS });
-      return p.pdf({ preferCSSPageSize: true, printBackground: false });
+      const { skript, ...pdfOpt } = opt || {};
+      if (skript) { await p.emulateMedia({ media: 'print' }); await p.evaluate(skript); }   // chop etish o'lchamida joylashuvni tuzatish
+      return p.pdf(Object.assign({ preferCSSPageSize: true, printBackground: false }, pdfOpt));
     })();
     const buf = await Promise.race([ish, new Promise((_, rej) => { t = setTimeout(() => rej(new Error('PDF yasash ' + MUDDAT_MS / 1000 + ' soniyadan oshdi')), MUDDAT_MS); })]);
     return Buffer.from(buf);
