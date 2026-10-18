@@ -913,7 +913,7 @@ async function bekorSinov() {
         if (db.indexOf(n.raqam + '-сон') < 0 || dh.indexOf('№ ' + n.xRaqam) < 0 || dh.indexOf('ТЎҒРИСИДА ХАБАРНОМА') < 0) throw new Error('matn topilmadi');
         w++; } catch (e) { console.log('  ⚠ ' + nom + ': ' + e.message); x++; } }
     console.log('  ' + w + ' / ' + Object.keys(BS.NAMUNALAR).length + ' holatda buyruq va xabarnoma Word fayli yasaldi ' + (w === Object.keys(BS.NAMUNALAR).length ? '✅' : '⚠')); }
-  console.log('\n=== ☁ DRIVE + WORD NUSXASI (Koprik v1.9: «AKS TIZIM / 07 BEKOR QILISH / ' + V.bugun().slice(0, 4) + '») ===');
+  console.log('\n=== ☁ DRIVE + WORD NUSXASI (Koprik v' + ver + ': «AKS TIZIM / 07 BEKOR QILISH / ' + V.bugun().slice(0, 4) + '») ===');
   if (!k19) { console.log('  ⏭ Koprik 1.9 emas — o\'tkazildi'); }
   else {
     try {
