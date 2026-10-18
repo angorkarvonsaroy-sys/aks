@@ -821,6 +821,20 @@ async function zipQismlar(nom, eskiB, yangiB, xlsx) {
   const sst = Z => [...String(Z['xl/sharedStrings.xml'] || '').matchAll(/<si><t[^>]*>([\s\S]*?)<\/t><\/si>/g)].map(m => m[1]);
   const SA = xlsx ? sst(A) : null, SB = xlsx ? sst(B) : null;
   const yech = (t, S) => t.replace(/ t="s"><v>(\d+)<\/v>/g, (m, i) => ' t="s"><v>' + S[+i] + '</v>');
+  if (!xlsx) {   // Word: Google eksporti rasmlarni har safar boshqa tartibda raqamlashi mumkin (image1/2/3, rId) — rasmlar mazmuni (xesh) bo'yicha solishtiriladi
+    const tekis = Z => {
+      const rel = String(Z['word/_rels/document.xml.rels'] || ''), xs = {}, map = {};
+      Object.keys(Z).filter(k => k.startsWith('word/media/')).forEach(k => { xs[k] = require('crypto').createHash('sha1').update(Z[k]).digest('hex').slice(0, 12); });
+      for (const m of rel.matchAll(/<Relationship [^>]*?Id="([^"]+)"[^>]*?Target="media\/([^"]+)"[^>]*?\/>/g)) map[m[1]] = xs['word/media/' + m[2]];
+      for (const m of rel.matchAll(/<Relationship [^>]*?Target="media\/([^"]+)"[^>]*?Id="([^"]+)"[^>]*?\/>/g)) map[m[2]] = xs['word/media/' + m[1]];
+      const o = {}; Object.keys(Z).forEach(k => { if (!k.startsWith('word/media/')) o[k] = Z[k]; });
+      o['word/media'] = Buffer.from(Object.values(xs).sort().join(','));
+      o['word/_rels/document.xml.rels'] = Buffer.from(rel.replace(/<Relationship [^>]*?media\/[^>]*?\/>/g, ''));
+      if (o['word/document.xml']) o['word/document.xml'] = Buffer.from(o['word/document.xml'].toString('utf8').replace(/r:embed="([^"]+)"/g, (q, id) => 'r:embed="' + (map[id] || id) + '"').replace(/(<wp:docPr id=")\d+/g, '$1?'));
+      return o;
+    };
+    const ta = tekis(A), tb = tekis(B); Object.keys(A).forEach(k => delete A[k]); Object.keys(B).forEach(k => delete B[k]); Object.assign(A, ta); Object.assign(B, tb);
+  }
   const nomlar = [...new Set([...Object.keys(A), ...Object.keys(B)])].sort(); const farq = [];
   for (const n of nomlar) {
     let a = A[n] ? A[n].toString('utf8') : null, b = B[n] ? B[n].toString('utf8') : null;
