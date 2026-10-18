@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// AKS TIZIM — sekin amalni o'lchash (hozircha: monBoshlang — 👔 direktor monitoringi). Ishlatish: aks-olchov
+// AKS TIZIM — sekin amalni o'lchash (hozircha: monBoshlang — 👔 direktor monitoringi). Ishlatish: aks-olchov [qisqa]
 // 1) so'nggi 3 kundagi chaqiruvlar: qancha vaqt, o'sha payt server yana nima bilan band edi;
 // 2) alohida jarayonda bo'lak-bo'lak o'lchash: har varaqni o'qish, portfel, monitoring qismlari, to'liq javob (sovuq va iliq), javob hajmi.
 'use strict';
@@ -14,6 +14,7 @@ const { Q } = require('../api/yurist');
 const TS = require('../lib/tasdiq');
 
 const vaqt = async (nom, f) => { const t0 = Date.now(); const r = await f(); const ms = Date.now() - t0; console.log('  ' + nom.padEnd(34) + String(ms).padStart(7) + ' ms'); return r; };
+process.stdout.on('error', () => process.exit(0));   // «| head» bilan ishlatilganda
 (async () => {
   console.log('================ O\'LCHOV: monBoshlang (direktor monitoringi) ================');
   // 0) ilova serveri holati
@@ -21,11 +22,15 @@ const vaqt = async (nom, f) => { const t0 = Date.now(); const r = await f(); con
     L.filter(x => x.name === 'aks-api').forEach(x => console.log('aks-api: qayta ishga tushgan ' + x.pm2_env.restart_time + ' marta · ishlayapti ' + Math.round((Date.now() - x.pm2_env.pm_uptime) / 60000) + ' daqiqadan beri · xotira ' + Math.round(x.monit.memory / 1048576) + ' MB · CPU ' + x.monit.cpu + '%')); } catch (e) { console.log('pm2: ' + e.message.split('\n')[0]); }
   // 1) so'nggi chaqiruvlar
   const R = (await q("SELECT id, to_char(vaqt AT TIME ZONE 'Asia/Tashkent','DD.MM HH24:MI:SS') t, vaqt, ms, ok FROM rpc_jurnal WHERE fn = 'monBoshlang' AND vaqt > now() - interval '3 days' ORDER BY id")).rows;
-  console.log('\n1) Chaqiruvlar (3 kun): ' + R.length + ' ta');
-  for (const r of R) {
+  const ms = R.map(r => r.ms).sort((a, b) => a - b), med = ms.length ? ms[Math.floor(ms.length / 2)] : 0;
+  const SEK = R.filter(r => r.ms >= 3000);
+  console.log('\n1) Chaqiruvlar (3 kun): ' + R.length + ' ta · o\'rtacha ' + Math.round(ms.reduce((a, b) => a + b, 0) / (ms.length || 1)) + ' ms · o\'rtadagisi (mediana) ' + med + ' ms · 3 soniyadan sekin: ' + SEK.length + ' ta');
+  console.log('   Sekinlari va o\'sha payt serverdagi boshqa amallar:');
+  for (const r of SEK.slice(-15)) {
     const o = (await q("SELECT fn, count(*) n, max(ms) mx FROM rpc_jurnal WHERE id <> $1 AND vaqt > $2::timestamptz - ($3 || ' milliseconds')::interval AND vaqt - (ms || ' milliseconds')::interval < $2::timestamptz GROUP BY fn ORDER BY count(*) DESC LIMIT 4", [r.id, r.vaqt, r.ms])).rows;
     console.log('  ' + r.t + '  ' + String(r.ms).padStart(6) + ' ms' + (r.ok ? '' : ' XATO') + (o.length ? '  · shu payt: ' + o.map(x => x.fn + '×' + x.n + (x.mx > 5000 ? '(' + Math.round(x.mx / 1000) + 's)' : '')).join(', ') : ''));
   }
+  if (process.argv[2] === 'qisqa') { await pool.end(); redis.disconnect(); process.exit(0); }
   // 2) bo'laklar
   const adm = (await q("SELECT fish, kirish_kodi FROM v_xodimlar WHERE kompaniya_id = 1 AND 'admin' = ANY(huquqlar) AND holat = 'Ishlayapti' LIMIT 1")).rows[0] || { fish: 'Direktor', kirish_kodi: '' };
   S.ruxsat = async () => ({ admin: true, huquq: ['admin'], fish: adm.fish, kod: adm.kirish_kodi });
