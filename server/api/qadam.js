@@ -1,5 +1,5 @@
 // AKS TIZIM — ▶ BUGUNGI ISH (Qadam.gs v2.2) o'qishi serverda: qadamBoshlang, qadamMijoz, qadamNazorat, qadamJamoa (+ Ijro.gs ijroQisqa_); qadamKutish (⏸ Kutyapman) — yozadi.
-// Natija eski tizim bilan bir xil. Yozuvlar (qadamChora, qadamKechiktir, qadamOtkaz, …) — hali ko'prik.
+// Natija eski tizim bilan bir xil. Yozuvlar: undiruv_yoz.js (qadamChora, qadamKechiktir), qadam_yoz.js (qadamOtkaz, qadamDirektorga, …).
 // qdSnap_ (ertalabki navbat, Script Properties QD_NAVBAT_*) — o'qish/yozish Koprik v1.4 koprikQdSnap orqali: eski tizim bilan BITTA ro'yxat.
 // Koprik eski bo'lsa — Redis'dagi kunlik ro'yxat (faqat server ichida).
 'use strict';
@@ -849,4 +849,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa };
+module.exports._ichki = { qadamXulosa, qdHisob };

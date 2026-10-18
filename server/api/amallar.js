@@ -123,6 +123,8 @@ Object.assign(A, require('./shartnoma'));
 Object.assign(A, require('./reyestr'));
 // 📊 hisobotPdf (HisobotPDF.gs) — sotuv bo'limi hisoboti PDF (aks-yozuv-sinov hisobot bilan yoqiladi)
 Object.assign(A, require('./hisobot_pdf'));
+// ▶ Bugungi ish — undiruvchi amallari (Qadam.gs): qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim (aks-yozuv-sinov qadam bilan yoqiladi)
+Object.assign(A, require('./qadam_yoz'));
 // 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
@@ -132,5 +134,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim']), enumerable: false });
 module.exports = A;
