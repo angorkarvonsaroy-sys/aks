@@ -6,6 +6,7 @@ const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
 const X = require('../lib/xat_yordam');
 const P = require('../lib/portfel');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const XAT_BOSQICH_QM = { 1: 'Maydon farqi: bildirishnoma', 2: 'Maydon farqi: ogohlantirish', 3: 'Maydon farqi: talabnoma' };
 const XAT_BOSQICH = { 1: 'Eslatma (1-xat)', 2: 'Ogohlantirish (2-xat)', 3: 'Sudgacha talabnoma' };
@@ -33,7 +34,8 @@ async function xatBoshlang([kodSes]) {
   const ch = (!adm && u.huquq.indexOf('undiruv') >= 0) ? u.fish : '';     // xatCheklov_ (undCheklov_ + undiruvchi)
   const [YF, TOP, XS, Jx, UJ, Z] = await Promise.all([P.yuFaolSet(), ch ? hujjatTopShartnoma(u.fish) : {}, P.xatShartnomalar(bugun), J.xatJurnal(), J.undJurnal(), X.xatZanjir(u.kod)]);
   const ozi = x => x.undiruvchi === ch && !YF.yuristda.has(x.no);
-  const L = XS.filter(x => !ch || ozi(x) || TOP[x.no]);
+  const Y = await KR.yopiqlar(u), TOPy = Y.size && !ch ? await hujjatTopShartnoma(u.fish) : TOP;   // holati bo'yicha yashirin — direktor topshirig'idagisidan tashqari
+  const L = XS.filter(x => (!ch || ozi(x) || TOP[x.no]) && (!Y.has(x.no) || TOPy[x.no] || (ch && ozi(x))));
   const Jn = {}; Jx.forEach(h => (Jn[h.no] = Jn[h.no] || []).push(h));
   const UJn = {}; UJ.forEach(j => (UJn[j.no] = UJn[j.no] || []).push(j));
   L.forEach(x => { const Jm = Jn[x.no] || [], Um = UJn[x.no] || [];
@@ -61,6 +63,7 @@ async function xatPdf([kodSes, raqam]) {
   const u = await S.ruxsat(kodSes, 'xat');
   const h = (await J.xatJurnal()).find(z => z.raqam === raqam);
   if (!h || !h.pdf) throw new S.Xato('Xat topilmadi: ' + raqam);
+  if ((await KR.yopiqlar(u)).has(String(h.no).trim()) && !(await hujjatTopShartnoma(u.fish))[h.no]) throw new S.Xato('Xat topilmadi: ' + raqam);
   const ch = (!u.admin && u.huquq.indexOf('undiruv') >= 0) ? u.fish : '';   // xatEgasi_ (xatCheklov_)
   if (ch) { const x = (await P.xatShartnomalar(V.bugun())).find(z => z.no === h.no);
     if (!x || x.undiruvchi !== ch) { if (!(x && (await hujjatTopShartnoma(u.fish))[x.no])) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.'); } }

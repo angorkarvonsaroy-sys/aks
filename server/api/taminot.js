@@ -188,6 +188,7 @@ async function kbHolat([kodSes, no]) {
   const h = u.huquq || []; const adm = h.indexOf('admin') >= 0;
   if (!(adm || h.indexOf('ijara_kelishuv') >= 0)) return { huquq: false };
   no = String(no || '').trim();
+  if (!(await require('./hujjat')._ichki.royxatda(u, no))) return { huquq: true, admin: adm, mumkin: false, sabab: 'Shartnoma topilmadi: ' + no };
   const sr = (await kbRows()).filter(z => z.no === no && KB_OCHIQ.indexOf(z.holati) >= 0).pop();
   if (sr) return { huquq: true, admin: adm, ozi: sr.kim === u.fish, s: kbKor(sr) };
   try { await kbTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { huquq: true, admin: adm, mumkin: false, sabab: e.message }; }
@@ -212,6 +213,7 @@ async function imzTekshir(no) {
 async function ijaraImzosizHolat([kodSes, no]) {
   let u; try { u = await S.ruxsat(kodSes, 'shartnoma'); } catch (e) { return { admin: false, mumkin: false, sorov: null, sabab: '' }; }
   no = String(no || '').trim();
+  if (!(await require('./hujjat')._ichki.royxatda(u, no))) return { admin: false, mumkin: false, sorov: null, sabab: 'Shartnoma topilmadi: ' + no };
   const sr = (await imzSorovlar()).find(z => z.no === no && z.holati === 'Kutilmoqda');
   const sorov = sr ? { id: sr.id, vaqt: sr.vaqt, kim: sr.kim, sabab: sr.sabab } : null;
   let x; try { x = await imzTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { admin: u.admin, mumkin: false, sorov, sabab: e.message }; }

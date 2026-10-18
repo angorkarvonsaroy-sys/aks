@@ -38,6 +38,14 @@ async function shartnomaBoshlang([kodSes]) {
   const hud = oraliq(RH, 2, 210).map(z => xom(z.x, 2)).filter(r => r[0] && r[1]).map(r => [String(r[0]), String(r[1])]);
   let mx = 0; for (const z of aOxiri(R3)) { const mm = /^27\/(\d+)$/.exec(String(z.x[0] || '')); if (mm) mx = Math.max(mx, Number(mm[1])); }
   const undiruvchilar = R7.map(z => String(z.x[14] || '')).filter(Boolean);
+  // holati bo'yicha yashirin shartnomalar: do'kon band ko'rinadi, lekin egasi / shartnoma raqami — «*»; faqat yashirin shartnomali mijoz ro'yxatda yo'q
+  const Y = await KR.yopiqlar(u);
+  if (Y.size) {
+    dokonlar.forEach(d => { if (d.sotuvNo && Y.has(d.sotuvNo.trim())) { d.sotuvNo = '*'; d.egasi = '*'; } if (d.ijara && Y.has(d.ijara.trim())) { d.ijara = '*'; d.ijarachi = '*'; } });
+    const SH = {}; aOxiri(R3).forEach(z => { const no = String(z.x[0] || '').trim(), m = String(z.x[4] || '').trim(); if (no && m) (SH[m] = SH[m] || []).push(no); });
+    aOxiri(R4).forEach(z => { const no = String(z.x[0] || '').trim(), m = String(z.x[5] || '').trim(); if (no && m) (SH[m] = SH[m] || []).push(no); });
+    for (let i = mijozlar.length - 1; i >= 0; i--) { const L = SH[String(mijozlar[i].id)] || []; if (L.length && L.every(no => Y.has(no))) mijozlar.splice(i, 1); }
+  }
   return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
     bugun: V.bugun() };
 }

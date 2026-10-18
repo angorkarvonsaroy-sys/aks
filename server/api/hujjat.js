@@ -4,6 +4,7 @@
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
+const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const HUJJAT_MAX_MB = 25;
 const HUJJAT_TURLARI = [
@@ -47,6 +48,8 @@ async function royxat(u) {
     L = L.filter(x => x.und === ch || T[x.no]);
     L.forEach(x => { if (x.und !== ch) x.holati = (x.holati ? x.holati + ' · ' : '') + '📌 topshiriq bo\'yicha'; });
   }
+  const Y = await KR.yopiqlar(u);   // holati bo'yicha yashirin (direktor topshirig'idagisi — ko'rinadi)
+  if (Y.size) { const T = ch ? {} : await topShartnoma(u.fish); L = L.filter(x => !Y.has(x.no) || T[x.no] || (ch && x.holati.indexOf('📌') >= 0)); }
   return L;
 }
 
@@ -64,10 +67,14 @@ function tuzatHuquq(u, h) {
 async function hujjatlarRoyxati([kodSes, no]) {
   const u = await S.ruxsat(kodSes, 'hujjat');
   if (undCheklov(u) && !(await royxat(u)).some(x => x.no === String(no))) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
+  if (!(await royxatda(u, no))) throw new S.Xato('Shartnoma topilmadi: ' + no);   // holati bo'yicha yashirin
   return (await J.hujjatJurnal()).filter(h => h.no === String(no) && h.holati === 'Faol')
     .map(h => ({ id: h.id, turi: h.turi, sana: h.sana, nom: h.nom, kim: h.kim, vaqt: h.vaqt, sahifa: h.sahifa, izoh: h.izoh, tuzat: tuzatHuquq(u, h),
       url: u.admin && !/^SRV:/.test(String(h.faylId)) ? 'https://drive.google.com/file/d/' + h.faylId + '/view' : '' }));   // SRV: — hali Drive'ga ko'chmagan
 }
 
+// Shartnoma holati bo'yicha shu xodimga ko'rinadimi (direktor topshirig'idagisi — ko'rinadi). Panellar: tahrir, bekor, kelishuv, imzosiz, tuzatish
+async function royxatda(u, no) { no = String(no == null ? '' : no).trim(); const Y = await KR.yopiqlar(u); return !Y.has(no) || !!(await topShartnoma(u.fish))[no]; }
 module.exports = { hujjatBoshlang, hujjatlarRoyxati };
+module.exports._ichki = { royxatda };
 module.exports.HUJJAT_TURLARI = HUJJAT_TURLARI;   // Yurist bo'limi ham ishlatadi (amal emas)

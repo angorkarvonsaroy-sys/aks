@@ -234,6 +234,7 @@ async function hujjatTuzat(args) {
   const w = await qulfBilan(async () => {
     const h = await hujjatYangi(HUJ, id);
     if (!h) throw new S.Xato('Hujjat topilmadi (ID ' + id + ').');
+    if (!(await H._ichki.royxatda(u, h.no))) throw new S.Xato('Hujjat topilmadi (ID ' + id + ').');   // shartnoma holati bo'yicha yashirin
     if (h.holati !== 'Faol') throw new S.Xato('Bu hujjat allaqachon «' + h.holati + '».');
     const bugun = V.bugun().split('-').reverse().join('.');
     if (!(u.admin || (h.kim === u.fish && String(h.vaqt).indexOf(bugun) === 0))) throw new S.Xato('Bu hujjatni tuzata olmaysiz: o\'zingiz yuklagan hujjatni faqat o\'sha kuni tuzatish mumkin. Keyin — faqat direktor.');

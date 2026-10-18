@@ -124,7 +124,7 @@ function keyinTekshir(varaq, r, id, F, qiymat) {
 
 // ================================================================== 🚶 TASHRIF
 async function tashrifTekshir([kodSes, tel]) {
-  await S.ruxsat(kodSes, 'tashrif');
+  const u = await S.ruxsat(kodSes, 'tashrif');
   const d = telNorm(tel);
   const xato = telTekshir(d);
   if (xato) return { xato };
@@ -144,6 +144,12 @@ async function tashrifTekshir([kodSes, tel]) {
   let mijoz = null;
   const M = aOxiri(R2);
   if (M.length) for (const z of oraliq(M, 2, M[M.length - 1].n - 1)) { const r = kor(z.r, 6); if (r[4] === f || r[5] === f) { mijoz = { id: r[0], fish: r[2] }; break; } }
+  if (mijoz) {   // holati bo'yicha: faqat yashirin shartnomalari bor mijoz ko'rsatilmaydi (undiruvchi/yurist — shartnomasiz mijozni ham ko'rmaydi)
+    const KR = require('../lib/korinish'), Y = await KR.yopiqlar(u), ch = Y.size && (await KR.korish(u)).cheklangan;
+    if (Y.size) { const L = []; (await V.qatorlar(T03)).forEach(({ x }) => { if (String(x[4] == null ? '' : x[4]).trim() === String(mijoz.id).trim() && x[0]) L.push(String(x[0]).trim()); });
+      (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ x }) => { if (String(x[5] == null ? '' : x[5]).trim() === String(mijoz.id).trim() && x[0]) L.push(String(x[0]).trim()); });
+      if ((L.length || ch) && L.every(no => Y.has(no))) mijoz = null; }
+  }
   return { tel: f, soni, oldingi, bugunBor, mijoz };
 }
 

@@ -54,6 +54,7 @@ async function tahrirBoshqa(mid, no) {
 }
 async function tahrirHolat([kodSes, no]) {
   const u = await S.ruxsat(kodSes, 'shartnoma');
+  if (!(await require('./hujjat')._ichki.royxatda(u, no))) throw new S.Xato('Shartnoma topilmadi: ' + no);   // holati bo'yicha yashirin
   const c = await tahrirSh(no);
   const m2 = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => kor(z.r, 25));
   const r = m2.find(x => String(x[0]).trim() === String(c.mid).trim());
@@ -150,6 +151,7 @@ async function bekorHolat([kodSes, no]) {
   const u = await S.ruxsat(kodSes);
   if (!u.admin && !u.huquq.includes('undiruv') && !u.huquq.includes('hujjat')) throw new S.Xato('Bu bo\'limga ruxsatingiz yo\'q.');
   no = String(no || '').trim();
+  if (!(await require('./hujjat')._ichki.royxatda(u, no))) throw new S.Xato('Shartnoma topilmadi: ' + no);   // holati bo'yicha yashirin
   const BJ = await J.bekorJurnal();
   const hamma = BJ.filter(z => z.no === no);
   const s = hamma.filter(z => BEKOR_YOPIQ.indexOf(z.holati) < 0).pop();

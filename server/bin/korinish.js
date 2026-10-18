@@ -35,9 +35,10 @@ const KR = require('../lib/korinish');
       const t = KR.tur(u);
       console.log('• ' + x.fish + (t === 'undiruv' ? ' (undiruvchi — faqat o\'z portfeli)' : t === 'yurist' ? ' (yurist — faqat yuristdagi ishlar)' : '') + ' — ko\'radi: jami ' + kor.length + (kor.length ? ' — ' + yoz(kor) : ''));
     }
-    console.log('\n1-bosqichda qo\'llanadigan bo\'limlar: mijoz qidiruvi va kartasi, to\'lov ro\'yxati, bugungi to\'lovlar, reyestr, hisobot ro\'yxatlari, 👁 skan.');
+    console.log('\nQo\'llanadigan bo\'limlar: mijoz qidiruvi va kartasi, to\'lov ro\'yxati, bugungi to\'lovlar, reyestr, hisobot ro\'yxatlari, 👁 skan,');
+    console.log('   📎 hujjatlar (ro\'yxat, yuklash, tuzatish, tahrir/bekor/kelishuv panellari), ✉ xatlar, 📝 yangi shartnoma (mijozlar, do\'kon egasi «*»), 🚶 tashrif (telefon bo\'yicha mijoz).');
+    console.log('   Direktor topshirig\'idagi shartnoma — holatidan qat\'i nazar ko\'rinadi. Undiruv, Bugungi ish, xarita — avvaldan faqat o\'z portfeli / niqoblangan.');
     console.log('Hisobot va bosh sahifadagi JAMI summalar o\'zgarmaydi (kassa tushumi to\'liq qoladi) — faqat shartnoma ko\'rinadigan qatorlar yashiriladi.');
-    console.log('2-bosqich bo\'limlari (undiruv, xat, hujjatlar, yurist, xarita, ...) hali YASHIRMAYDI.');
     console.log('\nYoqish: aks-korinish yoq      ·      O\'chirish: aks-korinish ochir');
   }
   await pool.end(); redis.disconnect(); process.exit(0);

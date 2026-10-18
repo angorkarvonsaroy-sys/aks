@@ -8,6 +8,7 @@
 // Yoqilishi: Redis «korinish_yondi» = 1 (aks-korinish yoq). O'chiq bo'lsa — hamma narsa avvalgidek ko'rinadi.
 // Yashirin shartnoma: ro'yxatlarda yo'q, raqami bilan ochilmaydi, unga bog'liq to'lov/hujjat/xat ham ko'rinmaydi.
 // Jami summalar (hisobot tushumi va h.k.) o'zgarmaydi — faqat shartnomani ko'rsatadigan qatorlar yashiriladi.
+// 2-bosqich (18.10.2026): hujjatlar, xatlar, yangi shartnoma (mijozlar / do'kon egasi), tashrif — direktor topshirig'idagi shartnoma istisno.
 'use strict';
 const V = require('./varaq');
 const { redis } = require('./db');
