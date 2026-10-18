@@ -22,8 +22,10 @@ const harf = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s =
     const r = n.range || {}; const v = NOM[r.sheetId || 0] || '?';
     const a1 = harf(r.startColumnIndex || 0) + ((r.startRowIndex || 0) + 1);
     let qiy = '';
-    try { const o = await G.oraliqOqi(env.aksBazaId, v, a1, env.googleKey); qiy = JSON.stringify((o.values || [[]])[0][0] == null ? '' : o.values[0][0]); } catch (e) { qiy = 'o\'qib bo\'lmadi: ' + e.message; }
-    console.log('  • ' + n.name + ' = ' + v + '!' + a1 + ' → ' + qiy + (qiy === JSON.stringify(bugun) ? '  ✅ bugungi' : (/^"\d{2}\.\d{2}\.\d{4}/.test(qiy) ? '  ⚠ BUGUNGI EMAS' : '')));
+    let kiritilgan = '';
+    try { const c = ((await G.kataklarOqi(env.aksBazaId, v, a1, env.googleKey))[0] || [])[0] || {};
+      qiy = String(c.formattedValue == null ? '' : c.formattedValue); const ue = c.userEnteredValue || {}; kiritilgan = ue.formulaValue ? 'formula ' + ue.formulaValue : (Object.keys(ue).length ? 'qo\'lda/kod yozgan qiymat' : 'bo\'sh'); } catch (e) { qiy = 'o\'qib bo\'lmadi: ' + e.message; }
+    console.log('  • ' + n.name + ' = ' + v + '!' + a1 + ' → «' + qiy + '» (' + kiritilgan + ')' + (qiy.indexOf(bugun) === 0 ? '  ✅ bugungi' : (/^\d{2}\.\d{2}\.\d{4}/.test(qiy) ? '  ⚠ BUGUNGI EMAS' : '')));
   }
   // 2) ko'zguda «BUGUN» yozuvi bor kataklar (yorliq) va yonidagi qiymat
   const R = (await pool.query("SELECT varaq, qator_no, korinish FROM kozgu.qatorlar WHERE kompaniya_id = 1 AND korinish::text ILIKE '%bugun%' ORDER BY varaq, qator_no")).rows;
