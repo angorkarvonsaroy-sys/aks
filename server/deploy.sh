@@ -10,6 +10,14 @@ echo "=== $(date '+%F %T') o'rnatish: $(git -C "$REPO" log -1 --format='%h %s') 
 
 command -v rsync >/dev/null || apt-get install -y -q rsync >/dev/null
 
+# 0a. PDF yasash (reyestr PDF): weasyprint + Liberation shriftlari + pdftotext (sinov uchun). Alohida jarayonda o'rnatiladi —
+#     o'rnatish bir necha daqiqa olsa ham kod yangilanishi kutmaydi; bor bo'lsa hech narsa qilinmaydi.
+if ! command -v weasyprint >/dev/null || ! command -v pdftotext >/dev/null || [ ! -d /usr/share/fonts/truetype/liberation ]; then
+  systemctl is-active -q aks-pdf-ornat 2>/dev/null || systemd-run --unit=aks-pdf-ornat --collect --quiet \
+    bash -c 'export DEBIAN_FRONTEND=noninteractive; (apt-get update -q; timeout 900 apt-get install -y -q weasyprint fonts-liberation poppler-utils) >>/var/log/aks-pdf-ornat.log 2>&1' \
+    || echo "!!! PDF dasturini o'rnatish boshlanmadi"
+fi
+
 # 1. kodni ilova papkasiga ko'chirish (node_modules saqlanadi)
 mkdir -p "$APP"
 rsync -a --delete --exclude node_modules --exclude package-lock.json --exclude .versiya "$REPO/server/" "$APP/"

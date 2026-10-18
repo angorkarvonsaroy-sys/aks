@@ -362,11 +362,103 @@ async function shartnomaSinov() {
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ------------------------------------------------------------------ 📋 reyestr PDF / Excel: eski tizim fayli bilan solishtirish
+const RY = require('../api/reyestr')._ichki;
+const XL = require('../lib/xlsx');
+const PDF = require('../lib/pdf');
+const S = require('../api/sessiya');
+const tetik = require('../lib/kozgu_tetik');
+const { execFileSync } = require('child_process');
+function pdfMatn(buf) {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const f = path.join(os.tmpdir(), 'aks_eks_' + process.pid + '_' + Math.random().toString(36).slice(2) + '.pdf');
+  fs.writeFileSync(f, buf);
+  try {
+    const t = execFileSync('pdftotext', ['-enc', 'UTF-8', f, '-'], { maxBuffer: 64 << 20 }).toString('utf8');
+    const info = execFileSync('pdfinfo', [f]).toString('utf8');
+    const bet = +((/Pages:\s+(\d+)/.exec(info) || [])[1] || 0), olcham = ((/Page size:\s+([^\n]+)/.exec(info) || [])[1] || '').trim();
+    return { matn: t.normalize('NFKC').replace(/\u00ad/g, ''), bet, olcham };
+  } finally { try { fs.unlinkSync(f); } catch (e) { } }
+}
+function belgilar(s) { const m = new Map(); for (const c of s.replace(/\s+/g, '')) m.set(c, (m.get(c) || 0) + 1); return m; }
+function sozlar(s) { const m = new Map(); s.split(/\s+/).filter(Boolean).forEach(w => m.set(w, (m.get(w) || 0) + 1)); return m; }
+function pdfSolishtir(eskiB, yangiB) {
+  const a = pdfMatn(eskiB), b = pdfMatn(yangiB);
+  console.log('  eski:   ' + a.bet + ' bet, ' + a.olcham);
+  console.log('  server: ' + b.bet + ' bet, ' + b.olcham);
+  const A = belgilar(a.matn), B = belgilar(b.matn); let farq = 0; const ft = [];
+  new Set([...A.keys(), ...B.keys()]).forEach(c => { const d = (A.get(c) || 0) - (B.get(c) || 0); if (d) { farq += Math.abs(d); ft.push(JSON.stringify(c) + ' eski ' + (A.get(c) || 0) + ' / server ' + (B.get(c) || 0)); } });
+  if (!farq) { console.log('  ✅ matn bir xil (' + [...A.values()].reduce((x, y) => x + y, 0) + ' belgi)'); return 0; }
+  console.log('  ✖ matnda ' + farq + ' belgi farq: ' + ft.slice(0, 12).join('; '));
+  const SA = sozlar(a.matn), SB = sozlar(b.matn), fa = [], fb = [];
+  SA.forEach((n, w) => { if (n > (SB.get(w) || 0)) fa.push(w + (n - (SB.get(w) || 0) > 1 ? '×' + (n - (SB.get(w) || 0)) : '')); });
+  SB.forEach((n, w) => { if (n > (SA.get(w) || 0)) fb.push(w + (n - (SA.get(w) || 0) > 1 ? '×' + (n - (SA.get(w) || 0)) : '')); });
+  console.log('    faqat eskida: ' + fa.slice(0, 15).join(' | '));
+  console.log('    faqat serverda: ' + fb.slice(0, 15).join(' | '));
+  return 1;
+}
+function xlsSolishtir(eskiB, yangiB) {
+  const a = XL.oqi(eskiB), b = XL.oqi(yangiB); let x = 0;
+  if (a.nom !== b.nom) { x++; console.log('  ✖ varaq nomi: eski «' + a.nom + '» | server «' + b.nom + '»'); }
+  if (a.muzlat !== b.muzlat) { x++; console.log('  ✖ muzlatilgan qator: eski ' + a.muzlat + ' | server ' + b.muzlat); }
+  const kalit = k => { const m = /^([A-Z]+)(\d+)$/.exec(k); return [m[1], +m[2]]; };
+  const bor = c => c && c.tur !== 'bo\'sh';
+  const hamma = new Set([...Object.keys(a.kataklar).filter(k => bor(a.kataklar[k]) || kalit(k)[1] === 1), ...Object.keys(b.kataklar).filter(k => bor(b.kataklar[k]) || kalit(k)[1] === 1)]);
+  const guruh = new Map(); let soni = 0;
+  hamma.forEach(k => {
+    const [u, q] = kalit(k), e = a.kataklar[k] || { tur: 'bo\'sh', val: null, fmt: 'General', qalin: false, rang: '', fon: '' }, y = b.kataklar[k] || { tur: 'bo\'sh', val: null, fmt: 'General', qalin: false, rang: '', fon: '' };
+    if (q === 1 && !bor(e) && !bor(y)) return;
+    soni++;
+    const tv = (e.tur === y.tur) && (e.tur === 'son' ? Math.abs(e.val - y.val) < 1e-9 : e.val === y.val);
+    const fm = !bor(e) && !bor(y) ? true : e.fmt === y.fmt;
+    const us = q !== 1 || (e.qalin === y.qalin && e.rang === y.rang && e.fon === y.fon);
+    if (tv && fm && us) return;
+    const imzo = u + (q === 1 ? '1' : '') + ' | ' + (!tv ? 'qiymat: eski ' + e.tur + ' | server ' + y.tur : '') + (!fm ? ' format: eski «' + e.fmt + '» | server «' + y.fmt + '»' : '') + (!us ? ' uslub: eski ' + [e.qalin ? 'qalin' : 'oddiy', e.rang, e.fon].join(' ') + ' | server ' + [y.qalin ? 'qalin' : 'oddiy', y.rang, y.fon].join(' ') : '');
+    const g = guruh.get(imzo) || { n: 0, misol: k + ': eski ' + JSON.stringify(e.val) + ' | server ' + JSON.stringify(y.val) }; g.n++; guruh.set(imzo, g);
+  });
+  guruh.forEach((g, imzo) => { x++; console.log('  ✖ ' + imzo + ' — ' + g.n + ' katak (' + g.misol + ')'); });
+  if (!x) console.log('  ✅ ' + soni + ' katak — qiymat, turi, formati va sarlavha uslubi bir xil');
+  return x;
+}
+async function eksportSinov() {
+  let pb = await PDF.bor(); let ptt = true; try { execFileSync('pdftotext', ['-v'], { stdio: 'ignore' }); } catch (e) { ptt = false; }
+  if (!pb || !ptt) { console.log('⏳ PDF dasturi serverga hali o\'rnatilmagan (' + (!pb ? 'weasyprint ' : '') + (!ptt ? 'poppler-utils' : '') + ') — 3 daqiqadan keyin qayta ishga tushiring.'); return; }
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  const tok = await S.sessiyaOch(adm.kirish_kodi), ks = adm.kirish_kodi + '|' + tok;
+  await tetik.varaqlarYangila(['02_Mijozlar', '03_Sotuv_shartnomalar', '04_Ijara_shartnomalar']).catch(e => console.log('(ko\'zgu yangilanmadi: ' + e.message + ')'));
+  const ishlar = [
+    ['IJARA REYESTRI — Excel (barchasi)', 'reyestrExcel', RY.ijaraExcelYasa, 'hammasi', 'x'],
+    ['SOTUV REYESTRI — Excel (barchasi)', 'reyestrSotuvExcel', RY.sotuvExcelYasa, 'hammasi', 'x'],
+    ['IJARA REYESTRI — PDF (barchasi)', 'reyestrPdf', RY.ijaraPdfYasa, 'hammasi', 'p'],
+    ['SOTUV REYESTRI — PDF (barchasi)', 'reyestrSotuvPdf', RY.sotuvPdfYasa, 'hammasi', 'p'],
+  ];
+  let x = 0;
+  try {
+    for (const [nom, fn, yasa, filtr, tur] of ishlar) {
+      console.log('\n=== ' + nom + ' ===');
+      let t = Date.now(), e;
+      try { e = await koprik.chaqir(fn, adm.kirish_kodi, [filtr]); } catch (er) { console.log('  ✖ eski tizim: ' + er.message); x++; continue; }
+      const te = Date.now() - t; t = Date.now();
+      const y = await yasa(ks, filtr); const ty = Date.now() - t;
+      console.log('  vaqt: eski tizim ' + (te / 1000).toFixed(1) + ' s · server ' + (ty / 1000).toFixed(1) + ' s');
+      if (e.nom !== y.nom || e.mime !== y.mime) { x++; console.log('  ✖ fayl nomi: eski ' + e.nom + ' | server ' + y.nom); } else console.log('  fayl: ' + y.nom);
+      const eb = Buffer.from(e.b64, 'base64'), yb = Buffer.from(y.b64, 'base64');
+      x += tur === 'x' ? xlsSolishtir(eb, yb) : pdfSolishtir(eb, yb);
+    }
+  } finally { await redis.del('ses:' + tok); }
+  console.log('');
+  if (!x) { await redis.set('yozuv_yondi:eksport', '1'); console.log('✅ HAMMASI BIR XIL — reyestr PDF va Excel endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma');
-    console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq berish va tasdiqlash yana eski tizim orqali (kutib) saqlanadi.');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport');
+    console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'eksport') {
+    console.log('Hozir: reyestr PDF/Excel — ' + ((await redis.get('yozuv_yondi:eksport')) === '1' ? 'serverda' : 'eski tizimda'));
+    await eksportSinov();
   } else if (arg === 'taminot') {
     console.log('Hozir: ta\'minot — ' + ((await redis.get('yozuv_yondi:taminot')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
