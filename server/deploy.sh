@@ -10,13 +10,6 @@ echo "=== $(date '+%F %T') o'rnatish: $(git -C "$REPO" log -1 --format='%h %s') 
 
 command -v rsync >/dev/null || apt-get install -y -q rsync >/dev/null
 
-# 0a. PDF yasash (reyestr PDF): weasyprint + Liberation shriftlari + pdftotext (sinov uchun). Alohida jarayonda o'rnatiladi —
-#     o'rnatish bir necha daqiqa olsa ham kod yangilanishi kutmaydi; bor bo'lsa hech narsa qilinmaydi.
-if ! command -v weasyprint >/dev/null || ! command -v pdftotext >/dev/null || [ ! -d /usr/share/fonts/truetype/liberation ]; then
-  systemctl is-active -q aks-pdf-ornat 2>/dev/null || systemd-run --unit=aks-pdf-ornat --collect --quiet \
-    bash -c 'export DEBIAN_FRONTEND=noninteractive; (apt-get update -q; timeout 900 apt-get install -y -q weasyprint fonts-liberation poppler-utils) >>/var/log/aks-pdf-ornat.log 2>&1' \
-    || echo "!!! PDF dasturini o'rnatish boshlanmadi"
-fi
 
 # 1. kodni ilova papkasiga ko'chirish (node_modules saqlanadi)
 mkdir -p "$APP"
@@ -26,6 +19,14 @@ chown -R aks:aks "$APP"
 # 2. kutubxonalar
 cd "$APP"
 sudo -u aks -H npm install --omit=dev --no-audit --no-fund --loglevel=error
+
+# 2a. PDF yasash (reyestr PDF): eski tizim kabi Chromium (playwright-core → chromium-headless-shell, /opt/aks/pw) + Liberation shriftlari
+#     + pdftotext (sinov uchun). Alohida jarayonda o'rnatiladi — bir necha daqiqa olsa ham kod yangilanishi kutmaydi; bor bo'lsa hech narsa qilinmaydi.
+if ! ls -d /opt/aks/pw/chromium_headless_shell-* >/dev/null 2>&1 || ! command -v pdftotext >/dev/null || [ ! -d /usr/share/fonts/truetype/liberation ]; then
+  systemctl is-active -q aks-pdf-ornat 2>/dev/null || systemd-run --unit=aks-pdf-ornat --collect --quiet \
+    bash -c 'export DEBIAN_FRONTEND=noninteractive PLAYWRIGHT_BROWSERS_PATH=/opt/aks/pw; ( apt-get update -q; apt-get install -y -q fonts-liberation poppler-utils; mkdir -p /opt/aks/pw; cd /opt/aks/app && timeout 900 node node_modules/playwright-core/cli.js install --with-deps chromium-headless-shell; chmod -R a+rX /opt/aks/pw ) >>/var/log/aks-pdf-ornat.log 2>&1' \
+    || echo "!!! PDF dasturini o'rnatish boshlanmadi"
+fi
 
 # 3. baza tuzilmasi (har fayl qayta-qayta ishga tushsa bo'ladi)
 for f in "$APP"/sql/*.sql; do

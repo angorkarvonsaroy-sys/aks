@@ -1,7 +1,7 @@
 // AKS TIZIM — 📋 Reyestrlar (Reyestr.gs v27.7) serverda: reyestrIjara, reyestrSotuv — onlayn ro'yxat. Faqat o'qiydi; natija eski tizim bilan bir xil.
 // Yuklab olish (reyestrPdf, reyestrExcel, reyestrSotuvPdf, reyestrSotuvExcel): HTML matni va Excel qatorlari eski kod bilan bir xil;
-// PDF — WeasyPrint (lib/pdf.js), Excel — lib/xlsx.js. Faqat «aks-yozuv-sinov eksport» eski tizim fayllari bilan solishtirgach yoqiladi
-// (Redis yozuv_yondi:eksport); yoqilmagan bo'lsa yoki PDF dasturi yo'q bo'lsa — avvalgidek eski tizim orqali.
+// PDF — Chromium, eski tizim (Google) bilan bir xil dvigatel (lib/pdf.js), Excel — lib/xlsx.js. Faqat «aks-yozuv-sinov eksport» eski tizim fayllari bilan solishtirgach yoqiladi
+// (Redis yozuv_yondi:eksport, PDF uchun yana yozuv_yondi:eksport_pdf); yoqilmagan bo'lsa yoki PDF dasturi yo'q bo'lsa — avvalgidek eski tizim orqali.
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -121,10 +121,9 @@ function reySotFiltr(L, filtr) {
 const BOSH_XATO = 'Ro\'yxat bo\'sh — bu filtrda shartnoma yo\'q.';
 const bugunDmy = () => V.bugun().split('-').reverse().join('.');
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-// Eski HTML'da sahifa o'lchami yo'q (Google o'zgartirgichi A4 qo'yardi); chap/o'ng chekka — body margin.
-// Google o'zgartirgichi ustun kengligini o'zgartirmaydi: sig'magan matn (uzun telefon, «B1-1-6,7,8,15,16,17» kabi do'kon) katak ichida
-// keyingi qatorga o'tadi. Aks holda jadval sahifadan kengayib, oxirgi ustun («Ундирувчи») kesilib qoladi (18.10 sinovi).
-const SAHIFA = '@page{size:A4;margin:10mm 0}table{table-layout:fixed}td,th{white-space:normal!important;overflow-wrap:anywhere}';
+// Eski tizim PDF'ni Google'ning Chromium'ida A4, chekkalari 0,5 dyuym qilib yasaydi (18.10: eski PDF bilan o'lchab tekshirildi —
+// sahifa 594,96 × 841,92 pt, sarlavha joyi aynan bir xil). Server ham Chromium'da (lib/pdf.js) — HTML o'zgarmaydi.
+const SAHIFA = '@page{size:A4;margin:0.5in}';
 
 // Eski kod (reyestrPdf) yasaydigan HTML — belgima-belgi bir xil
 function ijaraHtml(L, filtr, bugun) {
@@ -171,8 +170,8 @@ function sotuvJadval(L) {
   return { nom: 'Sotuv reyestri', qatorlar: [sarl].concat(rows), sarlavha: true, muzlat: 1, ustunFormat: { 0: '@' }, oraliqFormat: [{ q1: 1, q2: rows.length, u1: 6, u2: 10, f: '#,##0' }] };
 }
 
-async function yoqilgan(pdf) {
-  try { if ((await redis.get('yozuv_yondi:eksport')) !== '1') return false; } catch (e) { return false; }
+async function yoqilgan(pdf) {   // Excel: yozuv_yondi:eksport; PDF: yana yozuv_yondi:eksport_pdf (Chromium bilan sinovdan o'tgach) va Chromium ishlasa
+  try { if ((await redis.get('yozuv_yondi:eksport')) !== '1') return false; if (pdf && (await redis.get('yozuv_yondi:eksport_pdf')) !== '1') return false; } catch (e) { return false; }
   return pdf ? PDF.bor() : true;
 }
 const eskiTizim = (fn, u, filtr) => koprik.chaqir(fn, u.kod, [filtr]);
