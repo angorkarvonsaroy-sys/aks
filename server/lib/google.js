@@ -205,4 +205,14 @@ async function driveFayl(faylId, kalitFayl) {
   return { nom: meta.name, mime: meta.mimeType, bytes };
 }
 
-module.exports = { token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };
+// Google hujjatini (Doc) boshqa formatga eksport qilish — eski tizimdagi UrlFetch «export?format=docx» bilan bir xil natija (Google'ning o'z eksportchisi).
+// Robotda faylni ko'rish huquqi («Читатель») yetarli. Google hujjati bo'lmasa (oddiy .docx / .pdf) — 403 → RuxsatYoq emas, oddiy xato.
+async function driveEksport(faylId, mime, kalitFayl) {
+  const t = await token(kalitFayl, SCOPE_DRIVE);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(String(faylId || '').trim())}/export?mimeType=${encodeURIComponent(mime)}`, { headers: { Authorization: 'Bearer ' + t } });
+  if (r.status === 404) throw new RuxsatYoq('Robot bu faylni ko\'ra olmaydi (404)');
+  if (!r.ok) throw new Error('Drive eksport ' + r.status + ': ' + (await r.text().catch(() => '')).slice(0, 160));
+  return Buffer.from(await r.arrayBuffer());
+}
+
+module.exports = { driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };

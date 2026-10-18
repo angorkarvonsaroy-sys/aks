@@ -86,29 +86,7 @@ const ELEM = /<w:p [^>]*>[\s\S]*?<\/w:p>|<w:tbl>[\s\S]*?<\/w:tbl>|<w:sectPr[\s\S
 const matnOf = e => (e.match(/<w:t(?: [^>]*)?>[^<]*<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('');
 // M — xabarnomaMatn (PA, rows, PB); x — fishK, manzil; q — { ism, tel } (Ижрочи)
 function xabarnomaDocx(x, M, xRaqam, sanaIso, ij, k) {
-  const B = blanka();
   const z = n => Math.round(n * (k || 1) * 2) / 2;
-  const yil = sanaIso.slice(0, 4);
-  const XAT_OY = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
-  const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const d0 = B['word/document.xml'].toString('utf8');
-  const bosh = d0.slice(0, d0.indexOf('<w:body>') + 8), oxir = d0.slice(d0.lastIndexOf('</w:body>'));
-  const E = d0.slice(bosh.length, d0.length - oxir.length).match(ELEM);
-  // xatShapkaTuzat_: shapka jadvalining 2-ustunidagi manfiy o'ng chekinish → 0 (logotip joyi blankadagidek — 75 pt)
-  const ti = E.findIndex(e => e.startsWith('<w:tbl>'));
-  if (ti >= 0) E[ti] = E[ti].replace(/<w:tr>[\s\S]*?<\/w:tr>/g, tr => { let c = 0; return tr.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, tc => (c++ > 0 ? tc.replace(/w:right="-\d+"/g, 'w:right="0"') : tc)); });
-  // xatChiziq_: jadvaldan keyingi gorizontal chiziq o'rniga qora chiziq-rasm (eni = matn eni × 4/3 − 1 px, bo'yi 3 px), oraliqlar 0
-  if (ti >= 0 && /o:hr="t"/.test(E[ti + 1] || '')) {
-    const px = Math.floor((595.3 - 85.05 - 42.55) * 4 / 3) - 1, emu = n => n * 9525;
-    E[ti + 1] = E[ti + 1].replace(/<w:spacing [^>]*\/>/, '<w:spacing w:after="0" w:before="0" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/>')
-      .replace(/<w:r [^>]*><w:pict>[\s\S]*?<\/w:pict><\/w:r>/, R0 + '<w:drawing><wp:inline distB="0" distT="0" distL="0" distR="0"><wp:extent cx="' + emu(px) + '" cy="' + emu(3) + '"/><wp:effectExtent b="0" l="0" r="0" t="0"/><wp:docPr id="3" name="image3.png"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="image3.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdChiziq"/><a:srcRect b="0" l="0" r="0" t="0"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + emu(px) + '" cy="' + emu(3) + '"/></a:xfrm><a:prstGeom prst="rect"/><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>');
-  }
-  // xatRaqamSana_: «№ ____» → «№ BX-…», tab dan keyingi chiziqcha → sana
-  const ni = E.findIndex(e => e.startsWith('<w:p ') && /^\s*№/.test(matnOf(e)));
-  const di = E.findIndex((e, i) => i > ni && e.startsWith('<w:p ') && /^\s*Директор/.test(matnOf(e)));
-  if (ni < 0 || di < 0) throw new Error('Rasmiy blankada «№» yoki «Директор» qatori topilmadi — blanka o\'zgargan.');
-  E[ni] = E[ni].replace(/(<w:t[^>]*>)№ *_+(<\/w:t>)/, (m, a, b) => a + esc('№ ' + xRaqam) + b).replace(/(<w:tab\/><w:t[^>]*>)_+(<\/w:t>)/, (m, a, b) => a + esc(sanaMatn) + b);
-  // xatBlankaJoy_: № va «Директор» orasidagi bo'sh xatboshilar olib tashlanadi; matn «Директор» dan oldin
   const Y = yasovchi(), P = Y.p;
   let oldin = 0;
   const q = (matn, o) => { const r = P({ matn, jc: o.al === 'both' ? 'both' : o.al || 'left', before: z((o.before || 0) + oldin), after: z(o.after || 0), line: 240,
@@ -128,6 +106,49 @@ function xabarnomaDocx(x, M, xRaqam, sanaIso, ij, k) {
   }
   M.PB.forEach(m => { h += q(m, { al: 'both', ind: true, after: 1.5 }); });
   h += q('Илова: буйруқ нусхаси — ___ варақ.', { al: 'left', b: true, before: 1.5 });
+  return blankaQur(h, xRaqam, sanaIso, ij, true);
+}
+// Rasmiy blankadagi boshqa xatlar (yurist aloqa xati va h.k.): bloklar — lib/xat_pdf.js blankaYasa bloklari (p / imzo), k — PDF qaysi o'lchamda sig'gan bo'lsa
+function bloklarDocx(bloklar, xRaqam, sanaIso, ij, k) {
+  const z = n => Math.round(n * (k || 1) * 2) / 2;
+  const Y = yasovchi(), P = Y.p;
+  let h = '';
+  bloklar.forEach(o => {
+    if (o.t !== 'p') return;
+    h += P({ matn: o.x, jc: o.al === 'both' ? 'both' : o.al || 'left', before: z(o.before || 0), after: z(o.after || 0), line: 240,
+      left: o.left || 0, firstLine: o.ind ? 28.35 : 0, sz: z(o.sz || 11), b: o.b });
+  });
+  return blankaQur(h, xRaqam, sanaIso, ij, false);
+}
+// blanka nusxasi: shapka, chiziq, № va sana, matn («Директор» dan oldin), imzo bloki — h — matn xatboshilari (Google eksporti shaklida)
+function blankaQur(h, xRaqam, sanaIso, ij, jadvalUslubi) {
+  const B = blanka();
+  const yil = sanaIso.slice(0, 4);
+  const XAT_OY = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
+  const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
+  const d0 = B['word/document.xml'].toString('utf8');
+  const bosh = d0.slice(0, d0.indexOf('<w:body>') + 8), oxir = d0.slice(d0.lastIndexOf('</w:body>'));
+  const E = d0.slice(bosh.length, d0.length - oxir.length).match(ELEM);
+  // xatShapkaTuzat_: shapka jadvalining 2-ustunidagi manfiy o'ng chekinish → 0 (logotip joyi blankadagidek — 75 pt)
+  const ti = E.findIndex(e => e.startsWith('<w:tbl>'));
+  // va setLeftOffset(XAT_LOGO_CHAP = 75) — Google eksportida joylashgan logotip ustun chetidan 1066800 EMU (eski xatning eksportidan)
+  if (ti >= 0) E[ti] = E[ti].replace(/<w:tr>[\s\S]*?<\/w:tr>/g, tr => { let c = 0; return tr.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, tc => (c++ > 0 ? tc.replace(/w:right="-\d+"/g, 'w:right="0"') : tc)); })
+    .replace(/(<wp:positionH relativeFrom="column"><wp:posOffset>)\d+(<\/wp:posOffset>)/g, '$11066800$2');
+  // xatChiziq_: jadvaldan keyingi gorizontal chiziq o'rniga qora chiziq-rasm, oraliqlar 0. O'lchamlar eski xatning Google eksportidan
+  // (YU-2026/0003): 5918200 × 25400 EMU (466 × 2 pt), atrofida 19050 EMU.
+  if (ti >= 0 && /o:hr="t"/.test(E[ti + 1] || '')) {
+    E[ti + 1] = E[ti + 1].replace(/<w:spacing [^>]*\/>/, '<w:spacing w:after="0" w:before="0" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/>')
+      .replace(/<w:r [^>]*><w:pict>[\s\S]*?<\/w:pict><\/w:r>/, R0 + '<w:rPr/><w:drawing><wp:inline distB="19050" distT="19050" distL="19050" distR="19050"><wp:extent cx="5918200" cy="25400"/><wp:effectExtent b="0" l="0" r="0" t="0"/><wp:docPr id="1" name="image3.png"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="image3.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId8"/><a:srcRect b="0" l="0" r="0" t="0"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="5918200" cy="25400"/></a:xfrm><a:prstGeom prst="rect"/><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>');
+    // Google eksporti uchta rasmni qayta nomlaydi: logotiplar (rId6, rId7) → image1 / image2 (docPr 3 / 2), chiziq (rId8) → image3 (docPr 1)
+    E[ti] = E[ti].replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g, dr => { const r = (/r:embed="(rId\d+)"/.exec(dr) || [])[1]; const m = { rId6: [3, 'image1.png'], rId7: [2, 'image2.png'] }[r];
+      return m ? dr.replace(/<wp:docPr id="\d+" name="[^"]*"\/>/, '<wp:docPr id="' + m[0] + '" name="' + m[1] + '"/>').replace(/(<pic:cNvPr id="0" name=")[^"]*("\/>)/, '$1' + m[1] + '$2') : dr; });
+  }
+  // xatRaqamSana_: «№ ____» → «№ BX-…», tab dan keyingi chiziqcha → sana
+  const ni = E.findIndex(e => e.startsWith('<w:p ') && /^\s*№/.test(matnOf(e)));
+  const di = E.findIndex((e, i) => i > ni && e.startsWith('<w:p ') && /^\s*Директор/.test(matnOf(e)));
+  if (ni < 0 || di < 0) throw new Error('Rasmiy blankada «№» yoki «Директор» qatori topilmadi — blanka o\'zgargan.');
+  E[ni] = E[ni].replace(/(<w:t[^>]*>)№ *_+(<\/w:t>)/, (m, a, b) => a + esc('№ ' + xRaqam) + b).replace(/(<w:tab\/><w:t[^>]*>)_+(<\/w:t>)/, (m, a, b) => a + esc(sanaMatn) + b);
+  // xatBlankaJoy_: № va «Директор» orasidagi bo'sh xatboshilar olib tashlanadi; matn «Директор» dan oldin
   // xatImzoTold_: Ижрочи qatori va «Асл нусхасини олдим … YYYY й.»
   const qoldi = E.filter((e, i) => !(i > ni && i < di && e.startsWith('<w:p ') && !matnOf(e).trim()));
   const D = qoldi.findIndex(e => e === E[di]);
@@ -136,17 +157,21 @@ function xabarnomaDocx(x, M, xRaqam, sanaIso, ij, k) {
     if (/^\s*Ижрочи/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>)Ижрочи:[^<]*(<\/w:t>)/, (m, a, b) => a + esc('Ижрочи: ' + s(ij.ism) + ', тел.: ' + s(ij.tel)) + b);
     else if (/^\s*Асл нусхасини/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>[^<]*?)\d{4} й\.([^<]*<\/w:t>)/, (m, a, b) => a + yil + ' й.' + b);
   }
-  // xatboshi raqamlari (w14:paraId) blankadagilaridan keyin davom etadi
-  let maxId = 0; d0.replace(/w14:paraId="([0-9A-F]{8})"/g, (m, v) => { maxId = Math.max(maxId, parseInt(v, 16)); });
-  let nn = maxId; h = h.replace(/w14:paraId="[0-9A-F]{8}"/g, () => 'w14:paraId="' + (++nn).toString(16).toUpperCase().padStart(8, '0') + '"');
-  const doc = bosh + qoldi.slice(0, D).join('') + h + qoldi.slice(D).join('') + oxir;
+  // xatboshi raqamlari (w14:paraId) — Google eksportidagidek butun hujjat bo'yicha tartib bilan 1 dan
+  let nn = 0;
+  const doc = (bosh + qoldi.slice(0, D).join('') + h + qoldi.slice(D).join('') + oxir).replace(/w14:paraId="[0-9A-F]{8}"/g, () => 'w14:paraId="' + (++nn).toString(16).toUpperCase().padStart(8, '0') + '"');
   // Table2 uslubi (Google eksportida har jadvalga alohida uslub), chiziq rasmi
   let st = B['word/styles.xml'].toString('utf8');
-  if (!/w:styleId="Table2"/.test(st)) st = st.replace('</w:styles>', '<w:style w:type="table" w:styleId="Table2"><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/><w:tblStyleColBandSize w:val="1"/></w:tblPr></w:style></w:styles>');
-  const rels = B['word/_rels/document.xml.rels'].toString('utf8').replace('</Relationships>', '<Relationship Id="rIdChiziq" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image3.png"/></Relationships>');
-  const fayllar = Object.keys(B).filter(n => !/\/$/.test(n)).map(nom => ({ nom, data: nom === 'word/document.xml' ? doc : nom === 'word/styles.xml' ? st : nom === 'word/_rels/document.xml.rels' ? rels : B[nom] }));
+  if (jadvalUslubi && !/w:styleId="Table2"/.test(st)) st = st.replace('</w:styles>', '<w:style w:type="table" w:styleId="Table2"><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/><w:tblStyleColBandSize w:val="1"/></w:tblPr></w:style></w:styles>');
+  const rels = B['word/_rels/document.xml.rels'].toString('utf8').replace(/(Id="rId6"[^>]*Target=")media\/image\d\.png/, '$1media/image1.png').replace(/(Id="rId7"[^>]*Target=")media\/image\d\.png/, '$1media/image2.png')
+    .replace('</Relationships>', '<Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image3.png"/></Relationships>');
+  const rasm = rId => { const t = (new RegExp('Id="' + rId + '"[^>]*Target="(media\\/image\\d\\.png)"').exec(B['word/_rels/document.xml.rels'].toString('utf8')) || [])[1]; return B['word/' + t]; };
+  const ft = B['word/fontTable.xml'].toString('utf8'), fontlar = /w:name="Times New Roman"/.test(ft) ? ft : ft.replace('</w:fonts>', '<w:font w:name="Times New Roman"/></w:fonts>');
+  const media = { 'word/media/image1.png': rasm('rId6'), 'word/media/image2.png': rasm('rId7') };
+  const fayllar = Object.keys(B).filter(n => !/\/$/.test(n)).map(nom => ({ nom, data: nom === 'word/document.xml' ? doc : nom === 'word/styles.xml' ? st : nom === 'word/_rels/document.xml.rels' ? rels
+    : nom === 'word/fontTable.xml' ? fontlar : media[nom] || B[nom] }));
   fayllar.push({ nom: 'word/media/image3.png', data: QORA_PNG });
   return zipYasa(fayllar);
 }
 
-module.exports = { buyruqDocx, xabarnomaDocx };
+module.exports = { buyruqDocx, xabarnomaDocx, bloklarDocx };

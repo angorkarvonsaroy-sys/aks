@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.10). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.11). Boshqa fayllar o'zgarmaydi.
+// v1.11: koprikXatSaqla Word (.docx) faylini ham qabul qiladi va fayl nomida lotin bo'lmagan harflar (', `, kirill) bo'lishi mumkin —
+//        yurist ALOQA XATI (YU seriyasi) serverda yasaladi, PDF va Word nusxasi shu yerdan «AKS TIZIM / 06 XATLAR / <yil>» ga qo'yiladi.
 // v1.10: koprikBekorSaqla Word (.docx) faylini ham qabul qiladi (bDocB64, xDocB64) — server yasagan Word Drive'ga o'zi qo'yiladi,
 //        eski tizim Google Doc yasamaydi (tezroq). Word kelmasa — avvalgidek (v1.9).
 // v1.9: koprikBekorSaqla — server yasagan shartnomani bekor qilish BUYRUG'I va XABARNOMASI (PDF) ni «AKS TIZIM / 07 BEKOR QILISH / <yil>» ga qo'yish;
@@ -64,7 +66,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.10'; }
+function koprikVersiya(kod) { return '1.11'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -116,10 +118,11 @@ function koprikXatSaqla(kod, m) {
   m = m || {}; var f = null;
   if (m.b64) {
     var yil = String(m.yil || '').replace(/\D/g, '').slice(0, 4), nom = String(m.nom || '');
-    if (yil.length !== 4 || !/^[\w.\-]+\.pdf$/.test(nom)) throw new Error('Xat fayli nomi noto\'g\'ri.');
+    if (yil.length !== 4 || nom.length > 180 || !/^[^\/\\]+\.(pdf|docx)$/.test(nom)) throw new Error('Xat fayli nomi noto\'g\'ri.');
+    var mime = /\.docx$/.test(nom) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
     var papka = papka_(['AKS TIZIM', '06 XATLAR', yil]);
     if (!m.eski) { var bor = papka.getFilesByName(nom); if (bor.hasNext()) f = bor.next(); }
-    if (!f) f = papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64)), 'application/pdf', nom));
+    if (!f) f = papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64)), mime, nom));
   }
   if (m.eski) {
     try {

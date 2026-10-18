@@ -141,6 +141,10 @@ Object.assign(A, require('./xat_chiqar'));
 Object.assign(A, require('./bekor_yoz'));
 // ⚖ yuristTogridan, yuristTopBer — serverda (yoqilgan bo'lsa), aks holda eski tizim
 Object.assign(A, require('./yurist_ish'));
+// ⚖ yurist hujjatlari: yhMalumotnoma, yhBayonnoma, yhPenya (PDF / Word / Excel) — serverda (yoqilgan bo'lsa), aks holda eski tizim
+Object.assign(A, require('./yurist_hujjat'));
+// ⚖ yurist aloqa xati: yhAloqa, yhAloqaYuborildi, yhAloqaBekor — serverda (yoqilgan bo'lsa), aks holda eski tizim
+Object.assign(A, require('./yurist_aloqa'));
 // 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
@@ -150,5 +154,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat', 'tahrirSaqlash', 'monSorovYubor', 'monSorovJavob', 'topMalumotKirit', 'topMalumotTasdiq', 'qadamXatBekor', 'qadamSkan', 'qadamHujjat', 'xatYuborildi', 'xatTopYuborildi', 'topBajardim', 'topSkanZaynabga', 'topSkanBerilmagan', 'yuristgaSorov', 'xatTayyorla', 'xatQaytaYasa', 'xatTopTayyorla', 'qadamXatChiqar', 'qadamTalabChiqar', 'bekorKirit', 'bekorQaytaYasa', 'bekorBuyruqSkan', 'bekorXabarnomaSkan', 'qadamBekorKirit', 'yuristTogridan', 'yuristTopBer']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat', 'tahrirSaqlash', 'monSorovYubor', 'monSorovJavob', 'topMalumotKirit', 'topMalumotTasdiq', 'qadamXatBekor', 'qadamSkan', 'qadamHujjat', 'xatYuborildi', 'xatTopYuborildi', 'topBajardim', 'topSkanZaynabga', 'topSkanBerilmagan', 'yuristgaSorov', 'xatTayyorla', 'xatQaytaYasa', 'xatTopTayyorla', 'qadamXatChiqar', 'qadamTalabChiqar', 'bekorKirit', 'bekorQaytaYasa', 'bekorBuyruqSkan', 'bekorXabarnomaSkan', 'qadamBekorKirit', 'yuristTogridan', 'yuristTopBer', 'yhAloqa', 'yhAloqaYuborildi', 'yhAloqaBekor']), enumerable: false });
 module.exports = A;

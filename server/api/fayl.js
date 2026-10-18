@@ -1,7 +1,7 @@
 // AKS TIZIM — fayllarni ko'rish / yuklab olish serverda (robot «AKS TIZIM» papkasida «Читатель», 17.10.2026):
 //   devonFayl (Devon.gs) · bekorFayl (Bekor.gs) · kbFayl (KelishuvBekor.gs) · tqFayl (Topshiriq.gs) · yhAloqaFayl (Yurhujjat.gs)
 //   hujjatFayl — FAQAT serverda (eski tizimda yo'q): mijoz kartasidagi skanni «skan» huquqi bilan ko'rish
-// Tartib: serverdagi nusxa → Drive (robot, faqat o'qish) → bo'lmasa eski tizim. Word (.docx) nusxasi va yon ta'sirli holatlar — eski tizim.
+// Tartib: serverdagi nusxa → Drive (robot, faqat o'qish) → bo'lmasa eski tizim. Word: serverda yasalgani yoki robot Google Doc'ni eksport qiladi; yon ta'sirli holatlar — eski tizim.
 'use strict';
 const S = require('./sessiya');
 const J = require('../lib/jurnallar');
@@ -92,10 +92,23 @@ async function tqFayl([kodSes, id, n]) {
 }
 
 // ------------------------------------------------------------------ ⚖ yhAloqaFayl (yurist aloqa xati)
+const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 async function yhAloqaFayl([kodSes, raqam, format]) {
   const u = await S.ruxsat(kodSes, 'yurist');
   const h = (await J.yuxJurnal()).find(z => z.raqam === raqam); if (!h) throw new S.Xato('Xat topilmadi: ' + raqam);
-  if (String(format) === 'doc') return eski('yhAloqaFayl', u.kod, [raqam, format]);
+  if (String(format) === 'doc') {   // Word: serverda yasalgan .docx (SRV yoki Drive'ga ko'chgani) → eski xatlardagi Google Doc — robot eksport qiladi (eski tizimdagi eksport bilan bir xil)
+    if (!h.doc) throw new S.Xato('Bu xatning Google Doc nusxasi saqlanmagan.');
+    const nom = 'Aloqa_xati_' + h.no.replace(/\//g, '-') + '_' + raqam.replace('/', '-') + '.docx';
+    const PK = b => !!b && b.subarray(0, 2).toString('latin1') === 'PK';
+    let srv = /^SRV:/.test(h.doc); if (!srv) { try { srv = !!(await require('../lib/db').redis.get('xat_srv:' + h.doc)); } catch (e) { } }
+    if (!srv) {   // eski tizim yasagan Google Doc
+      try { const b = await G.driveEksport(h.doc, DOCX, env.googleKey); if (PK(b)) return { nom, mime: DOCX, b64: b.toString('base64') }; }
+      catch (e) { if (!(e instanceof G.RuxsatYoq) && !/ 403/.test(e.message)) console.error('aloqa xati Word (eksport):', e.message); }
+    }
+    const f = await require('./xat_chiqar')._ichki.pdfOl(h.doc).catch(() => null);
+    if (f && PK(f.bytes)) return { nom, mime: DOCX, b64: f.bytes.toString('base64') };
+    return eski('yhAloqaFayl', u.kod, [raqam, format]);
+  }
   const f = await ol(h.pdf); if (!f) return eski('yhAloqaFayl', u.kod, [raqam, format]);
   return { nom: f.nom, mime: 'application/pdf', b64: f.bytes.toString('base64') };
 }
