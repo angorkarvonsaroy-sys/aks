@@ -2,9 +2,10 @@
 // bekorBuyruqSkan / bekorXabarnomaSkan, Qadam.gs v2.2 qadamBekorKirit bilan bir xil tekshiruvlar, xato matnlari, BQ/BX raqamlash, 06h qatori va javob).
 // Hujjatlar — lib/bekor_hujjat.js (Chromium; eski Google Docs buyrug'i va xabarnomasi bilan qatorma-qator solishtirilgan).
 // PDF lar avval SERVERDA saqlanadi (/opt/aks/hujjat/bekor/<yil>/…), 06h «Buyruq_PDF» / «Xabarnoma_PDF» = «SRV:<yo'l>» — xodim darhol oladi.
-// Keyin fonda eski tizim (Koprik v1.9 koprikBekorSaqla) shu PDF larni direktorning Drive'iga — «AKS TIZIM / 07 BEKOR QILISH / <yil>» — qo'yadi va
-// «Word» tugmasi uchun Google Doc nusxasini eski tizimning o'z funksiyalari (bekorBuyruq_, bekorXabarnoma_) bilan shu ma'lumotdan yasaydi;
-// 06h O–R ga Drive ID lar yoziladi. Direktor tasdig'i / rad etish / qaytarish va 17:15 nazorati — hali eski tizimda.
+// Word (.docx) nusxasi ham serverda (lib/bekor_word.js — Google eksporti bilan bir xil tuzilish), 06h P / R = «SRV:<yo'l>» — «Word» tugmasi darhol.
+// Keyin fonda eski tizim (Koprik koprikBekorSaqla) shu fayllarni direktorning Drive'iga — «AKS TIZIM / 07 BEKOR QILISH / <yil>» — qo'yadi
+// (v1.10: serverdagi Word faylining o'zi; v1.9: Word o'rniga Google Doc'ni eski bekorBuyruq_ / bekorXabarnoma_ yasaydi); 06h O–R ga Drive ID lar
+// yoziladi, «Word» baribir serverdagi nusxadan beriladi (Redis xat_srv:<Drive ID>). Direktor tasdig'i / rad etish / qaytarish va 17:15 nazorati — hali eski tizimda.
 // Yoqilishi: Redis yozuv_yondi:bekor («aks-yozuv-sinov bekor») va Koprik ≥ 1.9. Aks holda — eski tizim.
 'use strict';
 const fs = require('fs');
@@ -19,6 +20,7 @@ const { redis } = require('../lib/db');
 const U = require('../lib/undiruv_yordam');
 const XP = require('../lib/xat_pdf');
 const BH = require('../lib/bekor_hujjat');
+const BW = require('../lib/bekor_word');
 const { xatKirill } = require('../lib/ism');
 const { xodimTeng } = require('../lib/xodim');
 const QY = require('./qadam_yoz')._ichki;
@@ -41,12 +43,15 @@ const harf = n => { let x = ''; while (n > 0) { const m = (n - 1) % 26; x = Stri
 const kat = (qator, ustun, qiymatlar) => ({ varaq: BEK, katak: harf(ustun) + qator + (qiymatlar.length > 1 ? ':' + harf(ustun + qiymatlar.length - 1) + qator : ''), qiymat: [qiymatlar] });
 
 // ------------------------------------------------------------------ yoqilganmi
-let kv = { ok: false, t: 0 };
-async function koprik19(kod) {   // Koprik.gs v1.9 (koprikBekorSaqla) — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
-  if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
-  try { kv = { ok: koprik.bor() && XC.verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.9'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
-  return kv.ok;
+let kv = { ver: '', t: 0 };
+async function koprikVer(kod) {   // eski tizim ko'prigi versiyasi — 30 daqiqa kesh (1.9 dan past / xato bo'lsa 2 daqiqa)
+  const ok = () => !!kv.ver && XC.verOk(kv.ver, '1.9');
+  if (kv.t && Date.now() - kv.t < (ok() ? 30 : 2) * 60000) return kv.ver;
+  try { kv = { ver: koprik.bor() ? String(await koprik.chaqir('koprikVersiya', kod, [])) : '', t: Date.now() }; } catch (e) { kv = { ver: '', t: Date.now() }; }
+  return kv.ver;
 }
+async function koprik19(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.9'); }    // koprikBekorSaqla
+async function koprik110(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.10'); }  // koprikBekorSaqla Word (.docx) faylini qabul qiladi
 async function serverda(kod) {
   try { if ((await redis.get('yozuv_yondi:bekor')) !== '1') return false; } catch (e) { return false; }
   return koprik19(kod);
@@ -202,11 +207,19 @@ async function hujjatYasa(x, X, P, raqam, xRaqam, sanaIso, u) {
   const fam = s(x.fish).split(/\s+/)[0] || 'Mijoz';
   const bNom = 'Bekor_buyruq_' + noF + '_' + fam + '_' + rF, xNom = 'Bekor_xabarnoma_' + noF + '_' + fam + '_' + xRaqam.replace('/', '-');
   const b = await BH.buyruqYasa(x, X, P, raqam, sanaIso);
-  const h = await BH.xabarnomaYasa(x, X, P, raqam, xRaqam, sanaIso, await XC.ijrochi(u.fish));
+  const ij = await XC.ijrochi(u.fish);
+  const h = await BH.xabarnomaYasa(x, X, P, raqam, xRaqam, sanaIso, ij);
   const yil = sanaIso.slice(0, 4), belgi = Date.now().toString(36) + Math.random().toString(36).slice(2, 5), fx = n => n.replace(/[\/\\]/g, '-');
   const bRel = 'bekor/' + yil + '/' + belgi + '/' + fx(bNom) + '.pdf', xRel = 'bekor/' + yil + '/' + belgi + '/' + fx(xNom) + '.pdf';
-  return { bPdf: saqla(bRel, b.pdf), bDoc: '', xPdf: saqla(xRel, h.pdf), xDoc: '', bNom: bNom + '.pdf', bB64: b.pdf.toString('base64'), xNom: xNom + '.pdf', xB64: h.pdf.toString('base64'),
-    bet: h.bet, kochir: { yil, bNom, xNom, bRel, xRel, x, X, P, raqam, xRaqam, sana: sanaIso, fish: u.fish } };
+  // Word nusxasi (eski tizimdagi Google Doc o'rniga — «Word» tugmasi darhol ishlaydi). Yasalmasa — avvalgidek eski tizim Drive'da yasaydi.
+  let bDocRel = '', xDocRel = '';
+  let wordOn = false; try { wordOn = (await redis.get('yozuv_yondi:bekor_word')) === '1'; } catch (e) { }   // «aks-yozuv-sinov bekor» — namuna tasdiqlangach
+  if (wordOn) try {
+    const bd = BW.buyruqDocx(b.matn, raqam, sanaIso, b.k), xd = BW.xabarnomaDocx(x, h.matn, xRaqam, sanaIso, ij, h.k);
+    bDocRel = bRel.replace(/\.pdf$/, '.docx'); xDocRel = xRel.replace(/\.pdf$/, '.docx'); saqla(bDocRel, bd); saqla(xDocRel, xd);
+  } catch (e) { console.error('bekor Word nusxasi:', e.message); bDocRel = ''; xDocRel = ''; }
+  return { bPdf: saqla(bRel, b.pdf), bDoc: bDocRel ? 'SRV:' + bDocRel : '', xPdf: saqla(xRel, h.pdf), xDoc: xDocRel ? 'SRV:' + xDocRel : '', bNom: bNom + '.pdf', bB64: b.pdf.toString('base64'), xNom: xNom + '.pdf', xB64: h.pdf.toString('base64'),
+    bet: h.bet, kochir: { yil, bNom, xNom, bRel, xRel, bDocRel, xDocRel, x, X, P, raqam, xRaqam, sana: sanaIso, fish: u.fish } };
 }
 
 // ------------------------------------------------------------------ Drive'ga ko'chirish (fon) — Koprik v1.9 koprikBekorSaqla
@@ -222,14 +235,21 @@ async function driveGa(kod, id, k, urinish = 0) {
   yolda.add(id + '|' + k.bRel);
   try {
     const b64 = rel => fs.readFileSync(path.join(ILDIZ, rel)).toString('base64');
-    const r = await koprik.chaqir('koprikBekorSaqla', kod, [{ yil: k.yil, bNom: k.bNom, xNom: k.xNom, bB64: b64(k.bRel), xB64: b64(k.xRel), x: k.x, X: { jumla: k.X.jumla }, P: k.P,
-      raqam: k.raqam, xRaqam: k.xRaqam, sana: k.sana, fish: k.fish, eski: k.eski || [] }]);
+    const m = { yil: k.yil, bNom: k.bNom, xNom: k.xNom, bB64: b64(k.bRel), xB64: b64(k.xRel), x: k.x, X: { jumla: k.X.jumla }, P: k.P,
+      raqam: k.raqam, xRaqam: k.xRaqam, sana: k.sana, fish: k.fish, eski: k.eski || [] };
+    // Koprik v1.10: serverdagi Word fayli Drive'ga o'zi qo'yiladi; v1.9: Google Doc nusxasini eski tizim yasaydi (bekorBuyruq_ / bekorXabarnoma_)
+    if (k.bDocRel && k.xDocRel && (await koprik110(kod))) { m.bDocB64 = b64(k.bDocRel); m.xDocB64 = b64(k.xDocRel); }
+    const r = await koprik.chaqir('koprikBekorSaqla', kod, [m]);
     if (!r || !r.bPdf || !r.xPdf) throw new Error('Drive ID qaytmadi');
-    try { await redis.set('xat_srv:' + r.bPdf, k.bRel, 'EX', 400 * 86400); await redis.set('xat_srv:' + r.xPdf, k.xRel, 'EX', 400 * 86400); } catch (e) { }
+    try {
+      await redis.set('xat_srv:' + r.bPdf, k.bRel, 'EX', 400 * 86400); await redis.set('xat_srv:' + r.xPdf, k.xRel, 'EX', 400 * 86400);
+      if (r.bDoc && k.bDocRel) await redis.set('xat_srv:' + r.bDoc, k.bDocRel, 'EX', 400 * 86400);   // «Word» — serverdagi nusxa beriladi
+      if (r.xDoc && k.xDocRel) await redis.set('xat_srv:' + r.xDoc, k.xDocRel, 'EX', 400 * 86400);
+    } catch (e) { }
     const yozildi = await QY.qulf('bekor', async () => {
       const z = (await bekorJurnalYangi()).find(q => s(q.id) === s(id));
       if (!z || z.bPdf !== 'SRV:' + k.bRel || z.xPdf !== 'SRV:' + k.xRel) return false;
-      await G.yoz(env.aksBazaId, [kat(z.qator, 15, [r.bPdf, r.bDoc || '', r.xPdf, r.xDoc || ''])], env.googleKey);
+      await G.yoz(env.aksBazaId, [kat(z.qator, 15, [r.bPdf, r.bDoc || z.bDoc, r.xPdf, r.xDoc || z.xDoc])], env.googleKey);
       return true;
     });
     await navbatdan(id, k);
@@ -407,4 +427,4 @@ async function qadamBekorKirit(args) {
 }
 
 module.exports = { bekorKirit, bekorQaytaYasa, bekorBuyruqSkan, bekorXabarnomaSkan, qadamBekorKirit };
-module.exports._ichki = { bekorShartnoma, bekorXatlar, bekorTekshir, bekorJurnalYangi, bekorKeyingi, hujjatYasa, qatorYoz, driveGa, koprik19, boshla, saqla };
+module.exports._ichki = { bekorShartnoma, bekorXatlar, bekorTekshir, bekorJurnalYangi, bekorKeyingi, hujjatYasa, qatorYoz, driveGa, koprik19, koprik110, boshla, saqla, koprikVerTozala: () => { kv = { ver: '', t: 0 }; } };

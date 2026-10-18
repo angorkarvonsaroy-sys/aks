@@ -48,8 +48,12 @@ async function bekorFayl([kodSes, id, hujjat, format]) {
   if (!u.admin && !u.huquq.includes('undiruv') && !u.huquq.includes('hujjat')) throw new S.Xato('Bu bo\'limga ruxsatingiz yo\'q.');
   const s = (await J.bekorJurnal()).find(z => String(z.id) === String(id));
   if (!s) throw new S.Xato('So\'rov topilmadi (ID ' + id + ').');
-  if (String(format) === 'doc') {   // Word — eski tizimdagi Google Doc (serverda yasalgan hujjatniki fonda yasaladi: Koprik v1.9 koprikBekorSaqla)
-    if (!(hujjat === 'xab' ? s.xDoc : s.bDoc) && /^SRV:/.test(hujjat === 'xab' ? s.xPdf : s.bPdf)) throw new S.Xato('Word nusxasi hali tayyorlanmoqda (1–2 daqiqa) — birozdan keyin qayta bosing.');
+  if (String(format) === 'doc') {   // Word: serverda yasalgan nusxa (SRV yoki Drive'ga ko'chgani); eski so'rovlardagi Google Doc — eski tizim eksport qiladi
+    const docId = hujjat === 'xab' ? s.xDoc : s.bDoc;
+    const f = docId ? await require('./xat_chiqar')._ichki.pdfOl(docId) : null;
+    if (f && f.bytes.subarray(0, 2).toString('latin1') === 'PK')
+      return { nom: (hujjat === 'xab' ? 'Bekor_xabarnoma_' : 'Bekor_buyruq_') + s.no.replace(/\//g, '-') + '_' + ((hujjat === 'xab' && s.xRaqam) || s.raqam).replace('/', '-') + '.docx',
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', b64: f.bytes.toString('base64') };
     return eski('bekorFayl', u.kod, [id, hujjat, format]);
   }
   const pdfId = hujjat === 'xab' ? s.xPdf : s.bPdf;

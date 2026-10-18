@@ -193,9 +193,9 @@ p{margin:0;padding:0;white-space:pre-wrap;overflow-wrap:break-word}
 async function buyruqYasa(x, X, P, raqam, sanaIso) {
   const M = buyruqMatn(x, X, P, raqam, sanaIso);
   const yasa = async k => { const pdf = await PDF.yasa(buyruqHtml(M, raqam, sanaIso, k), '', { scale: 1 / XP.KAT, skript: XP.TEKISLA }); return { pdf, bet: XP.betSoni(pdf) }; };
-  let r = await yasa(1);
-  if (r.bet > 1) for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); if (r.bet <= 1) break; }
-  return Object.assign({ matn: M }, r);
+  let r = await yasa(1), kk = 1;
+  if (r.bet > 1) for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); kk = k; if (r.bet <= 1) break; }
+  return Object.assign({ matn: M, k: kk }, r);
 }
 
 module.exports = { buyruqMatn, xabarnomaMatn, xabarnomaBloklar, buyruqHtml, buyruqYasa, xabarnomaYasa, bekorPul, bekorPulBand, bekorJamiyat, yhSoz, yhSozDa, yhPul, yhDmy, yhIso, BEKOR_BAND, xatKirill };

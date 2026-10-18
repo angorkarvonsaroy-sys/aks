@@ -198,13 +198,13 @@ async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor) {
   const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
   const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
-  let ikkiBet = false;
+  let ikkiBet = false, kk = 1;
   let r = await yasa(1);
   if (r.bet > 1) {
     if ((await yasa(1, true)).bet > 1) ikkiBet = true;   // 2-betga kamida 3 qator o'tadi — kichraytirilmaydi
-    else for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); if (r.bet <= 1) break; }
+    else for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); kk = k; if (r.bet <= 1) break; }
   }
-  return { pdf: r.pdf, bet: r.bet, ikkiBet };
+  return { pdf: r.pdf, bet: r.bet, ikkiBet, k: kk };   // k — Word nusxasi ham shu o'lchamda (lib/bekor_word.js)
 }
 function betOgoh(bet, ikkiBet) {   // xatBetOgoh_
   if (bet <= 1) return [];
