@@ -784,6 +784,29 @@ async function bajardimSinov() {
 
 // ⚖ YURISTGA SO'ROV: 06b yangi ish qatori (eski «Tasdiq kutilmoqda»/U4 qator bilan; Q:S formulalari), 06f tarix qatori (oldingi qator bilan)
 // ⚖ YURIST: to'g'ridan-to'g'ri o'tkazish (06b «Faol» qatori + AD) va yurist → undiruvchiga topshiriq (10_Topshiriqlar) — nusxa varaqlarda
+// 📄 Yurist hujjatlarining ESKI tizimdagi namunalari (ma'lumotnoma, bayonnoma, penya — PDF / Word / Excel) — serverdagi nusxani solishtirish uchun.
+// Eski tizim yasaydi va direktorning Drive'iga «AKS TIZIM / 06 XATLAR / <yil>» ga NAMUNA_… nomi bilan qo'yiladi (keyin o'chiriladi). Bazaga hech narsa yozilmaydi.
+async function yhNamuna(idArg) {
+  const J = require('../lib/jurnallar');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  const R = await G.oraliqOqi(ID, '06b_Yuridik_ishlar', 'A2:O', KEY);
+  const UJ = await J.undJurnal(), son = {}; UJ.forEach(j => { son[j.no] = (son[j.no] || 0) + 1; });
+  const ish = R.filter(r => String(r[0] || '') && /^(Faol|Kelishuv)$/.test(String(r[14] || ''))).map(r => ({ id: String(r[0]), no: String(r[1]), n: son[String(r[1])] || 0 }));
+  const tan = idArg ? ish.find(i => i.id === String(idArg)) || { id: String(idArg), no: '?', n: 0 } : ish.sort((a, b) => b.n - a.n)[0];
+  if (!tan) { console.log('Faol yurist ishi topilmadi.'); return; }
+  console.log('Ish ID ' + tan.id + ' (' + tan.no + ', jurnalda ' + tan.n + ' qayd)');
+  const yil = V.bugun().slice(0, 4);
+  for (const [fn, fmt] of [['yhMalumotnoma', 'pdf'], ['yhMalumotnoma', 'doc'], ['yhBayonnoma', 'pdf'], ['yhBayonnoma', 'doc'], ['yhBayonnoma', 'xlsx'], ['yhPenya', 'pdf'], ['yhPenya', 'doc'], ['yhPenya', 'xlsx']]) {
+    const t0 = Date.now();
+    try {
+      const r = await koprik.chaqir(fn, adm.kirish_kodi, [tan.id, fmt]);
+      const nom = 'NAMUNA_' + fn + '_' + fmt + '_' + tan.id + '.pdf';
+      await koprik.chaqir('koprikXatSaqla', adm.kirish_kodi, [{ yil, nom, b64: r.b64 }]);
+      console.log('  ✅ ' + fn + ' ' + fmt + ' — ' + Math.round(Buffer.from(r.b64, 'base64').length / 1024) + ' KB, ' + Math.round((Date.now() - t0) / 1000) + ' s');
+    } catch (e) { console.log('  ⚠ ' + fn + ' ' + fmt + ': ' + e.message); }
+  }
+  console.log('\nNamunalar Drive\'ga qo\'yildi (AKS TIZIM / 06 XATLAR / ' + yil + ', NAMUNA_…). Claude ularni solishtirgach o\'chiradi.');
+}
 async function yuristIshSinov() {
   const YS = require('../api/yurist_sorov')._ichki, TP = require('../api/topshiriq_yoz')._ichki;
   const M = await G.varaqlar(ID, KEY);
@@ -1007,6 +1030,8 @@ async function bekorSinov() {
   } else if (arg === 'ochir') {
     await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'yhnamuna') {
+    await yhNamuna(process.argv[3]);
   } else if (arg === 'yuristish') {
     console.log('Hozir: to\'g\'ridan-to\'g\'ri yuristga va yurist topshirig\'i — ' + ((await redis.get('yozuv_yondi:yurist_ish')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
