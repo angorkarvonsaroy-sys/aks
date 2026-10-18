@@ -12,6 +12,7 @@
 //            aks-yozuv-sinov mayda     — xatni bekor qilish (06e N, V) va oylik reja (08_Lugatlar Z3:Z4) ni sinash va yoqish
 //            aks-yozuv-sinov shartnoma — yangi mijoz (02), sotuv shartnomasi (03 + 03b jadval) va ijara (04) ni sinash va yoqish
 //            aks-yozuv-sinov xatpdf    — ogohlantirish xati PDF'i serverda lokal natija bilan bir xil chiqishini tekshirish (hech narsa yoqmaydi)
+//            aks-yozuv-sinov xatchiqar — xat chiqarish (06e qatori nusxada + PDF + Drive'ga ko'chirish, Koprik v1.8) ni sinash va yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -810,9 +811,72 @@ async function yuristSorovSinov() {
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ✉ XAT CHIQARISH: 06e nusxasida server yo'li bilan yangi xat qatori (eski tizim chiqargan oxirgi xat qatori bilan solishtiriladi), xat PDF (soxta
+// ma'lumotli 8 xat — har so'z joyi), Drive: Koprik v1.8 koprikXatSaqla → «AKS TIZIM / 06 XATLAR / <yil>» ga SINOV fayl, robot o'qiy oladimi, keyin savatga
+async function xatChiqarSinov() {
+  const XC = require('../api/xat_chiqar')._ichki, XI = require('../api/xat_isbot')._ichki, XS = require('../lib/xat_sinov'), XP = require('../lib/xat_pdf'), P = require('../lib/portfel');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k18 = !/^xato/.test(ver) && XC.verOk(ver, '1.8');
+  console.log('Eski tizim ko\'prigi: v' + ver + (k18 ? ' ✅' : ' ⚠ (1.8 kerak — Koprik.gs ni yangilang)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  try {
+    console.log('\n=== ✉ YANGI XAT QATORI (06e_Xatlar) ===');
+    const XJ = await XI.xatlarYangi(XI.XAT_V);
+    const ey = [...XJ].reverse().find(h => /^OG-\d{4}\/\d{4}$/.test(h.raqam) && /^[A-Za-z0-9_-]{20,}$/.test(h.pdf) && /Tayyorlandi|Yuborildi/.test(h.holati));
+    const sh = ey && (await P.xatShartnomalar(V.bugun())).find(z => z.no === ey.no);
+    if (!ey || !sh) { console.log('  (eski tizim chiqargan xat topilmadi)'); x++; }
+    else {
+      const n6 = await nusxala(XI.XAT_V);
+      const v = (await G.oraliqOqi(ID, XI.XAT_V, 'I' + ey.qator + ':L' + ey.qator, KEY, 'UNFORMATTED_VALUE'))[0] || [];
+      const t0 = Date.now();
+      const r = await XC.qatorYoz(n6, [ey.raqam.replace(/\d{4}$/, '9999'), ey.sana, ey.no, sh.mid, sh.fish, sh.dokon, ey.shablon, ey.bosqich, Number(v[0]) || 0, Number(v[1]) || 0, Number(v[2]) || 0, Number(v[3]) || 0,
+        ey.muddat, 'Tayyorlandi', 'SRV:xat/sinov/sinov.pdf', '', '', '', '', 'SINOV', ey.vaqt || '19.10.2026 01:00:00', '', '']);
+      console.log('Yozish: ' + (Date.now() - t0) + ' ms · nusxada qator ' + r + ', eski tizim yozgan qator ' + ey.qator + ' (' + ey.raqam + ')');
+      x += await qatorSolishtir(n6, r, 1, 23, '— Xat qatori (A–W)', ey.qator, (i, fa, fb) => i === 14 ? 'PDF_fayl_ID — eski: Drive ID, server: «SRV:…» (Drive\'ga ko\'chguncha)' : '');
+    }
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaq o\'chirildi.');
+  }
+  console.log('\n=== 📄 XAT PDF (soxta ma\'lumotli 8 xat — eski Google Docs xati bilan bir xil joylashuv) ===');
+  if (!(await PDF.bor())) { console.log('  ⏳ PDF dasturi (Chromium) hali tayyor emas'); x++; }
+  else { const r = await XS.tekshir(); r.chiqish.forEach(z => console.log('  ' + z)); x += r.farq; }
+  console.log('\n=== ☁ DRIVE (Koprik v1.8: «AKS TIZIM / 06 XATLAR / ' + V.bugun().slice(0, 4) + '») ===');
+  if (!k18) { console.log('  ⏭ Koprik 1.8 emas — o\'tkazildi'); }
+  else {
+    try {
+      const n = XS.NAMUNALAR.eski_tayyor_1, f = await XP.xatChiqar(n.x, n.b, n.raqam, n.sana, n.muddat, n.Q, n.oldin, { ism: 'Синовчи Ходим', tel: '+998 90 000 00 00' }, null);
+      const nom = 'SINOV_' + Date.now().toString(36) + '.pdf', t0 = Date.now();
+      const r = await koprik.chaqir('koprikXatSaqla', adm.kirish_kodi, [{ yil: V.bugun().slice(0, 4), nom, b64: f.pdf.toString('base64') }]);
+      console.log('  Drive\'ga qo\'yildi: ' + (Date.now() - t0) + ' ms · ' + (r && r.id ? 'ID bor ✅' : 'ID YO\'Q ⚠') + ' · ' + (r && r.url ? 'havola bor ✅' : 'havola YO\'Q ⚠'));
+      if (!r || !r.id || !r.url) x++;
+      else {
+        try { const d = await G.driveFayl(r.id, KEY); const ok = d.bytes.length === f.pdf.length; console.log('  Robot o\'qiy oladi: ' + (ok ? '✅ (' + d.bytes.length + ' bayt)' : '⚠ hajm farq qiladi')); if (!ok) x++; }
+        catch (e) { console.log('  ⚠ Robot o\'qiy olmadi: ' + e.message); x++; }
+        await koprik.chaqir('koprikXatSaqla', adm.kirish_kodi, [{ eski: r.id }]);
+        console.log('  SINOV fayl savatga tashlandi ✅');
+      }
+    } catch (e) { console.log('  ⚠ Drive: ' + e.message); x++; }
+  }
+  console.log('');
+  if (!x && k18) { await redis.set('yozuv_yondi:xat_chiqar', '1'); console.log('✅ HAMMASI BIR XIL — ✉ ogohlantirish xati, talabnoma va maydon farqi xatlari endi serverda chiqariladi\n   (PDF darhol, Drive\'ga nusxa — fonda). Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.8 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
-  if (arg === 'xatpdf') {
+  if (arg === 'xatchiqar') {
+    console.log('Hozir: xat chiqarish — ' + ((await redis.get('yozuv_yondi:xat_chiqar')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await xatChiqarSinov();
+  } else if (arg === 'xatpdf') {
     // lib/xat_pdf.js — soxta ma'lumotli 8 ta xat; har so'zning joyi lokal (eski Google Docs bilan solishtirilgan) natija bilan
     if (!(await PDF.bor())) { console.log('⏳ PDF dasturi (Chromium) hali tayyor emas — 3 daqiqadan keyin qayta ishga tushiring.'); }
     else {
@@ -822,7 +886,7 @@ async function yuristSorovSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurist') {
     console.log('Hozir: yuristga o\'tkazish so\'rovi — ' + ((await redis.get('yozuv_yondi:yurist_sorov')) === '1' ? 'serverda' : 'eski tizimda'));

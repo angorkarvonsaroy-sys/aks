@@ -58,7 +58,7 @@ async function xatNazorat([kodSes]) {
   return { royxat: L, chegara: 3 };   // XAT_YETKAZISH_KUN
 }
 
-// 📄 xatPdf — chiqarilgan xat PDF i (Drive, robot «Читатель»); robot ko'rmasa — eski tizim
+// 📄 xatPdf — chiqarilgan xat PDF i (serverda yasalgan bo'lsa — serverdagi nusxa; aks holda Drive, robot «Читатель»); topilmasa — eski tizim
 async function xatPdf([kodSes, raqam]) {
   const u = await S.ruxsat(kodSes, 'xat');
   const h = (await J.xatJurnal()).find(z => z.raqam === raqam);
@@ -67,9 +67,9 @@ async function xatPdf([kodSes, raqam]) {
   const ch = (!u.admin && u.huquq.indexOf('undiruv') >= 0) ? u.fish : '';   // xatEgasi_ (xatCheklov_)
   if (ch) { const x = (await P.xatShartnomalar(V.bugun())).find(z => z.no === h.no);
     if (!x || x.undiruvchi !== ch) { if (!(x && (await hujjatTopShartnoma(u.fish))[x.no])) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.'); } }
-  const G = require('../lib/google'), env = require('../lib/env');
-  try { const f = await G.driveFayl(h.pdf, env.googleKey); return { nom: f.nom, b64: f.bytes.toString('base64') }; }
-  catch (e) { if (!(e instanceof G.RuxsatYoq)) console.error('xatPdf (Drive):', e.message); return require('./koprik').chaqir('xatPdf', u.kod, [raqam]); }
+  const f = await require('./xat_chiqar')._ichki.pdfOl(h.pdf);   // serverdagi nusxa (SRV) yoki Drive (robot); topilmasa — eski tizim
+  if (f) return { nom: f.nom, b64: f.bytes.toString('base64') };
+  return require('./koprik').chaqir('xatPdf', u.kod, [raqam]);
 }
 
 module.exports = { xatBoshlang, xatNazorat, xatPdf };

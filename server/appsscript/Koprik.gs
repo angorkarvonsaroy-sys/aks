@@ -1,4 +1,7 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.7). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.8). Boshqa fayllar o'zgarmaydi.
+// v1.8: koprikXatSaqla — server yasagan ogohlantirish xati PDF ini direktor Drive'idagi «AKS TIZIM / 06 XATLAR / <yil>» papkasiga qo'yish
+//       (xatChiqar_ dagi papka va nom bilan bir xil); qayta yasalganda eski PDF savatga (xatQaytaYasa dagi setTrashed). 06e ni server o'zi yozadi.
+//       koprikIsbotSaqla — topshiriq isboti faylini «AKS TIZIM / 06 TOPSHIRIQ ISBOTLARI» ga (topIsbotSaqla_ papkasi).
 // v1.7: koprikTopTasdiqTg — topshiriq isboti tekshiruvchi(lar)ga Telegram (fayl + ✅/✖): tgTasdiqYubor_(tasdiqTopItem_) ning o'zi;
 //       koprikXatTasdiqTg — xat isboti direktorga (xatTasdiqItem_). Server topshiriqni / xatni o'zi yozadi, fayl Drive'ga ko'chgach shu chaqiriladi.
 // v1.6: koprikHujjatBekorFayl — «✎ Tuzatish» qilingan skanni Drive'da «_BEKOR QILINGANLAR» papkasiga ko'chirish va nomini BEKOR_… qilish
@@ -56,7 +59,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.7'; }
+function koprikVersiya(kod) { return '1.8'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -99,4 +102,34 @@ function koprikXatTasdiqTg(kod, raqam) {
   const h = xatJurnal_(ss).find(function (z) { return z.raqam === String(raqam); });
   const it = h ? xatTasdiqItem_(ss, h) : null;
   return { ok: !!it, ref: it ? tgTasdiqYubor_(ss, it) : '' };
+}
+// v1.8: ogohlantirish xati PDF i → «AKS TIZIM / 06 XATLAR / <yil>». m = { yil, nom, b64, eski }.
+//   b64 bo'lsa — fayl yaratiladi (eski berilmagan bo'lsa va shu nomli fayl bor bo'lsa — o'sha qaytadi: qayta urinishda ikkinchi nusxa bo'lmasin);
+//   eski (Drive ID) bo'lsa — o'sha fayl savatga, faqat «06 XATLAR» ichidagi bo'lsa. Qaytaradi { id, url } (faqat eski bo'lsa — { ok }).
+function koprikXatSaqla(kod, m) {
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');
+  m = m || {}; var f = null;
+  if (m.b64) {
+    var yil = String(m.yil || '').replace(/\D/g, '').slice(0, 4), nom = String(m.nom || '');
+    if (yil.length !== 4 || !/^[\w.\-]+\.pdf$/.test(nom)) throw new Error('Xat fayli nomi noto\'g\'ri.');
+    var papka = papka_(['AKS TIZIM', '06 XATLAR', yil]);
+    if (!m.eski) { var bor = papka.getFilesByName(nom); if (bor.hasNext()) f = bor.next(); }
+    if (!f) f = papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64)), 'application/pdf', nom));
+  }
+  if (m.eski) {
+    try {
+      var e = DriveApp.getFileById(String(m.eski)), p = e.getParents(), ota = p.hasNext() ? p.next().getParents() : null;
+      if (ota && ota.hasNext() && ota.next().getName() === '06 XATLAR') e.setTrashed(true);
+    } catch (x) { }
+  }
+  return f ? { id: f.getId(), url: f.getUrl() } : { ok: true };
+}
+// v1.8: topshiriq isboti fayli → «AKS TIZIM / 06 TOPSHIRIQ ISBOTLARI» (topIsbotSaqla_ papkasi). m = { nom, b64 }. Qaytaradi { id }.
+function koprikIsbotSaqla(kod, m) {
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');
+  var nom = String((m || {}).nom || '');
+  if (!/^[\w.\-]+\.pdf$/.test(nom)) throw new Error('Isbot fayli nomi noto\'g\'ri.');
+  var papka = papka_(TOP_ISBOT_PAPKA);
+  var bor = papka.getFilesByName(nom); if (bor.hasNext()) return { id: bor.next().getId(), bor: true };
+  return { id: papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.b64 || '')), 'application/pdf', nom)).getId() };
 }

@@ -165,8 +165,9 @@ async function xatTopPdf(args) {
   const u = await S.ruxsat(kodSes);
   const t = await topOl(u, topId);
   const h = await topXat(t, raqam); if (!h.pdf) throw new S.Xato('PDF topilmadi.');
-  try { const f = await G.driveFayl(h.pdf, env.googleKey); return { nom: f.nom, b64: f.bytes.toString('base64') }; }
-  catch (e) { if (!(e instanceof G.RuxsatYoq)) console.error('xatTopPdf (Drive):', e.message); return koprik.chaqir('xatTopPdf', u.kod, [topId, raqam]); }
+  const f = await require('./xat_chiqar')._ichki.pdfOl(h.pdf);   // serverdagi nusxa (SRV) yoki Drive (robot); topilmasa — eski tizim
+  if (f) return { nom: f.nom, b64: f.bytes.toString('base64') };
+  return koprik.chaqir('xatTopPdf', u.kod, [topId, raqam]);
 }
 
 module.exports = { xatYuborildi, xatTopYuborildi, xatTopPdf };
