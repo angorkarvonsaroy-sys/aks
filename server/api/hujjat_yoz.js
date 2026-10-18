@@ -49,7 +49,11 @@ async function hujjatYukla(args) {
     if (och.length) throw new S.Xato('Bu shartnomada hali yuborilmagan ogohlantirish xati bor (' + och.join(', ') + '). Uning kvitansiyasi yoki mijoz imzolagan nusxasi '
       + '«✉ Xatlar» bo\'limida — o\'sha xat qatoridagi «✉ Yuborildi» tugmasi orqali yuklanadi. Shunda xat yuborilgan deb belgilanadi va keyingi bosqich ochiladi.');
   }
-  // --- hujjatYukla_: tekshiruvlar
+  return yuklaYadro(u, d, sh);
+}
+// hujjatYukla_(u, m, sh) — tekshiruvlar, fayl va 06d yozuvi (xatTopYuborildi huquqsiz ham shu bilan yuklaydi). sh = { tur, fish, dokon }
+async function yuklaYadro(u, d, sh) {
+  const no = t(sh && sh.no ? sh.no : d.no);
   const turi = t(d.turi);
   if (!H.HUJJAT_TURLARI.some(x => x[0] === turi)) throw new S.Xato('Hujjat turini tanlang.');
   const sana = String(d.sana || '');
@@ -264,4 +268,4 @@ async function hujjatTuzat(args) {
 }
 
 module.exports = { hujjatYukla, hujjatTuzat, srvFayl, srvYol, boshla };
-module.exports._ichki = { hujjatYangi, tuzatKataklar, xatKataklar, bekKataklar, yangiQatorlar, koprik16, hozirHm, driveKeyin, kochdiBelgi };
+module.exports._ichki = { hujjatYangi, tuzatKataklar, xatKataklar, bekKataklar, yangiQatorlar, koprik16, hozirHm, driveKeyin, kochdiBelgi, yuklaYadro };
