@@ -75,7 +75,7 @@ async function tekshir() {
   return { farq, chiqish: out };
 }
 
-module.exports = { tekshir, izlar, NAMUNALAR };
+module.exports = { tekshir, izlar, sozlar, NAMUNALAR };
 
 if (require.main === module && process.argv[2] === 'yoz') {
   izlar().then(o => {

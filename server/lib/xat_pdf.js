@@ -190,15 +190,21 @@ async function xatChiqar(x, b, raqam, sanaIso, muddatIso, Q, oldin, ij, shosh) {
   const shab = XAT_MATN[x.shablon]; if (!shab || !shab[b - 1]) throw new Error('Xat shabloni topilmadi: ' + x.shablon + ' ' + b + '-bosqich.');
   const matnB = shosh ? (shosh.qm ? dirQmMatn(shab[b - 1], shosh.oldin || []) : shoshMatn(shab[b - 1], shosh, Q)) : shab[b - 1];
   tartibTekshir(matnB, x.shablon + ' ' + b + '-bosqich');
+  return Object.assign({ nom }, await blankaYasa(matnB, q, raqam, sanaIso, Q.qoshimcha > 0));
+}
+// Rasmiy blankadagi hujjat (xat, bekor qilish xabarnomasi): bloklar — xatChiz_ bloklari (p / bosh / tbl / imzo), q — o'rinbosarlar
+// ({{Ундирувчи}}, {{Ундирувчи_тел}} — «Ижрочи» qatori uchun), raqam — № qatori. Bir varaq qoidasi — xatChiqar_ / bekorXabarnoma_ dagidek.
+async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor) {
+  const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar: matnB, q, qoshimchaBor: Q.qoshimcha > 0, yil, raqam, sanaMatn, k, sinov }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
+  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
   let ikkiBet = false;
   let r = await yasa(1);
   if (r.bet > 1) {
     if ((await yasa(1, true)).bet > 1) ikkiBet = true;   // 2-betga kamida 3 qator o'tadi — kichraytirilmaydi
     else for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); if (r.bet <= 1) break; }
   }
-  return { pdf: r.pdf, nom, bet: r.bet, ikkiBet };
+  return { pdf: r.pdf, bet: r.bet, ikkiBet };
 }
 function betOgoh(bet, ikkiBet) {   // xatBetOgoh_
   if (bet <= 1) return [];
@@ -212,4 +218,4 @@ function ismOgoh(fish) {   // xatIsmOgoh_
   return o;
 }
 
-module.exports = { xatChiqar, xatHtml, betOgoh, ismOgoh, xatIsmOtasi, XAT_MATN };
+module.exports = { xatChiqar, xatHtml, blankaYasa, betOgoh, ismOgoh, xatIsmOtasi, XAT_MATN, XAT_OY, XAT_MANZIL_CHAP, KAT, TEKISLA, kattalashtir, betSoni, pul };
