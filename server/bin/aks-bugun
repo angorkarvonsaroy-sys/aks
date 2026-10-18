@@ -14,8 +14,10 @@ if [ "$1" = "koprik" ]; then
   echo "(Serverga ko'chib bo'lgan amallar — hozir serverda bor bo'lganlari — bu ro'yxatda ko'rinmaydi.)"
   echo "--- Oxirgi $KUN kun: yangi saytdagi barcha so'rovlar qayerda bajarildi (server / kesh / koprik = eski tizim) ---"
   q -c "SELECT qayerda, count(*) soni, round(avg(ms)) ortacha_ms, count(DISTINCT fn) amallar FROM rpc_jurnal WHERE vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY 2 DESC;"
-  echo "--- Ishlayotgan xodimlar: yangi saytga (aks-tizim.uz) oxirgi kirishi — «hech qachon» bo'lsa, eski havoladan foydalanmoqda ---"
-  q -c "SELECT x.fish, coalesce(to_char(max(k.vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI'), '— hech qachon') oxirgi_kirish, count(k.id) FILTER (WHERE k.vaqt > now() - interval '$KUN days') kirish_soni FROM v_xodimlar x LEFT JOIN kirishlar k ON k.fish = x.fish AND k.kompaniya_id = 1 WHERE x.kompaniya_id = 1 AND x.holat = 'Ishlayapti' GROUP BY x.fish ORDER BY max(k.vaqt) NULLS FIRST, x.fish;"
+  echo "--- Eski tizimga borgan BARCHA chaqiruvlar, server ichidan ketganlari ham (19.10.2026 dan yoziladi) — haqiqiy ko'chirish navbati ---"
+  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE qayerda = 'eski' AND vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
+  echo "--- Ishlayotgan xodimlar: yangi saytga (aks-tizim.uz) oxirgi kirishi va tizimdagi huquqlari ---"
+  q -c "SELECT x.fish, coalesce(to_char(max(k.vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI'), '— hech qachon') oxirgi_kirish, count(k.id) FILTER (WHERE k.vaqt > now() - interval '$KUN days') kirish_soni, CASE WHEN coalesce(array_length(x.huquqlar, 1), 0) = 0 THEN '— huquq yo''q' WHEN length(x.kirish_kodi) < 8 THEN '— kodi yo''q' ELSE array_to_string(x.huquqlar, ',') END huquqlar FROM v_xodimlar x LEFT JOIN kirishlar k ON k.fish = x.fish AND k.kompaniya_id = 1 WHERE x.kompaniya_id = 1 AND x.holat = 'Ishlayapti' GROUP BY x.fish, x.huquqlar, x.kirish_kodi ORDER BY max(k.vaqt) NULLS FIRST, x.fish;"
   exit 0
 fi
 if [ "$1" = "skan" ]; then

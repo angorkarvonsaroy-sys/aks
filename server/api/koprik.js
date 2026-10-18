@@ -45,21 +45,28 @@ async function birUrinish(tana) {
   return j.r;
 }
 
+// Har bir eski tizim chaqiruvi rpc_jurnal ga (qayerda = 'eski') — server ichidan ketganlari ham (aks-bugun koprik: haqiqiy ko'chirish navbati)
+function jurnal(fn, ms, ok, xato) {
+  if (fn === 'koprikVersiya') return;
+  try { require('../lib/db').q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [String(fn).slice(0, 80), 'eski', ms, ok, xato ? String(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { }
+}
 // fn — eski tizimdagi funksiya nomi; kod — xodimning kirish kodi (sessiyasiz); args — qolgan argumentlar
 async function chaqir(fn, kod, args) {
   if (!bor()) throw new Error('Bu amal («' + fn + '») hali serverga ko\'chirilmagan, eski tizim ko\'prigi esa sozlanmagan.');
   const tana = JSON.stringify({ s: env.bridgeSecret, fn, kod, args: args || [] });
+  const t0 = Date.now();
   await joyOl();
   try {
     let oxirgi;
     for (let i = 1; i <= URINISH; i++) {
-      try { return await birUrinish(tana); }
+      try { const r = await birUrinish(tana); jurnal(fn, Date.now() - t0, true); return r; }
       catch (e) {
-        if (!(e instanceof Vaqtinchalik)) throw e;
+        if (!(e instanceof Vaqtinchalik)) { jurnal(fn, Date.now() - t0, false, e.message); throw e; }
         oxirgi = e;
         if (i < URINISH) await new Promise(r => setTimeout(r, 1500 * i));
       }
     }
+    jurnal(fn, Date.now() - t0, false, oxirgi.message);
     throw new Error(oxirgi.message + ' (' + URINISH + ' urinishdan keyin)');
   } finally { joyBer(); }
 }
