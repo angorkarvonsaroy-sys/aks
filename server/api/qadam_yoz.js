@@ -77,13 +77,22 @@ async function sorovlar(varaq) {
   let m = -1; X.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
   return { L: X.slice(0, m + 1).map((r, i) => ({ qator: i + 2, id: s(r[0]), vaqt: s(r[1]), kim: s(r[2]), tur: s(r[3]), kalit: s(r[4]), sabab: s(r[5]), holati: s(r[6]) })).filter(z => z.id), l: m + 2 };
 }
-// qdMalumotYoz_ ning yozuv qismi: 06i oxiriga [ID, Vaqt, Kim, 'tahrir', Kalit, Sabab, 'Kutilmoqda', '', '', '', Malumot]
+// qdMalumotYoz_ ning yozuv qismi: 06i oxiriga [ID, Vaqt, Kim, 'tahrir', Kalit, Sabab, 'Kutilmoqda', '', '', '', Malumot].
+// Eski appendRow matnni Google'ning o'zi talqin qiladi va katak formatini shunga qarab qo'yadi (B «16.10.2026 11:17» → sana-vaqt d.m.yyyy h:mm,
+// E — oddiy matn), katakdagi oldingi «@» formatiga qaramay (18.10 sinovi). Shuning uchun yangi qator kataklarining formati avval tozalanadi,
+// keyin qiymatlar USER_ENTERED bilan yoziladi — natija appendRow bilan bir xil.
 async function sorovYoz(varaq, R, kim, no, sabab, malumot) {
   const A = await G.oraliqOqi(env.aksBazaId, varaq, 'A2:A', env.googleKey, 'UNFORMATTED_VALUE');
   const id = Math.max(0, ...A.map(r => Number(r[0]) || 0)) + 1;
+  const q = [id, hozir().dmyHm, kim, 'tahrir', no, sabab, 'Kutilmoqda', '', '', '', malumot];
   let qator;
-  try { qator = await G.qatorQoshR(env.aksBazaId, varaq, R.l + 1, [id, hozir().dmyHm, kim, 'tahrir', no, sabab, 'Kutilmoqda', '', '', '', malumot], env.googleKey); }
-  catch (e) { throw yozilmadi(e); }
+  try {
+    const g = await G.gid(env.aksBazaId, varaq, env.googleKey);
+    const tozala = n => G.soralar(env.aksBazaId, [{ repeatCell: { range: { sheetId: g, startRowIndex: n - 1, endRowIndex: n, startColumnIndex: 0, endColumnIndex: 11 }, cell: { userEnteredFormat: {} }, fields: 'userEnteredFormat.numberFormat' } }], env.googleKey);
+    await tozala(R.l + 1);
+    qator = await G.qatorQoshR(env.aksBazaId, varaq, R.l + 1, q, env.googleKey);
+    if (qator !== R.l + 1) { await tozala(qator); await G.yoz(env.aksBazaId, [{ varaq, katak: 'A' + qator + ':K' + qator, qiymat: [q] }], env.googleKey); }   // shu orada boshqa qator qo'shilgan
+  } catch (e) { throw yozilmadi(e); }
   return { id, qator };
 }
 
