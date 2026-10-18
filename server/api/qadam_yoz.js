@@ -392,4 +392,4 @@ async function qadamKutishRuxsat(args) {
 }
 
 module.exports = { qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim, qadamOtkazRuxsat, qadamMuhlatRuxsat, qadamKutishRuxsat };
-module.exports._ichki = { qdYoz, kutishYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, qulf, tgFon, hozir, QDV, SOR_V };
+module.exports._ichki = { qdYoz, kutishYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, qulf, tgFon, hozir, qdSabab, QDV, SOR_V };

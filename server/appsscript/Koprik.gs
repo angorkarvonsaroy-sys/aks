@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.6). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.7). Boshqa fayllar o'zgarmaydi.
+// v1.7: koprikTopTasdiqTg — topshiriq isboti tekshiruvchi(lar)ga Telegram (fayl + ✅/✖): tgTasdiqYubor_(tasdiqTopItem_) ning o'zi;
+//       koprikXatTasdiqTg — xat isboti direktorga (xatTasdiqItem_). Server topshiriqni / xatni o'zi yozadi, fayl Drive'ga ko'chgach shu chaqiriladi.
 // v1.6: koprikHujjatBekorFayl — «✎ Tuzatish» qilingan skanni Drive'da «_BEKOR QILINGANLAR» papkasiga ko'chirish va nomini BEKOR_… qilish
 //       (hujjatTuzat dagi bilan bir xil; 06d va boshqa jurnallarni server o'zi yozadi).
 // v1.5: koprikTgYubor — direktor(lar)ga Telegram (tgYubor_), koprikTgChat — istalgan Telegram chatga (tgYuborChat_).
@@ -54,7 +56,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.6'; }
+function koprikVersiya(kod) { return '1.7'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -81,4 +83,20 @@ function koprikHujjatBekorFayl(kod, faylId, nom) {
   f.moveTo(papka_(HUJJAT_ILDIZ.concat([HUJJAT_BEKOR_PAPKA])));
   f.setName(String(nom));
   return { ok: true };
+}
+// v1.7: topshiriq isboti — tekshiruvchi(lar)ga Telegram (Topshiriq.gs tgTasdiqYubor_ + tasdiqTopItem_; havola 10_Topshiriqlar V ustuniga o'zi yoziladi)
+function koprikTopTasdiqTg(kod, id) {
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const t = topRows_(ss).find(function (z) { return String(z.id) === String(id); });
+  if (!t) return { ok: false };
+  return { ok: true, ref: tgTasdiqYubor_(ss, tasdiqTopItem_(ss, t)) };
+}
+// v1.7: xat isboti — direktorga Telegram (Xat.gs xatTasdiqItem_ + tgTasdiqYubor_; havola 06e Y ustuniga o'zi yoziladi)
+function koprikXatTasdiqTg(kod, raqam) {
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const h = xatJurnal_(ss).find(function (z) { return z.raqam === String(raqam); });
+  const it = h ? xatTasdiqItem_(ss, h) : null;
+  return { ok: !!it, ref: it ? tgTasdiqYubor_(ss, it) : '' };
 }

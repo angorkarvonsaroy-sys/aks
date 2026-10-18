@@ -99,6 +99,18 @@ async function hujjatYukla(args) {
   });
 }
 
+// Fayl Drive'ga ko'chgach bajariladigan ishlar (masalan, tekshiruvchiga Telegram xabari — eski tizim faylni Drive'dan oladi). rel — «<no>/<nom>»
+const keyin = new Map(), kochdi = new Map();
+function driveKeyin(rel, fn) {
+  const ishla = () => Promise.resolve().then(fn).catch(e => console.error('Drive keyin (' + rel + '):', e.message));
+  if (kochdi.has(rel)) return ishla();
+  if (!keyin.has(rel)) keyin.set(rel, []);
+  keyin.get(rel).push(ishla);
+}
+function kochdiBelgi(rel) {
+  kochdi.set(rel, Date.now()); for (const [k, t] of kochdi) if (Date.now() - t > 30 * 60000) kochdi.delete(k);
+  const L = keyin.get(rel); if (L) { keyin.delete(rel); L.forEach(f => f()); }
+}
 // Fon: faylni Drive'ga ko'chirish (Koprik v1.3 koprikDriveSaqla) → 06d I ustuniga Drive ID. Muvaffaqiyatsiz bo'lsa — 10 daqiqadan keyin yana (3 marta).
 async function driveGaKochir(kod, f, urinish = 0) {
   if (!koprik.bor()) return;
@@ -114,6 +126,7 @@ async function driveGaKochir(kod, f, urinish = 0) {
     if (String(hol[13] || '') === 'Bekor') koprik.chaqir('koprikHujjatBekorFayl', kod, [r.id, 'BEKOR_' + f.id + '_' + f.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
     tetik.varaqlarYangila([HUJ]).catch(() => {});
     console.log(new Date().toISOString(), 'hujjat Drive ga ko\'chdi:', f.rel, '→', r.id);
+    kochdiBelgi(f.rel);
   } catch (e) {
     console.error(new Date().toISOString(), 'Drive ko\'chirish (' + (urinish + 1) + '):', f.rel, e.message);
     if (urinish < 3) setTimeout(() => driveGaKochir(kod, f, urinish + 1).catch(() => {}), 10 * 60000).unref();
@@ -251,4 +264,4 @@ async function hujjatTuzat(args) {
 }
 
 module.exports = { hujjatYukla, hujjatTuzat, srvFayl, srvYol, boshla };
-module.exports._ichki = { hujjatYangi, tuzatKataklar, xatKataklar, bekKataklar, yangiQatorlar, koprik16, hozirHm };
+module.exports._ichki = { hujjatYangi, tuzatKataklar, xatKataklar, bekKataklar, yangiQatorlar, koprik16, hozirHm, driveKeyin, kochdiBelgi };
