@@ -574,11 +574,102 @@ async function qadamSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'ko\'prik javob bermadi') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// ✎ TAHRIR: 02_Mijozlar kataklari (eski tizim 06j ga yozgan oxirgi tahrirlar bilan), 04 faoliyat, 06j jurnal qatori, 06i javob (G:J) — nusxa varaqlarda
+async function tahrirSinov() {
+  const TY = require('../api/tahrir_yoz')._ichki, QY = require('../api/qadam_yoz')._ichki;
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi (Telegram uchun): v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  const katak = c => tur(c) + ' ' + fmt(c) + ' «' + qisqa(c.formattedValue, 24) + '»';
+  const tozalaK = async (nx, q, u, faqatQiymat) => G.soralar(ID, [{ updateCells: { range: { sheetId: await G.gid(ID, nx, KEY), startRowIndex: q - 1, endRowIndex: q, startColumnIndex: u - 1, endColumnIndex: u },
+    rows: [{ values: [{}] }], fields: faqatQiymat ? 'userEnteredValue' : 'userEnteredValue,userEnteredFormat.numberFormat' } }], KEY);
+  try {
+    const JR = await G.oraliqOqi(ID, TY.JUR_V, 'A2:J', KEY);
+    console.log('\n=== ✎ MIJOZ KARTASI KATAKLARI (02_Mijozlar) ===');
+    console.log('  06j_Tahrir_jurnali da eski tizim yozgan tahrirlar: ' + JR.filter(r => r[0]).length + ' ta');
+    const M2 = await G.oraliqOqi(ID, TY.MIJ_V, 'A2:S', KEY);
+    const nomU = {}; Object.keys(TY.TAHRIR_02).forEach(k => { nomU[TY.TAHRIR_02[k][1]] = TY.TAHRIR_02[k][0]; });
+    const tanlov = {};   // har maydon bo'yicha oxirgi tahrir — katak hozir ham o'sha qiymatda bo'lsa
+    for (let i = JR.length - 1; i >= 0; i--) { const r = JR[i] || []; const u = nomU[r[5]]; if (!u || tanlov[r[5]]) continue;
+      const mi = M2.findIndex(z => String(z[0] || '').trim() === String(r[4] || '').trim()); if (mi < 0) continue;
+      const yv = r[7] === '—' ? '' : String(r[7] || ''); if (String((M2[mi] || [])[u - 1] || '') !== yv) continue;
+      tanlov[r[5]] = { qator: mi + 2, ustun: u, v: yv, no: r[2], vaqt: r[1] }; }
+    const n2 = await nusxala(TY.MIJ_V);
+    const T = Object.keys(tanlov);
+    if (!T.length) {
+      console.log('  (eski tizim bilan tahrirlangan katak topilmadi — kutilgan natija bilan: matn, @)');
+      const mi = M2.findIndex(z => String(z[0] || '').trim()); const q = mi + 2;
+      await tozalaK(n2, q, 5); await TY.matnKataklar(n2, [{ qator: q, ustun: 5, v: '99 123 45 67' }, { qator: q, ustun: 12, v: '12345678901234' }]);
+      const R = await G.kataklarOqi(ID, n2, 'E' + q + ':L' + q, KEY); const a = (R[0] || [])[0] || {}, b = (R[0] || [])[7] || {};
+      for (const [nm, c] of [['Telefon (E' + q + ')', a], ['JSHSHIR (L' + q + ')', b]]) { const ok = tur(c) === 'matn' && fmt(c) === 'TEXT @'; if (!ok) x++; console.log('  ' + nm + ': server ' + katak(c) + ' ' + (ok ? '✅' : '⚠ (matn, TEXT @ kutilgan)')); }
+    }
+    for (const nm of T) {
+      const t = tanlov[nm]; const a1 = harf(t.ustun) + t.qator;
+      await tozalaK(n2, t.qator, t.ustun);
+      const t0 = Date.now(); await TY.matnKataklar(n2, [{ qator: t.qator, ustun: t.ustun, v: t.v }]); const ms = Date.now() - t0;
+      const a = ((await G.kataklarOqi(ID, TY.MIJ_V, a1, KEY))[0] || [])[0] || {}, b = ((await G.kataklarOqi(ID, n2, a1, KEY))[0] || [])[0] || {};
+      const ok = tur(a) === tur(b) && fmt(a) === fmt(b) && String(a.formattedValue || '') === String(b.formattedValue || '');
+      if (!ok) x++;
+      console.log('  ' + nm.padEnd(18) + ' ' + a1.padEnd(6) + ' (' + t.no + ', ' + t.vaqt + ') eski ' + katak(a) + ' | server ' + katak(b) + ' ' + (ok ? '✅' : '⚠') + ' · ' + ms + ' ms');
+    }
+    console.log('\n=== ✎ FAOLIYAT TURI (04_Ijara_shartnomalar, S) ===');
+    const fr = [...JR].reverse().find(r => r && r[5] === 'Faoliyat turi');
+    if (!fr) console.log('  (eski tizim faoliyat turini tahrirlamagan — o\'tkazildi; yozuv oddiy setValue)');
+    else {
+      const S4 = await G.oraliqOqi(ID, TY.S4_V, 'A2:S', KEY); const i4 = S4.findIndex(z => String(z[0] || '').trim() === String(fr[2] || '').trim());
+      if (i4 < 0 || String((S4[i4] || [])[18] || '') !== fr[7]) console.log('  (oxirgi tahrir qilingan katak keyin o\'zgargan — o\'tkazildi)');
+      else {
+        const n4 = await nusxala(TY.S4_V); const a1 = 'S' + (i4 + 2);
+        await tozalaK(n4, i4 + 2, 19, true); await G.yoz(ID, [{ varaq: n4, katak: a1, qiymat: [[fr[7]]] }], KEY);
+        const a = ((await G.kataklarOqi(ID, TY.S4_V, a1, KEY))[0] || [])[0] || {}, b = ((await G.kataklarOqi(ID, n4, a1, KEY))[0] || [])[0] || {};
+        const ok = tur(a) === tur(b) && fmt(a) === fmt(b); if (!ok) x++;
+        console.log('  ' + a1 + ' eski ' + katak(a) + ' | server ' + katak(b) + ' ' + (ok ? '✅' : '⚠'));
+      }
+    }
+    console.log('\n=== 📒 TAHRIR JURNALI (06j_Tahrir_jurnali) ===');
+    const nj = await nusxala(TY.JUR_V);
+    const jr = JR.filter(r => r[0]); const oxirgi = jr[jr.length - 1] || [];
+    let t0 = Date.now();
+    const w = await TY.jurnalYoz(nj, [[QY.hozir().dmyHm, String(oxirgi[2] || '27/1'), String(oxirgi[3] || 'Sotuv'), String(oxirgi[4] || '1'), 'Telefon', '90 123 45 67', '99 765 43 21', 'SINOV', 'direktor']]);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + w.r + ', ID ' + w.L[0][0]);
+    if (jr.length) x += await qatorSolishtir(nj, w.r, 1, 10, '— Jurnal qatori (A–J)');
+    else { const R = (await G.kataklarOqi(ID, nj, 'A' + w.r + ':J' + w.r, KEY))[0] || []; console.log('  (eski qator yo\'q) ' + R.map((c, i) => harf(i + 1) + ': ' + katak(c)).join(' · ')); }
+    console.log('\n=== 📨 DIREKTOR SO\'ROVI VA JAVOBI (06i_Direktor_sorovlari) ===');
+    const n6 = await nusxala(QY.SOR_V);
+    const S6 = await QY.sorovlar(n6);
+    const es = S6.L[S6.L.length - 1];
+    const jv = [...S6.L].reverse().find(z => z.holati === 'Tasdiqlandi' || z.holati === 'Rad etildi');
+    t0 = Date.now();
+    const y = await QY.sorovYoz(n6, S6, 'SINOV', jv ? jv.kalit : 'OG-SINOV', 'SINOV — nusxa varaq, o\'chiriladi', '', jv ? jv.tur : 'xat_bekor');
+    await TY.javobYoz(n6, y.qator, ['Rad etildi', 'SINOV — nusxa varaq', QY.hozir().dmyHm, 'SINOV']);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · so\'rov ID ' + y.id + ', qator ' + y.qator + (jv ? ' · javobni eski tizim javob bergan qator ' + jv.qator + ' bilan' : ''));
+    x += await qatorSolishtir(n6, y.qator, 1, 10, '— So\'rov + javob (A–J)', jv ? jv.qator : (es ? es.qator : null));
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k15) { await redis.set('yozuv_yondi:tahrir', '1'); console.log('✅ HAMMASI BIR XIL — ✎ shartnoma ma\'lumotini tahrirlash, 📨 direktordan so\'rash, direktorning ✓/✕ javobi\n   va 📌 ma\'lumot topshirig\'ini kiritish / tasdiqlash endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'ko\'prik javob bermadi') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
+  } else if (arg === 'tahrir') {
+    console.log('Hozir: shartnoma tahriri va direktor so\'rovlari — ' + ((await redis.get('yozuv_yondi:tahrir')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await tahrirSinov();
   } else if (arg === 'qadam') {
     console.log('Hozir: Bugungi ish amallari — ' + ((await redis.get('yozuv_yondi:qadam')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);

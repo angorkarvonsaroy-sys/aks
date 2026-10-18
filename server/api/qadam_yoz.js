@@ -78,16 +78,17 @@ async function qdYoz(varaq, bugun, q) {
 async function sorovlar(varaq) {
   const X = await G.oraliqOqi(env.aksBazaId, varaq, 'A2:K', env.googleKey);
   let m = -1; X.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
-  return { L: X.slice(0, m + 1).map((r, i) => ({ qator: i + 2, id: s(r[0]), vaqt: s(r[1]), kim: s(r[2]), tur: s(r[3]), kalit: s(r[4]), sabab: s(r[5]), holati: s(r[6]) })).filter(z => z.id), l: m + 2 };
+  return { L: X.slice(0, m + 1).map((r, i) => ({ qator: i + 2, id: s(r[0]), vaqt: s(r[1]), kim: s(r[2]), tur: s(r[3]), kalit: s(r[4]), sabab: s(r[5]), holati: s(r[6]),
+    javob: s(r[7]), javobVaqt: s(r[8]), javobKim: s(r[9]), malumot: s(r[10]) })).filter(z => z.id), l: m + 2 };
 }
-// qdMalumotYoz_ ning yozuv qismi: 06i oxiriga [ID, Vaqt, Kim, 'tahrir', Kalit, Sabab, 'Kutilmoqda', '', '', '', Malumot].
+// qdMalumotYoz_ / monSorovYubor ning yozuv qismi: 06i oxiriga [ID, Vaqt, Kim, Turi ('tahrir' / 'xat_bekor'), Kalit, Sabab, 'Kutilmoqda', '', '', '', Malumot].
 // Eski appendRow matnni Google'ning o'zi talqin qiladi va katak formatini shunga qarab qo'yadi (B «16.10.2026 11:17» → sana-vaqt d.m.yyyy h:mm,
 // E — oddiy matn), katakdagi oldingi «@» formatiga qaramay (18.10 sinovi). Shuning uchun yangi qator kataklarining formati avval tozalanadi,
 // keyin qiymatlar USER_ENTERED bilan yoziladi — natija appendRow bilan bir xil.
-async function sorovYoz(varaq, R, kim, no, sabab, malumot) {
+async function sorovYoz(varaq, R, kim, no, sabab, malumot, tur = 'tahrir') {
   const A = await G.oraliqOqi(env.aksBazaId, varaq, 'A2:A', env.googleKey, 'UNFORMATTED_VALUE');
   const id = Math.max(0, ...A.map(r => Number(r[0]) || 0)) + 1;
-  const q = [id, hozir().dmyHm, kim, 'tahrir', no, sabab, 'Kutilmoqda', '', '', '', malumot];
+  const q = [id, hozir().dmyHm, kim, tur, no, sabab, 'Kutilmoqda', '', '', '', malumot];
   let qator;
   try {
     const g = await G.gid(env.aksBazaId, varaq, env.googleKey);
@@ -391,4 +392,4 @@ async function qadamKutishRuxsat(args) {
 }
 
 module.exports = { qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim, qadamOtkazRuxsat, qadamMuhlatRuxsat, qadamKutishRuxsat };
-module.exports._ichki = { qdYoz, kutishYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, QDV, SOR_V };
+module.exports._ichki = { qdYoz, kutishYoz, sorovlar, sorovYoz, malumotTekshir, otkazTgMatn, qdXatNom, qulf, tgFon, hozir, QDV, SOR_V };

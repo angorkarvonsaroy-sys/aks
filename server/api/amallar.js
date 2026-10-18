@@ -125,6 +125,8 @@ Object.assign(A, require('./reyestr'));
 Object.assign(A, require('./hisobot_pdf'));
 // ▶ Bugungi ish — undiruvchi amallari (Qadam.gs): qadamOtkaz, qadamDirektorga, qadamMalumot, qadamMuhlatSora, qadamTgYubordim (aks-yozuv-sinov qadam bilan yoqiladi)
 Object.assign(A, require('./qadam_yoz'));
+// ✎ tahrirSaqlash (Tahrir.gs), 📨 monSorovYubor / monSorovJavob (Monitoring.gs), 📌 topMalumotKirit / topMalumotTasdiq (Qadam.gs) — aks-yozuv-sinov tahrir bilan yoqiladi
+Object.assign(A, require('./tahrir_yoz'));
 // 📎 fayllar: devonFayl, bekorFayl, kbFayl, tqFayl, yhAloqaFayl — Drive (robot) orqali, bo'lmasa eski tizim
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
@@ -134,5 +136,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash', 'qadamOtkaz', 'qadamDirektorga', 'qadamMalumot', 'qadamMuhlatSora', 'qadamTgYubordim', 'qadamOtkazRuxsat', 'qadamMuhlatRuxsat', 'qadamKutishRuxsat', 'tahrirSaqlash', 'monSorovYubor', 'monSorovJavob', 'topMalumotKirit', 'topMalumotTasdiq']), enumerable: false });
 module.exports = A;
