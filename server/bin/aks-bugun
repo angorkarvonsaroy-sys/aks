@@ -7,8 +7,10 @@
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
 if [ "$1" = "koprik" ]; then
   echo "================ AKS — hali ESKI TIZIMGA boradigan amallar (oxirgi 3 kun), umumiy kutish bo'yicha ================"
-  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '3 days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '3 days') GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
-  echo "(Serverga ko'chib bo'lgan amallar bu ro'yxatda ko'rinmaydi — ular ko'chishdan oldin eski tizimga borgan bo'lsa ham.)"
+  SRV=$(cd /opt/aks/app && sudo -u aks -H node bin/amallar_royxat.js 2>/dev/null)
+  [ -n "$SRV" ] && SRV="AND fn NOT IN ($SRV)"
+  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '3 days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '3 days') $SRV GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
+  echo "(Serverga ko'chib bo'lgan amallar — hozir serverda bor bo'lganlari — bu ro'yxatda ko'rinmaydi.)"
   exit 0
 fi
 if [ "$1" = "skan" ]; then
