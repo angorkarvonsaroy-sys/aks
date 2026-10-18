@@ -2,14 +2,15 @@
 # AKS TIZIM — bugungi faollik: kim kirdi (yangi server orqali) va qaysi amallar qancha vaqt oldi.
 # Ishlatish: aks-bugun            — umumiy
 #            aks-bugun und        — nomida «und» bor amallarning bugungi oxirgi 20 chaqiruvi (vaqti, qayerda, ms, xato)
-#            aks-bugun koprik     — hali eski tizimga boradigan amallar, umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
+#            aks-bugun koprik [N] — hali eski tizimga boradigan amallar (oxirgi N kun, odatda 3), umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
 #            aks-bugun skan       — kim qaysi skanni ochdi (huquq «skan»)
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
 if [ "$1" = "koprik" ]; then
-  echo "================ AKS — hali ESKI TIZIMGA boradigan amallar (oxirgi 3 kun), umumiy kutish bo'yicha ================"
+  KUN=$(echo "${2:-3}" | tr -cd '0-9'); KUN=${KUN:-3}
+  echo "================ AKS — hali ESKI TIZIMGA boradigan amallar (oxirgi $KUN kun), umumiy kutish bo'yicha ================"
   SRV=$(cd /opt/aks/app && sudo -u aks -H node bin/amallar_royxat.js 2>/dev/null)
   [ -n "$SRV" ] && SRV="AND fn NOT IN ($SRV)"
-  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '3 days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '3 days') $SRV GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
+  q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '$KUN days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '$KUN days') $SRV GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
   echo "(Serverga ko'chib bo'lgan amallar — hozir serverda bor bo'lganlari — bu ro'yxatda ko'rinmaydi.)"
   exit 0
 fi
