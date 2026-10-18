@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — jadvaldagi «BUGUN» katagi bugungi sanadami. Ishlatish: aks-sana
+cd /opt/aks/app && exec sudo -u aks -H node bin/sana.js "$@"
