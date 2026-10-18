@@ -54,13 +54,20 @@ const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.e
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
 
 // ------------------------------------------------------------------ yozuv yadrolari (sinov ham shularni ishlatadi — nusxa varaqda)
-// qdYoz_: 06n oxiriga [Sana, Xodim, Shartnoma, Mijoz, Holati, Sabab, Qadam / qolgan ishlar, Bugun qilingan, Vaqt]; A — dd.MM.yyyy, I — dd.MM.yyyy HH:mm:ss
+// qdYoz_: 06n oxiriga [Sana, Xodim, Shartnoma, Mijoz, Holati, Sabab, Qadam / qolgan ishlar, Bugun qilingan, Vaqt]; A — dd.MM.yyyy, I — dd.MM.yyyy HH:mm:ss.
+// C (shartnoma raqami) — matn («'» + «@», qadamKutish yozgan qatorlar kabi): «27/5» sana bo'lib qolmasin.
+const seriya = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(iso);
+  return (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 + ((+m[4] || 0) * 3600 + (+m[5] || 0) * 60 + (+m[6] || 0)) / 86400; };
 async function qdYoz(varaq, bugun, q) {
   const v = hozir();
   try {
     const A = await G.ustunOqi(env.aksBazaId, varaq, 'A', env.googleKey);
-    const r = await G.qatorQoshR(env.aksBazaId, varaq, A.length + 1, [dmy(bugun), q.xodim, q.no, q.fish, q.holat, q.sabab, q.qadam, q.bugun, v.dmyHms], env.googleKey);
-    await G.sanaYoz(env.aksBazaId, [{ varaq, qator: r, ustun: 1, iso: bugun }, { varaq, qator: r, ustun: 9, iso: v.iso, naqsh: 'dd.MM.yyyy HH:mm:ss' }], env.googleKey);
+    const r = await G.qatorQoshR(env.aksBazaId, varaq, A.length + 1, [dmy(bugun), q.xodim, "'" + q.no, q.fish, q.holat, q.sabab, q.qadam, q.bugun, v.dmyHms], env.googleKey);
+    const g = await G.gid(env.aksBazaId, varaq, env.googleKey);
+    const sana = (u, iso, naqsh) => ({ updateCells: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: u - 1, endColumnIndex: u },
+      rows: [{ values: [{ userEnteredValue: { numberValue: seriya(iso) }, userEnteredFormat: { numberFormat: { type: /H/.test(naqsh) ? 'DATE_TIME' : 'DATE', pattern: naqsh } } }] }], fields: 'userEnteredValue,userEnteredFormat.numberFormat' } });
+    await G.soralar(env.aksBazaId, [sana(1, bugun, 'dd.MM.yyyy'), sana(9, v.iso, 'dd.MM.yyyy HH:mm:ss'),
+      { repeatCell: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: 2, endColumnIndex: 3 }, cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } }], env.googleKey);
     return r;
   } catch (e) { throw yozilmadi(e); }
 }

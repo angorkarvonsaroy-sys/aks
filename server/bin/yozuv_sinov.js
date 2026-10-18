@@ -535,22 +535,20 @@ async function qadamSinov() {
     console.log('\n=== ⏭ BUGUN QILA OLMAYMAN (06n_Qadam_kun) ===');
     const n = await nusxala(QY.QDV);
     const R = await G.oraliqOqi(ID, n, 'A2:I', KEY);
-    let ei = -1; R.forEach((r, i) => { if (/^(O'tkazildi|Qisman)$/.test(String(r[4] || ''))) ei = i; });
-    if (ei < 0) console.log('  (eski tizim yozgan «O\'tkazildi» qatori topilmadi — oxirgi qator bilan solishtiriladi)');
-    const eq = ei >= 0 ? R[ei] : (R[R.length - 1] || []);
+    const eq = R[R.length - 1] || [];   // 06n ga hozir faqat server yozadi (Kechiktirildi / Kutilmoqda) — oldingi qator bilan
+    console.log('  (06n ga eski tizim hali bu turdagi qator yozmagan — oldingi qator (' + (eq[4] || '—') + ') bilan solishtiriladi)');
     let t0 = Date.now();
     const r = await QY.qdYoz(n, V.bugun(), { xodim: 'SINOV', no: String(eq[2] || '27/1'), fish: String(eq[3] || 'SINOV'), holat: 'O\'tkazildi', sabab: 'SINOV — nusxa varaq, o\'chiriladi', qadam: 'Qo\'ng\'iroq qiling | 1-xatni chiqaring', bugun: '10:15 📞 SINOV' });
     console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + r);
-    x += await qatorSolishtir(n, r, 1, 9, '— O\'tkazish qatori (A–I)', ei >= 0 ? ei + 2 : null);
+    x += await qatorSolishtir(n, r, 1, 9, '— O\'tkazish qatori (A–I)');
     console.log('\n=== ⓘ TOPILGAN MA\'LUMOT — TAHRIR SO\'ROVI (06i_Direktor_sorovlari) ===');
     const n6 = await nusxala(QY.SOR_V);
     const S6 = await QY.sorovlar(n6);
-    const es = S6.L.filter(z => z.tur === 'tahrir').pop();
-    if (!es) console.log('  (eski tizim yozgan «tahrir» qatori topilmadi — oxirgi qator bilan solishtiriladi)');
+    const es = S6.L[S6.L.length - 1];   // 06i ga faqat eski tizim yozadi (appendRow) — oldingi qator bilan
     t0 = Date.now();
     const y = await QY.sorovYoz(n6, S6, 'SINOV', es ? es.kalit : '27/1', 'Telefon topildi — manba: SINOV', JSON.stringify({ d: { tel: '99 123 45 67' }, f: [['Telefon', '', '99 123 45 67']] }));
     console.log('Yozish: ' + (Date.now() - t0) + ' ms · ID ' + y.id + ', qator ' + y.qator);
-    x += await qatorSolishtir(n6, y.qator, 1, 11, '— Tahrir so\'rovi (A–K)', es ? es.qator : null);
+    x += await qatorSolishtir(n6, y.qator, 1, 11, '— Tahrir so\'rovi (A–K)');
   } finally {
     if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
     console.log('\nNusxa varaqlar o\'chirildi.');
