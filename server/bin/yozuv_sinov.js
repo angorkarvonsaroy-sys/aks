@@ -830,7 +830,7 @@ async function zipQismlar(nom, eskiB, yangiB, xlsx) {
       const o = {}; Object.keys(Z).forEach(k => { if (!k.startsWith('word/media/')) o[k] = Z[k]; });
       o['word/media'] = Buffer.from(Object.values(xs).sort().join(','));
       o['word/_rels/document.xml.rels'] = Buffer.from(rel.replace(/<Relationship [^>]*?media\/[^>]*?\/>/g, ''));
-      if (o['word/document.xml']) o['word/document.xml'] = Buffer.from(o['word/document.xml'].toString('utf8').replace(/r:embed="([^"]+)"/g, (q, id) => 'r:embed="' + (map[id] || id) + '"').replace(/(<wp:docPr id=")\d+/g, '$1?'));
+      if (o['word/document.xml']) o['word/document.xml'] = Buffer.from(o['word/document.xml'].toString('utf8').replace(/r:embed="([^"]+)"/g, (q, id) => 'r:embed="' + (map[id] || id) + '"').replace(/(<wp:docPr id=")\d+/g, '$1?').replace(/"(image\d+\.[a-z]+)"/g, (q, f) => '"' + (xs['word/media/' + f] || f) + '"'));
       return o;
     };
     const ta = tekis(A), tb = tekis(B); Object.keys(A).forEach(k => delete A[k]); Object.keys(B).forEach(k => delete B[k]); Object.assign(A, ta); Object.assign(B, tb);
