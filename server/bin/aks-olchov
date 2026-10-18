@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — sekin amalni o'lchash (monBoshlang). Ishlatish: aks-olchov
+cd /opt/aks/app && exec sudo -u aks -H node bin/olchov.js "$@"

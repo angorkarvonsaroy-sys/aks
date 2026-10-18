@@ -251,3 +251,4 @@ async function monBoshlang([kodSes]) {
 }
 
 module.exports = { monBoshlang };
+module.exports._ichki = { monAktiv, monMalumot, monXodimlar, monNavbat, monTasdiqlar, monJurnallar, bekorSorovlar, monXodimlarRoyxat, monHujjatSvod, monOfisBugun, monKirishlar, monErtalabOqi };   // aks-olchov uchun
