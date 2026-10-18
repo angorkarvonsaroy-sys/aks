@@ -11,6 +11,7 @@
 //            aks-yozuv-sinov tasdiq    — isbotni tasdiqlash/qaytarish: tez javob, qarorni eski tizim fonda bajaradi (navbat) — yoqish
 //            aks-yozuv-sinov mayda     — xatni bekor qilish (06e N, V) va oylik reja (08_Lugatlar Z3:Z4) ni sinash va yoqish
 //            aks-yozuv-sinov shartnoma — yangi mijoz (02), sotuv shartnomasi (03 + 03b jadval) va ijara (04) ni sinash va yoqish
+//            aks-yozuv-sinov xatpdf    — ogohlantirish xati PDF'i serverda lokal natija bilan bir xil chiqishini tekshirish (hech narsa yoqmaydi)
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -811,7 +812,16 @@ async function yuristSorovSinov() {
 
 (async () => {
   const arg = process.argv[2];
-  if (arg === 'ochir') {
+  if (arg === 'xatpdf') {
+    // lib/xat_pdf.js — soxta ma'lumotli 8 ta xat; har so'zning joyi lokal (eski Google Docs bilan solishtirilgan) natija bilan
+    if (!(await PDF.bor())) { console.log('⏳ PDF dasturi (Chromium) hali tayyor emas — 3 daqiqadan keyin qayta ishga tushiring.'); }
+    else {
+      const t0 = Date.now(), r = await require('../lib/xat_sinov').tekshir();
+      console.log(r.chiqish.join('\n'));
+      console.log('\n' + (r.farq ? '⚠ ' + r.farq + ' ta xatda farq — server boshqacha joylashtiryapti, Claude\'ga ayting.' : '✅ HAMMASI BIR XIL — xatlar serverda ham eski tizimdagidek chiqadi (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s).'));
+      if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
+    }
+  } else if (arg === 'ochir') {
     await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurist') {
