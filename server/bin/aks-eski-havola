@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — xodimlar eski havolani ochsa nima ko'radi (3-bosqich tekshiruvi). Ishlatish: aks-eski-havola
+cd /opt/aks/app && exec sudo -u aks -H node bin/eski_havola.js "$@"

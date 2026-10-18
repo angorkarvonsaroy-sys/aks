@@ -37,6 +37,7 @@ install -m 755 "$APP/bin/aks-yozuv-sinov" /usr/local/bin/aks-yozuv-sinov
 install -m 755 "$APP/bin/aks-xodim"   /usr/local/bin/aks-xodim
 install -m 755 "$APP/bin/aks-korinish" /usr/local/bin/aks-korinish
 install -m 755 "$APP/bin/aks-sana"     /usr/local/bin/aks-sana
+install -m 755 "$APP/bin/aks-eski-havola" /usr/local/bin/aks-eski-havola
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer
