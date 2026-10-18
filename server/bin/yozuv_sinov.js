@@ -407,7 +407,9 @@ function pdfSolishtir(eskiB, yangiB) {
     console.log('    faqat serverda: ' + fb.slice(0, 15).join(' | '));
   }
   // sahifalar: soni, o'lchami va har sahifadagi matn (qator qaysi sahifaga tushgani) — bir xil bo'lishi kerak
-  if (a.bet !== b.bet || a.olcham !== b.olcham) { x++; console.log('  ✖ sahifalar: eski ' + a.bet + ' bet ' + a.olcham + ' | server ' + b.bet + ' bet ' + b.olcham); }
+  // o'lcham: Google Docs PDF'i 596 x 842, Chromium 595.92 x 841.92 — 0,08 pt (0,03 mm) farq ko'zga ko'rinmaydi, 0,5 pt gacha teng hisoblanadi
+  const olT = (p, q) => { const f = t => (String(t).match(/[\d.]+/g) || []).slice(0, 2).map(Number); const [u, v] = [f(p), f(q)]; return u.length === 2 && v.length === 2 && Math.abs(u[0] - v[0]) <= 0.5 && Math.abs(u[1] - v[1]) <= 0.5; };
+  if (a.bet !== b.bet || !olT(a.olcham, b.olcham)) { x++; console.log('  ✖ sahifalar: eski ' + a.bet + ' bet ' + a.olcham + ' | server ' + b.bet + ' bet ' + b.olcham); }
   else {
     const farqBet = []; for (let i = 0; i < a.bet; i++) if (!tengM(belgilar(a.betlar[i] || ''), belgilar(b.betlar[i] || ''))) farqBet.push(i + 1);
     if (farqBet.length) { x++; console.log('  ✖ sahifa chegaralari farq: ' + farqBet.slice(0, 10).join(', ') + '-bet'); }
@@ -826,7 +828,20 @@ async function zipQismlar(nom, eskiB, yangiB, xlsx) {
     if (xlsx && /^xl\/worksheets\/sheet\d+\.xml$/.test(n) && a && b) { a = yech(a, SA); b = yech(b, SB); }
     if (a !== b) farq.push(n);
   }
-  if (farq.length) { x++; console.log('  ✖ ' + nom + ': farqli qismlar — ' + farq.join(', ')); }
+  if (farq.length) {
+    x++; console.log('  ✖ ' + nom + ': farqli qismlar — ' + farq.join(', '));
+    if (xlsx) {   // qaysi kataklar farq qiladi — tuzatish uchun ko'rsatiladi
+      const kat = (t, S) => { const o = new Map(); for (const m of yech(t, S).matchAll(/<c r="([A-Z]+\d+)"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g)) o.set(m[1], m[0]); return o; };
+      farq.filter(n => /sheet\d+\.xml$/.test(n) && A[n] && B[n]).forEach(n => {
+        const ka = kat(A[n].toString('utf8'), SA), kb = kat(B[n].toString('utf8'), SB); let k = 0;
+        for (const r of new Set([...ka.keys(), ...kb.keys()])) if (ka.get(r) !== kb.get(r) && k++ < 4) console.log('     ' + n.replace('xl/worksheets/', '') + ' ' + r + ': eski ' + String(ka.get(r) || '—').slice(0, 110) + ' | server ' + String(kb.get(r) || '—').slice(0, 110));
+        if (k > 4) console.log('     … yana ' + (k - 4) + ' katak');
+        const ta = A[n].toString('utf8').replace(/<sheetData>[\s\S]*<\/sheetData>/, ''), tb = B[n].toString('utf8').replace(/<sheetData>[\s\S]*<\/sheetData>/, '');
+        if (ta !== tb) console.log('     ' + n.replace('xl/worksheets/', '') + ' kataklardan tashqari qism ham farq qiladi');
+      });
+      if (farq.includes('xl/styles.xml')) { const xf = Z => ((/<cellXfs count="(\d+)"/.exec(Z['xl/styles.xml'].toString('utf8')) || [])[1]); console.log('     uslublar soni: eski ' + xf(A) + ' | server ' + xf(B)); }
+    }
+  }
   else console.log('  ✅ ' + nom + ': ' + nomlar.length + ' qism — ' + (xlsx ? 'kataklar, uslublar, ustunlar bir xil' : 'Google eksporti bilan bayt-ma-bayt bir xil'));
   return x;
 }
