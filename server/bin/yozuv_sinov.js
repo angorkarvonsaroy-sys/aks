@@ -16,6 +16,7 @@
 //            aks-yozuv-sinov bekor     — shartnomani bekor qilish (06h qatori nusxada + buyruq/xabarnoma PDF + Drive va Word nusxasi, Koprik v1.9) ni sinash va yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
+const { verOk } = require('../lib/versiya');
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const G = require('../lib/google');
 const env = require('../lib/env');
@@ -97,7 +98,7 @@ async function taminotSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
   let ver = '?';
   try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak — Koprik.gs yangilanmagan)'));
   const M = await G.varaqlar(ID, KEY);
   const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
@@ -151,7 +152,7 @@ async function hujjatSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
   let ver = '?';
   try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k16 = ver >= '1.6' && !/^xato/.test(ver);
+  const k16 = verOk(ver, '1.6') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k16 ? ' ✅' : ' ⚠ (1.6 kerak — Koprik.gs yangilanmagan)'));
   const M = await G.varaqlar(ID, KEY);
   const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
@@ -196,7 +197,7 @@ async function topshiriqSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
   let ver = '?';
   try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak — Koprik.gs yangilanmagan)'));
   const M = await G.varaqlar(ID, KEY);
   const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
@@ -247,7 +248,7 @@ async function topshiriqSinov() {
 async function maydaSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
   const M = await G.varaqlar(ID, KEY);
   const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
@@ -527,7 +528,7 @@ async function qadamSinov() {
   const QY = require('../api/qadam_yoz')._ichki;
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi (Telegram uchun): v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
   const M = await G.varaqlar(ID, KEY);
   const ochir = []; let x = 0;
@@ -582,7 +583,7 @@ async function tahrirSinov() {
   const TY = require('../api/tahrir_yoz')._ichki, QY = require('../api/qadam_yoz')._ichki;
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k15 = ver >= '1.5' && !/^xato/.test(ver);
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi (Telegram uchun): v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
   const M = await G.varaqlar(ID, KEY);
   const ochir = []; let x = 0;
@@ -666,7 +667,7 @@ async function tahrirSinov() {
 async function undiruvSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k17 = ver >= '1.7' && !/^xato/.test(ver);
+  const k17 = verOk(ver, '1.7') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k17 ? ' ✅' : ' ⚠ (1.7 kerak — Koprik.gs yangilanmagan)'));
   const M = await G.varaqlar(ID, KEY);
   const ochir = []; let x = 0;
@@ -701,7 +702,7 @@ async function xatSinov() {
   const XI = require('../api/xat_isbot')._ichki, U = require('../lib/undiruv_yordam');
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k17 = ver >= '1.7' && !/^xato/.test(ver);
+  const k17 = verOk(ver, '1.7') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k17 ? ' ✅' : ' ⚠ (1.7 kerak)'));
   const M = await G.varaqlar(ID, KEY);
   const ochir = []; let x = 0;
@@ -746,7 +747,7 @@ async function xatSinov() {
 async function bajardimSinov() {
   const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
   let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-  const k17 = ver >= '1.7' && !/^xato/.test(ver);
+  const k17 = verOk(ver, '1.7') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k17 ? ' ✅' : ' ⚠ (1.7 kerak)'));
   const M = await G.varaqlar(ID, KEY);
   const ochir = []; let x = 0;
@@ -1033,7 +1034,7 @@ async function bekorSinov() {
     console.log('Hozir: tasdiqlash — ' + ((await redis.get('yozuv_yondi:tasdiq')) === '1' ? 'tez (navbat)' : 'eski tizim (kutiladi)'));
     const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
     let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
-    const k15 = ver >= '1.5' && !/^xato/.test(ver);
+    const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
     console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
     console.log('Navbatda: ' + (await redis.llen('tasdiq_navbat')) + ' ta qaror');
     if (k15) { await redis.set('yozuv_yondi:tasdiq', '1'); console.log('✅ YOQILDI — «Tasdiqlash / Qaytarish» darhol javob beradi; qarorni eski tizim fonda bajaradi (natija avvalgidek).\n   Xato bo\'lsa — isbot ro\'yxatga qaytadi va direktorga Telegram keladi. Qaytarish: aks-yozuv-sinov ochir'); }

@@ -5,6 +5,7 @@
 // ✎ Tuzatish (hujjatTuzat) ham shu yerda — pastda.
 // Server o'quvchilari (yuristHujjat, hujjatlarRoyxati) SRV ni tushunadi; eski tizimdagi o'quvchilar faqat Drive ID ni — shuning uchun ko'chirish darhol boshlanadi.
 'use strict';
+const { verOk } = require('../lib/versiya');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -173,7 +174,7 @@ function hozirHm() { return hozir().slice(0, 16); }
 let kv16 = { ok: false, t: 0 };
 async function koprik16(kod) {
   if (kv16.t && Date.now() - kv16.t < (kv16.ok ? 30 : 2) * 60000) return kv16.ok;
-  try { kv16 = { ok: koprik.bor() && String(await koprik.chaqir('koprikVersiya', kod, [])) >= '1.6', t: Date.now() }; } catch (e) { kv16 = { ok: false, t: Date.now() }; }
+  try { kv16 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.6'), t: Date.now() }; } catch (e) { kv16 = { ok: false, t: Date.now() }; }
   return kv16.ok;
 }
 async function tuzatServerda(kod) {

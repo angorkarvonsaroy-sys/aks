@@ -7,6 +7,7 @@
 //   fayl Drive'ga ko'chgach (eski tizim faylni Drive'dan oladi).
 // Yoqilishi: Redis yozuv_yondi:qadam_hujjat («aks-yozuv-sinov undiruv») va Koprik ≥ 1.7. Aks holda — eski tizim.
 'use strict';
+const { verOk } = require('../lib/versiya');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const U = require('../lib/undiruv_yordam');
@@ -31,7 +32,7 @@ const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.e
 let kv = { ok: false, t: 0 };
 async function koprik17(kod) {   // Koprik.gs v1.7 (koprikTopTasdiqTg) — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
-  try { kv = { ok: koprik.bor() && String(await koprik.chaqir('koprikVersiya', kod, [])) >= '1.7', t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
+  try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.7'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
 }
 async function bayroq() { try { return (await redis.get('yozuv_yondi:qadam_hujjat')) === '1'; } catch (e) { return false; } }

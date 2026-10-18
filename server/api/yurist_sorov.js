@@ -28,8 +28,9 @@ async function yuristIsmi() {   // yuYuristIsmi_: 07_Xodimlar S da «yurist», K
   const r = (await V.qatorlar('07_Xodimlar')).map(z => z.x).find(z => /(^|[\s,])yurist([\s,]|$)/i.test(s(z[18])) && s(z[10]).trim() === 'Ishlayapti');
   return r ? s(r[1]).trim() : '';
 }
-// yuYangi_ (faol emas): qaytaradi { id, no, qator }
+// yuYangi_: qaytaradi { id, no, qator }. Faol (to'g'ridan-to'g'ri) — C «topshirilgan» va U «bosqich sanasi» = bugun, T = 1
 async function yuYangi(varaq, x, holati, yol, fish, sabab) {
+  const faol = holati === 'Faol';
   const A = await G.ustunOqi(env.aksBazaId, varaq, 'A', env.googleKey);
   let max = 0; A.slice(1).forEach(v => { const n = Number(v); if (n > max) max = n; });
   const id = max + 1, row = A.length + 1;
@@ -39,13 +40,19 @@ async function yuYangi(varaq, x, holati, yol, fish, sabab) {
   const yur = await yuristIsmi();
   await G.yoz(env.aksBazaId, [
     { varaq, katak: 'A' + row + ':P' + row, qiymat: [[id, x.no, '', yur, '', '', '', '', '', '', '', '', '', '', holati, '']] },
-    { varaq, katak: 'T' + row + ':AE' + row, qiymat: [[0, '', '', '', '', '', yol, x.undiruvchi || '', sabab, hozir().dmyHms, '', '']] }], env.googleKey);
+    { varaq, katak: 'T' + row + ':AE' + row, qiymat: [[faol ? 1 : 0, '', '', '', '', '', yol, x.undiruvchi || '', sabab, hozir().dmyHms, '', '']] }], env.googleKey);
   const req = [fmt(3, 3, { type: 'DATE', pattern: 'dd.MM.yyyy' }), fmt(21, 21, { type: 'DATE', pattern: 'dd.MM.yyyy' })];
   if (row > 2) req.push({ copyPaste: { source: { sheetId: g, startRowIndex: row - 2, endRowIndex: row - 1, startColumnIndex: 16, endColumnIndex: 19 },
     destination: { sheetId: g, startRowIndex: row - 1, endRowIndex: row, startColumnIndex: 16, endColumnIndex: 19 }, pasteType: 'PASTE_FORMULA' } });
   await G.soralar(env.aksBazaId, req, env.googleKey);
-  await G.sanaYoz(env.aksBazaId, [{ varaq, qator: row, ustun: 29, iso: hozir().iso, naqsh: 'dd.MM.yyyy HH:mm' }], env.googleKey);
+  await G.sanaYoz(env.aksBazaId, [{ varaq, qator: row, ustun: 29, iso: hozir().iso, naqsh: 'dd.MM.yyyy HH:mm' }].concat(faol ? [3, 21].map(ustun => ({ varaq, qator: row, ustun, iso: V.bugun() })) : []), env.googleKey);
   return { id, no: x.no, qator: row };
+}
+// yuIshlar_(ss).some(i => i.no === no && i.holati !== 'Rad etildi') — Google'dan yangi; holati bo'sh (chala) qator hisobga olinmaydi
+async function ishBor(no) {
+  const YI = await G.oraliqOqi(env.aksBazaId, YU_V, 'A2:O', env.googleKey);
+  let l = -1; YI.forEach((z, k) => { if (s(z[0]) !== '') l = k; });
+  return YI.slice(0, l + 1).some(z => s(z[0]) !== '' && s(z[1]) !== '' && s(z[14]) !== '' && s(z[1]) === no && s(z[14]) !== 'Rad etildi');
 }
 async function tarixYoz(varaq, i, voqea, kim, izoh, hujjat) {   // yuTarix_ (appendRow)
   await G.qatorQosh(env.aksBazaId, varaq, [hozir().dmyHms, i.id, i.no, voqea, kim, izoh || '', hujjat || ''], env.googleKey);
@@ -62,9 +69,7 @@ async function yuristgaSorov(args) {
   const r = await QY.qulf('yurist', async () => {
     const x = (await U.undShartnomalar()).find(z => z.no === s(no));
     if (!x || (!u.admin && x.undiruvchi !== u.fish)) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
-    const YI = await G.oraliqOqi(env.aksBazaId, YU_V, 'A2:O', env.googleKey);
-    let l = -1; YI.forEach((z, k) => { if (s(z[0]) !== '') l = k; });
-    if (YI.slice(0, l + 1).some(z => s(z[0]) !== '' && s(z[1]) === x.no && s(z[14]) !== 'Rad etildi')) throw new S.Xato('Bu mijoz allaqachon yuristga o\'tkazilgan yoki so\'rov yuborilgan.');
+    if (await ishBor(x.no)) throw new S.Xato('Bu mijoz allaqachon yuristga o\'tkazilgan yoki so\'rov yuborilgan.');
     const [XJ, UJ, HJ, Z] = await Promise.all([J.xatJurnal(), J.undJurnal(), J.hujjatJurnal(), X.xatZanjir(u.kod)]);
     const m = P.yuMezon(x, XJ, UJ, HJ.filter(h => h.holati === 'Faol'), bugun, Z);
     if (!m.ok) throw new S.Xato('Mezonlar bajarilmagan: ' + m.yetishmaydi.join('; ') + '.');
@@ -80,4 +85,4 @@ async function yuristgaSorov(args) {
 }
 
 module.exports = { yuristgaSorov };
-module.exports._ichki = { yuYangi, tarixYoz, YU_V, TAR_V };
+module.exports._ichki = { yuYangi, tarixYoz, ishBor, YU_V, TAR_V };

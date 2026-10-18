@@ -5,6 +5,7 @@
 // Telegram xabari ham eski tizim orqali (koprikTg). Qaysidir imkon bo'lmasa (robotda yozish huquqi yo'q / Koprik eski) —
 // amal butunligicha eski tizimga yuboriladi (avvalgidek ishlaydi, faqat sekinroq). yuristTopBer — hali eski tizimda (topshiriq raqami o'sha yerda beriladi).
 'use strict';
+const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -47,7 +48,7 @@ async function yozishMumkin() {                       // robotda «Редакт�
 }
 async function faylMumkin(kod) {                      // Koprik.gs v1.2 o'rnatilganmi (koprikHujjatYukla, koprikTg)
   if (imk.fayl !== null && Date.now() - imk.faylT < (imk.fayl ? 30 : 3) * 60000) return imk.fayl;
-  try { imk.fayl = koprik.bor() && String(await koprik.chaqir('koprikVersiya', kod, [])) >= '1.2'; }
+  try { imk.fayl = koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.2'); }
   catch (e) { imk.fayl = false; }
   imk.faylT = Date.now(); return imk.fayl;
 }
