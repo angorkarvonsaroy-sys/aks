@@ -107,6 +107,8 @@ Object.assign(A, require('./topshiriq_yoz'));
 Object.assign(A, require('./tasdiq_navbat'));
 // ✕ xatBekor, 🏠 boshRejaYoz — server o'zi yozadi (aks-yozuv-sinov mayda yoqgandan keyin); aks holda eski tizim
 Object.assign(A, require('./mayda_yoz'));
+// 📝 mijozSaqlash, shartnomaSaqlash, ijaraSaqlash — server o'zi yozadi (aks-yozuv-sinov shartnoma yoqgandan keyin); aks holda eski tizim
+Object.assign(A, require('./shartnoma_yoz'));
 // 🗺 xaritaMalumot (Kod.gs 5-bo'lim)
 Object.assign(A, require('./xarita'));
 // 📎 Hujjatlar kartasi panellari: tahrirHolat, bekorHolat — o'qish
@@ -128,5 +130,5 @@ Object.assign(A, require('./kassa'));
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
 // serverda bajariladigan YOZUV amallari (index.js ulardan keyin xodim keshini tozalaydi)
-Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz']), enumerable: false });
+Object.defineProperty(A, 'YOZUV', { value: new Set(['yuristQabul', 'yuristMajlis', 'yuristHolat', 'yuristKeyingi', 'yuristRad', 'yuristTasdiq', 'hujjatYukla', 'undYoz', 'qadamChora', 'qadamNazoratYoz', 'qadamKechiktir', 'tolovSaqlash', 'tashrifSaqlash', 'qadamKutish', 'taminotKiritish', 'taminotTasdiq', 'hujjatTuzat', 'topBer', 'topSkanTopilmadi', 'tasdiqQil', 'topTasdiq', 'xatBekor', 'boshRejaYoz', 'mijozSaqlash', 'shartnomaSaqlash', 'ijaraSaqlash']), enumerable: false });
 module.exports = A;

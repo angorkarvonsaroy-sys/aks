@@ -10,6 +10,7 @@
 //            aks-yozuv-sinov topshiriq — topshiriq berish (10_Topshiriqlar: yangi qator + asl topshiriqni yopish) ni sinash va yoqish (Koprik v1.5 kerak)
 //            aks-yozuv-sinov tasdiq    — isbotni tasdiqlash/qaytarish: tez javob, qarorni eski tizim fonda bajaradi (navbat) — yoqish
 //            aks-yozuv-sinov mayda     — xatni bekor qilish (06e N, V) va oylik reja (08_Lugatlar Z3:Z4) ni sinash va yoqish
+//            aks-yozuv-sinov shartnoma — yangi mijoz (02), sotuv shartnomasi (03 + 03b jadval) va ijara (04) ni sinash va yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -22,6 +23,7 @@ const TY = require('../api/taminot_yoz')._ichki;
 const HY = require('../api/hujjat_yoz')._ichki;
 const TP = require('../api/topshiriq_yoz')._ichki;
 const MY = require('../api/mayda_yoz')._ichki;
+const SY = require('../api/shartnoma_yoz')._ichki;
 const koprik = require('../api/koprik');
 const ID = env.aksBazaId, KEY = env.googleKey;
 
@@ -287,10 +289,78 @@ async function maydaSinov() {
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// Yangi qator(lar)ni oldingi qator bilan ustunma-ustun: qiymat turi, format, formula (oldingi qatordagi formula bir qator pastga surilgan bo'lishi kerak)
+async function qatorSolishtir(nx, r1, soni, oxirgi, sarlavha) {
+  let xato = 0;
+  const R = await G.kataklarOqi(ID, nx, 'A' + (r1 - 1) + ':' + harf(oxirgi) + (r1 + soni - 1), KEY);
+  for (let k = 0; k < soni; k++) {
+    const o = R[k] || [], y = R[k + 1] || [];
+    console.log(sarlavha + (soni > 1 ? ' — ' + (k + 1) + '/' + soni : '') + ' (qator ' + (r1 + k) + ', oldingisi ' + (r1 + k - 1) + ')');
+    const yomon = [];
+    for (let i = 0; i < oxirgi; i++) {
+      const a = o[i] || {}, b = y[i] || {}, ta = tur(a), tb = tur(b), fa = fmt(a), fb = fmt(b);
+      let ok = (ta === 'bo\'sh' || tb === 'bo\'sh') ? true : (fa === fb && ta === tb);
+      if ((ta === 'formula') !== (tb === 'formula') && !(ta === 'bo\'sh' && tb !== 'formula')) ok = false;
+      if (ta === 'formula' && tb === 'formula' && sur(a.userEnteredValue.formulaValue) !== b.userEnteredValue.formulaValue) ok = false;
+      if (!ok) yomon.push(harf(i + 1) + ': eski ' + ta + ' ' + fa + ' «' + qisqa(a.formattedValue || (a.userEnteredValue && a.userEnteredValue.formulaValue), 30) + '» | server ' + tb + ' ' + fb + ' «' + qisqa(b.formattedValue || (b.userEnteredValue && b.userEnteredValue.formulaValue), 30) + '»');
+    }
+    if (yomon.length) { xato += yomon.length; yomon.forEach(z => console.log('  ⚠ ' + z)); } else console.log('  ✅ ' + oxirgi + ' ustun — qiymat turi, format va formulalar bir xil');
+  }
+  return xato;
+}
+// 📝 SHARTNOMA: 02, 03, 03b, 04 nusxalarida server yo'li bilan mijoz, sotuv shartnomasi (+ to'lov jadvali) va ijara yoziladi — oldingi (eski tizim yozgan) qatorlar bilan solishtiriladi
+async function shartnomaSinov() {
+  const Sx = require('../api/sessiya'); Sx.ruxsat = async () => ({ admin: true, huquq: ['admin'], fish: 'SINOV', kod: 'sinov' });   // jadvalHisob uchun
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  const u = { fish: 'SINOV', admin: true };
+  try {
+    console.log('\n=== MIJOZ (02_Mijozlar) ===');
+    const n2 = await nusxala(SY.T02);
+    let t0 = Date.now();
+    const m = await SY.mijozYoz(n2, u, { iibv: 'Сурхондарё', iibt: 'Ангор', mv: 'Сурхондарё', mt: 'Ангор тумани', mfy: 'Синов', kocha: 'Синов', uy: '1', xon: '', izoh: 'SINOV — nusxa varaq' },
+      { fish: 'SINOV SINOV SINOVICH', tel: '901112233', tel2: '', pas: 'ZZ0000001', jsh: '30000000000001', ps: '01.01.2020', pm: '01.01.2030' });
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · ID ' + m.id + ', qator ' + m.qator);
+    x += await qatorSolishtir(n2, m.qator, 1, 31, '— Yangi mijoz (A–AE) va oldingi qator');
+    console.log('\n=== SOTUV SHARTNOMASI (03 + 03b) ===');
+    const n3 = await nusxala(SY.T03), n3b = await nusxala(SY.T03b);
+    const D = await G.oraliqOqi(ID, '01_Dokonlar', 'A2:Z641', KEY, 'UNFORMATTED_VALUE');
+    const dr0 = D.find(r => r[0] && !r[17] && String(r[18]) === 'SOTILMAGAN' && Number(r[5]) > 0 && Number(r[6]) > 0);
+    if (!dr0) throw new Error('Sotilmagan do\'kon topilmadi');
+    const dr = []; for (let k = 0; k < 26; k++) dr.push(dr0[k] == null ? '' : dr0[k]);
+    const bugun = V.bugun();
+    const d = { mijozId: 1, turi: 'Тайёр дўкон (Муддатли тўлов шартномаси)', dokonId: String(dr[0]), sana: bugun, boshl: 60000000, oy: 3, bkun: 10, tkun: 15, birinchi: bugun.slice(0, 8) + '15', undiruvchi: '', izoh: 'SINOV — nusxa varaq', maydon: Number(dr[5]), baza: Number(dr[6]) };
+    const h = await require('../api/shartnoma').jadvalHisob(['sinov', d]);
+    t0 = Date.now();
+    const w = await SY.shartnomaYoz(n3, n3b, u, d, 1, dr, h);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · ' + w.no + ' (do\'kon ' + dr[0] + '), 03 qator ' + w.qator + ', 03b qatorlar ' + w.jQator + '–' + (w.jQator + w.jSoni - 1));
+    x += await qatorSolishtir(n3, w.qator, 1, 42, '— Yangi shartnoma (A–AP) va oldingi qator');
+    x += await qatorSolishtir(n3b, w.jQator, w.jSoni, 8, '— To\'lov jadvali (A–H)');
+    console.log('\n=== IJARA (04_Ijara_shartnomalar) ===');
+    const n4 = await nusxala(SY.T04);
+    const di0 = D.find(r => r[0] && !r[21] && String(r[18]) === 'SOTILMAGAN' && Number(r[5]) > 0);
+    const di = { mijozId: 1, dokonId: String(di0[0]), sana: bugun, boshlanish: bugun, muddat: 12, bepul: 3, oylik: '1000000', m2: '', tkun: 5, garov: '', kommunal: '', faoliyat: 'SINOV', savdo: '', asos: '', izoh: 'SINOV — nusxa varaq' };
+    const t = await SY.ijaraTekshir(di);
+    t0 = Date.now();
+    const wi = await SY.ijaraYoz(n4, u, di, t);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · ' + wi.no + ' (do\'kon ' + di.dokonId + '), qator ' + wi.qator);
+    x += await qatorSolishtir(n4, wi.qator, 1, 38, '— Yangi ijara (A–AL) va oldingi qator');
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x) { await redis.set('yozuv_yondi:shartnoma', '1'); console.log('✅ HAMMASI BIR XIL — yangi mijoz, sotuv shartnomasi (jadvali bilan) va ijara endi server orqali saqlanadi.\n   Shartnoma PDF — avvalgidek eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
   if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq berish va tasdiqlash yana eski tizim orqali (kutib) saqlanadi.');
   } else if (arg === 'taminot') {
     console.log('Hozir: ta\'minot — ' + ((await redis.get('yozuv_yondi:taminot')) === '1' ? 'serverda' : 'eski tizimda'));
@@ -298,6 +368,12 @@ async function maydaSinov() {
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await taminotSinov();
+  } else if (arg === 'shartnoma') {
+    console.log('Hozir: shartnoma/mijoz/ijara saqlash — ' + ((await redis.get('yozuv_yondi:shartnoma')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await shartnomaSinov();
   } else if (arg === 'mayda') {
     console.log('Hozir: xat bekor / oylik reja — ' + ((await redis.get('yozuv_yondi:mayda')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
