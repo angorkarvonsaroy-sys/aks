@@ -12,6 +12,10 @@ if [ "$1" = "koprik" ]; then
   [ -n "$SRV" ] && SRV="AND fn NOT IN ($SRV)"
   q -c "SELECT fn AS amal, count(*) soni, round(avg(ms)/1000.0,1) ortacha_s, round(sum(ms)/60000.0,1) jami_daqiqa, count(DISTINCT vaqt::date) kun FROM rpc_jurnal WHERE vaqt > now() - interval '$KUN days' AND qayerda = 'koprik' AND fn NOT IN (SELECT DISTINCT fn FROM rpc_jurnal WHERE qayerda = 'server' AND vaqt > now() - interval '$KUN days') $SRV GROUP BY 1 ORDER BY sum(ms) DESC LIMIT 30;"
   echo "(Serverga ko'chib bo'lgan amallar — hozir serverda bor bo'lganlari — bu ro'yxatda ko'rinmaydi.)"
+  echo "--- Oxirgi $KUN kun: yangi saytdagi barcha so'rovlar qayerda bajarildi (server / kesh / koprik = eski tizim) ---"
+  q -c "SELECT qayerda, count(*) soni, round(avg(ms)) ortacha_ms, count(DISTINCT fn) amallar FROM rpc_jurnal WHERE vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY 2 DESC;"
+  echo "--- Ishlayotgan xodimlar: yangi saytga (aks-tizim.uz) oxirgi kirishi — «hech qachon» bo'lsa, eski havoladan foydalanmoqda ---"
+  q -c "SELECT x.fish, coalesce(to_char(max(k.vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI'), '— hech qachon') oxirgi_kirish, count(k.id) FILTER (WHERE k.vaqt > now() - interval '$KUN days') kirish_soni FROM v_xodimlar x LEFT JOIN kirishlar k ON k.fish = x.fish AND k.kompaniya_id = 1 WHERE x.kompaniya_id = 1 AND x.holat = 'Ishlayapti' GROUP BY x.fish ORDER BY max(k.vaqt) NULLS FIRST, x.fish;"
   exit 0
 fi
 if [ "$1" = "skan" ]; then
