@@ -80,7 +80,7 @@ async function sinov(nom, varaq, F, oxirgi, qurish) {
 }
 
 // Ikki qatorni ustunma-ustun solishtirish (o — eski tizim yozgani, y — server yozgani). ustunlar: 1 dan; bo'sh katak — har qanday bilan mos
-function solishtir(o, y, ustunlar, sarlavha) {
+function solishtir(o, y, ustunlar, sarlavha, maxsus) {
   let xato = 0;
   console.log(sarlavha);
   console.log('Ustun | eski tizim yozgan qator          | server yozgan qator              | ');
@@ -89,6 +89,7 @@ function solishtir(o, y, ustunlar, sarlavha) {
     const fa = fmt(a), fb = fmt(b), ta = tur(a), tb = tur(b);
     let ok = (ta === 'bo\'sh' || tb === 'bo\'sh') ? true : (fa === fb && ta === tb);
     if ((ta === 'formula') !== (tb === 'formula')) ok = false;
+    if (maxsus && maxsus[u]) ok = maxsus[u](a, b);
     if (!ok) xato++;
     console.log(harf(u).padEnd(5) + ' | ' + (ta + ' ' + fa + ' «' + qisqa(a.formattedValue, 12) + '»').padEnd(32) + ' | ' + (tb + ' ' + fb + ' «' + qisqa(b.formattedValue, 12) + '»').padEnd(32) + ' | ' + (ok ? '✅' : '⚠'));
   }
@@ -1275,7 +1276,9 @@ async function qayta2Sinov() {
     else console.log('(03b da ' + xo.yangi + ' jadvali topilmadi — solishtirilmadi)');
     // 05 / 05b: ko'chirilgan to'lov qatori — oldin (eski tizim ko'chirgan) ↔ keyin (server ko'chirgan)
     for (const t of T0.slice(0, 2)) { const v = t.v === '05' ? VQ.s5 : VQ.s5b;
-      x += solishtir(oldin05[t.v + ':' + t.qator], await kat(v, 'A' + t.qator + ':L' + t.qator), t.v === '05' ? [3, 9, 12] : [3, 6], '\n— ' + t.v + ' qator ' + t.qator + ': eski tizim ko\'chirgan (C/I/L) va server ko\'chirgan:'); }
+      x += solishtir(oldin05[t.v + ':' + t.qator], await kat(v, 'A' + t.qator + ':L' + t.qator), t.v === '05' ? [3, 9, 12] : [3, 6], '\n— ' + t.v + ' qator ' + t.qator + ': eski tizim ko\'chirgan (C/I/L) va server ko\'chirgan:',
+        // I «eski raqam»: ikkalasi ham setValue (USER_ENTERED) — Google «27/8» ni sanaga aylantiradi, «27/368» ni yo'q; shuning uchun har biri o'z eski raqamiga teng bo'lsa — bir xil
+        { 9: (a, b) => String(a.formattedValue || '') === xo.eski && String(b.formattedValue || '') === X.eski }); }
     // eski shartnoma «Bekor qilindi»: server bekor qilgan xo.yangi qatori ↔ eski tizim bekor qilgan xo.eski qatori
     if (eskiRow) x += solishtir(await kat(VQ.s3, 'A' + eskiRow.qator + ':T' + eskiRow.qator), await kat(VQ.s3, 'A' + S3.x.qator + ':T' + S3.x.qator), [14, 15, 20], '\n— 03 eski shartnoma (N holat, O sana, T izoh): eski tizim bekor qilgan ' + xo.eski + ' va server bekor qilgan ' + xo.yangi + ':');
     // 06k: loyiha qatori — oldin (eski tizim «Bajarildi» qilgan) ↔ keyin (server)
