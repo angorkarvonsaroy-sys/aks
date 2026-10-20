@@ -1169,6 +1169,7 @@ async function qaytaSinov() {
   const k16 = verOk(ver, '1.6') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k16 ? ' ✅' : ' ⚠ (1.6 kerak)'));
   const kod = adm.kirish_kodi, tok = await S.sessiyaOch(kod);
+  await redis.set('yozuv_yondi:qayta', '1');   // solishtirish paytida server yo'li ishlasin (bayroqsiz qaytaOchiq/qaytaKor eski tizimga boradi); farq bo'lsa — oxirida o'chiriladi
   const toza = v => JSON.parse(JSON.stringify(v, (k, x) => x === null || x === undefined ? '' : x));
   const farq = (a, b, yol, o) => { if (o.length > 30) return; const bo = v => v === '' || v === null || v === undefined;
     if (bo(a) && bo(b)) return; if (typeof a !== typeof b) { if (String(a) !== String(b)) o.push(yol + ': ' + JSON.stringify(a).slice(0, 60) + ' ←→ ' + JSON.stringify(b).slice(0, 60)); return; }
@@ -1218,6 +1219,7 @@ async function qaytaSinov() {
     }
   }
   console.log('');
+  if (x || !k16) await redis.del('yozuv_yondi:qayta');
   if (!x && k16) { await redis.set('yozuv_yondi:qayta', '1'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish: skan yuklash, tekshiruvga yuborish va qaytarish endi serverda (o\'qishlar — deploy bilan).\n   Loyiha yaratish, hujjatlar (4 PDF), tasdiqlash va bekor qilish hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.6 emas') + ' — yozuvlar YOQILMADI (eski tizim orqali ishlayveradi).');
 }
