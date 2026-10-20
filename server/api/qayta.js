@@ -27,6 +27,12 @@ const TP = require('./topshiriq_yoz')._ichki;
 const HY = require('./hujjat_yoz')._ichki;
 const QH = require('./qadam_hujjat')._ichki;
 const SY = require('./shartnoma_yoz')._ichki;
+const SH = require('../lib/sotuv_hujjat');
+const DS = require('../lib/docs_shablon');
+const SP = require('../lib/shablon_pdf');
+const PDF = require('../lib/pdf');
+const fs = require('fs');
+const path = require('path');
 
 const QT_VARAQ = '06k_Qayta_tuzish', HUJ = '06d_Hujjatlar', TOP_V = TP.TOP_V;
 const QT_N = 31;
@@ -548,5 +554,87 @@ async function qaytaTasdiq(args) {
   return natija;
 }
 
-module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq };
-module.exports._ichki = { qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N };
+// ================================================================== 4) HUJJATLAR — 4 ta PDF (Qayta.gs v2.3 qaytaHujjatlar bilan bir xil matn va joylashuv)
+// Eski tizim: Google Doc shablonlari nusxalanib to'ldiriladi, PDF Docs'dan olinadi (40–70 s), Drive'da loyiha papkasi (06k Z) + jurnal.
+// Server: shablonlar robot orqali (Google DOCX eksporti), to'ldirish modelda (lib/docs_shablon.js), PDF Chromium (lib/shablon_pdf.js) — 2–4 s;
+// PDF lar /opt/aks/hujjat/qayta/<id>/ da. Drive papkasi, Google Doc nusxalari, 06k Z va jurnal — fonda eski qaytaHujjatlar ning o'zi
+// (ko'prik orqali, xodim kutmaydi) — Drive arxivi avvalgidek. Bayroq: yozuv_yondi:qayta_hujjat («aks-yozuv-sinov qaytahuj»).
+async function bayroq3() { try { return (await redis.get('yozuv_yondi:qayta_hujjat')) === '1'; } catch (e) { return false; } }
+async function qtMijoz(mid) { return ((await V.qatorlar('02_Mijozlar')).find(z => s(z.r[0]) === s(mid)) || { r: null }).r; }   // qtMijoz_: 02 (displayValues, 25 ustun)
+function qtBandlar(tur) { return /^Қурилаётган/.test(tur) && /Муддатли/.test(tur) ? ['5.1 ва 5.3', '5.4, 5.5 ва 6.2'] : ['2.7 ва 3.3.1', '3.3.2, 4.2 ва 4.3']; }
+function qtShakl(x) { x = s(x); return /naq|нақд|наличн/i.test(x) ? 'Нақд' : /barter|ўзаро|o'zaro/i.test(x) ? 'Ўзаро ҳисоб' : /plastik|karta|карт|uzcard|humo/i.test(x) ? 'Пластик карта' : /bank|банк|o'tkazma|перечис/i.test(x) ? 'Банк' : x; }
+// hujjatlardagi <<BELGI>> qiymatlari (qtBelgilar_)
+function qtBelgilar(x, e, mr) {
+  const vil = v => { v = s(v).trim(); return !v || /вилоят|viloyat|шаҳр|shahr|Республика/i.test(v) ? v : v + ' вилояти'; };
+  const toza = (v, suf) => s(v).trim().replace(suf, '').trim();
+  const kocha = toza(mr[16], /\s*(кўчаси|ko['`ʻ]?chasi|kochasi)\s*$/i), mfy = toza(mr[15], /\s*(МФЙ|MFY)\s*$/i), uy = toza(mr[17], /\s*-?\s*(уй|uy)\s*$/i), xon = toza(mr[18], /\s*-?\s*(хонадон|xonadon)\s*$/i);
+  const manzil = [vil(mr[13]), mr[14] || '', mfy ? mfy + ' МФЙ' : '', kocha ? kocha + ' кўчаси' : '', uy ? uy + '-уй' : '', xon ? xon + '-хонадон' : ''].filter(Boolean).join(', ');
+  const P = s(mr[2]).trim().split(/\s+/);
+  const bosh = z => { const m = /^.[`'ʻʼ’]?/.exec(z || ''); return m ? m[0] + '.' : ''; };
+  const dk = s(x.dokon).split('-'), B = qtBandlar(s(e[3] || ''));
+  const yangiNomi = (QT_NOMI[x.turi] || ['', ''])[1] || x.turi;
+  return { SANA: x.sana, SANA_MATN: SH.sanaMatn(x.sana), FISH: mr[2], FISH_QISQA: (P[0] || '') + (P[1] ? ' ' + bosh(P[1]) : '') + (P[2] ? bosh(P[2]) : ''),
+    PASPORT: mr[6], IIB: [vil(mr[7]), mr[8]].filter(Boolean).join(', ') + ' ИИБ', PAS_SANA: mr[9], PAS_MUDDAT: mr[10], JSHSHIR: mr[11], MANZIL: manzil, TEL: SH.telPlus(mr[4]),
+    ESKI_NO: x.eski, ESKI_SANA_MATN: SH.sanaMatn(e[2]), ESKI_NOMI: x.eskiNomi, YANGI_NO: x.yangi, YANGI_NOMI: yangiNomi,
+    BLOK: dk[0] || '', QAVAT: dk[1] || '', DOKON: dk[2] || '', MAYDON: s(e[6]).replace('.', ','),
+    QIYMAT: qtFmt(x.qiymat), TOLANGAN: qtFmt(x.tolangan), TOLANGAN_SOZ: SH.sozBilan(x.tolangan), QOLDIQ: qtFmt(x.qolgan), OY: String(x.oy), OY_SOZ: SH.sozBilan(x.oy),
+    SABAB: x.sabab, ESKI_PENYA_BANDLARI: B[0], ESKI_QAYTARISH_BANDLARI: B[1] };
+}
+// shablondan PDF (qtDocPdf_): tana + kolontitullar; tolovlar berilsa — <<T_…>> qatori har to'lovga ko'paytiriladi
+async function qtDocPdf(shablonNom, nom, T, tolovlar) {
+  const sh = await DS.ol(shablonNom), m = sh.model, body = m.el;
+  if (tolovlar) {
+    const q = DS.belgiQatori(body, '<<T_NO>>');
+    if (q) {
+      const asl = q.tbl.rows[q.ix];
+      tolovlar.forEach((t, i) => { const yq = DS.qatorNusxa(asl); q.tbl.rows.splice(q.ix + 1 + i, 0, yq); const el = [].concat(...yq.cells.map(c => c.el));
+        DS.replaceText(el, '<<T_NO>>', String(i + 1)); DS.replaceText(el, '<<T_SANA>>', qtDmy(t.sana)); DS.replaceText(el, '<<T_SHAKL>>', qtShakl(t.shakl)); DS.replaceText(el, '<<T_SUMMA>>', qtFmt(t.summa)); });
+      q.tbl.rows.splice(q.ix, 1);
+    }
+  }
+  const qoy = el => { if (!el) return; for (const k in T) DS.replaceText(el, '<<' + SH.rx(k) + '>>', s(T[k])); };
+  qoy(body); qoy(m.footer); qoy(m.header);
+  const qolgan = DS.qolganBelgilar(body);
+  const r = await SP.yasa(m);
+  return { nom: nom + '.pdf', pdf: r.pdf, bet: r.bet, qolgan, shablon: { id: sh.id, nom: sh.nom, modifiedTime: sh.modifiedTime } };
+}
+// 4 ta hujjatni yasash (bazaga yozmaydi): x — 06k loyihasi, e — eski shartnoma 03 qatori (displayValues), mr — 02 qatori, tolovlar — qtTolovlar
+async function hujjatlarYasa(x, e, mr, tolovlar) {
+  const nf = x.yangi.replace('/', '-'), ef = x.eski.replace('/', '-'), fam = s(mr[2]).split(' ')[0];
+  const T = qtBelgilar(x, e, mr);
+  const N = [];
+  for (const h of [['ariza', 'Qayta_ariza_shablon', '1_Ariza_' + ef + '_' + fam], ['kelishuv', 'Qayta_kelishuv_shablon', '2_Kelishuv_bekor_qilish_' + ef + '_' + fam],
+    ['solishtirma', 'Qayta_solishtirma_shablon', '3_Solishtirma_dalolatnoma_' + ef + '_' + fam]]) {
+    N.push(Object.assign({ k: h[0] }, await qtDocPdf(h[1], h[2], T, h[0] === 'solishtirma' ? tolovlar : null)));
+  }
+  // 4: yangi shartnoma — sotuvHujjat (Код v9.2+), virtual qator
+  const r = e.slice(); r[0] = x.yangi; r[2] = x.sana; r[3] = x.turi; r[9] = String(x.tolangan); r[10] = '0'; r[11] = String(x.oy); r[12] = String(x.kun); r[22] = String(x.qiymat);
+  const jad = qtJadval(x.qolgan, x.oy, qtIsoD(x.birinchi), x.kun).map(j => ({ sana: qtDmy(j.sana), summa: j.summa }));
+  const nom4 = '4_Shartnoma_' + nf + '_' + fam + '_' + x.dokon;
+  const h4 = await SH.sotuvHujjat(r, mr, jad, { nom: nom4, qayta: { eskiNo: x.eski, eskiSana: e[2], kelSana: x.sana } });
+  N.push({ k: 'shartnoma', nom: nom4 + '.pdf', pdf: h4.pdf, bet: h4.bet, qolgan: h4.qolgan, bosh: h4.bosh, shablon: h4.shablon });
+  return N;
+}
+async function qaytaHujjatlar(args) {
+  const [kodSes, id] = args;
+  const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
+  const u = await qtKirish(kodSes, x);
+  if (!(await serverda(u.kod)) || !(await bayroq3()) || !(await PDF.bor())) return eskiTizim('qaytaHujjatlar', u, args.slice(1));
+  if (['Loyiha', 'Qaytarildi', 'Tekshiruvda'].indexOf(x.holati) < 0) throw new S.Xato('Loyiha «' + x.holati + '» holatida.');
+  const H = await qtHolat(x, u.admin); if (H.ogoh.length) throw new S.Xato(H.ogoh.join(' '));
+  const S3 = await qtShartnoma(x.eski); if (!S3.x) throw new S.Xato('Eski shartnoma topilmadi: ' + x.eski);
+  const e = S3.x.d;
+  const mr = await qtMijoz(x.mid); if (!mr) throw new S.Xato('Mijoz 02 da topilmadi (ID ' + x.mid + ').');
+  const tolovlar = await qtTolovlar(x.eski);
+  const N = await hujjatlarYasa(x, e, mr, tolovlar);
+  // PDF lar diskda (arxiv): /opt/aks/hujjat/qayta/<id>/<nom>
+  try { const dir = path.join(env.hujjatPapka || '/opt/aks/hujjat', 'qayta', String(x.id).replace(/[^\w-]/g, '_')); fs.mkdirSync(dir, { recursive: true }); N.forEach(n => fs.writeFileSync(path.join(dir, n.nom), n.pdf)); }
+  catch (err) { console.error('qayta hujjat: diskka yozilmadi:', err.message); }
+  // fonda: eski tizimning o'zi Drive papkasi + Google Doc nusxalari + 06k Z va jurnal (avvalgidek; natijasi kutilmaydi)
+  koprik.chaqir('qaytaHujjatlar', u.kod, [x.id], { muddat: 300000, urinish: 1 }).then(() => yangila([QT_VARAQ])).catch(err => console.error('qayta hujjat (Drive, eski tizim):', err.message));
+  const qolgan = [].concat(...N.map(n => n.qolgan || []));
+  return { ok: true, fayllar: N.map(n => ({ k: n.k, nom: n.nom, b64: n.pdf.toString('base64') })), qolgan: Array.from(new Set(qolgan)), bosh: N[3].bosh || [], papka: u.admin ? s(x.papka) : '' };
+}
+
+module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar };
+module.exports._ichki = { qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy };

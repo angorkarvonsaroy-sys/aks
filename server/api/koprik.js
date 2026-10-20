@@ -20,9 +20,9 @@ function bor() { return !!(env.bridgeUrl && env.bridgeSecret); }
 
 class Vaqtinchalik extends Error {}   // qayta urinsa bo'ladigan xato
 
-async function birUrinish(tana) {
+async function birUrinish(tana, opt) {
   const ac = new AbortController();
-  const muddat = MUDDAT_MS + Math.round(tana.length / 1048576) * 3000;
+  const muddat = ((opt && opt.muddat) || MUDDAT_MS) + Math.round(tana.length / 1048576) * 3000;
   const t = setTimeout(() => ac.abort(), muddat);
   let r, matn;
   try {
@@ -50,24 +50,26 @@ function jurnal(fn, ms, ok, xato) {
   if (fn === 'koprikVersiya') return;
   try { require('../lib/db').q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [String(fn).slice(0, 80), 'eski', ms, ok, xato ? String(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { }
 }
-// fn — eski tizimdagi funksiya nomi; kod — xodimning kirish kodi (sessiyasiz); args — qolgan argumentlar
-async function chaqir(fn, kod, args) {
+// fn — eski tizimdagi funksiya nomi; kod — xodimning kirish kodi (sessiyasiz); args — qolgan argumentlar;
+// opt — { muddat: ms, urinish: n } (uzoq fon ishlari: masalan eski qaytaHujjatlar 40–70 s — bitta urinish, takror chaqirilsa Drive'da nusxalar ko'payadi)
+async function chaqir(fn, kod, args, opt) {
   if (!bor()) throw new Error('Bu amal («' + fn + '») hali serverga ko\'chirilmagan, eski tizim ko\'prigi esa sozlanmagan.');
   const tana = JSON.stringify({ s: env.bridgeSecret, fn, kod, args: args || [] });
   const t0 = Date.now();
   await joyOl();
   try {
     let oxirgi;
-    for (let i = 1; i <= URINISH; i++) {
-      try { const r = await birUrinish(tana); jurnal(fn, Date.now() - t0, true); return r; }
+    const UR = (opt && opt.urinish) || URINISH;
+    for (let i = 1; i <= UR; i++) {
+      try { const r = await birUrinish(tana, opt); jurnal(fn, Date.now() - t0, true); return r; }
       catch (e) {
         if (!(e instanceof Vaqtinchalik)) { jurnal(fn, Date.now() - t0, false, e.message); throw e; }
         oxirgi = e;
-        if (i < URINISH) await new Promise(r => setTimeout(r, 1500 * i));
+        if (i < UR) await new Promise(r => setTimeout(r, 1500 * i));
       }
     }
     jurnal(fn, Date.now() - t0, false, oxirgi.message);
-    throw new Error(oxirgi.message + ' (' + URINISH + ' urinishdan keyin)');
+    throw new Error(oxirgi.message + (UR > 1 ? ' (' + UR + ' urinishdan keyin)' : ''));
   } finally { joyBer(); }
 }
 
