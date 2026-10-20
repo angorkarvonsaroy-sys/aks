@@ -1,14 +1,17 @@
 // AKS TIZIM — 🔁 SOTUV SHARTNOMASINI QAYTA TUZISH (Qayta.gs v2.3) — serverdagi qismi.
 // 1-bosqich (21.10.2026): o'qishlar — qaytaKor (direktor: oynani ochish), qaytaOchiq (loyiha: direktor yoki ijrochi);
 //   yozuvlar — qaytaSkan (imzolangan skan → 06d + 06k), qaytaTekshiruvga (ijrochi), qaytaQaytar (direktor).
-//   Eski tizimda qoladi (hozircha): qaytaLoyiha, qaytaIjrochi, qaytaHujjatlar (Google Docs shablonlari → 4 ta PDF), qaytaTasdiq (03/03b/05 yozuvi),
-//   qaytaBekor (Drive papkasini savatga).
+// 2-bosqich (21.10.2026): qaytaLoyiha (06k yangi qator + xodimga topshiriq), qaytaIjrochi (ijrochini almashtirish), qaytaTasdiq (BAZAGA YOZISH:
+//   03 yangi qator + U:AN formulalar, 03b jadval + Kumulyativ formulasi, 05/05b to'lovlar yangi raqamga, eski shartnoma «Bekor qilindi», 06k «Bajarildi»,
+//   tashrif, Telegram). Tasdiq yozuvlaridan oldin 03/03b/05/05b Google'dan YANGI o'qiladi (eski tizim getValues kabi), qulf: qayta + shartnoma.
+//   Eski tizimda qoladi: qaytaHujjatlar (Google Docs shablonlari → 4 ta PDF), qaytaBekor (Drive papkasini savatga).
 // Eski kod bilan bir xil: tekshiruvlar tartibi, xato matnlari, javob, kataklar. 06k — yozuvdan oldin Google'dan YANGI o'qiladi.
 // Farq (yakuniy holat bir xil): eski qaytaSkan avval eski skanni Drive'da «_BEKOR» papkaga ko'chirib, yangi yuklash muvaffaqiyatsiz bo'lsa qaytarardi;
 //   server 06d da avval «Bekor» belgilaydi (yangi skan takror tekshiruvidan o'tishi uchun), Drive faylini esa faqat yangi skan yozilgach ko'chiradi
 //   (muvaffaqiyatsiz bo'lsa 06d qaytariladi, Drive'ga tegilmaydi). Skan avval serverga (SRV:), Drive'ga — fonda (hujjatYukla kabi).
 // Yoqilishi: Redis yozuv_yondi:qayta («aks-yozuv-sinov qayta» — o'qishlar eski tizim bilan solishtiriladi, 06k nusxasida yozuv);
 //   yozuvlar uchun yana Koprik ≥ 1.6 (koprikHujjatBekorFayl, koprikTgYubor, koprikTgChat). Aks holda — eski tizim (o'qishlar ham).
+//   2-bosqich (loyiha, ijrochi, tasdiq) — qo'shimcha yozuv_yondi:qayta2 («aks-yozuv-sinov qayta2» — nusxa varaqlarda to'liq tasdiq yozuvi, eski yozganlari bilan).
 'use strict';
 const crypto = require('crypto');
 const { verOk } = require('../lib/versiya');
@@ -23,6 +26,7 @@ const { redis } = require('../lib/db');
 const TP = require('./topshiriq_yoz')._ichki;
 const HY = require('./hujjat_yoz')._ichki;
 const QH = require('./qadam_hujjat')._ichki;
+const SY = require('./shartnoma_yoz')._ichki;
 
 const QT_VARAQ = '06k_Qayta_tuzish', HUJ = '06d_Hujjatlar', TOP_V = TP.TOP_V;
 const QT_N = 31;
@@ -63,9 +67,23 @@ function hozirHm() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => 
 function aOxiri(R) { let m = -1; R.forEach((z, i) => { if (z.x[0] !== '' && z.x[0] !== null && z.x[0] !== undefined) m = i; }); return R.slice(0, m + 1); }
 
 // ------------------------------------------------------------------ o'qish yordamchilari
-async function qtRows() {   // qtRows_ — Google'dan YANGI (getDisplayValues)
-  const R = await G.oraliqOqi(env.aksBazaId, QT_VARAQ, 'A1:AE', env.googleKey).catch(e => { if (/Unable to parse range|not found/i.test(e.message)) return []; throw e; });
-  if (!R.length || s(R[0][2]) !== 'Holati') return [];
+// Ma'lumot manbai: o'qishlarda — ko'zgu (V.qatorlar), yozuvdan oldin — Google'dan YANGI (eski tizim getValues/getDisplayValues kabi).
+// Har varaq bir marta o'qiladi (keshlanadi); yozuvdan keyin qayta o'qish — M.yangila(nom).
+const KZ = { '03_Sotuv_shartnomalar': ['A2:AN', 40, true], '03b_Tolov_jadvali': ['A2:H', 8, true], '05_Tolovlar': ['A2:L', 12, false], '05b_Bufer_tolovlar': ['A2:G', 7, false] };
+function manba(yangi, varaqNom) {
+  const kesh = {}; const nomi = n => (varaqNom && varaqNom[n]) || n;   // varaqNom — sinovda nusxa varaqlar
+  const ol = async nom => {
+    if (!yangi) return V.qatorlar(nom);
+    const [a1, n, ikki] = KZ[nom], v = nomi(nom);
+    const [X, D] = await Promise.all([G.oraliqOqi(env.aksBazaId, v, a1, env.googleKey, 'UNFORMATTED_VALUE'), ikki ? G.oraliqOqi(env.aksBazaId, v, a1, env.googleKey) : null]);
+    return X.map((r0, i) => { const x = [], r = []; for (let k = 0; k < n; k++) { x.push(r0[k] == null ? '' : r0[k]); r.push(D ? s((D[i] || [])[k]) : s(r0[k] == null ? '' : r0[k])); } return { n: i + 2, x, r }; });
+  };
+  return { q: nom => kesh[nom] || (kesh[nom] = ol(nom)), yangila: nom => { delete kesh[nom]; }, nomi };
+}
+const KOZGU = manba(false);
+async function qtRows(varaq) {   // qtRows_ — Google'dan YANGI (getDisplayValues); null — varaq yo'q yoki eski (v1) tuzilishda
+  const R = await G.oraliqOqi(env.aksBazaId, varaq || QT_VARAQ, 'A1:AE', env.googleKey).catch(e => { if (/Unable to parse range|not found/i.test(e.message)) return null; throw e; });
+  if (!R || !R.length || s(R[0][2]) !== 'Holati') return null;
   let m = 0; R.forEach((r, i) => { if (i && s(r[0]) !== '') m = i; });
   return R.slice(1, m + 1).map((r0, i) => { const r = []; for (let k = 0; k < QT_N; k++) r.push(s(r0[k]));
     return { qator: i + 2, id: r[0], yaratildi: r[1], holati: r[2], eski: r[3], yangi: r[4], mid: r[5], fish: r[6], dokon: r[7],
@@ -75,19 +93,19 @@ async function qtRows() {   // qtRows_ — Google'dan YANGI (getDisplayValues)
   }).filter(x => x.id);
 }
 function qtBandRaqamlar(rows) { const o = {}; rows.forEach(x => { if (QT_FAOL.indexOf(x.holati) >= 0) o[x.yangi] = x.id; }); return o; }
-async function qtShartnoma(no) {   // 03: getValues (x) + getDisplayValues (r), 40 ustun
-  const R = aOxiri(await V.qatorlar('03_Sotuv_shartnomalar'));
+async function qtShartnoma(no, M) {   // 03: getValues (x) + getDisplayValues (r), 40 ustun
+  const R = aOxiri(await (M || KOZGU).q('03_Sotuv_shartnomalar'));
   let mx = 0, x = null;
   const pad = a => { const o = []; for (let k = 0; k < 40; k++) o.push(a[k] === undefined || a[k] === null ? '' : a[k]); return o; };
   R.forEach(z => { const n = s(z.x[0]).trim(); const m = /^27\/(\d+)$/.exec(n); if (m) mx = Math.max(mx, Number(m[1])); if (n === no) x = { qator: z.n, r: pad(z.x), d: pad(z.r) }; });
   return { x, mx, barcha: R.map(z => s(z.x[0]).trim()) };
 }
-async function qtJadvalRaqamlar() { const o = {}; aOxiri(await V.qatorlar('03b_Tolov_jadvali')).forEach(z => { const n = s(z.r[1]).trim(); if (n) o[n] = (o[n] || 0) + 1; }); return o; }
+async function qtJadvalRaqamlar(M) { const o = {}; aOxiri(await (M || KOZGU).q('03b_Tolov_jadvali')).forEach(z => { const n = s(z.r[1]).trim(); if (n) o[n] = (o[n] || 0) + 1; }); return o; }
 async function qtKeyingiNo(S3, rows) { const band = qtBandRaqamlar(rows), jad = await qtJadvalRaqamlar(); let n = S3.mx + 1; while (band['27/' + n] || jad['27/' + n] || S3.barcha.indexOf('27/' + n) >= 0) n++; return '27/' + n; }
-async function qtTolovlar(no) {
-  const T = [];
-  aOxiri(await V.qatorlar('05_Tolovlar')).forEach(z => { const r = z.x; if (r[0] && s(r[2]).trim() === no) T.push({ v: '05', qator: z.n, id: r[0], sana: qtIso(r[1]), summa: Number(r[3]) || 0, shakl: s(r[4] || ''), izoh: s(r[11] || ''), kochdi: s(r[8] || '').trim() }); });
-  aOxiri(await V.qatorlar('05b_Bufer_tolovlar')).forEach(z => { const r = z.x; if (r[0] && s(r[2]).trim() === no && s(r[6]).trim() === 'Буферда') T.push({ v: '05b', qator: z.n, id: r[0], sana: qtIso(r[1]), summa: Number(r[3]) || 0, shakl: s(r[4] || ''), izoh: s(r[5] || ''), bufer: true }); });
+async function qtTolovlar(no, M) {
+  const T = []; M = M || KOZGU;
+  aOxiri(await M.q('05_Tolovlar')).forEach(z => { const r = z.x; if (r[0] && s(r[2]).trim() === no) T.push({ v: '05', qator: z.n, id: r[0], sana: qtIso(r[1]), summa: Number(r[3]) || 0, shakl: s(r[4] || ''), izoh: s(r[11] || ''), kochdi: s(r[8] || '').trim() }); });
+  aOxiri(await M.q('05b_Bufer_tolovlar')).forEach(z => { const r = z.x; if (r[0] && s(r[2]).trim() === no && s(r[6]).trim() === 'Буферда') T.push({ v: '05b', qator: z.n, id: r[0], sana: qtIso(r[1]), summa: Number(r[3]) || 0, shakl: s(r[4] || ''), izoh: s(r[5] || ''), bufer: true }); });
   return T.sort((a, b) => a.sana < b.sana ? -1 : a.sana > b.sana ? 1 : 0);
 }
 async function qtKirish(kodSes, x) {   // qtKirish_: direktor — hammasi; xodim — faqat o'ziga biriktirilgan loyiha
@@ -98,25 +116,25 @@ async function qtKirish(kodSes, x) {   // qtKirish_: direktor — hammasi; xodim
 }
 async function qtXodimlar() { return (await TP.topXodimlar()).filter(z => !z.admin).map(z => ({ fish: z.fish, bolim: z.bolim, tg: !!z.tg })); }
 
-async function qtTahlil(no, rows) {
-  const S3 = await qtShartnoma(no); if (!S3.x) throw new S.Xato('Shartnoma topilmadi: ' + no);
+async function qtTahlil(no, rows, M) {
+  const S3 = await qtShartnoma(no, M); if (!S3.x) throw new S.Xato('Shartnoma topilmadi: ' + no);
   const r = S3.x.r, d = S3.x.d, holat = s(r[13]);
-  const T = await qtTolovlar(no);
+  const T = await qtTolovlar(no, M);
   const ogoh = [];
   if (/bekor|yakun|kutil/i.test(holat)) ogoh.push('Shartnoma holati «' + holat + '» — qayta tuzib bo\'lmaydi.');
   { const I = (await J.yuIshlar()).filter(i => i.no === no && (YU_FAOL.indexOf(i.holati) >= 0 || i.holati === 'Tasdiq kutilmoqda'));
     if (I.length) ogoh.push('Shartnoma yuristda (holati: ' + I[0].holati + ') — avval yurist ishini yoping.'); }
   { const B = (await J.bekorJurnal()).filter(z => z.no === no && BEKOR_YOPIQ.indexOf(z.holati) < 0); if (B.length) ogoh.push('Bu shartnoma bo\'yicha ochiq bekor qilish so\'rovi bor — avval uni yoping.'); }
-  const faol = rows.find(x => x.eski === no && QT_FAOL.indexOf(x.holati) >= 0);
+  const faol = (rows || []).find(x => x.eski === no && QT_FAOL.indexOf(x.holati) >= 0);
   if (faol) ogoh.push('Bu shartnoma uchun ochiq loyiha bor (№' + faol.id + ', ' + faol.holati + ').');
   const qiymat = Math.round(Number(r[22]) || 0), tolangan = Math.round(Number(r[27]) || 0), yig = Math.round(T.reduce((a, t) => a + t.summa, 0));
   if (Math.abs(yig - tolangan) > 1) ogoh.push('To\'lovlar yig\'indisi (' + qtFmt(yig) + ') shartnomadagi «Jami to\'langan» (' + qtFmt(tolangan) + ') bilan mos emas — avval tekshiring.');
   if (qiymat - tolangan <= 0) ogoh.push('Qarz yo\'q — qayta tuzish o\'rniga shartnomani «Yakunlangan» qiling.');
   return { S: S3, r, d, T, ogoh, holat, qiymat, tolangan, yig, faol };
 }
-async function qtOgoh(x) {
+async function qtOgoh(x, M) {
   const ogoh = [];
-  const S3 = await qtShartnoma(x.eski);
+  const S3 = await qtShartnoma(x.eski, M);
   if (!S3.x) ogoh.push('Eski shartnoma ' + x.eski + ' bazada topilmadi.');
   else {
     const r = S3.x.r;
@@ -127,12 +145,12 @@ async function qtOgoh(x) {
     if (s(r[4]) !== s(x.mid) || s(r[5]) !== s(x.dokon)) ogoh.push('Eski shartnomada mijoz yoki do\'kon o\'zgargan — loyihani bekor qilib, qaytadan yarating.');
   }
   if (S3.barcha.indexOf(x.yangi) >= 0) ogoh.push(x.yangi + ' raqami bazada paydo bo\'lgan — loyihani bekor qiling.');
-  const jq = (await qtJadvalRaqamlar())[x.yangi]; if (jq) ogoh.push(x.yangi + ' raqami bo\'yicha 03b da ' + jq + ' ta eski jadval qatori bor (o\'chirilgan shartnoma qoldig\'i) — bu raqam bilan tasdiqlab bo\'lmaydi. Loyihani bekor qilib, boshqa raqam bilan qaytadan yarating.');
+  const jq = (await qtJadvalRaqamlar(M))[x.yangi]; if (jq) ogoh.push(x.yangi + ' raqami bo\'yicha 03b da ' + jq + ' ta eski jadval qatori bor (o\'chirilgan shartnoma qoldig\'i) — bu raqam bilan tasdiqlab bo\'lmaydi. Loyihani bekor qilib, boshqa raqam bilan qaytadan yarating.');
   return ogoh;
 }
 // jur — hujjatJurnal_ (o'qishda ko'zgu, yozuvdan oldin Google'dan yangi)
-async function qtHolat(x, admin, jur) {
-  const ogoh = ['Loyiha', 'Qaytarildi', 'Tekshiruvda'].indexOf(x.holati) >= 0 ? await qtOgoh(x) : [];
+async function qtHolat(x, admin, jur, M) {
+  const ogoh = ['Loyiha', 'Qaytarildi', 'Tekshiruvda'].indexOf(x.holati) >= 0 ? await qtOgoh(x, M) : [];
   jur = jur || await J.hujjatJurnal();
   const skan = QT_HUJ.map(h => { const hid = x.skan[h[0]]; const j = hid ? jur.find(z => s(z.id) === s(hid)) : null;
     return { k: h[0], nom: h[2], bor: !!(j && j.holati === 'Faol'), fayl: j ? j.nom : '', vaqt: j ? j.vaqt : '', kim: j ? j.kim : '', url: (j && admin) ? 'https://drive.google.com/file/d/' + j.faylId + '/view' : '' }; });
@@ -145,7 +163,7 @@ async function qaytaKor(args) {
   const u0 = await S.ruxsat(kodSes, 'admin');
   if (!(await bayroq())) return eskiTizim('qaytaKor', u0, args.slice(1));
   const no = s(no0).trim();
-  const rows = await qtRows();
+  const rows = (await qtRows()) || [];
   const A = await qtTahlil(no, rows), r = A.r, d = A.d;
   const bugun = V.bugun(), tkun = Number(r[12]) || 23;
   const tur = s(r[3]), yangiTur = QT_TUR_MUDDATLI.indexOf(tur) >= 0 ? tur : (/^Қурилаётган/.test(tur) ? QT_TUR_MUDDATLI[1] : QT_TUR_MUDDATLI[0]);
@@ -160,7 +178,7 @@ async function qaytaKor(args) {
 async function qaytaOchiq(args) {
   const [kodSes, id] = args;
   if (!(await bayroq())) { const u0 = await S.foydalanuvchi(kodSes); if (!u0) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.'); return eskiTizim('qaytaOchiq', u0, args.slice(1)); }
-  const x = (await qtRows()).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi (№' + id + ').');
+  const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi (№' + id + ').');
   const u = await qtKirish(kodSes, x);
   const H = await qtHolat(x, u.admin);
   const Jd = x.oy ? qtJadval(x.qolgan, x.oy, qtIsoD(x.birinchi), x.kun) : [];
@@ -179,6 +197,8 @@ async function koprik16(kod) {
 }
 async function bayroq() { try { return (await redis.get('yozuv_yondi:qayta')) === '1'; } catch (e) { return false; } }
 async function serverda(kod) { return (await bayroq()) && koprik16(kod); }
+async function bayroq2() { try { return (await redis.get('yozuv_yondi:qayta2')) === '1'; } catch (e) { return false; } }   // 2-bosqich: loyiha, ijrochi, tasdiq («aks-yozuv-sinov qayta2»)
+async function serverda2(kod) { return (await bayroq()) && (await bayroq2()) && koprik16(kod); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 async function qulfBilan(ish) {   // LockService.getScriptLock() o'rni (eski tizimning qolgan qayta amallari bilan umumiy emas — direktor bitta)
   const kalit = 'qulf:qayta', belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();
@@ -213,7 +233,7 @@ async function hujjatTikla(h) { await yoz([kat(HUJ, h.qator, 14, 'Faol'), kat(HU
 // ================================================================== 5) IMZOLANGAN SKANLARNI YUKLASH
 async function qaytaSkan(args) {
   const [kodSes, id, k, b64, sahifa] = args;
-  let x = (await qtRows()).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
+  let x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
   const u = await qtKirish(kodSes, x);
   if (!(await serverda(u.kod))) return eskiTizim('qaytaSkan', u, args.slice(1));
   if (['Loyiha', 'Qaytarildi'].indexOf(x.holati) < 0) throw new S.Xato('Skan faqat «Loyiha» yoki «Qaytarildi» holatida yuklanadi (hozir: ' + x.holati + ').');
@@ -236,7 +256,7 @@ async function qaytaSkan(args) {
   } catch (e) { if (eski) { await hujjatTikla(eski).catch(z => console.error('qayta: tiklash:', z.message)); await yangila([HUJ]); } throw e; }
   driveBekor(u.kod, eski);
   const w = await qulfBilan(async () => {
-    x = (await qtRows()).find(z => s(z.id) === s(id));
+    x = ((await qtRows()) || []).find(z => s(z.id) === s(id));
     const j = (await QH.hjYangi()).filter(z => z.no === no && z.turi === h[1] && z.holati === 'Faol' && z.nom === r.nom).pop();
     if (['Loyiha', 'Qaytarildi'].indexOf(x.holati) < 0) {   // yuklash davomida loyiha yopilgan / tekshiruvga ketgan
       if (j) { const b = await hujjatBekor(j.id, 'Qayta tuzish №' + x.id + ' «' + x.holati + '» bo\'lgan paytda yuklandi', u.fish); driveBekor(u.kod, b); await yangila([HUJ]); }
@@ -252,12 +272,12 @@ async function qaytaSkan(args) {
 // ================================================================== 6) TEKSHIRUVGA YUBORISH (ijrochi)
 async function qaytaTekshiruvga(args) {
   const [kodSes, id] = args;
-  const x0 = (await qtRows()).find(z => s(z.id) === s(id)); if (!x0) throw new S.Xato('Loyiha topilmadi.');
+  const x0 = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x0) throw new S.Xato('Loyiha topilmadi.');
   const u = await qtKirish(kodSes, x0);
   if (!(await serverda(u.kod))) return eskiTizim('qaytaTekshiruvga', u, args.slice(1));
   let yoq = false;
   const x = await qulfBilan(async () => {
-    const x = (await qtRows()).find(z => s(z.id) === s(id));
+    const x = ((await qtRows()) || []).find(z => s(z.id) === s(id));
     if (['Loyiha', 'Qaytarildi'].indexOf(x.holati) < 0) throw new S.Xato('Loyiha «' + x.holati + '» holatida.');
     const H = await qtHolat(x, u.admin, await QH.hjYangi());
     if (H.ogoh.length) throw new S.Xato(H.ogoh.join(' '));
@@ -282,7 +302,7 @@ async function qaytaQaytar(args) {
   if (!(await serverda(u.kod))) return eskiTizim('qaytaQaytar', u, args.slice(1));
   let yoq = false;
   const x = await qulfBilan(async () => {
-    const x = (await qtRows()).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
+    const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
     if (x.holati !== 'Tekshiruvda') throw new S.Xato('Faqat «Tekshiruvda» holatidagi loyiha qaytariladi.');
     try { await yoz([kat(QT_VARAQ, x.qator, 3, 'Qaytarildi'), jurnalKat(x, 'qaytarildi: ' + izoh, u.fish)]); }
     catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
@@ -297,5 +317,236 @@ async function qaytaQaytar(args) {
   return { ok: true };
 }
 
-module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar };
-module.exports._ichki = { qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, QT_VARAQ };
+// ================================================================== 2) DIREKTOR: LOYIHA YARATISH (bazaga hali hech narsa yozilmaydi — faqat 06k + topshiriq)
+const S_ = v => s(v).replace(/\s+/g, ' ').trim();
+const TOP_O = { matn: [], sana: {}, son: {}, formula: [] };
+function ertaga2() { const d = new Date(Date.now() + 2 * 86400000 + 5 * 3600000), p = n => String(n).padStart(2, '0'); return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); }
+// 06k ga yangi qator: hamma katak matn (setNumberFormat('@') + setValues o'rni: «'» + TEXT formati). Qaytaradi haqiqiy qator raqami
+async function loyihaQatorYoz(varaq, l, row) {
+  const F = { matn: [], sana: {}, son: {}, formula: [] };
+  let r;
+  try { r = await G.qatorlarQoshR(env.aksBazaId, varaq, l + 1, [row.map(v => v === '' ? '' : "'" + v)], env.googleKey); }
+  catch (e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; throw e; }
+  try {
+    const g = await G.gid(env.aksBazaId, varaq, env.googleKey);
+    await G.soralar(env.aksBazaId, [{ repeatCell: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: 0, endColumnIndex: QT_N }, cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } }], env.googleKey);
+  } catch (e) { console.error('06k format:', e.message); await SY.ogoh({ varaq, qator: r, xato: 'format: ' + e.message.slice(0, 200) }); }
+  if (r !== l + 1) await SY.ogoh({ varaq, qator: r, xato: 'kutilgan qator ' + (l + 1) + ' — shu orada boshqa yozuv qo\'shilgan' });
+  return r;
+}
+// topYoz_ — topshiriq qulfi ostida (topshiriq_yoz.js / qadam_yoz.js bilan bitta qulf)
+async function topshiriqYoz(o) {
+  const kalit = 'qulf:topshiriq', belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();
+  while (!(await redis.set(kalit, belgi, 'PX', 30000, 'NX'))) { if (Date.now() - t0 > 30000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
+  try { return await TP.topYoz(TOP_V, o, await TP.topRowsYangi(TOP_V)); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
+}
+async function qaytaLoyiha(args) {
+  const [kodSes, d0] = args; const d = d0 || {};
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverda2(u.kod))) return eskiTizim('qaytaLoyiha', u, args.slice(1));
+  const eski = S_(d.eski), yangi = S_(d.yangi);
+  if (!/^27\/\d+$/.test(yangi)) throw new S.Xato('Yangi shartnoma raqamini 27/NNN shaklida yozing.');
+  const oy = Math.round(Number(d.oy) || 0); if (oy < 1 || oy > 60) throw new S.Xato('Muddat 1–60 oy oralig\'ida bo\'lsin.');
+  const kun = Math.round(Number(d.kun) || 0); if (kun < 1 || kun > 31) throw new S.Xato('To\'lov kuni 1–31.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(S_(d.sana))) throw new S.Xato('Yangi shartnoma sanasi noto\'g\'ri.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(S_(d.birinchi))) throw new S.Xato('Birinchi oylik to\'lov sanasi noto\'g\'ri.');
+  if (d.birinchi <= d.sana) throw new S.Xato('Birinchi oylik to\'lov shartnoma sanasidan keyin bo\'lishi kerak.');
+  if (QT_TUR_MUDDATLI.indexOf(S_(d.turi)) < 0) throw new S.Xato('Yangi shartnoma turini tanlang.');
+  const ijrochi = S_(d.ijrochi) || u.fish;
+  const xodim = ijrochi !== u.fish;
+  let XD = [];
+  if (xodim) { XD = await TP.topXodimlar(); if (!XD.some(x => x.fish === ijrochi)) throw new S.Xato('Ijrochini ro\'yxatdan tanlang.'); }
+  const sabab = S_(d.sabab) || QT_SABAB, eskiNomi = S_(d.eskiNomi);
+  if (eskiNomi.length < 10) throw new S.Xato('Eski shartnomaning nomini yozing (qog\'ozdagidek).');
+  let yoq = false, t = null;
+  const w = await qulfBilan(async () => {
+    const rows = await qtRows(); if (rows === null) { yoq = true; return null; }   // 06k yo'q yoki eski tuzilish — eski tizim o'zi ochadi / xato beradi
+    const M = manba(true);
+    const A = await qtTahlil(eski, rows, M); if (A.ogoh.length) throw new S.Xato(A.ogoh.join(' '));
+    if (d.sana > V.bugun()) throw new S.Xato('Yangi shartnoma sanasi kelajakda bo\'lmasin — loyihani imzolash kuni yarating (skanlar shu sana bilan yuklanadi).');
+    if (qtIsoD(A.d[2]) && d.sana < qtIsoD(A.d[2])) throw new S.Xato('Yangi shartnoma sanasi eski shartnoma sanasidan (' + A.d[2] + ') oldin bo\'lishi mumkin emas.');
+    if (A.S.barcha.indexOf(yangi) >= 0) throw new S.Xato(yangi + ' raqami bazada allaqachon bor — boshqa raqam yozing.');
+    const jq = (await qtJadvalRaqamlar(M))[yangi]; if (jq) throw new S.Xato(yangi + ' raqami bo\'yicha 03b da ' + jq + ' ta eski jadval qatori qolgan (o\'chirilgan shartnoma qoldig\'i) — boshqa raqam tanlang.');
+    const band = qtBandRaqamlar(rows); if (band[yangi]) throw new S.Xato(yangi + ' raqami №' + band[yangi] + ' loyihada band.');
+    const l = rows.length ? rows[rows.length - 1].qator : 1;
+    let id = 0; rows.forEach(z => { const n = Number(z.id) || 0; if (n > id) id = n; }); id++;
+    const vaqt = hozirHm();
+    const r = A.r, qolgan = A.qiymat - A.tolangan;
+    const row = [String(id), vaqt, 'Loyiha', eski, yangi, s(r[4] || ''), s(r[20] || ''), s(r[5] || ''), S_(d.turi),
+      String(A.qiymat), String(A.tolangan), String(qolgan), qtDmy(d.sana), String(oy), String(kun), qtDmy(d.birinchi), sabab, eskiNomi, ijrochi, u.fish, '',
+      '', '', '', '', '', '', '', '', '', vaqt + ' · ' + u.fish + ': loyiha yaratildi (ijrochi: ' + ijrochi + ')'];
+    let q;
+    try { q = await loyihaQatorYoz(QT_VARAQ, l, row); } catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
+    if (xodim) {
+      t = await topshiriqYoz({ manba: 'Direktor', qoida: '', kalit: 'qayta|' + id, sarlavha: 'Shartnomani qayta tuzish: ' + eski + ' → ' + yangi + ' — 4 ta hujjatni tayyorlab imzolating, skanlarini yuklang',
+        izoh: s(r[20] || '') + ' · ' + s(r[5] || '') + ' · ' + oy + ' oy, har oyning ' + kun + '-kuni', no: eski, mid: s(r[4] || ''), kimga: ijrochi, kimBerdi: u.fish,
+        muddat: ertaga2() + ' 18:00', muhim: 'Oddiy' });
+      await G.yoz(env.aksBazaId, [kat(QT_VARAQ, q, 21, String(t.id))], env.googleKey);
+      TP.topTg(u.kod, [t], XD);
+    }
+    return { id, qator: q };
+  });
+  if (yoq) return eskiTizim('qaytaLoyiha', u, args.slice(1));
+  await yangila([QT_VARAQ].concat(t ? [TOP_V] : []));
+  return { ok: true, id: String(w.id), yangi, ijrochi, xodim };
+}
+// ================================================================== 3b) DIREKTOR: IJROCHINI ALMASHTIRISH (v2.3)
+async function qaytaIjrochi(args) {
+  const [kodSes, id, ijrochi0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverda2(u.kod))) return eskiTizim('qaytaIjrochi', u, args.slice(1));
+  const ijrochi = s(ijrochi0).trim() || u.fish;   // Kod.gs S_ — faqat trim (qaytaLoyiha dagi lokal S_ dan farqli)
+  const xodim = ijrochi !== u.fish;
+  let XD = [];
+  if (xodim) { XD = await TP.topXodimlar(); if (!XD.some(z => z.fish === ijrochi && !z.admin)) throw new S.Xato('Ijrochini ro\'yxatdan tanlang.'); }
+  let yoq = false, t = null, eski;
+  await qulfBilan(async () => {
+    const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi (№' + id + ').');
+    if (['Loyiha', 'Qaytarildi'].indexOf(x.holati) < 0) throw new S.Xato('Ijrochi faqat «Loyiha» yoki «Qaytarildi» holatida almashtiriladi (hozir: ' + x.holati + ').');
+    eski = s(x.ijrochi).trim();
+    if (eski === ijrochi) throw new S.Xato('Ijrochi allaqachon ' + ijrochi + '.');
+    try {
+      await qtTop(x, 'Bekor', u.fish, 'ijrochi almashtirildi: ' + eski + ' → ' + ijrochi);   // eski topshiriq (bo'lsa) yopiladi
+      await G.yoz(env.aksBazaId, [kat(QT_VARAQ, x.qator, 19, ijrochi), kat(QT_VARAQ, x.qator, 21, '')], env.googleKey);
+    } catch (e) { if (e instanceof G.RuxsatYoq || e.yozilmadi) { yoq = true; return; } throw e; }
+    if (xodim) {
+      const bor = QT_HUJ.filter(h => x.skan[h[0]]).length;
+      t = await topshiriqYoz({ manba: 'Direktor', qoida: '', kalit: 'qayta|' + x.id,
+        sarlavha: 'Shartnomani qayta tuzish: ' + x.eski + ' → ' + x.yangi + ' — ' + (bor ? 'qolgan ' + (QT_HUJ.length - bor) + ' ta imzolangan skanni yuklang' : '4 ta hujjatni tayyorlab imzolating, skanlarini yuklang'),
+        izoh: x.fish + ' · ' + x.dokon + ' · ' + x.oy + ' oy, har oyning ' + x.kun + '-kuni' + (eski ? ' · avvalgi ijrochi: ' + eski : ''), no: x.eski, mid: x.mid, kimga: ijrochi, kimBerdi: u.fish,
+        muddat: ertaga2() + ' 18:00', muhim: 'Oddiy' });
+      await G.yoz(env.aksBazaId, [kat(QT_VARAQ, x.qator, 21, String(t.id))], env.googleKey);
+    }
+    await G.yoz(env.aksBazaId, [jurnalKat(x, 'ijrochi almashtirildi: ' + (eski || '—') + ' → ' + ijrochi + (t ? ' (topshiriq №' + t.id + ')' : ''), u.fish)], env.googleKey);
+  });
+  if (yoq) return eskiTizim('qaytaIjrochi', u, args.slice(1));
+  await yangila([QT_VARAQ, TOP_V]);
+  if (t) TP.topTg(u.kod, [t], XD);
+  return { ok: true, ijrochi, eski, topId: t ? String(t.id) : '', xodim };
+}
+
+// ================================================================== 7) DIREKTOR: TASDIQLASH — BAZAGA YOZISH
+// Yarim qolsa (xato/uzilish) — loyiha «Yozilmoqda» holatida qoladi; ✓ qayta bosilsa, bajarilmagan qadamlarni bajaradi.
+const F03Q = { matn: [1, 41, 42], sana: { 3: 'dd.MM.yyyy' }, son: { 9: '0.00%' }, formula: [[21, 40]] };   // Qayta.gs: A '@', C dd.MM.yyyy, I 0.00%, U:AN formulalar, AO:AP '@'
+const F03BQ = { matn: [2], sana: { 4: 'dd.MM.yyyy' }, son: {}, formula: [] };
+const matnKat = (g, qator, ustun, v) => ({ updateCells: { range: { sheetId: g, startRowIndex: qator - 1, endRowIndex: qator, startColumnIndex: ustun - 1, endColumnIndex: ustun },
+  rows: [{ values: [{ userEnteredValue: { stringValue: s(v) }, userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }] }], fields: 'userEnteredValue,userEnteredFormat.numberFormat' } });   // setNumberFormat('@').setValue(matn)
+const sanaFmt = (g, qator, ustun) => ({ repeatCell: { range: { sheetId: g, startRowIndex: qator - 1, endRowIndex: qator, startColumnIndex: ustun - 1, endColumnIndex: ustun }, cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd.MM.yyyy' } } }, fields: 'userEnteredFormat.numberFormat' } });
+const kumKopya = (g, src, row, n) => ({ copyPaste: { source: { sheetId: g, startRowIndex: src - 1, endRowIndex: src, startColumnIndex: 5, endColumnIndex: 6 }, destination: { sheetId: g, startRowIndex: row - 1, endRowIndex: row - 1 + n, startColumnIndex: 5, endColumnIndex: 6 }, pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } });
+// Yozuv yadrosi (sinov nusxa varaqlarda shuni ishlatadi): VQ — varaq nomlari {k, s3, s3b, s5, s5b}; x — 06k loyihasi; M — manba(true, VQ nomlari)
+// Tartib va kataklar Qayta.gs qaytaTasdiq bilan bir xil: 1) 03 yangi qator, 2) 03b jadval, 3) to'lovlar, 4) eski shartnoma «Bekor qilindi», 5) 06k «Bajarildi»
+async function tasdiqYadro(VQ, u, x, M, davom) {
+  const vaqt = hozirHm(), sana = x.sana;
+  const belgi = 'QAYTA TUZISH: ' + x.sana + ' o\'zaro kelishuv — ' + x.eski + ' o\'rniga (to\'langan ' + qtFmt(x.tolangan) + ' dastlabki to\'lovga o\'tdi; loyiha №' + x.id + ')';
+  const belgiEski = 'QAYTA TUZILDI: ' + x.sana + ' o\'zaro kelishuv — o\'rniga ' + x.yangi + ' tuzildi (loyiha №' + x.id + ')';
+  let S3 = await qtShartnoma(x.eski, M); if (!S3.x) throw new S.Xato('Eski shartnoma topilmadi: ' + x.eski);
+  const r = S3.x.r;
+  const g3 = await G.gid(env.aksBazaId, VQ.s3, env.googleKey), g3b = await G.gid(env.aksBazaId, VQ.s3b, env.googleKey);
+  // 1) 03 — yangi qator (qiymat va 1 m² narxi eskisidan; formulalar yuqoridagi qatordan)
+  if (S3.barcha.indexOf(x.yangi) < 0) {
+    const sl = (await SY.aUstun(VQ.s3)).last;
+    const q3 = [x.yangi, Number(x.yangi.split('/')[1]), sana, x.turi, r[4], r[5], r[6], r[7], x.qiymat ? Math.round(x.tolangan / x.qiymat * 10000) / 10000 : 0, x.tolangan,
+      0, x.oy, x.kun, 'Aktiv', '', '', '', r[17], '', belgi];
+    for (let i = 21; i <= 40; i++) q3.push(null);   // U:AN — formulalar (copyPaste)
+    q3.push(vaqt, u.fish);                           // AO:AP
+    await SY.qatorlarYoz(VQ.s3, sl + 1, [q3], F03Q);
+    M.yangila('03_Sotuv_shartnomalar');
+  } else {   // davom: qator bor — formulalari va «Kiritildi/Kiritdi» joyidami
+    const row = S3.barcha.indexOf(x.yangi) + 2;
+    const [Fw, AO] = await Promise.all([G.oraliqOqi(env.aksBazaId, VQ.s3, 'W' + row, env.googleKey, 'FORMULA'), G.oraliqOqi(env.aksBazaId, VQ.s3, 'AO' + row, env.googleKey)]);
+    const req = [];
+    if (!/^=/.test(s((Fw[0] || [])[0]))) req.push({ copyPaste: { source: { sheetId: g3, startRowIndex: row - 2, endRowIndex: row - 1, startColumnIndex: 20, endColumnIndex: 40 }, destination: { sheetId: g3, startRowIndex: row - 1, endRowIndex: row, startColumnIndex: 20, endColumnIndex: 40 }, pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } });
+    if (!s((AO[0] || [])[0])) req.push(matnKat(g3, row, 41, vaqt), matnKat(g3, row, 42, u.fish));
+    if (req.length) await G.soralar(env.aksBazaId, req, env.googleKey);
+  }
+  // 2) 03b — dastlabki (to'langan) + N oy; F (Kumulyativ) — formula yuqoridagi sog' qatordan (kumF_)
+  const Jd = qtJadval(x.qolgan, x.oy, qtIsoD(x.birinchi), x.kun);
+  const R3b = aOxiri(await M.q('03b_Tolov_jadvali')), jl = R3b.length ? R3b[R3b.length - 1].n : 1;
+  const J03 = R3b.filter(z => s(z.r[1]).trim() === x.yangi);
+  if (J03.some(z => !/^Qayta tuzish/.test(s(z.r[7])))) throw new S.Xato('03b da ' + x.yangi + ' raqamida boshqa (eski) jadval qatorlari bor — tasdiqlab bo\'lmaydi, menga murojaat qiling.');
+  if (!J03.length) {
+    let jid = 0; R3b.forEach(z => { const n = Number(z.x[0]) || 0; if (n > jid) jid = n; });
+    const vals = [[++jid, x.yangi, 0, sana, x.tolangan, x.tolangan, "Boshlang'ich", 'Qayta tuzish: ' + u.fish]]
+      .concat(Jd.map(j => [++jid, x.yangi, j.t, qtDmy(j.sana), j.summa, j.summa, 'Oylik', 'Qayta tuzish: ' + u.fish]));
+    const src = await SY.kumManba(VQ.s3b, jl + 1);
+    await SY.qatorlarYoz(VQ.s3b, jl + 1, vals, F03BQ, [g => kumKopya(g, src, jl + 1, vals.length)]);
+  } else {   // davom: yangi raqam qatorlarida F formulasi borligini tekshirish
+    const Fo = await G.oraliqOqi(env.aksBazaId, VQ.s3b, 'F2:F' + jl, env.googleKey, 'FORMULA');
+    const req = [];
+    for (const z of J03) { const f = s((Fo[z.n - 2] || [])[0]); if (!/^=/.test(f) || /R\[/.test(f)) req.push(kumKopya(g3b, await SY.kumManba(VQ.s3b, z.n), z.n, 1)); }
+    if (req.length) await G.soralar(env.aksBazaId, req, env.googleKey);
+  }
+  M.yangila('03b_Tolov_jadvali');
+  // 3) to'lovlarni ko'chirish (sanalar o'zgarmaydi) — faqat hali eski raqamda turganlari
+  const g5 = await G.gid(env.aksBazaId, VQ.s5, env.googleKey), g5b = await G.gid(env.aksBazaId, VQ.s5b, env.googleKey);
+  const T = await qtTolovlar(x.eski, M), Cq = [], Yv = [];
+  const izohi = t => (t.izoh ? t.izoh + ' | ' : '') + x.eski + ' dan ' + x.yangi + ' ga o\'tkazildi (qayta tuzish ' + x.sana + ')';
+  T.forEach(t => {
+    if (t.v === '05') { Cq.push(matnKat(g5, t.qator, 3, x.yangi)); Yv.push(kat(VQ.s5, t.qator, 9, x.eski), kat(VQ.s5, t.qator, 12, izohi(t))); }
+    else { Cq.push(matnKat(g5b, t.qator, 3, x.yangi)); Yv.push(kat(VQ.s5b, t.qator, 6, izohi(t))); }
+  });
+  if (davom) (await qtTolovlar(x.yangi, M)).forEach(t => { if (t.v === '05' && !t.kochdi) Yv.push(kat(VQ.s5, t.qator, 9, x.eski), kat(VQ.s5, t.qator, 12, izohi(t))); });   // yarim ko'chgan qator
+  if (Cq.length) await G.soralar(env.aksBazaId, Cq, env.googleKey);
+  if (Yv.length) await G.yoz(env.aksBazaId, Yv, env.googleKey);
+  M.yangila('05_Tolovlar'); M.yangila('05b_Bufer_tolovlar');
+  const TK = await qtTolovlar(x.yangi, M);   // yangi shartnomadagi hamma to'lovlar = ko'chirilganlar
+  // 4) eski shartnoma — bekor (belgisi alohida: QAYTA TUZILDI)
+  S3 = await qtShartnoma(x.eski, M);
+  if (!/bekor/i.test(s(S3.x.r[13]))) {
+    await G.yoz(env.aksBazaId, [kat(VQ.s3, S3.x.qator, 14, 'Bekor qilindi'), kat(VQ.s3, S3.x.qator, 15, sana), kat(VQ.s3, S3.x.qator, 20, (S3.x.r[19] ? s(S3.x.r[19]) + ' | ' : '') + belgiEski)], env.googleKey);
+    await G.soralar(env.aksBazaId, [sanaFmt(g3, S3.x.qator, 15)], env.googleKey);
+  }
+  // 5) loyiha — bajarildi
+  const gk = await G.gid(env.aksBazaId, VQ.k, env.googleKey);
+  await G.yoz(env.aksBazaId, [kat(VQ.k, x.qator, 3, 'Bajarildi')], env.googleKey);
+  await G.soralar(env.aksBazaId, [matnKat(gk, x.qator, 28, vaqt), matnKat(gk, x.qator, 29, u.fish), matnKat(gk, x.qator, 30, TK.map(t => t.v + ':' + t.id).join(', '))], env.googleKey);
+  await G.yoz(env.aksBazaId, [Object.assign(jurnalKat(x, 'TASDIQLANDI — bazaga yozildi: ' + TK.length + ' ta to\'lov ko\'chdi, jadval ' + x.oy + ' oy', u.fish), { varaq: VQ.k })], env.googleKey);
+  return { ok: true, eski: x.eski, yangi: x.yangi, tolovlar: TK.length, tolangan: x.tolangan, qolgan: x.qolgan, oylik: Jd[0].summa, oxirgi: Jd[Jd.length - 1].summa, tugash: qtDmy(Jd[Jd.length - 1].sana), mid: x.mid };
+}
+const VQ_ASL = { k: QT_VARAQ, s3: '03_Sotuv_shartnomalar', s3b: '03b_Tolov_jadvali', s5: '05_Tolovlar', s5b: '05b_Bufer_tolovlar' };
+async function qulfShartnoma(ish) {   // 03/03b yozuvi — shartnoma_yoz.js bilan bitta qulf (qator raqamlari to'qnashmasin)
+  const kalit = 'qulf:shartnoma', belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();
+  while (!(await redis.set(kalit, belgi, 'PX', 60000, 'NX'))) { if (Date.now() - t0 > 30000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
+  try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
+}
+async function qaytaTasdiq(args) {
+  const [kodSes, id] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverda2(u.kod))) return eskiTizim('qaytaTasdiq', u, args.slice(1));
+  let yoq = false, natija, x;
+  await qulfBilan(() => qulfShartnoma(async () => {
+    x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
+    if (QT_FAOL.indexOf(x.holati) < 0) throw new S.Xato('Loyiha «' + x.holati + '» holatida.');
+    const davom = x.holati === 'Yozilmoqda';
+    const M = manba(true);
+    const H = await qtHolat(x, true, await QH.hjYangi(), M);
+    if (!H.tayyor) throw new S.Xato('4 ta imzolangan skan yuklanmagan: ' + H.skan.filter(z => !z.bor).map(z => z.nom).join(', ') + '.');
+    const S3 = await qtShartnoma(x.eski, M); if (!S3.x) throw new S.Xato('Eski shartnoma topilmadi: ' + x.eski);
+    if (!davom) {
+      if (H.ogoh.length) throw new S.Xato(H.ogoh.join(' '));
+      const A = await qtTahlil(x.eski, await qtRows(), M);
+      const og = A.ogoh.filter(m => !/ochiq loyiha bor/.test(m)); if (og.length) throw new S.Xato(og.join(' '));
+      try { await G.yoz(env.aksBazaId, [kat(QT_VARAQ, x.qator, 3, 'Yozilmoqda'), jurnalKat(x, 'tasdiq boshlandi', u.fish)], env.googleKey); }
+      catch (e) { if (e instanceof G.RuxsatYoq) { yoq = true; return; } throw e; }
+      x = ((await qtRows()) || []).find(z => s(z.id) === s(id));
+    } else {
+      const yi = S3.barcha.indexOf(x.yangi);
+      if (yi >= 0 && s(aOxiri(await M.q('03_Sotuv_shartnomalar'))[yi].x[19]).indexOf('loyiha №' + x.id + ')') < 0) throw new S.Xato(x.yangi + ' raqami bazada boshqa shartnomaga tegishli — menga murojaat qiling.');
+      if (yi < 0) {   // hali hech narsa yozilmagan — to'liq tekshiruv
+        const og1 = await qtOgoh(x, M); if (og1.length) throw new S.Xato(og1.join(' '));
+        const og2 = (await qtTahlil(x.eski, await qtRows(), M)).ogoh.filter(m => !/ochiq loyiha bor/.test(m)); if (og2.length) throw new S.Xato(og2.join(' '));
+      }
+    }
+    natija = await tasdiqYadro(VQ_ASL, u, x, M, davom);
+    await qtTop(x, 'Bajarildi', 'tizim', 'qayta tuzish tasdiqlandi (' + u.fish + ')');
+  }));
+  if (yoq) return eskiTizim('qaytaTasdiq', u, args.slice(1));
+  const tsh = await SY.tashrifAvto(qtIsoD(x.sana), x.mid, 'Дўкон сотиб олиш масаласида', x.ijrochi || u.fish, 'Шартнома ' + x.yangi + ' (қайта тузиш)');
+  await yangila(['03_Sotuv_shartnomalar', '03b_Tolov_jadvali', '05_Tolovlar', '05b_Bufer_tolovlar', QT_VARAQ, TOP_V].concat(tsh === 'yozildi' ? ['01b_Tashrif_jurnali'] : []));
+  koprik.chaqir('koprikTgYubor', u.kod, ['🔁 <b>Shartnoma qayta tuzildi</b>\n' + x.eski + ' → <b>' + x.yangi + '</b> · ' + x.fish + ' · ' + x.dokon + '\nTo\'langan ' + qtFmt(x.tolangan) + ' dastlabki to\'lovga o\'tdi (' + natija.tolovlar + ' ta to\'lov)\nQolgan ' + qtFmt(x.qolgan) + ' · ' + x.oy + ' oy × ' + qtFmt(natija.oylik) + ' · tugash ' + natija.tugash + '\nTasdiqladi: ' + u.fish])
+    .catch(e => console.error('qayta tg:', e.message));
+  return natija;
+}
+
+module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq };
+module.exports._ichki = { qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N };

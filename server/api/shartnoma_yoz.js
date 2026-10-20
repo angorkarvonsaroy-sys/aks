@@ -280,4 +280,4 @@ async function ijaraSaqlash(args) {
 }
 
 module.exports = { mijozSaqlash, shartnomaSaqlash, ijaraSaqlash };
-module.exports._ichki = { mijozTekshir, mijozYoz, shartnomaTekshir, shartnomaYoz, ijaraTekshir, ijaraYoz, tashrifAvto, bandRaqamlar, kumManba, dokon, matnBelgi, F02, F03, F03b, F04, T02, T03, T03b, T04 };
+module.exports._ichki = { mijozTekshir, mijozYoz, shartnomaTekshir, shartnomaYoz, ijaraTekshir, ijaraYoz, tashrifAvto, bandRaqamlar, kumManba, dokon, matnBelgi, qatorlarYoz, formatla, aUstun, ogoh, F02, F03, F03b, F04, T02, T03, T03b, T04 };
