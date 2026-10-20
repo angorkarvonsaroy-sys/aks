@@ -88,9 +88,11 @@ async function tashrifAvto(sanaIso, mid, maqsad, kim, izoh) {
     const kalit = 'qulf:j:' + K.T01b, belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();
     while (!(await redis.set(kalit, belgi, 'PX', 30000, 'NX'))) { if (Date.now() - t0 > 20000) return ''; await new Promise(z => setTimeout(z, 150)); }   // tryLock(20000)
     try {
-      const h = await K.jurnalHolat(K.T01b, true);
-      if (h.last >= 2 && h.BD.some(x => x[2] === telF && x[0] === sanaStr)) return 'bor';
-      await K.jurnalQator(K.T01b, h.last + 1, [h.id, sanaStr, fish, telF, manzil, '', maqsad, izoh, kim, K.hozirDmyHms()], K.F01b);
+      // 📞 faqat telefon murojaati yozilgan bo'lsa — shartnomaga o'zi kelgan, tashrif ham yoziladi (01b Q «Murojaat_turi»)
+      let qTayyor = true; try { await K.ustunQTayyor(); } catch (e) { qTayyor = false; }
+      const [h, QQ] = await Promise.all([K.jurnalHolat(K.T01b, true), qTayyor ? G.oraliqOqi(env.aksBazaId, K.T01b, 'Q2:Q', env.googleKey) : []]);
+      if (h.last >= 2 && h.BD.some((x, j) => x[2] === telF && x[0] === sanaStr && K.turiOf(QQ[j] && QQ[j][0]) === 'Tashrif')) return 'bor';
+      await K.jurnalQator(K.T01b, h.last + 1, [h.id, sanaStr, fish, telF, manzil, '', maqsad, izoh, kim, K.hozirDmyHms()], qTayyor ? Object.assign({}, K.F01b, { qosh: { [K.Q01b]: 'Tashrif' } }) : K.F01b);
       tetik.varaqlarYangila([K.T01b]).catch(() => {});
       return 'yozildi';
     } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }

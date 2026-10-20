@@ -96,10 +96,10 @@ async function xodimBosh([kodSes]) {
   // ---------- 3. tashriflar (01b)
   const tash = await blok('tashrif', async () => {
     const c = { bugun: 0, kecha: 0 }; if (!bor('tashrif')) return c;
-    (await oqi('01b_Tashrif_jurnali', 13)).forEach(r => { if (!r[0] || !men(r[8])) return; const sana = xbIso(r[1]); if (sana === bugun) c.bugun++; else if (sana === kecha) c.kecha++;
-      const vq = xbVaqt(r[9]); const mid = String(r[11] || '');
-      yoz(vq, '🚶', qisq(r[2]), 'tashrif' + (r[6] ? ' · ' + String(r[6]).toLowerCase() : ''), mid ? { t: 'mijoz', v: mid } : { t: 'qidir', v: st(r[2]) }, mid ? 'mijoz:' + mid : 'tash:' + r[2],
-        'Tashrif yozildi — ' + qisq(r[2]) + (r[6] ? ' (' + String(r[6]).toLowerCase() + ')' : ''), 'tashrif'); });
+    (await oqi('01b_Tashrif_jurnali', 17)).forEach(r => { if (!r[0] || !men(r[8])) return; const sana = xbIso(r[1]); if (sana === bugun) c.bugun++; else if (sana === kecha) c.kecha++;
+      const vq = xbVaqt(r[9]); const mid = String(r[11] || ''); const tel = String(r[16] == null ? '' : r[16]).trim() === 'Telefon';   // 📞 01b Q
+      yoz(vq, tel ? '📞' : '🚶', qisq(r[2]), (tel ? 'telefon murojaati' : 'tashrif') + (r[6] ? ' · ' + String(r[6]).toLowerCase() : ''), mid ? { t: 'mijoz', v: mid } : { t: 'qidir', v: st(r[2]) }, mid ? 'mijoz:' + mid : 'tash:' + r[2],
+        (tel ? 'Telefon murojaati yozildi — ' : 'Tashrif yozildi — ') + qisq(r[2]) + (r[6] ? ' (' + String(r[6]).toLowerCase() + ')' : ''), 'tashrif'); });
     return c; }, { bugun: 0, kecha: 0 });
 
   // ---------- 4. shartnomalar (03, 04) — skani yo'q, bu oy, bepul davri; pasport

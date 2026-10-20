@@ -94,7 +94,7 @@ async function mijozKarta([kodSes, mid]) {
   const Y = (await J.yuIshlar()).filter(i => NO[i.no]).map(i => ({ no: i.no, holati: i.holati, yurist: i.yurist, topshirilgan: i.topshirilgan, davoNo: i.davoNo, qaror: i.qaror }));
   // tashriflar (telefon bo'yicha)
   const tel = String(mijoz.tel || '').replace(/\D/g, '').slice(-9); const TS = [];
-  if (tel.length === 9) { (await V.qatorlar('01b_Tashrif_jurnali')).forEach(({ r: x }) => { if (x[0] && String(x[3] || '').replace(/\D/g, '').slice(-9) === tel) TS.push({ sana: x[1] || '', maqsad: String(x[6] || '').replace(' масаласида', ''), izoh: x[7] || '', kim: x[8] || '' }); }); TS.reverse(); }
+  if (tel.length === 9) { (await V.qatorlar('01b_Tashrif_jurnali')).forEach(({ r: x }) => { if (x[0] && String(x[3] || '').replace(/\D/g, '').slice(-9) === tel) TS.push({ sana: x[1] || '', maqsad: String(x[6] || '').replace(' масаласида', ''), izoh: x[7] || '', kim: x[8] || '', turi: String(x[16] || '').trim() === 'Telefon' ? 'Telefon' : 'Tashrif' }); }); TS.reverse(); }
   const faol = SH.filter(s => !/bekor|yakun/i.test(s.holati));
   // hujjatlar nazorati
   const bor = {}; H.forEach(h => { if (h.holati === 'Faol') bor[h.no + '|' + h.turi] = h; });

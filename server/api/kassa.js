@@ -24,6 +24,22 @@ const SOXTA_ISMLAR = ['ali', 'vali', "g'ani", 'gani', 'falonchi', 'pistonchi', '
 // Ustunlar (1 dan): matn («@»), sana formatlari, formula nusxasi (yuqoridagi qatordan, PASTE_FORMULA) — Kod.gs dagidek
 const F05 = { matn: [3, 6], sana: { 2: 'dd.MM.yyyy', 11: 'dd.MM.yyyy HH:mm:ss' }, formula: [13, 15], belgi: 3 };
 const F01b = { matn: [4], sana: { 2: 'dd.MM.yyyy', 10: 'dd.MM.yyyy HH:mm:ss' }, formula: [11, 16], belgi: 3 };
+// 📞 Murojaat turi (direktor qarori 20.10.2026): 01b Q «Murojaat_turi» — «Tashrif» (o'zi keldi) yoki «Telefon» (qo'ng'iroq qildi).
+// Faqat serverda (eski tizim Q ga yozmaydi — bo'sh Q = «Tashrif»). Hisobotlar o'zgarmaydi: telefon murojaati ham o'sha maqsad (G) bo'yicha sanaladi.
+// Bir odam bir kunda: bitta «Tashrif» + bitta «Telefon» yozilishi mumkin (har turdan bittadan).
+const Q01b = 17, TURLAR = ['Tashrif', 'Telefon'];
+const turiOf = v => s(v).trim() === 'Telefon' ? 'Telefon' : 'Tashrif';
+let q01bTayyor = false;
+async function ustunQTayyor() {   // 01b da Q ustuni (va sarlavhasi) bo'lmasa — qo'shiladi (bir marta)
+  if (q01bTayyor) return;
+  const m = await G.varaqlar(env.aksBazaId, env.googleKey);
+  const v = m.varaqlar.find(x => x.title === T01b); if (!v) throw new Error('Varaq topilmadi: ' + T01b);
+  const n = (v.gridProperties && v.gridProperties.columnCount) || 0;
+  if (n < Q01b) await G.soralar(env.aksBazaId, [{ appendDimension: { sheetId: v.sheetId, dimension: 'COLUMNS', length: Q01b - n } }], env.googleKey);
+  const b = await G.oraliqOqi(env.aksBazaId, T01b, 'Q1', env.googleKey);
+  if (!s(b[0] && b[0][0]).trim()) await G.yoz(env.aksBazaId, [{ varaq: T01b, katak: 'Q1', qiymat: [['Murojaat_turi']] }], env.googleKey);
+  q01bTayyor = true;
+}
 
 const s = v => String(v == null ? '' : v);
 function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== null && x[0] !== undefined && x[0] !== '') m = n; }); return rows.filter(z => z.n <= m); }
@@ -102,6 +118,8 @@ async function jurnalFormat(varaq, r, F) {
   const katak = (u, f) => ({ repeatCell: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: u - 1, endColumnIndex: u }, cell: { userEnteredFormat: { numberFormat: f } }, fields: 'userEnteredFormat.numberFormat' } });
   const req = F.matn.map(u => katak(u, { type: 'TEXT', pattern: '@' }))
     .concat(Object.keys(F.sana).map(u => katak(+u, { type: /H/.test(F.sana[u]) ? 'DATE_TIME' : 'DATE', pattern: F.sana[u] })));
+  if (F.qosh) Object.keys(F.qosh).forEach(u => req.push({ updateCells: { range: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: u - 1, endColumnIndex: +u },
+    rows: [{ values: [{ userEnteredValue: { stringValue: s(F.qosh[u]) } }] }], fields: 'userEnteredValue' } }));
   if (r > 2 && F.formula) req.push({ copyPaste: { source: { sheetId: g, startRowIndex: r - 2, endRowIndex: r - 1, startColumnIndex: F.formula[0] - 1, endColumnIndex: F.formula[1] },
     destination: { sheetId: g, startRowIndex: r - 1, endRowIndex: r, startColumnIndex: F.formula[0] - 1, endColumnIndex: F.formula[1] }, pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } });
   await G.soralar(env.aksBazaId, req, env.googleKey);
@@ -133,13 +151,14 @@ async function tashrifTekshir([kodSes, tel]) {
   const [R1b, R2] = await Promise.all([V.qatorlar(T01b), V.qatorlar('02_Mijozlar')]);
   const bugun = dmy(V.bugun());
   let oldingi = null, soni = 0, bugunBor = '';
+  const bugunTur = {};   // 📞 bugun shu turda yozilganmi: { Tashrif: 'F.I.Sh. — maqsad', Telefon: … }
   const L = aOxiri(R1b);
   if (L.length) for (const z of oraliq(L, 2, L[L.length - 1].n - 1)) {
-    const r = kor(z.r, 7);
+    const r = kor(z.r, Q01b);
     if (r[3] !== f) continue;
     soni++;
     oldingi = { fish: r[2], manzil: r[4], kasb: r[5], sana: r[1] };
-    if (r[1] === bugun) bugunBor = r[2] + ' — ' + r[6];
+    if (r[1] === bugun) { bugunBor = r[2] + ' — ' + r[6]; bugunTur[turiOf(r[Q01b - 1])] = r[2] + ' — ' + r[6]; }
   }
   let mijoz = null;
   const M = aOxiri(R2);
@@ -150,7 +169,7 @@ async function tashrifTekshir([kodSes, tel]) {
       (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ x }) => { if (String(x[5] == null ? '' : x[5]).trim() === String(mijoz.id).trim() && x[0]) L.push(String(x[0]).trim()); });
       if ((L.length || ch) && L.every(no => Y.has(no))) mijoz = null; }
   }
-  return { tel: f, soni, oldingi, bugunBor, mijoz };
+  return { tel: f, soni, oldingi, bugunBor, bugunTur, mijoz };
 }
 
 async function bugungiTashriflar([kodSes]) {
@@ -161,23 +180,25 @@ async function bugungiTashriflar([kodSes]) {
   if (last < 2) return { royxat: [] };
   const bugun = dmy(V.bugun());
   const from = Math.max(2, last - 300);
-  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 10));
+  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, Q01b));
   const royxat = v.filter(r => r[1] === bugun && (u.admin || r[8] === u.fish))
-    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16) }));
+    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16), turi: turiOf(r[Q01b - 1]) }));
   return { royxat: royxat.reverse() };
 }
 
 async function tashrifSaqlash(args) {
   const [kodSes, d0] = args; const d = d0 || {};
   const u = await S.ruxsat(kodSes, 'tashrif');
-  if (!(await yoqilgan('tashrif'))) return eskiTizim('tashrifSaqlash', u, [d0]);
+  const turi = turiOf(d.turi);
+  const TEL_YOQ = 'Telefon murojaatini hozir yozib bo\'lmaydi (serverda yozish o\'chiq). Direktorga ayting.';
+  if (!(await yoqilgan('tashrif'))) { if (turi === 'Telefon') throw new S.Xato(TEL_YOQ); return eskiTizim('tashrifSaqlash', u, [d0]); }
   const tel = telNorm(d.tel);
   let xato = telTekshir(tel); if (xato) throw new S.Xato(xato);
   if ((await xodimTellari()).indexOf(tel) >= 0) throw new S.Xato('Bu — xodimning telefon raqami.');
   const fish = String(d.fish || '').replace(/\s+/g, ' ').trim();
   xato = ismTekshir(fish); if (xato) throw new S.Xato(xato);
   const maqsad = String(d.maqsad || '');
-  if (MAQSADLAR.indexOf(maqsad) < 0) throw new S.Xato('Tashrif maqsadini tanlang.');
+  if (MAQSADLAR.indexOf(maqsad) < 0) throw new S.Xato(turi === 'Telefon' ? 'Qaysi masalada qo\'ng\'iroq qilganini tanlang.' : 'Tashrif maqsadini tanlang.');
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d.sana || ''));
   if (!m) throw new S.Xato('Sana noto\'g\'ri.');
   const bugunISO = V.bugun();
@@ -187,18 +208,22 @@ async function tashrifSaqlash(args) {
   const sanaStr = m[3] + '.' + m[2] + '.' + m[1];
   const telF = telFmt(tel);
   let yoq = false;
+  try { await ustunQTayyor(); }
+  catch (e) { if (e instanceof G.RuxsatYoq) { if (turi === 'Telefon') throw new S.Xato(TEL_YOQ); return eskiTizim('tashrifSaqlash', u, [d0]); } throw e; }
   const w = await qulfBilan('j:' + T01b, async () => {
-    const h = await jurnalHolat(T01b, true);
-    if (h.last >= 2) { const bor = h.BD.find(r => r[2] === telF && r[0] === sanaStr);
-      if (bor) throw new S.Xato('Bu odam (' + bor[1] + ') shu kuni allaqachon yozilgan. Bir kunda bir odam bir marta yoziladi — boshqa maqsadini izohga yozing.'); }
+    const [h, QQ] = await Promise.all([jurnalHolat(T01b, true), G.oraliqOqi(env.aksBazaId, T01b, 'Q2:Q', env.googleKey)]);
+    if (h.last >= 2) { const i = h.BD.findIndex((r, j) => r[2] === telF && r[0] === sanaStr && turiOf(QQ[j] && QQ[j][0]) === turi);
+      if (i >= 0) throw new S.Xato(turi === 'Telefon'
+        ? 'Bu odamning (' + h.BD[i][1] + ') shu kungi telefon murojaati allaqachon yozilgan. Bir kunda bitta telefon murojaati yoziladi — boshqa maqsadini izohga yozing.'
+        : 'Bu odam (' + h.BD[i][1] + ') shu kuni allaqachon yozilgan. Bir kunda bir odam bir marta yoziladi — boshqa maqsadini izohga yozing.'); }
     const qator = [h.id, sanaStr, fish, telF, String(d.manzil || '').trim(), String(d.kasb || '').trim(), maqsad, String(d.izoh || '').trim(), u.fish, hozirDmyHms()];
-    try { return { r: await jurnalQator(T01b, h.last + 1, qator, F01b), id: h.id }; }
+    try { return { r: await jurnalQator(T01b, h.last + 1, qator, Object.assign({}, F01b, { qosh: { [Q01b]: turi } })), id: h.id }; }
     catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
   });
-  if (yoq) return eskiTizim('tashrifSaqlash', u, [d0]);   // robotda yozish huquqi yo'q — hech narsa yozilmagan
+  if (yoq) { if (turi === 'Telefon') throw new S.Xato(TEL_YOQ); return eskiTizim('tashrifSaqlash', u, [d0]); }   // robotda yozish huquqi yo'q — hech narsa yozilmagan
   keyinTekshir(T01b, w.r, w.id, F01b, fish);
   await kut(tetik.varaqlarYangila([T01b]).catch(e => console.error('ko\'zgu (tashrif):', e.message)), 15000);
-  return { ok: true, fish, tel: telF, maqsad, sana: sanaStr };
+  return { ok: true, fish, tel: telF, maqsad, sana: sanaStr, turi };
 }
 
 // ================================================================== 💵 TO'LOV
@@ -258,4 +283,4 @@ async function tolovSaqlash(args) {
 }
 
 module.exports = { tashrifTekshir, bugungiTashriflar, tashrifSaqlash, tolovSaqlash };
-module.exports._ichki = { jurnalHolat, jurnalQator, jurnalFormat, matnBelgi, hozirDmyHms, F05, F01b, T05, T01b, telNorm, telFmt, telTekshir, ismTekshir };
+module.exports._ichki = { jurnalHolat, jurnalQator, jurnalFormat, matnBelgi, hozirDmyHms, F05, F01b, T05, T01b, telNorm, telFmt, telTekshir, ismTekshir, Q01b, turiOf, ustunQTayyor };

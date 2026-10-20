@@ -125,9 +125,9 @@ async function bugungiTashriflarHammasi([kodSes]) {
   const last = R[R.length - 1].n;
   const bugun = V.bugun().split('-').reverse().join('.');
   const from = Math.max(2, last - 300);
-  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 10));
-  const royxat = v.filter(r => r[0] && r[1] === bugun)
-    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16) }));
+  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 17));
+  const royxat = v.filter(r => r[0] && r[1] === bugun)   // 📞 turi — 01b Q «Murojaat_turi» (bo'sh = Tashrif)
+    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16), turi: r[16].trim() === 'Telefon' ? 'Telefon' : 'Tashrif' }));
   return { royxat: royxat.reverse() };
 }
 
