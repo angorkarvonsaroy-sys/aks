@@ -26,11 +26,11 @@ function rpr(p) {
   return x;
 }
 // xatboshi; bosh — DocumentApp.create dagi tegilmagan birinchi bo'sh xatboshi (eksportda qisqa yoziladi)
-// w:line — Google eksporti setLineSpacing qiymatini 240 ga ko'paytirib, kasrini yaxlitlamay yozadi («252.00000000000003» — 1,05; kelishuv hujjati, 21.10); standart — 276
+// w:line — Google eksporti: oraliq × 12 pt × 20 twip, kasri yaxlitlanmaydi (1,05 → «252.00000000000003» — kelishuv hujjati, 21.10; 1,1 → 264); standart — 276
 function par(p, bosh) {
   if (bosh) return P0 + '<w:pPr><w:rPr/></w:pPr>' + R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr></w:r></w:p>';
   const r = rpr(p);
-  const ppr = '<w:pPr>' + PBDR + '<w:spacing w:after="' + tw(p.after || 0) + '" w:before="' + tw(p.before || 0) + '" w:line="' + (p.ls == null ? '276' : String(240 * p.ls)) + '" w:lineRule="auto"/>'
+  const ppr = '<w:pPr>' + PBDR + '<w:spacing w:after="' + tw(p.after || 0) + '" w:before="' + tw(p.before || 0) + '" w:line="' + (p.ls == null ? '276' : String(p.ls * 12 * 20)) + '" w:lineRule="auto"/>'
     + '<w:ind w:left="' + tw(p.indStart || 0) + '" w:right="' + tw(p.indEnd || 0) + '" w:firstLine="' + tw((p.indFirst || 0) - (p.indStart || 0)) + '"/>'
     + '<w:jc w:val="' + (p.al || 'left') + '"/><w:rPr>' + r + '</w:rPr></w:pPr>';
   return P0 + ppr + (s(p.x) !== '' ? R0 + '<w:rPr>' + r + '<w:rtl w:val="0"/></w:rPr><w:t xml:space="preserve">' + esc(p.x) + '</w:t></w:r>' : R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr></w:r>') + '</w:p>';
