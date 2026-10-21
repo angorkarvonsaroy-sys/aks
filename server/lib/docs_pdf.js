@@ -29,13 +29,14 @@ function parCss(p, ichida) {
   const L = sz * f.F * ls;                                        // Docs qator balandligi
   const cssAlfa = (L - (f.asc + f.desc) * sz) / 2 + f.asc * sz;   // Chromium tayanch chizig'i
   const yakka = sz * f.F, docsAlfa = (yakka - (f.asc + f.desc) * sz) / 2 + f.asc * sz + (L - yakka) * T.ALFA_EXTRA;
+  // ikki tomonga tekislash — Chromium'ning justify si emas, TEKISLA skripti (Docs: bo'sh joylar butun px larga cho'ziladi) — matn chapga, class j
   const st = ['font-family:' + f.css, 'font-size:' + sz + 'pt', 'line-height:' + L.toFixed(4) + 'pt',
-    'text-align:' + ({ center: 'center', right: 'right', both: 'justify' }[p.al] || 'left')];
+    'text-align:' + ({ center: 'center', right: 'right' }[p.al] || 'left')];
   if (p.b) st.push('font-weight:bold');
   if (!ichida) { st.push('margin-top:' + (p.before || 0) + 'pt', 'margin-bottom:' + (p.after || 0) + 'pt'); }
-  // chekinishlar (setIndentStart / setIndentFirstLine / setIndentEnd) — Docs ekran px ga yaxlitlaydi; birinchi qator — chapdan farqi
-  if (p.indStart) st.push('margin-left:' + px(p.indStart) + 'pt');
-  if (p.indEnd) st.push('margin-right:' + px(p.indEnd) + 'pt');
+  // chekinishlar (setIndentStart / setIndentFirstLine / setIndentEnd) — Docs ekran px ga yaxlitlaydi; birinchi qator — chapdan farqi (padding — TEKISLA o'ng chetni shundan oladi)
+  if (p.indStart) st.push('padding-left:' + px(p.indStart) + 'pt');
+  if (p.indEnd) st.push('padding-right:' + px(p.indEnd) + 'pt');
   if (p.indFirst != null && (p.indFirst || 0) !== (p.indStart || 0)) st.push('text-indent:' + px((p.indFirst || 0) - (p.indStart || 0)) + 'pt');
   const sur = +(docsAlfa - cssAlfa).toFixed(4);
   if (Math.abs(sur) > 0.0005) st.push('position:relative', 'top:' + sur + 'pt');
@@ -50,8 +51,13 @@ const SOZ = `document.querySelectorAll('span.nw').forEach(s => {
   const eni = q.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
   if (s.getBoundingClientRect().width > eni + 0.5) s.className = 'ba';
 });`;
+// tekislanadigan xatboshi: har bo'sh joy alohida <span class="sp"> (TEKISLA cho'zadi), oxirida <span class="so"> (oxirgi qator belgisi — cho'zilmaydi)
+const boglaTek = t => t.split(/( +)/).map(w => /^ +$/.test(w) ? w.split('').map(() => '<span class="sp"> </span>').join('') : (/[-\/]\S/.test(w) ? '<span class="nw">' + esc(w) + '</span>' : esc(w))).join('') + '<span class="so"></span>';
 // bo'sh xatboshi — <br>: bir qator balandligi, PDF matnida ortiqcha belgi yo'q
-function parHtml(p, ichida) { return '<p style="' + parCss(p, ichida) + '">' + (p.x ? bogla(p.x) : '<br>') + '</p>'; }
+function parHtml(p, ichida) {
+  const tek = p.al === 'both' && !!p.x;
+  return '<p' + (tek ? ' class="j"' : '') + ' style="' + parCss(p, ichida) + '">' + (p.x ? (tek ? boglaTek(p.x) : bogla(p.x)) : '<br>') + '</p>';
+}
 function jadvalHtml(t) {
   const n = Math.max(...t.rows.map(r => r.length));
   const w = []; for (let i = 0; i < n; i++) w.push(px(t.cols[i] != null ? t.cols[i] : 100));
@@ -89,8 +95,8 @@ function html(m) {
 p{margin:0;padding:0;white-space:pre-wrap;overflow-wrap:break-word}.nw{white-space:nowrap}.ba{line-break:anywhere}
 table{table-layout:fixed;margin:0}
 td{vertical-align:top;box-decoration-break:clone;-webkit-box-decoration-break:clone}tr.pend td{box-shadow:inset 0 calc(-1 * var(--ch)) 0 0 var(--rang)}`;
-  // Sahifa uzilishi (appendPageBreak): Docs'da uzilish bo'sh xatboshi ichida — keyingi sahifa o'sha xatboshining davomi (bo'sh qator) bilan boshlanadi
-  const pb = '<div style="break-after:page;height:0"></div>' + parHtml({ t: 'p', x: '' }, false);
+  // Sahifa uzilishi (appendPageBreak): keyingi element yangi sahifaning boshidan (Docs uzilish xatboshisi uchun bo'sh qator qoldirmaydi — kelishuv hujjati sinovi, 21.10)
+  const pb = '<div style="break-after:page;height:0"></div>';
   return XP.kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body><div class="ust"><div class="ich">'
     + m.el.map(e => e.t === 'tbl' ? jadvalHtml(e) : e.t === 'pb' ? pb : parHtml(e, false)).join('') + '</div></div></body></html>');
 }
@@ -106,8 +112,24 @@ function betOxiri(m) {
   document.querySelectorAll('table').forEach(t => { const R = [...t.rows]; R.forEach((tr, i) => { if (i < R.length - 1 && X(R[i + 1]) !== X(tr)) tr.classList.add('pend'); }); });
   b.insertBefore(ust, mc); mc.remove(); })();`;
 }
+// Ikki tomonga tekislash — lib/shablon_pdf.js / lib/xat_pdf.js TEKISLA bilan bir xil qoida: qatordagi ortiqcha joy bo'sh joylarga BUTUN px (U) larda
+// bo'linadi (birinchilariga +1 px), qoldiq o'ng chetda qoladi; oxirgi qator va qator oxiridagi ketma-ket bo'sh joylar cho'zilmaydi
+const TEKISLA = `(U => { document.querySelectorAll('p.j').forEach(p => {
+  const cs = getComputedStyle(p), R = p.getBoundingClientRect().right - parseFloat(cs.paddingRight), so = p.querySelector('.so').getBoundingClientRect().top, gr = new Map(), ish = [];
+  p.querySelectorAll('.sp').forEach(s => { const r = s.getBoundingClientRect(), k = Math.round(r.top); if (!gr.has(k)) gr.set(k, []); gr.get(k).push({ s, r }); });
+  for (const [top, L] of gr) {
+    if (Math.abs(top - so) < 2) continue;
+    let n = L.length - 1; while (n > 0 && Math.abs(L[n - 1].r.right - L[n].r.left) < 0.5) n--;
+    const t = L[n], g = L.slice(0, n);
+    if (!g.length) continue;
+    const P = Math.floor((R - t.r.left) / U + 1e-6); if (P <= 0) continue;
+    const b = Math.floor(P / g.length), q = P % g.length;
+    g.forEach((z, i) => ish.push([z.s, (b + (i < q ? 1 : 0)) * U]));
+  }
+  ish.forEach(([s, w]) => { if (w) s.style.paddingRight = w + 'px'; });
+}); })(${XP.KAT})`;
 async function yasa(m) {
-  const pdf = await PDF.yasa(html(m), '', { scale: 1 / XP.KAT, printBackground: true, skript: SOZ + betOxiri(m) });
+  const pdf = await PDF.yasa(html(m), '', { scale: 1 / XP.KAT, printBackground: true, skript: SOZ + ';' + TEKISLA + ';' + betOxiri(m) });
   return { pdf, bet: XP.betSoni(pdf) };
 }
 

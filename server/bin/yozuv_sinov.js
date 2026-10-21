@@ -1627,6 +1627,9 @@ async function kbSinov() {
       const f = await KBH.kbHujjat(xx, D);
       console.log('  server: ' + f.bet + ' bet · ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s' + (xx.ogoh.length ? ' · ma\'lumot: ' + xx.ogoh.join(' ') : ''));
       let eskiB = null; try { eskiB = (await G.driveFayl(es.pdf, KEY)).bytes; } catch (e) { console.log('  ✖ robot eski PDF ni o\'qiy olmadi: ' + e.message); x++; }
+      try { const fs = require('fs'), pth = require('path'), d = pth.join(env.hujjatPapka || '/opt/aks/hujjat', 'sinov'); fs.mkdirSync(d, { recursive: true });   // solishtirish uchun nusxalar
+        fs.writeFileSync(pth.join(d, 'kb_server.pdf'), f.pdf); fs.writeFileSync(pth.join(d, 'kb_server.docx'), f.docx); if (eskiB) fs.writeFileSync(pth.join(d, 'kb_eski.pdf'), eskiB);
+        console.log('  nusxalar: ' + d + '/kb_eski.pdf, kb_server.pdf, kb_server.docx'); } catch (e) { }
       if (eskiB) {
         x += pdfSolishtir(eskiB, f.pdf);
         const q = sozSolishtir(eskiB, f.pdf);
