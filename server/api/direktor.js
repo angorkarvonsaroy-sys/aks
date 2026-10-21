@@ -77,7 +77,7 @@ async function bekorDirektor([kodSes]) {
   return { ochiq: Jr.filter(z => BEKOR_YOPIQ.indexOf(z.holati) < 0).map(kart), arxiv: Jr.filter(z => BEKOR_YOPIQ.indexOf(z.holati) >= 0).map(kart).reverse() };
 }
 
-// ------------------------------------------------------------------ 📮 Devonxona: devonBoshlang, devonIjroHolat (Devon.gs) · topXodimlar (Topshiriq.gs)
+// ------------------------------------------------------------------ 📮 Devonxona: devonBoshlang, devonIjroHolat, devonChiqimOl (Devon.gs) · topXodimlar (Topshiriq.gs)
 // 07_Xodimlar: ishlayotgan, huquqi bor xodimlar (topXodimlar_)
 async function topXodimlarR() {
   return (await V.qatorlar('07_Xodimlar')).map(({ x }) => x).filter(r => r[1] && s(r[10]).trim() === 'Ishlayapti' && s(r[18]).trim())
@@ -117,11 +117,24 @@ async function devonIjroHolat([kodSes, id]) {
     .map(z => { const Jz = devonIjro(z); return { id: z.id, tartib: z.tartib, raqam: z.raqam, sana: z.sana, holati: z.holati, skan: !!z.fayl, gen: !!Jz.pdf, kim: z.kim, usul: (Jz.yub || {}).usul || '' }; });
   return v;
 }
+// devonChiqimOl — tahrirlash uchun to'liq ma'lumot (Devon.gs v1.4)
+async function devonChiqimOl([kodSes, id]) {
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const R = await devonRows();
+  const x = R.find(z => String(z.id) === String(id) && z.turi === 'Chiqim');
+  if (!x) throw new S.Xato('Xat topilmadi.');
+  devonKorishHuquq(u, x, R);
+  const Jx = devonIjro(x), k = x.bogliq ? R.find(z => String(z.id) === String(x.bogliq)) : null;
+  return { id: x.id, tartib: x.tartib, raqam: x.raqam, sana: x.sana.split('.').reverse().join('-'), holati: x.holati,
+    oluvchi: (Jx.oluvchi || [x.tashkilot]).join('\n'), mazmun: x.mazmun, kirimId: x.bogliq || '',
+    tur: (Jx.xat || {}).tur || 'tashkilot', mavzu: (Jx.xat || {}).mavzu || '', murojaat: (Jx.xat || {}).murojaat || '', ilova: (Jx.xat || {}).ilova || '',
+    kirim: k ? { id: k.id, tartib: k.tartib, tashkilot: k.tashkilot, raqam: k.raqam, sana: k.sana } : null };
+}
 async function topXodimlar([kodSes]) {
   await S.ruxsat(kodSes, 'admin');
   const R = await J.topRows();
   return (await topXodimlarR()).map(x => ({ fish: x.fish, bolim: x.bolim, huquq: x.huquq, tg: !!x.tg, admin: x.admin, ochiq: R.filter(t => t.kimga === x.fish && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda')).length }));
 }
 
-module.exports = { shartnomalar, devonDirektor, bekorDirektor, devonBoshlang, devonIjroHolat, topXodimlar };
+module.exports = { shartnomalar, devonDirektor, bekorDirektor, devonBoshlang, devonIjroHolat, devonChiqimOl, topXodimlar };
 module.exports._ichki = { devonRows, devonIjro, devonKorishHuquq };   // api/fayl.js uchun (amal emas)

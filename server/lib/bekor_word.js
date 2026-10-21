@@ -108,20 +108,23 @@ function xabarnomaDocx(x, M, xRaqam, sanaIso, ij, k) {
   h += q('Илова: буйруқ нусхаси — ___ варақ.', { al: 'left', b: true, before: 1.5 });
   return blankaQur(h, xRaqam, sanaIso, ij, true);
 }
-// Rasmiy blankadagi boshqa xatlar (yurist aloqa xati va h.k.): bloklar — lib/xat_pdf.js blankaYasa bloklari (p / imzo), k — PDF qaysi o'lchamda sig'gan bo'lsa
-function bloklarDocx(bloklar, xRaqam, sanaIso, ij, k) {
+// Rasmiy blankadagi boshqa xatlar (yurist aloqa xati, devon chiqim xati): bloklar — lib/xat_pdf.js blankaYasa bloklari (p / imzo), k — PDF qaysi o'lchamda sig'gan bo'lsa
+// opt — { havola, aslYoq } (devon: № ostidagi havola qatori; «Асл нусхасини олдим» matnsiz — devonAslOchir_). Blok ls — setLineSpacing (w:line = 240·ls)
+function bloklarDocx(bloklar, xRaqam, sanaIso, ij, k, opt = {}) {
   const z = n => Math.round(n * (k || 1) * 2) / 2;
   const Y = yasovchi(), P = Y.p;
   let h = '';
   bloklar.forEach(o => {
     if (o.t !== 'p') return;
-    h += P({ matn: o.x, jc: o.al === 'both' ? 'both' : o.al || 'left', before: z(o.before || 0), after: z(o.after || 0), line: 240,
+    h += P({ matn: o.x, jc: o.al === 'both' ? 'both' : o.al || 'left', before: z(o.before || 0), after: z(o.after || 0), line: Math.round(240 * (o.ls || 1)),
       left: o.left || 0, firstLine: o.ind ? 28.35 : 0, sz: z(o.sz || 11), b: o.b });
   });
-  return blankaQur(h, xRaqam, sanaIso, ij, false);
+  const havola = opt.havola ? P({ matn: opt.havola, jc: 'left', before: z(2), after: 0, line: 240, left: 0, firstLine: 0, sz: z(10), b: false }) : '';
+  return blankaQur(h, xRaqam, sanaIso, ij, false, { havola, aslYoq: opt.aslYoq });
 }
 // blanka nusxasi: shapka, chiziq, № va sana, matn («Директор» dan oldin), imzo bloki — h — matn xatboshilari (Google eksporti shaklida)
-function blankaQur(h, xRaqam, sanaIso, ij, jadvalUslubi) {
+// opt — { havola (tayyor xatboshi XML, № qatoridan keyin), aslYoq }
+function blankaQur(h, xRaqam, sanaIso, ij, jadvalUslubi, opt = {}) {
   const B = blanka();
   const yil = sanaIso.slice(0, 4);
   const XAT_OY = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
@@ -155,11 +158,17 @@ function blankaQur(h, xRaqam, sanaIso, ij, jadvalUslubi) {
   for (let i = D + 1; i < qoldi.length; i++) {
     const t = matnOf(qoldi[i]);
     if (/^\s*Ижрочи/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>)Ижрочи:[^<]*(<\/w:t>)/, (m, a, b) => a + esc('Ижрочи: ' + s(ij.ism) + ', тел.: ' + s(ij.tel)) + b);
-    else if (/^\s*Асл нусхасини/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>[^<]*?)\d{4} й\.([^<]*<\/w:t>)/, (m, a, b) => a + yil + ' й.' + b);
+    else if (/^\s*Асл нусхасини/.test(t)) qoldi[i] = opt.aslYoq
+      ? qoldi[i].replace(/<w:r [\s\S]*<\/w:r>/, R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr></w:r>')   // devonAslOchir_: matni o'chirilgan bo'sh xatboshi
+      : qoldi[i].replace(/(<w:t[^>]*>[^<]*?)\d{4} й\.([^<]*<\/w:t>)/, (m, a, b) => a + yil + ' й.' + b);
   }
+  // devon: № qatoridan keyin havola xatboshisi (devonXatYasa_: insertParagraph(№ + 1))
+  const N = qoldi.findIndex(e => e === E[ni]);
+  if (opt.havola && N >= 0) qoldi.splice(N + 1, 0, opt.havola);
+  const D2 = qoldi.findIndex(e => e === E[di]);
   // xatboshi raqamlari (w14:paraId) — Google eksportidagidek butun hujjat bo'yicha tartib bilan 1 dan
   let nn = 0;
-  const doc = (bosh + qoldi.slice(0, D).join('') + h + qoldi.slice(D).join('') + oxir).replace(/w14:paraId="[0-9A-F]{8}"/g, () => 'w14:paraId="' + (++nn).toString(16).toUpperCase().padStart(8, '0') + '"');
+  const doc = (bosh + qoldi.slice(0, D2).join('') + h + qoldi.slice(D2).join('') + oxir).replace(/w14:paraId="[0-9A-F]{8}"/g, () => 'w14:paraId="' + (++nn).toString(16).toUpperCase().padStart(8, '0') + '"');
   // Table2 uslubi (Google eksportida har jadvalga alohida uslub), chiziq rasmi
   let st = B['word/styles.xml'].toString('utf8');
   if (jadvalUslubi && !/w:styleId="Table2"/.test(st)) st = st.replace('</w:styles>', '<w:style w:type="table" w:styleId="Table2"><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/><w:tblStyleColBandSize w:val="1"/></w:tblPr></w:style></w:styles>');

@@ -93,7 +93,9 @@ function shapka() {
     + '<div class="ch" style="left:' + X(86.55) + 'pt;top:' + (184.86 - SAH.tepa).toFixed(2) + 'pt;width:465.75pt"></div>'
     + '</div>';
 }
-// o: { bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov }
+// o: { bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola?, aslYoq? }
+//   havola — № qatori ostidagi 10 pt qator (Devon.gs devonXatYasa_: javob xati «… даги …-сон хатингизга»); aslYoq — «Асл нусхасини олдим» matni olib tashlanadi
+//   (devonAslOchir_: Docs oxirgi xatboshini o'chirmaydi — matni o'chirilib, bo'sh qator qoladi). Blok: ls — qator oralig'i (setLineSpacing; 1 = 1,15 em)
 function xatHtml(o) {
   const k = o.k || 1, z = n => Math.round(n * k * 2) / 2;
   const tq = t => s(t).replace(/\{\{[^}]+\}\}/g, m => (o.q[m] !== undefined ? o.q[m] : m));
@@ -103,7 +105,7 @@ function xatHtml(o) {
     const sz = z(b.sz || 11);
     const tek = (b.al || 'both') === 'both';
     const st = ['text-align:' + (tek ? 'left' : AL[b.al]), 'margin-top:' + z((b.before || 0) + keyingiOldin) + 'pt', 'margin-bottom:' + z(b.after || 0) + 'pt',
-      'padding-left:' + Math.round((b.left || 0) / 0.75) * 0.75 + 'pt'   /* Docs chekinishni butun px ga yaxlitlaydi: 28,4 → 28,5 */, 'text-indent:' + (b.ind ? 28.5 : 0) + 'pt', 'font-size:' + sz + 'pt', 'line-height:' + (sz * 1.15).toFixed(3) + 'pt'];
+      'padding-left:' + Math.round((b.left || 0) / 0.75) * 0.75 + 'pt'   /* Docs chekinishni butun px ga yaxlitlaydi: 28,4 → 28,5 */, 'text-indent:' + (b.ind ? 28.5 : 0) + 'pt', 'font-size:' + sz + 'pt', 'line-height:' + (sz * 1.15 * (b.ls || 1)).toFixed(3) + 'pt'];
     if (b.b) st.push('font-weight:bold');
     keyingiOldin = 0;
     // Google Docs chiziqcha/qiyshiq chiziqdan keyin qatorni bo'lmaydi («198-уйдаги» butun o'tadi) — Chromium bo'ladi; so'z butun qoldiriladi.
@@ -129,12 +131,13 @@ function xatHtml(o) {
   });
   // blankaning imzo qismi (o'lchami o'zgarmaydi): Директор, 3 bo'sh qator, Ижрочи, Асл нусхасини олдим
   const ij = 'Ижрочи: ' + s(o.q['{{Ундирувчи}}']) + ', тел.: ' + s(o.q['{{Ундирувчи_тел}}']);
-  const asl = 'Асл нусхасини олдим: ___________ (имзо) ___________________ (Ф.И.Ш.) «___» ________ ' + o.yil + ' й.';
+  const asl = o.aslYoq ? '' : 'Асл нусхасини олдим: ___________ (имзо) ___________________ (Ф.И.Ш.) «___» ________ ' + o.yil + ' й.';
   const imzo = '<p class="dir">Директор<span class="n">______________________</span>&#8203;<span class="f">Ҳайдаров К.Ҳ.</span></p>'
     + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
-    + '<p class="k9" style="margin-bottom:0">' + esc(asl) + '</p>';
+    + '<p class="k9" style="margin-bottom:0">' + (asl ? esc(asl) : '<br>') + '</p>';
+  const havola = o.havola ? '<p style="font-size:' + z(10) + 'pt;line-height:' + (z(10) * 1.15).toFixed(3) + 'pt;margin-top:' + z(2) + 'pt;margin-bottom:0;text-align:left">' + esc(o.havola) + '</p>' : '';
   return kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body>' + shapka()
-    + '<p class="no">№ ' + esc(o.raqam) + '&#8203;<span class="o">' + esc(o.sanaMatn) + '</span></p>'
+    + '<p class="no">№ ' + esc(o.raqam) + '&#8203;<span class="o">' + esc(o.sanaMatn) + '</span></p>' + havola
     + html + imzo + '</body></html>');
 }
 // Chromium chop etishda matn tayanch chizig'ini butun px ga (0,75 pt) yaxlitlaydi — qatorlar 12 / 12,75 pt sakraydi (Docs'da 12,65 tekis).
@@ -194,10 +197,11 @@ async function xatChiqar(x, b, raqam, sanaIso, muddatIso, Q, oldin, ij, shosh) {
 }
 // Rasmiy blankadagi hujjat (xat, bekor qilish xabarnomasi): bloklar — xatChiz_ bloklari (p / bosh / tbl / imzo), q — o'rinbosarlar
 // ({{Ундирувчи}}, {{Ундирувчи_тел}} — «Ижрочи» qatori uchun), raqam — № qatori. Bir varaq qoidasi — xatChiqar_ / bekorXabarnoma_ dagidek.
-async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor) {
+// opt — { havola, aslYoq } (devon chiqim xati)
+async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor, opt = {}) {
   const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
+  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
   let ikkiBet = false, kk = 1;
   let r = await yasa(1);
   if (r.bet > 1) {

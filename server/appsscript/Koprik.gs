@@ -1,4 +1,7 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.14). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.15). Boshqa fayllar o'zgarmaydi.
+// v1.15: devonxona qolgan amallari serverda (chiqim xat, rezolyutsiya, ijro, tasdiq, bekor) — koprikDevonSaqla va koprikDevonTg endi tizimga kirgan HAR xodim
+//        uchun (ijrochi isbot yuklaydi, javob xati yozadi; huquqni server tekshiradi); koprikDevonSaqla Word (.docx) ni ham qabul qiladi
+//        ({ qism, nom, b64, docB64 } → { id, doc }); koprikDevonTg { chat, matn, faylId } — bitta xodimga skan bilan (devonTgYubor_ ning o'zi).
 // v1.14: koprikQtPapkaSavat — qayta tuzish loyihasi bekor qilinganda yangi raqam uchun ochilgan BO'SH hujjat papkasini savatga (Qayta.gs qaytaBekor dagi tsiklning o'zi);
 //        06k, 06d, topshiriq — server yozadi (qaytaBekor serverda).
 // v1.13: koprikKbSaqla — imzolangan kelishuv SKANI ni ham qabul qiladi ({ yil, skanNom, skanB64 } → { skan }): kbSkan serverda, fayl «Kelishuv / <yil>» ga shu orqali.
@@ -73,7 +76,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.14'; }
+function koprikVersiya(kod) { return '1.15'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -190,7 +193,7 @@ function koprikBekorSaqla(kod, m) {
 // v1.12: kirim xat skani → «AKS TIZIM / 08 DEVONXONA / <qism> / <yil>» (Devon.gs devonFaylSaqla_ ning o'zi). m = { qism: 'Kirim', nom (kengaytmasiz), b64 }.
 //   Qaytaradi { id }. m.eski (Drive ID) bo'lsa — o'sha fayl savatga, faqat «08 DEVONXONA» ichidagi bo'lsa (server qatorni yoza olmaganda). Qaytaradi { ok }.
 function koprikDevonSaqla(kod, m) {
-  ruxsat_(kod, 'devon');
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');   // v1.15: har xodim (huquqni server tekshiradi)
   m = m || {};
   if (m.eski) {
     try { var e = DriveApp.getFileById(String(m.eski)), p = e.getParents(), ota = p.hasNext() ? p.next().getParents() : null, bobo = ota && ota.hasNext() ? ota.next().getParents() : null;
@@ -201,12 +204,19 @@ function koprikDevonSaqla(kod, m) {
   if (!/^(Kirim|Chiqim|Ijro)$/.test(qism) || !nom || nom.length > 200 || /[\/\\]/.test(nom)) throw new Error('Devon fayli nomi noto\'g\'ri.');
   var bayt = Utilities.base64Decode(String(m.b64 || ''));
   if (bayt.length < 1000) throw new Error('Xat skani bo\'sh.');
-  return { id: devonFaylSaqla_(bayt, [qism], nom).getId() };
+  var r = { id: devonFaylSaqla_(bayt, [qism], nom).getId() };
+  if (m.docB64) {   // v1.15: server yasagan Word nusxasi — o'sha papkaga, nom.docx
+    var DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    var papka = papka_(['AKS TIZIM', '08 DEVONXONA', qism, Utilities.formatDate(new Date(), TZ, 'yyyy')]);
+    r.doc = papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.docB64)), DOCX, nom + '.docx')).getId();
+  }
+  return r;
 }
 // v1.12: direktor(lar)ga shaxsan Telegram — skan PDF + tugma (Devon.gs devonDirShaxsiy_ ning o'zi). m = { matn, faylId, tugma }. Qaytaradi { xato: '' | sabab }.
 function koprikDevonTg(kod, m) {
-  ruxsat_(kod, 'devon');
+  if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.');   // v1.15: har xodim
   m = m || {};
+  if (m.chat) return { xato: devonTgYubor_(String(m.chat), String(m.matn || ''), String(m.faylId || ''), null) };   // v1.15: bitta xodimga (skan bilan)
   return { xato: devonDirShaxsiy_(SpreadsheetApp.openById(SS_ID), String(m.matn || ''), String(m.faylId || ''), String(m.tugma || '')) };
 }
 // v1.12: server yasagan kelishuv + dalolatnoma → «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>» (KelishuvBekor.gs kbHujjat_ papkasi va nomlari).

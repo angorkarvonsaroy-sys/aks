@@ -27,6 +27,9 @@
 //            aks-yozuv-sinov kb        — 🤝 kelishuv bilan bekor: hujjat (PDF so'zma-so'z, Word matni) eski tizim yasagani bilan, 06m qatori (nusxada), Drive (Koprik v1.12); kbTayyorla ni yoqish
 //            aks-yozuv-sinov kb2       — 🤝 kelishuv: skan yuklash, so'rovni bekor qilish, direktor tasdig'i/radi (06m kataklari, 04 C/D/W + 06j — nusxa varaqlarda), skan Drive'ga (Koprik v1.13); kbSkan/kbBekor/kbTasdiq ni yoqish
 //            aks-yozuv-sinov sifat     — 👁 ko'rish rejimi: bitta xodim nomidan o'qish (server vs eski sifatida — javob tuzilishi va ismi), yozuvchi amal rad etilishi; yoqish
+//            aks-yozuv-sinov devon2    — devonxona qolgan amallari (chiqim xat ro'yxati, yuborildi, rezolyutsiya, ijro topshirish, tasdiq, rezolyutsiya qaytarish, bekor):
+//                                        11 va 10 NUSXALARIDA to'liq yo'l, eski tizim yozgan qatorlar bilan (tur/format), JSON va tarix naqshlari; Koprik 1.15; yoqish
+//            aks-yozuv-sinov devonxat  — blankadagi chiquvchi xat: eski tizim yasagan xatlarni server qayta yasab PDF (so'zlar joyi) va Word bilan solishtiradi; yoqish
 //            aks-yozuv-sinov kirish    — 🔑 07b_Kirish_jurnali qatori (PIN kirishi): nusxa varaqda, eski yozgan oxirgi qator bilan; yoqish (eski tizimga pinKir yuborilmaydi)
 //            aks-yozuv-sinov mijozpdf [M0251 …] — 👤 mijoz kartasi PDF: eski tizim yasagani bilan matn, sahifa va so'zlar joyi (ikki sahifa varianti); yoqish
 //            aks-yozuv-sinov topmening — 📌 Topshiriqlarim: hujjat topshiriqlarini yopish (har xodim: server quruq hisob → eski topMening yozadi → solishtirish); yoqish
@@ -1879,6 +1882,198 @@ async function sifatSinov() {
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (havola avvalgidek eski saytga ochiladi).');
 }
 
+// 📮 DEVONXONA QOLGAN AMALLARI (Devon.gs v1.5): 11_Devonxona va 10_Topshiriqlar NUSXALARIDA server yadrolari (ishdagi kodning o'zi, quruq — Drive/Telegram yo'q)
+// to'liq yo'lni bosib o'tadi: kirim xat → rezolyutsiya (2 ijrochi) → yordamchi qismi → asosiy topshirdi → qaytarildi → qayta topshirdi → qabul;
+// 2-xat: rezolyutsiya → qaytarib olish; 3-xat: bekor; tayyor chiqim xat (qo'lma-qo'l); «Tayyorlandi» xat → yuborildi (pochta). Har bosqichda kataklar
+// (K:T va 10 qatorlari) eski tizim yozgan o'xshash qatorlar bilan (qiymat turi, format), JSON (R) tuzilishi va tarix (S) naqshi tekshiriladi.
+async function devon2Sinov() {
+  const DV = require('../api/devon_yoz')._ichki, TPI = require('../api/topshiriq_yoz')._ichki;
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar, fish FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k115 = verOk(ver, '1.15') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k115 ? ' ✅' : ' ⚠ (1.15 kerak — fayllar har xodim uchun, Word, bitta xodimga skan)'));
+  const u = { fish: adm.fish, kod: adm.kirish_kodi, admin: true, huquq: ['admin'] };
+  const XD = (await TPI.topXodimlar()).filter(z => !z.admin);
+  if (XD.length < 2) { console.log('Kamida 2 ta oddiy xodim kerak.'); return; }
+  const A1 = XD[0], Y1 = XD[1], uA = { fish: A1.fish, kod: '', admin: false, huquq: [] }, uY = { fish: Y1.fish, kod: '', admin: false, huquq: [] };
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  const PDF0 = Buffer.from('%PDF-1.4\n' + '% SINOV — AKS TIZIM server sinovi, o\'chiriladi\n'.repeat(40) + '%%EOF\n');
+  const bugun = V.bugun(), bugunD = bugun.split('-').reverse().join('.');
+  const tek = (ok, m) => { if (ok) console.log('  ✅ ' + m); else { x++; console.log('  ✖ ' + m); } };
+  const jsonOl = v => { try { return JSON.parse(v || '{}') || {}; } catch (e) { return null; } };
+  try {
+    if (!M.varaqlar.some(v => v.title === DV.DEVON_V)) { console.log('11_Devonxona varag\'i yo\'q — solishtirib bo\'lmaydi.'); return; }
+    const n11 = await nusxala(DV.DEVON_V), n10 = await nusxala(TPI.TOP_V), opt = { varaq: n11, topVaraq: n10, quruq: true };
+    const R0 = await DV.devonRowsYangi(n11), T0 = await TPI.topRowsYangi(n10);
+    const eskiIjro = R0.L.filter(z => z.turi === 'Kirim' && z.holati === 'Ijro etildi').pop() || R0.L.filter(z => z.turi === 'Kirim' && (z.holati === 'Ijroda' || z.holati === 'Tekshiruvda')).pop();
+    const eskiChiqim = R0.L.filter(z => z.turi === 'Chiqim' && z.holati === 'Yuborildi' && /"yub"/.test(z.ijro)).pop();
+    const eskiTop = T0.L.filter(z => /^devon\|/.test(z.kalit)).pop();
+    const kir = async (n, raqam) => DV.devonYoz(n11, await DV.devonRowsYangi(n11), { turi: 'Kirim', tartib: 9000 + n, kim: 'SINOV KOTIBA', tashkilot: 'SINOV TASHKILOT ' + n, raqam, sana: bugunD, mazmun: 'SINOV — nusxa varaq, o\'chiriladi', fayl: '', holati: 'Rezolyutsiya kutmoqda' });
+    const ol = async id => (await DV.devonRowsYangi(n11)).L.find(z => String(z.id) === String(id));
+    const top = async () => (await TPI.topRowsYangi(n10)).L;
+    const kat11 = async q => (await G.kataklarOqi(ID, n11, 'A' + q + ':T' + q, KEY))[0] || [];
+    const kat10 = async q => (await G.kataklarOqi(ID, n10, 'A' + q + ':V' + q, KEY))[0] || [];
+    // ---------- 1) rezolyutsiya
+    console.log('\n=== 1) REZOLYUTSIYA — ' + A1.fish + ' (asosiy) + ' + Y1.fish + ' (yordamchi) ===');
+    const K1 = await kir(1, 'SINOV-K1');
+    let t0 = Date.now();
+    const r1 = await DV.rezYadro(u, K1.id, { tur: 'ijro', matn: 'SINOV: o\'rganib, hisobot bersin', muddat: bugunD, asosiy: A1, yordam: [Y1.fish] }, opt);
+    console.log('  ' + (Date.now() - t0) + ' ms · 10 ga ' + r1.rows.length + ' qator (ID ' + r1.rows.map(z => z.id).join(', ') + ')');
+    let k1 = await ol(K1.id), J = jsonOl(k1.ijro);
+    tek(k1.holati === 'Ijroda' && k1.tur === 'ijro' && k1.ijrochi === A1.fish && k1.yordam.join(',') === Y1.fish && k1.muddat === bugunD && k1.rez === 'SINOV: o\'rganib, hisobot bersin' && /^\d\d\.\d\d\.\d{4} \d\d:\d\d · /.test(k1.rezVaqt), 'K:Q — Ijroda, ijro, ijrochi, yordamchi, muddat, matn, rez vaqti');
+    tek(J && Object.keys(J).join(',') === 'tid,top,kordi' && String(J.tid[A1.fish]) === String(r1.rows[0].id) && String(J.tid[Y1.fish]) === String(r1.rows[1].id) && J.kordi && J.kordi.fish === u.fish, 'R JSON {tid, top, kordi}: ' + qisqa(k1.ijro, 90));
+    tek(new RegExp('rezolyutsiya: 📋 Ijro etilsin → ' + A1.fish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\(\\+' + Y1.fish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\), muddat ' + bugunD + ' \\(' + u.fish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\)$').test(k1.tarix), 'S tarix: ' + qisqa(k1.tarix.split('\n').pop(), 100));
+    const TL = await top(); const ta = TL.find(z => String(z.id) === String(r1.rows[0].id)), ty = TL.find(z => String(z.id) === String(r1.rows[1].id));
+    tek(ta && ta.kalit === 'devon|' + K1.id + '|a' && ta.qoida === 'devon' && ta.manba === 'Direktor' && ta.kimga === A1.fish && ta.holati === 'Jarayonda' && ta.muddat === bugunD + ' 18:00' && ta.sarlavha === '📥 Kirim xat №' + K1.tartib + ' — SINOV TASHKILOT 1 (№SINOV-K1, ' + bugunD + ')' && ta.izoh === '📋 Ijro etilsin · yordamchilar: ' + Y1.fish + ' · Rezolyutsiya: SINOV: o\'rganib, hisobot bersin', '10 asosiy: ' + (ta ? qisqa(ta.sarlavha, 60) + ' · ' + qisqa(ta.izoh, 70) : 'topilmadi'));
+    tek(ty && ty.kalit === 'devon|' + K1.id + '|y' && ty.kimga === Y1.fish && ty.sarlavha.endsWith(' · yordamchi') && ty.izoh === '📋 Ijro etilsin · asosiy ijrochi: ' + A1.fish + ' · Rezolyutsiya: SINOV: o\'rganib, hisobot bersin', '10 yordamchi: ' + (ty ? qisqa(ty.izoh, 90) : 'topilmadi'));
+    if (eskiTop) x += solishtir(await kat10(eskiTop.qator), await kat10(ta.qator), [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14], '— 10_Topshiriqlar: eski tizim yozgan devon topshirig\'i (qator ' + eskiTop.qator + ') va server yozgani (qator ' + ta.qator + ')');
+    else console.log('  (10 da eski devon topshirig\'i yo\'q — tur/format solishtirilmadi)');
+    if (eskiIjro) x += solishtir(await kat11(eskiIjro.qator), await kat11(k1.qator), [11, 12, 13, 14, 15, 16, 17, 18, 19], '— 11: eski tizim rezolyutsiya yozgan xat (qator ' + eskiIjro.qator + ', ' + eskiIjro.holati + ') va server (qator ' + k1.qator + '): K–S');
+    else console.log('  (11 da rezolyutsiya yozilgan eski xat yo\'q — tur/format solishtirilmadi)');
+    // ---------- 2) yordamchi o'z qismini yukladi
+    console.log('\n=== 2) YORDAMCHI QISMI (' + Y1.fish + ') ===');
+    const r2 = await DV.ijroTopshirYadro(uY, { id: K1.id, hisobot: 'SINOV: yordamchi o\'z qismini bajardi', b64: PDF0.toString('base64') }, opt);
+    k1 = await ol(K1.id); J = jsonOl(k1.ijro);
+    tek(r2.natija === 'Qismingiz yuklandi. Asosiy ijrochi (' + A1.fish + ') ko\'radi.' && r2.xabarAsosiy.indexOf('o\'z qismini yukladi') > 0, 'natija: ' + r2.natija);
+    tek(k1.holati === 'Ijroda' && J && J.top && J.top[Y1.fish] && J.top[Y1.fish].rol === 'y' && J.top[Y1.fish].h === 'SINOV: yordamchi o\'z qismini bajardi' && /^SINOV_Ijro_K-/.test(J.top[Y1.fish].f) && Object.keys(J.top[Y1.fish]).join(',') === 'v,h,rol,f', 'R top[yordamchi] {v,h,rol,f}, holat Ijroda qoladi');
+    tek(/yordamchi o'z qismini yukladi: /.test(k1.tarix.split('\n').pop()), 'S tarix: ' + qisqa(k1.tarix.split('\n').pop(), 80));
+    let TY1 = (await top()).find(z => String(z.id) === String(ty.id));
+    tek(TY1.holati === 'Bajarildi' && TY1.yopdi === Y1.fish && TY1.dalil === 'O\'z qismi yuklandi: SINOV: yordamchi o\'z qismini bajardi', '10 yordamchi topshirig\'i: Bajarildi, dalil «O\'z qismi yuklandi: …»');
+    let xt = ''; try { await DV.ijroTopshirYadro(uY, { id: K1.id, hisobot: 'SINOV takror', b64: PDF0.toString('base64') }, opt); } catch (e) { xt = e.message; }
+    tek(/allaqachon topshirgansiz/.test(xt), 'takror topshirish rad: ' + qisqa(xt, 70));
+    // ---------- 3) asosiy topshirdi → 4) qaytarildi → 5) qayta topshirdi → 6) qabul
+    console.log('\n=== 3) ASOSIY IJROCHI TOPSHIRDI (' + A1.fish + ') ===');
+    const r3 = await DV.ijroTopshirYadro(uA, { id: K1.id, hisobot: 'SINOV: ijro hisoboti — bajarildi', b64: PDF0.toString('base64') }, opt);
+    k1 = await ol(K1.id); J = jsonOl(k1.ijro);
+    tek(r3.natija === 'Ijro direktorga tekshiruvga yuborildi.' && /ijroni topshirdi\.\nTekshirish: ilovada 👔 Direktor → Tasdiqlar\.$/.test(r3.xabarDir), 'natija + direktorga xabar');
+    tek(k1.holati === 'Tekshiruvda' && J.top[A1.fish] && J.top[A1.fish].rol === 'a' && /^SINOV_Ijro_K-9001_ijro_/.test(J.top[A1.fish].f), 'K Tekshiruvda, R top[asosiy] {rol a, f}');
+    tek(/ijro topshirildi: /.test(k1.tarix.split('\n').pop()), 'S tarix: ' + qisqa(k1.tarix.split('\n').pop(), 80));
+    let TA1 = (await top()).find(z => String(z.id) === String(ta.id));
+    tek(TA1.holati === 'Tekshiruvda' && TA1.dalil === 'Ijro topshirildi: SINOV: ijro hisoboti — bajarildi', '10 asosiy topshirig\'i: Tekshiruvda');
+    if (eskiIjro) x += solishtir(await kat11(eskiIjro.qator), await kat11(k1.qator), [11, 18, 19, 20], '— 11 K, R, S, T (eski qator ' + eskiIjro.qator + ')');
+    console.log('\n=== 4) DIREKTOR QAYTARDI ===');
+    const x4 = await DV.tasdiqYadro(u, K1.id, false, 'SINOV: hisobot to\'liq emas', opt);
+    k1 = await ol(K1.id); J = jsonOl(k1.ijro);
+    tek(k1.holati === 'Ijroda' && J.eski && J.eski.length === 1 && J.eski[0].fish === A1.fish && J.eski[0].qaytdi === 'SINOV: hisobot to\'liq emas' && Object.keys(J.eski[0]).join(',') === 'fish,qaytdi,v,h,rol,f' && !J.top[A1.fish] && J.top[Y1.fish], 'K Ijroda, R eski[{fish,qaytdi,v,h,rol,f}], top[asosiy] o\'chdi');
+    tek(/qaytarildi: SINOV: hisobot to'liq emas \(/.test(k1.tarix.split('\n').pop()), 'S tarix: ' + qisqa(k1.tarix.split('\n').pop(), 80));
+    TA1 = (await top()).find(z => String(z.id) === String(ta.id));
+    tek(TA1.holati === 'Jarayonda' && TA1.yopildi === '' && TA1.yopdi === '' && TA1.dalil === '' && TA1.izoh.endsWith(' | Qaytarildi: SINOV: hisobot to\'liq emas'), '10 asosiy: Jarayonda, G izoh «… | Qaytarildi: …»');
+    console.log('\n=== 5) QAYTA TOPSHIRDI → 6) QABUL ===');
+    await DV.ijroTopshirYadro(uA, { id: K1.id, hisobot: 'SINOV: to\'ldirilgan hisobot', b64: PDF0.toString('base64') }, opt);
+    const x6 = await DV.tasdiqYadro(u, K1.id, true, '', opt);
+    k1 = await ol(K1.id); J = jsonOl(k1.ijro);
+    tek(k1.holati === 'Ijro etildi' && J.top[A1.fish] && J.top[A1.fish].h === 'SINOV: to\'ldirilgan hisobot' && J.eski.length === 1, 'K Ijro etildi, R top[asosiy] yangi, eski 1 ta');
+    tek(/qabul qilindi — Ijro etildi \(/.test(k1.tarix.split('\n').pop()), 'S tarix: ' + qisqa(k1.tarix.split('\n').pop(), 80));
+    TA1 = (await top()).find(z => String(z.id) === String(ta.id)); TY1 = (await top()).find(z => String(z.id) === String(ty.id));
+    tek(TA1.holati === 'Bajarildi' && TA1.yopdi === A1.fish + ' (tasdiq: ' + u.fish + ')' && TA1.dalil === 'Ijro topshirildi: SINOV: to\'ldirilgan hisobot' && TY1.holati === 'Bajarildi', '10: asosiy Bajarildi «… (tasdiq: direktor)», yordamchi Bajarildi qoldi');
+    if (eskiIjro && eskiIjro.holati === 'Ijro etildi') x += solishtir(await kat11(eskiIjro.qator), await kat11(k1.qator), [11, 12, 13, 14, 15, 16, 17, 18, 19], '— 11 yakuniy (Ijro etildi): eski qator ' + eskiIjro.qator + ' va server qator ' + k1.qator);
+    const eskiTopB = T0.L.filter(z => /^devon\|/.test(z.kalit) && z.holati === 'Bajarildi').pop();
+    if (eskiTopB) x += solishtir(await kat10(eskiTopB.qator), await kat10(ta.qator), [14, 15, 16, 17, 18], '— 10 yopilgan devon topshirig\'i (N–R): eski qator ' + eskiTopB.qator + ' va server qator ' + ta.qator);
+    // ---------- 7) rezolyutsiya qaytarib olindi (2-xat, javob turi, faqat asosiy)
+    console.log('\n=== 7) 2-XAT: REZOLYUTSIYA → QAYTARIB OLISH ===');
+    const K2 = await kir(2, 'SINOV-K2');
+    const r7 = await DV.rezYadro(u, K2.id, { tur: 'javob', matn: 'SINOV: javob xati tayyorlansin', muddat: bugunD, asosiy: A1, yordam: [] }, opt);
+    let k2 = await ol(K2.id);
+    tek(k2.holati === 'Ijroda' && k2.tur === 'javob' && k2.yordam.length === 0, 'rezolyutsiya (javob, yordamchisiz) yozildi');
+    const r7b = await DV.rezQaytarYadro(u, K2.id, 'SINOV: ijrochi xato tanlangan', opt);
+    k2 = await ol(K2.id); J = jsonOl(k2.ijro);
+    tek(k2.holati === 'Rezolyutsiya kutmoqda' && k2.tur === '' && k2.ijrochi === '' && k2.muddat === '' && k2.rez === '' && k2.rezVaqt === '' && r7b.kimlar.join(',') === A1.fish, 'K:Q tozalandi, topshiriq egasi: ' + r7b.kimlar.join(', '));
+    tek(J && Object.keys(J).join(',') === 'eskiRez,eski,kordi' && J.eskiRez.length === 1 && J.eskiRez[0].ijrochi === A1.fish && J.eskiRez[0].sabab === 'SINOV: ijrochi xato tanlangan' && Object.keys(J.eskiRez[0]).join(',') === 'tur,ijrochi,yordam,muddat,matn,vaqt,top,sabab', 'R JSON {eskiRez[{tur,ijrochi,yordam,muddat,matn,vaqt,top,sabab}], eski, kordi}: ' + qisqa(k2.ijro, 80));
+    tek(/rezolyutsiya qaytarib olindi: SINOV: ijrochi xato tanlangan \(/.test(k2.tarix.split('\n').pop()), 'S tarix: ' + qisqa(k2.tarix.split('\n').pop(), 80));
+    const T7 = (await top()).find(z => String(z.id) === String(r7.rows[0].id));
+    tek(T7.holati === 'Bekor' && T7.yopdi === u.fish && T7.dalil === 'rezolyutsiya qaytarib olindi: SINOV: ijrochi xato tanlangan', '10: topshiriq Bekor, dalil «rezolyutsiya qaytarib olindi: …»');
+    const eskiRQ = R0.L.filter(z => z.turi === 'Kirim' && /"eskiRez"/.test(z.ijro)).pop();
+    if (eskiRQ) x += solishtir(await kat11(eskiRQ.qator), await kat11(k2.qator), [11, 12, 13, 14, 15, 16, 17, 18, 19], '— 11 rezolyutsiya qaytarib olingan xat: eski qator ' + eskiRQ.qator + ' va server qator ' + k2.qator);
+    // ---------- 8) bekor (3-xat)
+    console.log('\n=== 8) 3-XAT: BEKOR ===');
+    const K3 = await kir(3, 'SINOV-K3');
+    const r8 = await DV.bekorYadro(u, K3.id, 'SINOV: xato kiritilgan', opt);
+    const k3 = await ol(K3.id);
+    tek(k3.holati === 'Bekor' && r8.natija === 'Kirim xat №' + K3.tartib + ' bekor qilindi. Raqami jurnalda qoladi.' && /bekor qilindi: SINOV: xato kiritilgan \(/.test(k3.tarix.split('\n').pop()), 'K Bekor, natija, tarix');
+    xt = ''; try { await DV.bekorYadro(u, K1.id, 'SINOV: bekor', opt); } catch (e) { xt = e.message; }
+    tek(/Faqat rezolyutsiya yozilmagan kirim xat/.test(xt), 'ijro etilgan xatni bekor qilish rad: ' + qisqa(xt, 60));
+    // ---------- 9) tayyor chiqim xat (qo'lma-qo'l), 2-kirim xatga bog'langan
+    console.log('\n=== 9) TAYYOR CHIQIM XATNI RO\'YXATGA OLISH (qo\'lma-qo\'l) ===');
+    const Yq = DV.devonYubOl({ usul: 'qol', sana: bugun, qabul: 'SINOV qabul qiluvchi', kiruvchi: '77' }, bugunD, 'x');
+    const r9 = await DV.chiqimSaqlaYadro(u, { tashkilot: 'SINOV TASHKILOT 2', raqam: 'SINOV-CH-1', mazmun: 'SINOV chiqim mazmuni', sana: bugunD, Y: Yq, bayt: PDF0, kirimId: K2.id }, opt);
+    const c9 = await ol(r9.id); J = jsonOl(c9.ijro); k2 = await ol(K2.id);
+    tek(c9.turi === 'Chiqim' && c9.holati === 'Yuborildi' && c9.bogliq === String(K2.id) && /^SINOV_Chiqim_CH-/.test(c9.fayl) && c9.kim === u.fish, 'Chiqim qatori: Yuborildi, bog\'liq K2, fayl');
+    tek(J && Object.keys(J).join(',') === 'yub' && Object.keys(J.yub).join(',') === 'usul,sana,kv,bolim,qabul,kiruvchi,kvF,v,fish' && J.yub.usul === 'qol' && J.yub.qabul === 'SINOV qabul qiluvchi' && J.yub.kiruvchi === '77', 'R JSON {yub:{usul,sana,kv,bolim,qabul,kiruvchi,kvF,v,fish}}');
+    tek(/ yuborildi — qo'lma-qo'l, \d\d\.\d\d\.\d{4}, qabul qildi: SINOV qabul qiluvchi, kiruvchi №77$/.test(c9.tarix.split('\n').pop()), 'S tarix: ' + qisqa(c9.tarix.split('\n').pop(), 90));
+    tek(/javob xati SINOV-CH-1 bog'landi \(/.test(k2.tarix.split('\n').pop()), 'K2 tarix: ' + qisqa(k2.tarix.split('\n').pop(), 80));
+    xt = ''; try { await DV.chiqimSaqlaYadro(u, { tashkilot: 'SINOV TASHKILOT 2', raqam: 'SINOV-CH-1', mazmun: '', sana: bugunD, Y: Yq, bayt: PDF0, kirimId: '' }, opt); } catch (e) { xt = e.message; }
+    tek(/Bu raqam allaqachon bor/.test(xt), 'takror raqam rad: ' + qisqa(xt, 60));
+    if (eskiChiqim) x += await qatorSolishtir(n11, c9.qator, 1, 20, '— Chiqim xat qatori (A–T)', eskiChiqim.qator); else console.log('  (11 da eski chiqim xat yo\'q — solishtirilmadi)');
+    // ---------- 10) «Tayyorlandi» xat → yuborildi (pochta)
+    console.log('\n=== 10) BLANKADAGI XAT → YUBORILDI (pochta) ===');
+    const R10 = await DV.devonRowsYangi(n11);
+    const c10 = await DV.devonYoz(n11, R10, { turi: 'Chiqim', tartib: 9100, kim: A1.fish, tashkilot: 'SINOV TASHKILOT 3', raqam: 'SINOV-CH-2', sana: bugunD, mazmun: 'SINOV blankadagi xat matni', fayl: '', holati: 'Tayyorlandi', bogliq: '' });
+    await G.yoz(ID, [{ varaq: n11, katak: 'R' + c10.qator, qiymat: [[JSON.stringify({ pdf: 'SINOV_PDF', doc: 'SINOV_DOC', bet: 1, oluvchi: ['SINOV TASHKILOT 3'], xat: { tur: 'tashkilot', mavzu: 'SINOV', murojaat: '', ilova: '' }, tahrir: 0 })]] }], KEY);
+    const Yp = DV.devonYubOl({ usul: 'pochta', sana: bugun, kv: 'RB 123456 UZ', bolim: 'Angor pochta', kvB64: PDF0.toString('base64') }, '', 'x');
+    const r10 = await DV.chiqimYuborYadro(uA, c10.id, Yp, PDF0, false, opt);
+    const y10 = await ol(c10.id); J = jsonOl(y10.ijro);
+    tek(y10.holati === 'Yuborildi' && /^SINOV_Chiqim_CH-9100_SINOV-CH-2_imzolangan$/.test(y10.fayl) && r10.yubMatn === 'pochta orqali, kvitansiya №RB 123456 UZ (Angor pochta), ' + bugunD, 'K Yuborildi, J fayl «…_imzolangan», matn: ' + r10.yubMatn);
+    tek(J && Object.keys(J).join(',') === 'pdf,doc,bet,oluvchi,xat,tahrir,yub' && J.yub.usul === 'pochta' && /^SINOV_Chiqim_CH-9100_SINOV-CH-2_kvitansiya_/.test(J.yub.kvF) && J.yub.fish === A1.fish, 'R JSON: avvalgi maydonlar + yub (kvF kvitansiya fayli)');
+    tek(/ yuborildi — pochta orqali, kvitansiya №RB 123456 UZ \(Angor pochta\), \d\d\.\d\d\.\d{4} \(/.test(y10.tarix.split('\n').pop()), 'S tarix: ' + qisqa(y10.tarix.split('\n').pop(), 90));
+    xt = ''; try { await DV.chiqimYuborYadro(uY, c10.id, Yp, PDF0, false, opt); } catch (e) { xt = e.message; }
+    tek(/Bu xat sizga tegishli emas/.test(xt), 'begona xodim rad: ' + xt);
+    const eskiYub = R0.L.filter(z => z.turi === 'Chiqim' && z.holati === 'Yuborildi' && /"pdf"/.test(z.ijro) && /"yub"/.test(z.ijro)).pop();
+    if (eskiYub) x += solishtir(await kat11(eskiYub.qator), await kat11(y10.qator), [10, 11, 18, 19], '— 11 blankadagi xat yuborildi (J, K, R, S): eski qator ' + eskiYub.qator + ' va server qator ' + y10.qator);
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k115) { await redis.set('yozuv_yondi:devon2', '1'); console.log('✅ HAMMASI BIR XIL — 📮 devonxona: chiqim xatni ro\'yxatga olish, yuborildi, rezolyutsiya, ijro topshirish, qabul/qaytarish, rezolyutsiyani qaytarib olish, bekor — endi serverda (fayllar Drive\'ga va Telegram — eski tizim ko\'prigi). Blankadagi xat — alohida: aks-yozuv-sinov devonxat. Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await redis.del('yozuv_yondi:devon2'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
+}
+
+// 📮 BLANKADAGI CHIQUVCHI XAT (Devon.gs devonChiqimYoz / devonXatYasa_): 11 dagi eski tizim yasagan oxirgi 2 ta xatni (R JSON da pdf, doc, oluvchi, xat)
+// server o'sha ma'lumotdan qayta yasaydi — PDF matni, sahifalari, so'zlar joyi va Word (Google eksporti bilan qismma-qism) solishtiriladi. Hech narsa yozilmaydi.
+async function devonxatSinov() {
+  const DV = require('../api/devon_yoz')._ichki, DX = require('../lib/devon_xat'), XC = require('../api/xat_chiqar')._ichki;
+  const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar, fish FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k115 = verOk(ver, '1.15') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k115 ? ' ✅' : ' ⚠ (1.15 kerak — Word Drive\'ga)'));
+  if (!(await PDF.bor())) { console.log('⏳ PDF dasturi (Chromium) hali tayyor emas — 3 daqiqadan keyin qayta ishga tushiring.'); return; }
+  const R = (await DV.devonRowsYangi()).L;
+  const jsonOl = v => { try { return JSON.parse(v || '{}') || {}; } catch (e) { return {}; } };
+  const L = R.filter(z => z.turi === 'Chiqim' && z.holati !== 'Bekor').map(z => ({ x: z, J: jsonOl(z.ijro) })).filter(z => z.J.pdf && z.J.doc && Array.isArray(z.J.oluvchi) && z.J.xat).slice(-2);
+  if (!L.length) { console.log('11_Devonxona da eski tizim blankada yasagan xat yo\'q — solishtirib bo\'lmaydi (xat yozilgach qayta ishga tushiring).'); return; }
+  let x = 0;
+  for (const { x: z, J } of L) {
+    console.log('\n— Chiqim №' + z.tartib + ' (' + z.raqam + ', ' + z.sana + ', ' + z.kim + ', ' + (J.xat.tur || 'tashkilot') + (z.bogliq ? ', javob: kirim ID ' + z.bogliq : '') + ', tahrir ' + (J.tahrir || 0) + ')');
+    try {
+      const kirim = z.bogliq ? R.find(q => String(q.id) === String(z.bogliq)) : null;
+      const ij = await XC.ijrochi(z.kim);
+      const t0 = Date.now();
+      const f = await DX.yasa(z.raqam, z.sana.split('.').reverse().join('-'), J.oluvchi, z.mazmun, ij, J.xat, kirim ? { sana: kirim.sana, raqam: kirim.raqam } : null);
+      console.log('  server: ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s · ' + f.bet + ' bet (eski ' + J.bet + ') · o\'lcham ' + Math.round(f.k * 100) + '%' + (f.havola ? ' · havola: «' + f.havola + '»' : ''));
+      let ePdf; try { ePdf = (await G.driveFayl(J.pdf, KEY)).bytes; } catch (e) { console.log('  ⚠ eski PDF ni robot o\'qiy olmadi: ' + e.message); x++; continue; }
+      x += pdfSolishtir(ePdf, f.pdf);
+      const w = sozSolishtir(ePdf, f.pdf);
+      if (w.sozlar[0] !== w.sozlar[1] || w.betlar[0] !== w.betlar[1] || w.farq) { x++; console.log('  ✖ so\'zlar joyi: eski ' + w.sozlar[0] + ' / server ' + w.sozlar[1] + ' so\'z, betlar ' + w.betlar.join('/') + ', ' + w.farq + ' ta farq, eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt'); w.ch.forEach(c => console.log('     ' + c)); }
+      else console.log('  ✅ ' + w.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt)');
+      let eDoc = null; try { eDoc = await G.driveEksport(J.doc, DOCX, KEY); } catch (e) { console.log('  ⚠ Google Doc eksporti o\'qilmadi (Word solishtirilmadi): ' + e.message); }
+      if (eDoc) {
+        const ta = docxMatnlar(eDoc), tb = docxMatnlar(f.docx);
+        if (JSON.stringify(ta) === JSON.stringify(tb)) console.log('  ✅ Word matni xatboshima-xatboshi bir xil (' + ta.length + ' xatboshi)');
+        else { x++; console.log('  ✖ Word matni farq qiladi: eski ' + ta.length + ' / server ' + tb.length + ' xatboshi'); for (let i = 0; i < Math.max(ta.length, tb.length); i++) if (ta[i] !== tb[i]) { console.log('     ' + (i + 1) + ': eski «' + qisqa(ta[i], 60) + '» | server «' + qisqa(tb[i], 60) + '»'); break; } }
+        await zipQismlar('Word (qismlar)', eDoc, f.docx, false).then(n => { if (n) console.log('  ℹ Word qismlari baytma-bayt farq qiladi (matn bir xil bo\'lsa — yetarli; farq yuqorida)'); });
+      }
+    } catch (e) { console.log('  ⚠ ' + e.message); x++; }
+  }
+  console.log('');
+  if (!x && k115) { await redis.set('yozuv_yondi:devon_xat', '1'); console.log('✅ HAMMASI BIR XIL — ✍ blankadagi chiquvchi xat endi serverda yasaladi (PDF 1–2 s, Word; Drive\'ga — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await redis.del('yozuv_yondi:devon_xat'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (blankadagi xat eski tizimda yasalaveradi).'); }
+}
+
 // 🔑 07b KIRISH JURNALI (Monitoring.gs monKirishYoz_): nusxa varaqqa server yo'li bilan qator — eski tizim yozgan oxirgi qator bilan (qiymat turi, format)
 async function kirishSinov() {
   const KY = require('../api/kirish_yoz');
@@ -2077,6 +2272,12 @@ async function tophozirSinov() {
   } else if (arg === 'sifat') {
     console.log('Hozir: ko\'rish rejimi — ' + ((await redis.get('yozuv_yondi:sifat')) === '1' ? 'yangi saytda' : 'eski saytda (ko\'prik)'));
     await sifatSinov();
+  } else if (arg === 'devon2') {
+    console.log('Hozir: devonxona qolgan amallari — ' + ((await redis.get('yozuv_yondi:devon2')) === '1' ? 'serverda' : 'eski tizimda'));
+    await devon2Sinov();
+  } else if (arg === 'devonxat') {
+    console.log('Hozir: blankadagi chiquvchi xat — ' + ((await redis.get('yozuv_yondi:devon_xat')) === '1' ? 'serverda' : 'eski tizimda'));
+    await devonxatSinov();
   } else if (arg === 'kirish') {
     console.log('Hozir: 07b kirish jurnali — ' + ((await redis.get('yozuv_yondi:kirish07b')) === '1' ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
     const M = await G.varaqlar(ID, KEY);
@@ -2147,7 +2348,7 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b', 'yozuv_yondi:sifat', 'yozuv_yondi:qayta_bekor');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b', 'yozuv_yondi:sifat', 'yozuv_yondi:qayta_bekor', 'yozuv_yondi:devon2', 'yozuv_yondi:devon_xat');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';

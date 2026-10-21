@@ -29,7 +29,12 @@ async function devonFayl([kodSes, id, k]) {
   if (!x) throw new S.Xato('Xat topilmadi.');
   D.devonKorishHuquq(u, x, R);
   const Jx = D.devonIjro(x);
-  if (k === 'doc') return eski('devonFayl', u.kod, [id, k]);
+  if (k === 'doc') {   // v1.1: blankada yozilgan xatning Word nusxasi — serverda yasalgan .docx (Drive'da, robot o'qiydi); eski xatlardagi Google Doc — eski tizim eksport qiladi
+    if (!Jx.doc) throw new S.Xato('Bu xat tizimda yozilmagan — Word nusxasi yo\'q.');
+    const f = await ol(Jx.doc);
+    if (f && f.bytes.subarray(0, 2).toString('latin1') === 'PK') return { b64: f.bytes.toString('base64'), nom: 'Chiqim_' + x.tartib + '_' + devonFaylNom(x.raqam) + '.docx', mime: DOCX };
+    return eski('devonFayl', u.kod, [id, k]);
+  }
   let fid = '', nom = '';
   if (k === 'kv') { fid = (Jx.yub || {}).kvF; nom = 'Kvitansiya_' + x.tartib + '_' + devonFaylNom(x.raqam) + '.pdf'; }
   else if (k === 'pdf') { fid = Jx.pdf; nom = 'Chiqim_' + x.tartib + '_' + devonFaylNom(x.raqam) + '.pdf'; }
