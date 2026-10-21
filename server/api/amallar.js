@@ -77,6 +77,8 @@ A.sifatXodimlar = async ([kodSes]) => {
 };
 
 Object.assign(A, require('./mijoz'));
+// 👁 Sifat.gs — ko'rish rejimi: sifatHavola, sifatAsosiy, sifatBilet, sifatida (yozuv_yondi:sifat bo'lsa serverda, aks holda ko'prik)
+Object.assign(A, require('./sifat'));
 // 👤 mijozKartaPdf (Mijoz.gs v2.3) — mijoz kartasi PDF serverda (yozuv_yondi:mijoz_karta_pdf + Chromium), aks holda eski tizim
 Object.assign(A, require('./mijoz_pdf'));
 // ---------------- 📎 Hujjatlar: ro'yxatlar (Hujjat.gs o'qiydigan qismi)

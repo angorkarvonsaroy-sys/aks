@@ -28,9 +28,12 @@ fastify.get('/', async (req, reply) => {
   if (!kod) return ui.KIRISH;                       // o'rnatilgan ilova ikonasi: saqlangan kod bilan qayta ochiladi
   const user = await S.xodimKod(kod);
   if (!user) return ui.TAQIQ;
-  let html = ui.sahifa(user, kod, String(req.query.b || '').replace(/[^0-9a-f]/gi, '').slice(0, 40));
+  // 👁 ko'rish rejimi (&sifat=ID, Kod.gs doGet v9.6): faqat direktor; sahifa xodim ismi va huquqlari (+ «sifat=ID») bilan — har so'rov sifatida() orqali
+  let sahifaUser = user;
+  const sifat = String(req.query.sifat || '').trim();
+  if (sifat && user.admin) { const SF = require('./sifat')._ichki; if (await SF.yoqilgan()) { const x = await SF.sifatXodim(sifat); if (x) sahifaUser = { fish: x.fish, huquq: x.huquq.concat(['sifat=' + x.id]) }; } }
+  let html = ui.sahifa(sahifaUser, kod, String(req.query.b || '').replace(/[^0-9a-f]/gi, '').slice(0, 40));
   if (html === null) return ui.YOQ;
-  // 👁 ko'rish rejimi (&sifat=ID) — Sifat.gs mantig'i hali serverda emas; direktor eski havolada ko'raveradi
   return html;
 });
 
