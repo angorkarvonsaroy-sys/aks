@@ -31,10 +31,10 @@ async function meta(id) {
   if (!r.ok) throw new Error('Shablon (' + id + ') o\'qilmadi: ' + r.status);
   return r.json();
 }
-// nomYokiId: 'Qayta_ariza_shablon' (nom) yoki Drive ID (40+ belgili). Qaytaradi { model, id, nom, modifiedTime, keshdan }
-async function ol(nomYokiId) {
-  const idMi = /^[A-Za-z0-9_-]{25,}$/.test(s(nomYokiId));
-  const f = idMi ? await meta(nomYokiId) : await topId(nomYokiId);
+// ol(nom) — Drive'da nomi bo'yicha (shablonTop_ kabi); olId(id) — Drive ID bo'yicha (Kod.gs SHABLON). Qaytaradi { model, id, nom, modifiedTime, keshdan }
+async function ol(nom) { return olYadro(await topId(nom)); }
+async function olId(id) { return olYadro(await meta(id)); }
+async function olYadro(f) {
   if (f.trashed) throw new Error('Shablon savatda: ' + f.name);
   const yol = keshYol(f.id), j = yol + '.json';
   let buf = null, keshdan = false;
@@ -112,4 +112,4 @@ function belgiQatori(el, belgi) {
   yur(el); return top;
 }
 
-module.exports = { ol, topId, xatboshilar, matn, replaceText, findText, deleteText, insertParagraph, removeChild, qolganBelgilar, qatorNusxa, belgiQatori, naqsh };
+module.exports = { ol, olId, topId, xatboshilar, matn, replaceText, findText, deleteText, insertParagraph, removeChild, qolganBelgilar, qatorNusxa, belgiQatori, naqsh };

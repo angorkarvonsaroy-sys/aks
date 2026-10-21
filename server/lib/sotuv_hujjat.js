@@ -81,7 +81,7 @@ async function sotuvHujjat(r, mr, jad, opt) {
     "Muddatli to'lov oyi (raqam bilan)": String(oy), "Muddatli to'lov oyi (so'z bilan)": sozBilan(oy),
     "Har oyning to'lov sanasi": s(r[12] || '')
   };
-  const sh = await DS.ol(tid), m = sh.model, body = m.el;
+  const sh = await DS.olId(tid), m = sh.model, body = m.el;
   if (!mr[18]) DS.replaceText(body, ',?\\s*<<Xonadon>>\\s*-?\\s*хонадон', '');
   if (!mr[17]) DS.replaceText(body, ',?\\s*<<Uy>>\\s*-?\\s*уй', '');
   if (!eskiBand) bandOchir(body, 'Eski shartnoma bandi');   // v9.1: oddiy shartnomada 1.4 qatori butunlay olib tashlanadi
