@@ -35,7 +35,11 @@ A.pinKir = async ([kod, pin]) => {
   await S.xatoToza(kod);
   kirishJurnali(x, 'PIN').catch(() => {});
   // eski tizimning 07b_Kirish_jurnali ham bilsin (direktor «Ishlar», «Jamoa bugun», ijro intizomi shundan o'qiydi) — fonda, kutmasdan
-  if (!koprikdan && koprik.bor()) koprik.chaqir('pinKir', kod, [pin]).catch(e => console.error('07b kirish (ko\'prik):', e.message));
+  if (!koprikdan) (async () => {   // serverda (yozuv_yondi:kirish07b), aks holda avvalgidek eski tizim pinKir orqali
+    const KY = require('./kirish_yoz');
+    if (await KY.yoqilgan()) { try { await KY.kirishYoz(x.fish, 'PIN'); return; } catch (e) { console.error('07b kirish (server):', e.message); } }
+    if (koprik.bor()) await koprik.chaqir('pinKir', kod, [pin]);
+  })().catch(e => console.error('07b kirish (ko\'prik):', e.message));
   return { tok: await S.sessiyaOch(kod) };
 };
 

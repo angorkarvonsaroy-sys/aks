@@ -25,6 +25,7 @@
 //            aks-yozuv-sinov devon     — 📮 kirim xat: 11_Devonxona qatori, tarix va «direktor ko'rdi» (nusxa varaqda, eski yozgan qator bilan), skan Drive'ga (Koprik v1.12, SINOV fayl, savatga); devonKirimSaqla ni yoqish
 //            aks-yozuv-sinov kb        — 🤝 kelishuv bilan bekor: hujjat (PDF so'zma-so'z, Word matni) eski tizim yasagani bilan, 06m qatori (nusxada), Drive (Koprik v1.12); kbTayyorla ni yoqish
 //            aks-yozuv-sinov kb2       — 🤝 kelishuv: skan yuklash, so'rovni bekor qilish, direktor tasdig'i/radi (06m kataklari, 04 C/D/W + 06j — nusxa varaqlarda), skan Drive'ga (Koprik v1.13); kbSkan/kbBekor/kbTasdiq ni yoqish
+//            aks-yozuv-sinov kirish    — 🔑 07b_Kirish_jurnali qatori (PIN kirishi): nusxa varaqda, eski yozgan oxirgi qator bilan; yoqish (eski tizimga pinKir yuborilmaydi)
 //            aks-yozuv-sinov mijozpdf [M0251 …] — 👤 mijoz kartasi PDF: eski tizim yasagani bilan matn, sahifa va so'zlar joyi (ikki sahifa varianti); yoqish
 //            aks-yozuv-sinov topmening — 📌 Topshiriqlarim: hujjat topshiriqlarini yopish (har xodim: server quruq hisob → eski topMening yozadi → solishtirish); yoqish
 //            aks-yozuv-sinov tophozir  — 🤖 topshiriq qoidalari: server «quruq» hisoblaydi, eski topHozir yozadi, 10_Topshiriqlar dagi yangi/yopilgan qatorlar server hisobi bilan; topHozir ni yoqish
@@ -1790,6 +1791,33 @@ async function kb2Sinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.13 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 🔑 07b KIRISH JURNALI (Monitoring.gs monKirishYoz_): nusxa varaqqa server yo'li bilan qator — eski tizim yozgan oxirgi qator bilan (qiymat turi, format)
+async function kirishSinov() {
+  const KY = require('../api/kirish_yoz');
+  const M = await G.varaqlar(ID, KEY);
+  const src = M.varaqlar.find(v => v.title === KY.KIRISH_V); if (!src) { console.log('07b_Kirish_jurnali varag\'i yo\'q — solishtirib bo\'lmaydi.'); return; }
+  const nusxa = 'zz_sinov_' + KY.KIRISH_V;
+  const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length, newSheetName: nusxa } }], KEY);
+  const ng = j.replies[0].duplicateSheet.properties.sheetId; let x = 0;
+  try {
+    await G.gid(ID, nusxa, KEY, true);
+    console.log('\n=== 🔑 07b_Kirish_jurnali — PIN kirishi qatori (nusxa varaqda) ===');
+    const A0 = await G.ustunOqi(ID, nusxa, 'A', KEY);
+    const t0 = Date.now();
+    await KY.kirishYoz('SINOV XODIM', 'PIN', nusxa);
+    const A1 = await G.ustunOqi(ID, nusxa, 'A', KEY);
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · oxirgi qator ' + A0.length + ' → ' + A1.length + (A1.length === A0.length + 1 ? ' ✅' : ' ⚠'));
+    if (A1.length !== A0.length + 1) x++;
+    x += await qatorSolishtir(nusxa, A1.length, 1, 4, '— Kirish qatori (A Sana, B Vaqt, C FISH, D Usul)');
+  } finally {
+    await G.soralar(ID, [{ deleteSheet: { sheetId: ng } }], KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaq o\'chirildi.');
+  }
+  console.log('');
+  if (!x) { await redis.set('yozuv_yondi:kirish07b', '1'); console.log('✅ HAMMASI BIR XIL — 🔑 PIN kirishi 07b ga endi server o\'zi yozadi (eski tizimga pinKir yuborilmaydi). Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + x + ' ta farq — YOQILMADI (avvalgidek eski tizim orqali).');
+}
+
 // 👤 MIJOZ KARTASI PDF (Mijoz.gs mijozKartaPdf): bir nechta mijoz uchun eski tizim PDF'i (direktor nomidan, ko'prik) va server PDF'i — matn, sahifalar,
 // so'zlar joyi. Sahifa chekkasi ikki variantda sinaladi: HTML'dagi @page (14 mm / 12 mm) yoki Google standarti (0,5 dyuym) — moslari tanlanadi.
 // Vaqt («… ҳолатига») eski PDF dagidek beriladi. Mijoz berilmasa — qarzi bor sotuv, ijara va do'koni bor mijoz avtomatik tanlanadi. Hech narsa yozilmaydi.
@@ -1958,6 +1986,12 @@ async function tophozirSinov() {
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kb2Sinov();
+  } else if (arg === 'kirish') {
+    console.log('Hozir: 07b kirish jurnali — ' + ((await redis.get('yozuv_yondi:kirish07b')) === '1' ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await kirishSinov();
   } else if (arg === 'mijozpdf') {
     console.log('Hozir: mijoz kartasi PDF — ' + ((await redis.get('yozuv_yondi:mijoz_karta_pdf')) === '1' ? 'serverda (sahifa: ' + (await redis.get('mijoz_karta_sahifa')) + ')' : 'eski tizimda'));
     await mijozpdfSinov(process.argv.slice(3).map(z => String(z).trim()).filter(Boolean));
@@ -2019,7 +2053,7 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';
