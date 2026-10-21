@@ -4,6 +4,8 @@
 #            aks-bugun und        — nomida «und» bor amallarning bugungi oxirgi 20 chaqiruvi (vaqti, qayerda, ms, xato)
 #            aks-bugun koprik [N] — hali eski tizimga boradigan amallar (oxirgi N kun, odatda 3), umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
 #            aks-bugun skan       — kim qaysi skanni ochdi (huquq «skan»)
+#            aks-bugun xato [N]   — oxirgi N kundagi (odatda 3) XATO bilan tugagan chaqiruvlar (vaqti, amal, qayerda, xato matni)
+#            aks-bugun <amal> [N] — nomida <amal> bor chaqiruvlar, oxirgi N kun (odatda bugun), oxirgi 20 tasi
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
 if [ "$1" = "koprik" ]; then
   KUN=$(echo "${2:-3}" | tr -cd '0-9'); KUN=${KUN:-3}
@@ -30,10 +32,18 @@ for l in sys.stdin:
   except Exception: print(l)"
   exit 0
 fi
+if [ "$1" = "xato" ]; then
+  KUN=$(echo "${2:-3}" | tr -cd '0-9'); KUN=${KUN:-3}
+  echo "================ AKS — XATO bilan tugagan chaqiruvlar (oxirgi $KUN kun) ================"
+  q -c "SELECT to_char(vaqt,'DD.MM HH24:MI') vaqt, fn AS amal, qayerda, ms, left(xato,110) xato FROM rpc_jurnal WHERE NOT ok AND vaqt > now() - interval '$KUN days' ORDER BY id DESC LIMIT 40;"
+  exit 0
+fi
 if [ -n "$1" ]; then
   F=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9_')
-  echo "================ AKS — «$F» amallari, bugun $(date '+%d.%m.%Y %H:%M') ================"
-  q -c "SELECT to_char(vaqt,'HH24:MI:SS') vaqt, fn AS amal, qayerda, ms, CASE WHEN ok THEN '' ELSE left(xato,60) END xato FROM rpc_jurnal WHERE vaqt::date = current_date AND fn ILIKE '%$F%' ORDER BY id DESC LIMIT 20;"
+  KUN=$(echo "${2:-0}" | tr -cd '0-9'); KUN=${KUN:-0}
+  if [ "$KUN" = 0 ]; then SH="vaqt::date = current_date"; DAVR="bugun $(date '+%d.%m.%Y %H:%M')"; else SH="vaqt > now() - interval '$KUN days'"; DAVR="oxirgi $KUN kun"; fi
+  echo "================ AKS — «$F» amallari, $DAVR ================"
+  q -c "SELECT to_char(vaqt,'DD.MM HH24:MI:SS') vaqt, fn AS amal, qayerda, ms, CASE WHEN ok THEN '' ELSE left(xato,90) END xato FROM rpc_jurnal WHERE $SH AND fn ILIKE '%$F%' ORDER BY id DESC LIMIT 20;"
   exit 0
 fi
 echo "================ AKS — BUGUN  $(date '+%d.%m.%Y %H:%M') ================"
