@@ -1655,7 +1655,8 @@ async function kbSinov() {
     const n06m = await nusxala(KBH.KB_VARAQ);
     const R = await KB.kbRowsYangi(n06m);
     const eq = R.L[R.L.length - 1];
-    const qator = ['IJ-27/1', 'SINOV MIJOZ', 'B1-1-1', 'SINOV — nusxa varaq, o\'chiriladi', V.bugun().split('-').reverse().join('.'), 'Йўқ', '2', '12345', 'Соз', ''];
+    const qarzV = eq && eq.qarz && eq.qarz !== 'Йўқ' ? 150000 : 'Йўқ';   // H ustuni turi eski qatordagidek (son yoki «Йўқ» matni)
+    const qator = ['IJ-27/1', 'SINOV MIJOZ', 'B1-1-1', 'SINOV — nusxa varaq, o\'chiriladi', V.bugun().split('-').reverse().join('.'), qarzV, '2', '12345', 'Соз', ''];
     const t1 = Date.now();
     const w = await KB.kbSorovYoz(n06m, R, { qator, pdfId: 'SRV:kb/sinov.pdf', docId: 'SRV:kb/sinov.docx', kim: 'SINOV XODIM' });
     console.log('Yozish: ' + (Date.now() - t1) + ' ms · ID ' + w.id + ', qator ' + w.qator + (eq ? ' · eski tizim yozgan qator ' + eq.qator + ' (KB-' + eq.id + ', ' + eq.holati + ')' : ''));
