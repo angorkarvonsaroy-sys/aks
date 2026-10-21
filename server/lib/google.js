@@ -120,7 +120,8 @@ async function sanaFormat(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
 }
 
 // Sana yozish (Apps Script: setValue(new Date(...)) + setNumberFormat('dd.MM.yyyy') o'rni): katakka SANA qiymati (seriya raqami) va format,
-// katak formati matn («@») bo'lsa ham sana bo'lib yoziladi. kataklar: [{ varaq, qator, ustun, iso: 'yyyy-MM-dd' }]
+// katak formati matn («@») bo'lsa ham sana bo'lib yoziladi. kataklar: [{ varaq, qator, ustun, iso: 'yyyy-MM-dd', naqsh }]
+// naqsh 'auto' — setValue(new Date()) formatsiz: DATE turi, naqshsiz (Google o'zi joy tiliga ko'ra ko'rsatadi — 06p Javob_vaqt «20.10.2026»)
 async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   if (!kataklar.length) return;
   if (!gidKesh[sheetId]) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
@@ -128,7 +129,7 @@ async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   const seriya = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(String(iso)); if (!m) return 0;
     return (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 + ((+m[4] || 0) * 3600 + (+m[5] || 0) * 60 + (+m[6] || 0)) / 86400; };
   const requests = kataklar.map(c => ({ updateCells: { range: { sheetId: gidKesh[sheetId][c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
-    rows: [{ values: [{ userEnteredValue: { numberValue: seriya(c.iso) }, userEnteredFormat: { numberFormat: { type: c.naqsh && /H/.test(c.naqsh) ? 'DATE_TIME' : 'DATE', pattern: c.naqsh || naqsh } } }] }],
+    rows: [{ values: [{ userEnteredValue: { numberValue: seriya(c.iso) }, userEnteredFormat: { numberFormat: c.naqsh === 'auto' ? { type: 'DATE' } : { type: c.naqsh && /H/.test(c.naqsh) ? 'DATE_TIME' : 'DATE', pattern: c.naqsh || naqsh } } }] }],
     fields: 'userEnteredValue,userEnteredFormat.numberFormat' } }));
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
 }

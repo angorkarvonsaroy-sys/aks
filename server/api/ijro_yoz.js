@@ -136,11 +136,11 @@ async function tekYarat(j, x, und, kimga, urinish, bugun, R, varaqlar) {
   } catch (e) { throw yozilmadi(e); }
   return { no: x.no, fish: x.fish, kimga, top: t.id, topQator: t.qator, qator: q, id };
 }
-// 06p M:O — [Holati, Izoh, Javob_vaqt] (setValues: matn, matn, Date → sana-vaqt avtomatik formatda)
+// 06p M:O — [Holati, Izoh, Javob_vaqt] (setValues: matn, matn, Date formatsiz → DATE turi, naqshsiz — sinovda eski qator «20.10.2026» ko'rsatdi)
 async function tekJavobYoz(varaq, qator, hol, izoh) {
   try {
     await G.yoz(env.aksBazaId, [{ varaq, katak: 'M' + qator + ':N' + qator, qiymat: [[hol, izoh]] }], env.googleKey);
-    await G.sanaYoz(env.aksBazaId, [{ varaq, qator, ustun: 15, iso: hozirIso(), naqsh: 'dd.MM.yyyy HH:mm:ss' }], env.googleKey);
+    await G.sanaYoz(env.aksBazaId, [{ varaq, qator, ustun: 15, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
   } catch (e) { throw yozilmadi(e); }
 }
 

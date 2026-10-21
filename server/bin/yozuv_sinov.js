@@ -1452,10 +1452,14 @@ async function tekshirSinov() {
     const n06q = await nusxala(IY.IJRO_VARAQ);
     const L = await IY.ijroQatorYangi(n06q, IY.IJRO_S);
     const eq = L.filter(q => q.Tur === 'soxta').pop() || L[L.length - 1];
+    // shartnoma raqami — eski qatordagi ko'rinishning o'zi («27/5» kabi raqamni eski tizim ham, server (USER_ENTERED) ham sanaga aylantiradi — ma'lum eski xato, parity)
+    const eh = eq ? (((await G.kataklarOqi(ID, n06q, 'H' + eq.qator, KEY))[0] || [])[0] || {}) : {};
+    const noS = eh.formattedValue ? String(eh.formattedValue) : '27/999';
     const t1 = Date.now();
-    const q = await IY.ijroYoz(n06q, { xodim: 'SINOV XODIM', tur: 'soxta', kalit: 'sinov|' + Date.now(), no: '27/999', fish: 'SINOV MIJOZ', tafsilot: 'SINOV — nusxa varaq, o\'chiriladi' });   // «27/999» — sanaga aylanmaydi (eski qatorlardagi «27/3xx» kabi)
-    console.log('Yozish: ' + (Date.now() - t1) + ' ms · ID ' + q.id + ', qator ' + q.qator + (eq ? ' · eski tizim yozgan qator ' + eq.qator + ' (' + eq.Tur + ')' : ''));
-    if (eq) x += await qatorSolishtir(n06q, q.qator, 1, 17, '— Qoidabuzarlik qatori (A–Q)', eq.qator); else console.log('  (06q da eski qator yo\'q — solishtirilmadi)');
+    const q = await IY.ijroYoz(n06q, { xodim: 'SINOV XODIM', tur: 'soxta', kalit: 'sinov|' + Date.now(), no: noS, fish: 'SINOV MIJOZ', tafsilot: 'SINOV — nusxa varaq, o\'chiriladi' });
+    console.log('Yozish: ' + (Date.now() - t1) + ' ms · ID ' + q.id + ', qator ' + q.qator + (eq ? ' · eski tizim yozgan qator ' + eq.qator + ' (' + eq.Tur + ', shartnoma «' + noS + '»)' : ''));
+    if (eq) x += await qatorSolishtir(n06q, q.qator, 1, 17, '— Qoidabuzarlik qatori (A–Q)', eq.qator, (i, fa, fb) => i === 7 && /DATE/.test(fa) !== /DATE/.test(fb) ? 'shartnoma raqami: eski tizim «' + noS + '» ni sanaga aylantirgan (ma\'lum eski xato) — server ham USER_ENTERED bilan xuddi shunday yozadi' : null);
+    else console.log('  (06q da eski qator yo\'q — solishtirilmadi)');
 
     console.log('\n=== 🎲 QAYTA TEKSHIRUV (10_Topshiriqlar + 06p) ===');
     const n10 = await nusxala('10_Topshiriqlar');
