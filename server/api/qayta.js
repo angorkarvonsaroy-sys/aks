@@ -4,7 +4,7 @@
 // 2-bosqich (21.10.2026): qaytaLoyiha (06k yangi qator + xodimga topshiriq), qaytaIjrochi (ijrochini almashtirish), qaytaTasdiq (BAZAGA YOZISH:
 //   03 yangi qator + U:AN formulalar, 03b jadval + Kumulyativ formulasi, 05/05b to'lovlar yangi raqamga, eski shartnoma «Bekor qilindi», 06k «Bajarildi»,
 //   tashrif, Telegram). Tasdiq yozuvlaridan oldin 03/03b/05/05b Google'dan YANGI o'qiladi (eski tizim getValues kabi), qulf: qayta + shartnoma.
-//   Eski tizimda qoladi: qaytaHujjatlar (Google Docs shablonlari → 4 ta PDF), qaytaBekor (Drive papkasini savatga).
+//   3-bosqich (21–22.10.2026): qaytaHujjatlar (yozuv_yondi:qayta_hujjat), qaytaBekor (yozuv_yondi:qayta_bekor + Koprik ≥ 1.14: bo'sh Drive papkasi savatga — koprikQtPapkaSavat).
 // Eski kod bilan bir xil: tekshiruvlar tartibi, xato matnlari, javob, kataklar. 06k — yozuvdan oldin Google'dan YANGI o'qiladi.
 // Farq (yakuniy holat bir xil): eski qaytaSkan avval eski skanni Drive'da «_BEKOR» papkaga ko'chirib, yangi yuklash muvaffaqiyatsiz bo'lsa qaytarardi;
 //   server 06d da avval «Bekor» belgilaydi (yangi skan takror tekshiruvidan o'tishi uchun), Drive faylini esa faqat yangi skan yozilgach ko'chiradi
@@ -195,6 +195,12 @@ async function qaytaOchiq(args) {
 }
 
 // ------------------------------------------------------------------ yozuv yordamchilari
+let kv14 = { ok: false, t: 0 };
+async function koprik114(kod) {   // qaytaBekor: koprikQtPapkaSavat (v1.14)
+  if (kv14.t && Date.now() - kv14.t < (kv14.ok ? 30 : 2) * 60000) return kv14.ok;
+  try { kv14 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.14'), t: Date.now() }; } catch (e) { kv14 = { ok: false, t: Date.now() }; }
+  return kv14.ok;
+}
 let kv = { ok: false, t: 0 };
 async function koprik16(kod) {
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
@@ -213,6 +219,7 @@ async function qulfBilan(ish) {   // LockService.getScriptLock() o'rni (eski tiz
 }
 const harf = n => { let x = ''; while (n > 0) { const m = (n - 1) % 26; x = String.fromCharCode(65 + m) + x; n = Math.floor((n - 1) / 26); } return x; };
 const kat = (varaq, qator, ustun, q) => ({ varaq, katak: harf(ustun) + qator, qiymat: [[q]] });
+const jurnalKatV = (varaq, x, matn, kim) => kat(varaq, x.qator, 31, (x.jurnal ? x.jurnal + '\n' : '') + hozirHm() + ' · ' + kim + ': ' + matn);
 const jurnalKat = (x, matn, kim) => kat(QT_VARAQ, x.qator, 31, (x.jurnal ? x.jurnal + '\n' : '') + hozirHm() + ' · ' + kim + ': ' + matn);   // qtJurnal_
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.error('ko\'zgu (qayta):', e.message)), 15000);
@@ -321,6 +328,33 @@ async function qaytaQaytar(args) {
   try { const xd = (await TP.topXodimlar()).find(z => z.fish === x.ijrochi);
     if (xd && xd.tg) koprik.chaqir('koprikTgChat', u.kod, [xd.tg, '↩ <b>Qayta tuzish qaytarildi</b> (' + x.eski + ' → ' + x.yangi + ')\nSabab: ' + izoh + '\nAKS → 📌 Topshiriqlar → 🔁 Ochish']).catch(e => console.error('qayta tg:', e.message)); } catch (e) { }
   return { ok: true };
+}
+
+// ================================================================== 1b) DIREKTOR: LOYIHANI BEKOR QILISH (Qayta.gs qaytaBekor — tartib va matnlar aynan)
+async function bayroqB() { try { return (await redis.get('yozuv_yondi:qayta_bekor')) === '1'; } catch (e) { return false; } }
+// Yadro (sinov ham shuni ishlatadi): opt = { varaq (06k nusxasi), quruq (Drive/topshiriq/Telegram yo'q) }
+async function bekorYadro(u, id, sabab, opt = {}) {
+  const varaq = opt.varaq || QT_VARAQ;
+  const x = ((await qtRows(varaq)) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi.');
+  if (QT_FAOL.indexOf(x.holati) < 0) throw new S.Xato('Loyiha «' + x.holati + '» holatida — bekor qilib bo\'lmaydi.');
+  if ((await qtShartnoma(x.eski, manba(true))).barcha.indexOf(x.yangi) >= 0) throw new S.Xato(x.yangi + ' bazada yozilgan — loyihani bekor qilib bo\'lmaydi.' + (x.holati === 'Yozilmoqda' ? ' ✓ Tasdiqlash ni qayta bosing — tizim qolgan qadamlarni bajaradi.' : ''));
+  for (const h of QT_HUJ) if (x.skan[h[0]] && !opt.quruq) { const hj = await hujjatBekor(x.skan[h[0]], 'Qayta tuzish №' + x.id + ' bekor qilindi: ' + sabab, u.fish); driveBekor(u.kod, hj); }
+  // yangi raqam uchun ochilgan bo'sh hujjat papkasi — o'chiriladi (eski: try/catch, xato e'tiborsiz)
+  if (!opt.quruq) await koprik.chaqir('koprikQtPapkaSavat', u.kod, [x.yangi]).catch(e => console.error('qayta bekor: papka savat:', e.message));
+  await yoz([kat(varaq, x.qator, 3, 'Bekor'), jurnalKatV(varaq, x, 'BEKOR: ' + sabab + ' (raqam ' + x.yangi + ' bo\'shadi)', u.fish)]);
+  if (!opt.quruq) await qtTop(x, 'Bekor', u.fish, 'loyiha bekor qilindi: ' + sabab);
+  return { ok: true, yangi: x.yangi };
+}
+async function qaytaBekor(args) {
+  const [kodSes, id, sabab0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  const sabab = s(sabab0).replace(/\s+/g, ' ').trim(); if (sabab.length < 3) throw new S.Xato('Bekor qilish sababini yozing.');
+  if (!(await serverda(u.kod)) || !(await bayroqB()) || !(await koprik114(u.kod))) return eskiTizim('qaytaBekor', u, args.slice(1));
+  let r;
+  try { r = await qulfBilan(() => bekorYadro(u, id, sabab)); }
+  catch (e) { if (e.yozilmadi) return eskiTizim('qaytaBekor', u, args.slice(1)); throw e; }
+  await yangila([QT_VARAQ, HUJ, TOP_V]);
+  return r;
 }
 
 // ================================================================== 2) DIREKTOR: LOYIHA YARATISH (bazaga hali hech narsa yozilmaydi — faqat 06k + topshiriq)
@@ -636,5 +670,5 @@ async function qaytaHujjatlar(args) {
   return { ok: true, fayllar: N.map(n => ({ k: n.k, nom: n.nom, b64: n.pdf.toString('base64') })), qolgan: Array.from(new Set(qolgan)), bosh: N[3].bosh || [], papka: u.admin ? s(x.papka) : '' };
 }
 
-module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar };
-module.exports._ichki = { qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy };
+module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar, qaytaBekor };
+module.exports._ichki = { bekorYadro, koprik114, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy };

@@ -17,6 +17,7 @@
 //            aks-yozuv-sinov yuristish — to'g'ridan-to'g'ri yuristga o'tkazish va yurist → undiruvchiga topshiriq ni sinash va yoqish
 //            aks-yozuv-sinov yurhujjat — yurist hujjatlari (ma'lumotnoma, bayonnoma, penya) va aloqa xatini sinash va yoqish (aloqa: Koprik v1.11)
 //            aks-yozuv-sinov qayta     — qayta tuzish: o'qishlar eski tizim bilan solishtiriladi, 06k nusxasida yozuv; skan/tekshiruvga/qaytarish ni yoqish
+//            aks-yozuv-sinov qaytabekor — qayta tuzish loyihasini bekor qilish: 06k nusxasida server yozuvi (C holat, AE jurnal) eski tizim bekor qilgan qator bilan; Koprik 1.14 (bo'sh papka savatga); yoqish
 //            aks-yozuv-sinov qayta2    — qayta tuzish 2-bosqich: nusxa varaqlarda to'liq tasdiq yozuvi + loyiha qatori, eski yozganlari bilan; loyiha/ijrochi/tasdiq ni yoqish
 //            aks-yozuv-sinov qaytahuj  — qayta tuzish hujjatlari (4 PDF): oxirgi «Bajarildi» loyiha uchun serverda qayta yasab, eski tizim Drive'ga qo'ygan PDF lar bilan so'zma-so'z (joyi bilan) solishtirish; hujjatlarni yoqish
 //            aks-yozuv-sinov shpdf [27/351] [IJ-27/141] — shartnoma PDF (sotuv va ijara): serverda qayta yasab, eski tizim Drive'ga qo'ygan PDF (03 S / 04 V havolasi) bilan so'zma-so'z solishtirish; shartnoma PDF ni yoqish
@@ -1238,6 +1239,55 @@ async function qaytaSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.6 emas') + ' — yozuvlar YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 🔁 QAYTA TUZISH — LOYIHANI BEKOR QILISH (Qayta.gs qaytaBekor): 06k NUSXASIDA oxirgi qator «Loyiha» holatiga, skansiz va bazada yo'q yangi raqam bilan
+// qo'yiladi, server bekorYadro (ishdagi kodning o'zi, quruq) uni bekor qiladi; C (holat) va AE (jurnal) eski tizim ilgari bekor qilgan qator bilan
+// (qiymat turi, format) va jurnal matni naqshi bilan solishtiriladi; «Bajarildi» loyiha rad etilishi; Koprik 1.14 va koprikQtPapkaSavat (yo'q raqam → 0 papka).
+async function qaytabekorSinov() {
+  const QT = require('../api/qayta'), QI = QT._ichki;
+  console.log('\n=== QAYTA TUZISH — BEKOR QILISH (06k nusxasida) ===');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar, fish FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
+  const u = { fish: adm.fish, kod: adm.kirish_kodi, admin: true };
+  let ver = '?', x = 0;
+  try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k114 = verOk(ver, '1.14') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k114 ? ' ✅' : ' ⚠ (1.14 kerak)'));
+  if (k114) { try { const r = await koprik.chaqir('koprikQtPapkaSavat', adm.kirish_kodi, ['27/999999']); console.log('koprikQtPapkaSavat(27/999999): ' + (r && r.n === 0 ? '✅ 0 papka (yo\'q raqam)' : '✖ ' + JSON.stringify(r))); if (!r || r.n !== 0) x++; } catch (e) { console.log('koprikQtPapkaSavat: ✖ ' + e.message); x++; } }
+  const rows = (await QI.qtRows()) || [];
+  if (!rows.length) { console.log('06k bo\'sh — solishtirib bo\'lmaydi.'); return; }
+  const eskiB = rows.filter(z => z.holati === 'Bekor').pop();
+  console.log(eskiB ? 'Namuna: eski tizim bekor qilgan loyiha №' + eskiB.id + ' (qator ' + eskiB.qator + ')' : '(eski tizim bekor qilgan loyiha yo\'q — faqat matn naqshi tekshiriladi)');
+  const M = await G.varaqlar(ID, KEY), src = M.varaqlar.find(v => v.title === QI.QT_VARAQ);
+  const nusxa = 'zz_sinov_06k';
+  const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length, newSheetName: nusxa } }], KEY);
+  const ng = j.replies[0].duplicateSheet.properties.sheetId;
+  try {
+    await G.gid(ID, nusxa, KEY, true);
+    const oxir = rows[rows.length - 1], q = oxir.qator;
+    await G.yoz(ID, [{ varaq: nusxa, katak: 'C' + q, qiymat: [['Loyiha']] }, { varaq: nusxa, katak: 'E' + q, qiymat: [['27/999999']] }, { varaq: nusxa, katak: 'V' + q + ':Y' + q, qiymat: [['', '', '', '']] }], KEY);
+    const t0 = Date.now();
+    const r = await QI.bekorYadro(u, oxir.id, 'SINOV: sinov sababi', { varaq: nusxa, quruq: true });
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · qator ' + q + ' (loyiha №' + oxir.id + ') → ' + JSON.stringify(r));
+    const kat = async n => (await G.kataklarOqi(ID, nusxa, 'A' + n + ':AE' + n, KEY))[0] || [];
+    const Y = await kat(q);
+    const hol = Y[2] && Y[2].userEnteredValue ? Y[2].userEnteredValue.stringValue : '', jur = Y[30] && Y[30].userEnteredValue ? String(Y[30].userEnteredValue.stringValue || '') : '';
+    const oxirQ = jur.split('\n').pop();
+    const naqsh = new RegExp('^\\d\\d\\.\\d\\d\\.\\d{4} \\d\\d:\\d\\d · ' + adm.fish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ': BEKOR: SINOV: sinov sababi \\(raqam 27/999999 bo\'shadi\\)$');
+    if (hol !== 'Bekor') { x++; console.log('  C holat: ✖ «' + hol + '» (kutilgan «Bekor»)'); } else console.log('  C holat: ✅ Bekor');
+    if (!naqsh.test(oxirQ)) { x++; console.log('  AE jurnal: ✖ «' + oxirQ + '»'); } else console.log('  AE jurnal: ✅ «' + oxirQ + '»');
+    if (eskiB) { const O = await kat(eskiB.qator); x += solishtir(O, Y, [3, 31], '\n— eski tizim bekor qilgan qator ' + eskiB.qator + ' va server bekor qilgan qator ' + q + ' (C holat, AE jurnal — tur va format):'); }
+    // «Bajarildi» (yoki boshqa faol bo'lmagan) loyiha — rad
+    const yop = rows.find(z => ['Loyiha', 'Qaytarildi', 'Tekshiruvda', 'Yozilmoqda'].indexOf(z.holati) < 0 && z.qator !== q);
+    if (yop) { let xt = ''; try { await QI.bekorYadro(u, yop.id, 'SINOV', { varaq: nusxa, quruq: true }); } catch (e) { xt = e.message; }
+      if (/holatida — bekor qilib bo'lmaydi/.test(xt)) console.log('  «' + yop.holati + '» loyiha: ✅ rad — «' + xt + '»'); else { x++; console.log('  «' + yop.holati + '» loyiha: ✖ rad etilmadi: ' + (xt || 'xatosiz o\'tdi')); } }
+  } finally {
+    await G.soralar(ID, [{ deleteSheet: { sheetId: ng } }], KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('Nusxa varaq o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k114) { await redis.set('yozuv_yondi:qayta_bekor', '1'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish loyihasini bekor qilish endi serverda (06k, 06d, topshiriq — server; bo\'sh Drive papkasi — Koprik 1.14). Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await redis.del('yozuv_yondi:qayta_bekor'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.14 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
+}
+
 // 🔁 QAYTA TUZISH 2-BOSQICH (tasdiq, loyiha): 06k/03/03b/05/05b NUSXALARIDA server to'liq tasdiq yozuvini bajaradi (tasdiqYadro — ishdagi kodning o'zi)
 // va loyiha qatorini yozadi; har bir yozuv eski tizim (Qayta.gs) ilgari yozgan haqiqiy kataklar bilan ustunma-ustun (qiymat turi, format, formula) solishtiriladi.
 async function qayta2Sinov() {
@@ -2060,6 +2110,9 @@ async function tophozirSinov() {
   } else if (arg === 'qaytahuj') {
     console.log('Hozir: qayta tuzish hujjatlari — ' + ((await redis.get('yozuv_yondi:qayta_hujjat')) === '1' ? 'serverda' : 'eski tizimda'));
     await qaytahujSinov();
+  } else if (arg === 'qaytabekor') {
+    console.log('Hozir: qayta tuzish bekor qilish — ' + ((await redis.get('yozuv_yondi:qayta_bekor')) === '1' ? 'serverda' : 'eski tizimda'));
+    await qaytabekorSinov();
   } else if (arg === 'qayta2') {
     console.log('Hozir: qayta tuzish tasdiq/loyiha — ' + ((await redis.get('yozuv_yondi:qayta2')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
@@ -2094,7 +2147,7 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b', 'yozuv_yondi:sifat');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b', 'yozuv_yondi:sifat', 'yozuv_yondi:qayta_bekor');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';

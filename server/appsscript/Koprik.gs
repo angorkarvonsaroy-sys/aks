@@ -1,4 +1,6 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.13). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.14). Boshqa fayllar o'zgarmaydi.
+// v1.14: koprikQtPapkaSavat — qayta tuzish loyihasi bekor qilinganda yangi raqam uchun ochilgan BO'SH hujjat papkasini savatga (Qayta.gs qaytaBekor dagi tsiklning o'zi);
+//        06k, 06d, topshiriq — server yozadi (qaytaBekor serverda).
 // v1.13: koprikKbSaqla — imzolangan kelishuv SKANI ni ham qabul qiladi ({ yil, skanNom, skanB64 } → { skan }): kbSkan serverda, fayl «Kelishuv / <yil>» ga shu orqali.
 // v1.12: koprikDevonSaqla — kirim xat skanini «AKS TIZIM / 08 DEVONXONA / Kirim / <yil>» ga (Devon.gs devonFaylSaqla_ ning o'zi; 11_Devonxona ni server yozadi);
 //        koprikDevonTg — direktor(lar)ga shaxsan Telegram, skan PDF + tugma (devonDirShaxsiy_ ning o'zi; natija matni serverga qaytadi — tarixga va kotibaga);
@@ -71,7 +73,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.13'; }
+function koprikVersiya(kod) { return '1.14'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -91,6 +93,15 @@ function koprikQdSnap(kod, fish, bugun, navbatNo, tugadiNo) { ruxsat_(kod, 'undi
 function koprikTgYubor(kod, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYubor_(String(matn || '')); return { ok: true }; }
 // v1.5: istalgan chatga (xodimning Telegram ID si — serverda 07_Xodimlar U ustunidan) — tgYuborChat_ ning o'zi
 function koprikTgChat(kod, chat, matn) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); tgYuborChat_(String(chat || ''), String(matn || '')); return { ok: true }; }
+// v1.14: qayta tuzish bekor — yangi raqam uchun ochilgan bo'sh hujjat papkasi savatga (Qayta.gs qaytaBekor: nomi «27-N » bilan boshlanadigan, ichida fayl/papka yo'q)
+function koprikQtPapkaSavat(kod, yangi) {
+  ruxsat_(kod, 'admin');
+  var bosh = String(yangi || '').replace(/\//g, '-') + ' '; var n = 0;
+  if (bosh.length < 3) return { n: 0 };
+  var it = papka_(HUJJAT_ILDIZ).getFolders();
+  while (it.hasNext()) { var f = it.next(); if (f.getName().indexOf(bosh) === 0 && !f.getFiles().hasNext() && !f.getFolders().hasNext()) { f.setTrashed(true); n++; } }
+  return { n: n };
+}
 // v1.6: skanni bekor qilinganlar papkasiga (Hujjat.gs hujjatTuzat: moveTo + setName) — fayl topilmasa xato qaytadi, server e'tiborsiz qoldiradi
 function koprikHujjatBekorFayl(kod, faylId, nom) {
   ruxsat_(kod, 'hujjat');
