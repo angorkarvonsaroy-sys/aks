@@ -33,6 +33,10 @@ function parCss(p, ichida) {
     'text-align:' + ({ center: 'center', right: 'right', both: 'justify' }[p.al] || 'left')];
   if (p.b) st.push('font-weight:bold');
   if (!ichida) { st.push('margin-top:' + (p.before || 0) + 'pt', 'margin-bottom:' + (p.after || 0) + 'pt'); }
+  // chekinishlar (setIndentStart / setIndentFirstLine / setIndentEnd) — Docs ekran px ga yaxlitlaydi; birinchi qator — chapdan farqi
+  if (p.indStart) st.push('margin-left:' + px(p.indStart) + 'pt');
+  if (p.indEnd) st.push('margin-right:' + px(p.indEnd) + 'pt');
+  if (p.indFirst != null && (p.indFirst || 0) !== (p.indStart || 0)) st.push('text-indent:' + px((p.indFirst || 0) - (p.indStart || 0)) + 'pt');
   const sur = +(docsAlfa - cssAlfa).toFixed(4);
   if (Math.abs(sur) > 0.0005) st.push('position:relative', 'top:' + sur + 'pt');
   return st.join(';');
