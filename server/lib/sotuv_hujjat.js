@@ -95,7 +95,7 @@ async function sotuvHujjat(r, mr, jad, opt) {
   if (hit) {
     const bi = hit.ota.indexOf(hit.p);
     const satr = jadvalMatn ? jadvalMatn.split('\n') : ['— (тўлов жадвали йўқ)'];
-    satr.forEach((x, i) => { const p = DS.insertParagraph(hit.ota, bi + 1 + i, x); p.indStart = 36; p.indFirst = -36; });
+    satr.forEach((x, i) => { const p = DS.insertParagraph(hit.ota, bi + 1 + i, x, m.def); p.indStart = 36; p.indFirst = -36; });
     DS.removeChild(hit.ota, hit.p);
   }
   const qolgan = DS.qolganBelgilar(body);

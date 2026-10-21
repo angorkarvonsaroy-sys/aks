@@ -89,13 +89,13 @@ function findText(el, pat) {
 }
 // Text.deleteText(start, endInclusive)
 function deleteText(p, a, bInc) { oraliqAlmashtir(p, a, bInc + 1, ''); }
-// Body.insertParagraph(index, text): yangi xatboshi — xatboshi sozlamalari standart (chapga, oraliq 0, qator 1,15), matn ko'rinishi
-// oldingi xatboshining oxirgi belgisidan (Docs: Enter bosilgandek) — 27/368 namunasi: TNR 12, qalin emas
-function insertParagraph(ro, i, x) {
+// Body.insertParagraph(index, text): yangi xatboshi — xatboshi sozlamalari hujjat standarti (def = model.def: chapga, oraliq 0, qator oralig'i
+// docDefaults dagi — 27/368 shablonida 1,15), matn ko'rinishi oldingi xatboshining oxirgi belgisidan (Docs: Enter bosilgandek) — TNR 12, qalin emas
+function insertParagraph(ro, i, x, def) {
   const old = ro[i - 1] && ro[i - 1].t === 'p' ? ro[i - 1] : (ro[i] && ro[i].t === 'p' ? ro[i] : null);
   const lr = old ? [...old.runs].reverse().find(r => r.x) || old.runs[0] : null;
   const run = { x: s(x), b: lr ? !!lr.b : false, i: lr ? !!lr.i : false, u: false, c: lr ? lr.c : null, sz: lr ? lr.sz : (old ? old.sz : null), font: lr ? lr.font : (old ? old.font : null) };
-  const p = { t: 'p', runs: [run], x: s(x), al: null, before: 0, after: 0, ls: null, lsPt: null, indStart: null, indFirst: null, indEnd: null,
+  const p = { t: 'p', runs: [run], x: s(x), al: null, before: 0, after: 0, ls: def && def.ls != null ? def.ls : null, lsPt: null, indStart: null, indFirst: null, indEnd: null,
     font: run.font, sz: run.sz, b: run.b, i: run.i, u: false, c: run.c, num: null, betOldin: false, keepNext: false, keepLines: false, widow: old ? old.widow : null };
   ro.splice(i, 0, p); return p;
 }

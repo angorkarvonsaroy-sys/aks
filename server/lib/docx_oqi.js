@@ -1,10 +1,10 @@
 // AKS TIZIM — Google Doc shablonini (Drive «export?mimeType=docx» — Google'ning o'z eksporti) o'qib, hujjat MODELIGA aylantirish.
 // Eski tizim shablonni DocumentApp bilan ochib (<<BELGI>> larni almashtirib) PDF qilardi; serverda DocumentApp yo'q — shuning uchun
 // shablon DOCX ko'rinishida olinadi va shu yerda xatboshi / yozuv bo'laklari (run) / jadval / kolontitul / sahifa o'lchamlari ajratib olinadi.
-// Model (pt birligida; sozlanmagan xususiyat — null = Docs standarti: Arial 11, qator oralig'i 1,15, chapga tekislash):
-//   { w, h, tepa, past, chap, ong, pastKol (footer masofasi), el:[...], footer:[...] | null, header:[...] | null }
-//   xatboshi: { t:'p', runs:[{ x, b, i, u, c, sz, font }], al, before, after, ls, indStart, indFirst, indEnd, font, sz, b,
-//              num:{ matn, font, sz, left, hanging } | null, betOldin, keepNext, keepLines, widow }
+// Model (pt birligida; sozlanmagan xususiyat — null = DOCX standarti: Arial 11, qator oralig'i yakka (Docs 1,15 ni docDefaults ga yozadi), chapga tekislash):
+//   { w, h, tepa, past, chap, ong, pastKol (footer masofasi), el:[...], footer:[...] | null, header:[...] | null, def:{ls,before,after,font,sz} (hujjat standarti) }
+//   xatboshi: { t:'p', runs:[{ x, b, i, u, c, sz, font, va, maydon ('PAGE' — sahifa raqami maydoni, x bo'sh) }], al, before, after, ls, indStart, indFirst, indEnd, font, sz, b,
+//              belgiFont, belgiSz (xatboshi belgisi ¶ — ro'yxat belgisi va bo'sh xatboshi uchun), num:{ matn, font, sz, left, hanging } | null, betOldin, keepNext, keepLines, widow }
 //   jadval:   { t:'tbl', cols:[pt], eni, rows:[{ h, hRule, cells:[{ pad:{t,b,l,r}, bg, bord:{top,left,bottom,right}, span, el:[xatboshilar] }] }] }
 // Tashqi kutubxonasiz: zip (inflateRaw) va kichik XML o'qigich shu faylda.
 'use strict';
@@ -140,17 +140,29 @@ function qism(root, U, N, rels, zip) {
     const z = zanjir(U, own.uslub || (Object.keys(U.S).find(k => U.S[k].tur === 'paragraph' && U.S[k].def)));
     z.forEach(s => Object.assign(o, pPrOqi(s.pPr)));
     Object.assign(o, own);
-    // uslub zanjiridagi matn sozlamalari (belgi uchun)
-    let r = Object.assign({}, rPrOqi(U.rDef)); z.forEach(s => Object.assign(r, rPrOqi(s.rPr))); if (own.belgi) Object.assign(r, own.belgi);
-    o.belgi = r; return o;
+    // uslub zanjiridagi matn sozlamalari — bo'laklar (run) uchun asos; xatboshi belgisining (pPr/rPr — ¶) o'z ko'rinishi bo'laklarga O'TMAYDI,
+    // u faqat bo'sh xatboshi balandligi uchun (27/351 shabloni: sana qatori belgisi qalin, matni oddiy)
+    let r = Object.assign({}, rPrOqi(U.rDef)); z.forEach(s => Object.assign(r, rPrOqi(s.rPr)));
+    o.asos = r; o.belgi = own.belgi ? Object.assign({}, r, own.belgi) : r; return o;
   }
+  // Maydonlar: PAGE (sahifa raqami — kolontitulda) → bo'lak { x:'', maydon:'PAGE' }; saqlangan natija matni tashlab yuboriladi (lib/shablon_pdf.js
+  // betma-bet o'zi yozadi). Boshqa maydonlar (DATE, HYPERLINK …) — saqlangan natija matni oddiy matn sifatida qoladi.
   function runlar(p, belgiAsos) {
-    const R = [];
+    const R = []; let fld = null;   // murakkab maydon holati: { instr, sep, rp }
+    const maydonMi = instr => /^\s*PAGE\b/i.test(instr) && !/NUMPAGES/i.test(instr);
+    const bolak = (rp, x, maydon) => ({ x, b: !!rp.b, i: !!rp.i, u: !!rp.u, c: rp.c || null, sz: rp.sz || null, font: rp.font || null, va: rp.va || null, maydon: maydon || null });
     const yur = el => el.c.forEach(ch => {
       if (ch.n === 'w:r') {
         const rp = Object.assign({}, belgiAsos, rPrOqi(bola(ch, 'w:rPr'))); let x = '';
         ch.c.forEach(k => {
-          if (k.n === 'w:t') x += k.c.map(z => z.t || '').join('');
+          if (k.n === 'w:fldChar') {
+            const tur = at(k, 'w:fldCharType');
+            if (tur === 'begin') fld = { instr: '', sep: false, rp };
+            else if (tur === 'separate' && fld) fld.sep = true;
+            else if (tur === 'end' && fld) { if (maydonMi(fld.instr)) R.push(bolak(fld.rp, '', 'PAGE')); fld = null; }
+          }
+          else if (k.n === 'w:instrText') { if (fld) fld.instr += k.c.map(z => z.t || '').join(''); }
+          else if (k.n === 'w:t') { if (!(fld && fld.sep && maydonMi(fld.instr))) x += k.c.map(z => z.t || '').join(''); }
           else if (k.n === 'w:tab') x += '\t';
           else if (k.n === 'w:br') { if (at(k, 'w:type') === 'page') R.betUz = true; else x += '\n'; }
           else if (k.n === 'w:noBreakHyphen') x += '‑';
@@ -158,15 +170,19 @@ function qism(root, U, N, rels, zip) {
           else if (k.n === 'w:sym') x += at(k, 'w:char') ? String.fromCharCode(parseInt(at(k, 'w:char'), 16)) : '';
           else if (k.n === 'w:drawing' || k.n === 'w:pict') R.rasm = true;
         });
-        R.push({ x, b: !!rp.b, i: !!rp.i, u: !!rp.u, c: rp.c || null, sz: rp.sz || null, font: rp.font || null, va: rp.va || null });
+        R.push(bolak(rp, x, null));
+      } else if (ch.n === 'w:fldSimple') {
+        if (maydonMi(at(ch, 'w:instr') || '')) { const r0 = bola(ch, 'w:r'); R.push(bolak(Object.assign({}, belgiAsos, rPrOqi(bola(r0, 'w:rPr'))), '', 'PAGE')); }
+        else yur(ch);
       } else if (RUN_NOM[ch.n]) yur(ch);
     });
     yur(p); return R;
   }
   function xatboshi(p) {
     const s = pSoz(bola(p, 'w:pPr'));
-    const asos = { font: s.belgi.font || null, sz: s.belgi.sz || null, b: !!s.belgi.b, i: !!s.belgi.i, u: !!s.belgi.u, c: s.belgi.c || null };
-    const R = runlar(p, { font: asos.font, sz: asos.sz, b: asos.b, i: asos.i, u: asos.u, c: asos.c });
+    const R = runlar(p, { font: s.asos.font || null, sz: s.asos.sz || null, b: !!s.asos.b, i: !!s.asos.i, u: !!s.asos.u, c: s.asos.c || null });
+    const bb = R.some(r => r.x) ? s.asos : s.belgi;   // matnsiz xatboshi — balandligi belgi (¶) shrifti bo'yicha
+    const asos = { font: bb.font || null, sz: bb.sz || null, b: !!bb.b, i: !!bb.i, u: !!bb.u, c: bb.c || null };
     let num = null;
     if (s.numPr && N[s.numPr.id] && N[s.numPr.id][s.numPr.lvl]) {
       const l = N[s.numPr.id][s.numPr.lvl];
@@ -176,7 +192,8 @@ function qism(root, U, N, rels, zip) {
     }
     return { t: 'p', runs: R, x: R.map(r => r.x).join(''), al: s.al || null, before: s.before == null ? null : s.before, after: s.after == null ? null : s.after,
       ls: s.ls == null ? null : s.ls, lsPt: s.lsPt || null, indStart: s.indStart == null ? null : s.indStart, indFirst: s.indFirst == null ? null : s.indFirst, indEnd: s.indEnd == null ? null : s.indEnd,
-      font: asos.font, sz: asos.sz, b: asos.b, i: asos.i, u: asos.u, c: asos.c, num, betOldin: !!s.betOldin || !!R.betUz, keepNext: !!s.keepNext, keepLines: !!s.keepLines, widow: s.widow == null ? null : s.widow };
+      font: asos.font, sz: asos.sz, b: asos.b, i: asos.i, u: asos.u, c: asos.c, belgiFont: s.belgi.font || null, belgiSz: s.belgi.sz || null,   // belgi (¶) — ro'yxat belgisi shrifti
+      num, betOldin: !!s.betOldin || !!R.betUz, keepNext: !!s.keepNext, keepLines: !!s.keepLines, widow: s.widow == null ? null : s.widow };
   }
   function chegara(el) {   // w:top / w:left ... → { val, sz(pt), c }
     if (!el) return null; const v = at(el, 'w:val'); if (!v || v === 'nil' || v === 'none') return { yoq: true };
@@ -232,9 +249,17 @@ function oqi(buf) {
   if (rx) bolalar(bola(rx, 'Relationships'), 'Relationship').forEach(r => { rels[r.a.Id] = r.a.Target; });
   const body = bola(bola(doc, 'w:document'), 'w:body');
   const { el, sect } = qism(body, U, N, rels, zip);
-  const m = { w: 595.28, h: 841.89, tepa: 72, past: 72, chap: 72, ong: 72, tepaKol: 36, pastKol: 36, el, footer: null, header: null };
+  // hujjat standarti (yangi kiritilgan xatboshi uchun — Docs insertParagraph): docDefaults → standart xatboshi uslubi zanjiri
+  const dz = zanjir(U, Object.keys(U.S).find(k => U.S[k].tur === 'paragraph' && U.S[k].def));
+  const dp = Object.assign({}, pPrOqi(U.pDef)); dz.forEach(z => Object.assign(dp, pPrOqi(z.pPr)));
+  const dr = Object.assign({}, rPrOqi(U.rDef)); dz.forEach(z => Object.assign(dr, rPrOqi(z.rPr)));
+  const m = { w: 595.28, h: 841.89, tepa: 72, past: 72, chap: 72, ong: 72, tepaKol: 36, pastKol: 36, el, footer: null, header: null,
+    def: { ls: dp.ls == null ? null : dp.ls, before: dp.before == null ? null : dp.before, after: dp.after == null ? null : dp.after, font: dr.font || null, sz: dr.sz || null } };
   if (sect) {
     const sz = bola(sect, 'w:pgSz'); if (sz) { m.w = pt(at(sz, 'w:w')); m.h = pt(at(sz, 'w:h')); }
+    // Docs A4 sahifasi 595,28 × 841,89 pt; eksportda twip ga yaxlitlanadi (11906 yoki 11909) — matn eni 0,17 pt gacha farq qilib, chegaradagi
+    // qator uzilishi o'zgaradi (27/351: «тўлаганидан» so'zi). Aniq A4 ga qaytariladi.
+    if (Math.abs(m.w - 595.28) < 1) m.w = 595.28; if (Math.abs(m.h - 841.89) < 1) m.h = 841.89;
     const mr = bola(sect, 'w:pgMar'); if (mr) { m.tepa = pt(at(mr, 'w:top')); m.past = pt(at(mr, 'w:bottom')); m.chap = pt(at(mr, 'w:left')); m.ong = pt(at(mr, 'w:right')); if (at(mr, 'w:header') != null) m.tepaKol = pt(at(mr, 'w:header')); if (at(mr, 'w:footer') != null) m.pastKol = pt(at(mr, 'w:footer')); }
     const kol = (nom, tur) => { const r = bolalar(sect, nom).find(z => (at(z, 'w:type') || 'default') === 'default') || bolalar(sect, nom)[0]; if (!r) return null;
       const yol = rels[at(r, 'r:id')]; if (!yol) return null; const x = xml('word/' + yol.replace(/^\/?word\//, '')); if (!x) return null;
