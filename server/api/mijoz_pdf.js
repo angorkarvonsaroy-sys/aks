@@ -40,11 +40,14 @@ function kartaHtml(r, bugun) {
     + '<div style="margin-top:20px;display:flex;justify-content:space-between"><div></div><div>«ANGOR KARVON SAROY» МЧЖ<br>директори<br><br>_______________ ҲАЙДАРОВ К.</div></div></body></html>';
 }
 
+// Shrift farqlari (sinov, 22.10): Google «·» ni Times New Roman eni (0,25 em) bilan chizadi, serverdagi Liberation Serif 2.1.5 da u 0,333 em —
+// 10 px jadvalda har «·» dan keyingi so'z 0,6 pt suriladi. Belgi inline-block bilan TNR eniga keltiriladi (PDF matni o'zgarmaydi).
+const TUZAT = h => h.replace(/·/g, '<span style="display:inline-block;width:0.25em;text-align:center">·</span>');
 // Yadro (sinov ham shuni ishlatadi): opt = { bugun, sahifa: 'html' | 'google' }
 async function kartaPdfYasa(kodSes, mid, opt = {}) {
   const r = await mijozKarta([kodSes, mid]), m = r.mijoz;
   let sahifa = opt.sahifa; if (!sahifa) { try { sahifa = (await redis.get('mijoz_karta_sahifa')) || 'html'; } catch (e) { sahifa = 'html'; } }
-  const html = kartaHtml(r, opt.bugun || bugunDmyHm());
+  const html = TUZAT(kartaHtml(r, opt.bugun || bugunDmyHm()));
   const pdf = await PDF.yasa(SAHIFA[sahifa] ? html.replace('</style>', SAHIFA[sahifa] + '</style>') : html, '');
   return { ok: true, b64: pdf.toString('base64'), nom: 'Mijoz_kartasi_' + String(m.fish).split(' ')[0] + '_' + m.id + '.pdf', mime: 'application/pdf' };
 }

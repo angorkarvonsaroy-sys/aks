@@ -1823,7 +1823,13 @@ async function mijozpdfSinov(midlar) {
         const yb = Buffer.from(y.b64, 'base64');
         natija[v] += pdfSolishtir(eb, yb);
         const q = sozSolishtir(eb, yb);
-        if (q.sozlar[0] !== q.sozlar[1] || q.betlar[0] !== q.betlar[1] || q.farq) { natija[v]++; console.log('  ✖ so\'zlar joyi: eski ' + q.sozlar[0] + ' / server ' + q.sozlar[1] + ' so\'z, betlar ' + q.betlar.join('/') + ', ' + q.farq + ' ta farq, eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt'); q.ch.slice(0, 4).forEach(c => console.log('     ' + c)); }
+        if (q.sozlar[0] !== q.sozlar[1] || q.betlar[0] !== q.betlar[1] || q.farq) { natija[v]++; console.log('  ✖ so\'zlar joyi: eski ' + q.sozlar[0] + ' / server ' + q.sozlar[1] + ' so\'z, betlar ' + q.betlar.join('/') + ', ' + q.farq + ' ta farq, eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt'); q.ch.slice(0, 4).forEach(c => console.log('     ' + c));
+          if (q.sozlar[0] === q.sozlar[1] && v === 'html') {   // qaysi belgi kengligi farq qiladi — surilgan so'zdan oldingi so'zlar (eni bilan)
+            const A = sozJoy(eb), B = sozJoy(yb); let n = 0;
+            for (let i = 1; i < A.length && n < 6; i++) { if (A[i][1] !== B[i][1] || Math.abs(A[i][2] - B[i][2]) < 0.9) continue; n++;
+              const k = s2 => s2.length > 14 ? s2.slice(0, 13) + '…' : s2;
+              console.log('     «' + k(A[i][1]) + '»dan oldin: ' + [i - 2, i - 1].filter(j => j >= 0).map(j => '«' + k(A[j][1]) + '» eski x ' + A[j][2].toFixed(1) + '–' + A[j][4].toFixed(1) + ' (eni ' + (A[j][4] - A[j][2]).toFixed(2) + ') server ' + B[j][2].toFixed(1) + '–' + B[j][4].toFixed(1) + ' (eni ' + (B[j][4] - B[j][2]).toFixed(2) + ')').join(' · ')); }
+          } }
         else console.log('  ✅ ' + q.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt)');
       }
     }
