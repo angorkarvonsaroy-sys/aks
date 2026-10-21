@@ -1,4 +1,8 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.11). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.12). Boshqa fayllar o'zgarmaydi.
+// v1.12: koprikDevonSaqla — kirim xat skanini «AKS TIZIM / 08 DEVONXONA / Kirim / <yil>» ga (Devon.gs devonFaylSaqla_ ning o'zi; 11_Devonxona ni server yozadi);
+//        koprikDevonTg — direktor(lar)ga shaxsan Telegram, skan PDF + tugma (devonDirShaxsiy_ ning o'zi; natija matni serverga qaytadi — tarixga va kotibaga);
+//        koprikKbSaqla — server yasagan kelishuv + dalolatnoma (PDF va Word) ni «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>» ga (06m ni server yozadi);
+//        koprikSkanNaz — yangi shartnoma skanlarining ixtiyoriy nazorati (Topshiriq.gs skanNazTekshir_: belgi 06d ga, yuristga Telegram) — server topHozir dan chaqiradi.
 // v1.11: koprikXatSaqla Word (.docx) faylini ham qabul qiladi va fayl nomida lotin bo'lmagan harflar (', `, kirill) bo'lishi mumkin —
 //        yurist ALOQA XATI (YU seriyasi) serverda yasaladi, PDF va Word nusxasi shu yerdan «AKS TIZIM / 06 XATLAR / <yil>» ga qo'yiladi.
 // v1.10: koprikBekorSaqla Word (.docx) faylini ham qabul qiladi (bDocB64, xDocB64) — server yasagan Word Drive'ga o'zi qo'yiladi,
@@ -66,7 +70,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.11'; }
+function koprikVersiya(kod) { return '1.12'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -170,4 +174,54 @@ function koprikBekorSaqla(kod, m) {
       if (ota && ota.hasNext() && ota.next().getName() === BEKOR_PAPKA[BEKOR_PAPKA.length - 1]) e.setTrashed(true); } catch (x) { }
   });
   return r;
+}
+// v1.12: kirim xat skani → «AKS TIZIM / 08 DEVONXONA / <qism> / <yil>» (Devon.gs devonFaylSaqla_ ning o'zi). m = { qism: 'Kirim', nom (kengaytmasiz), b64 }.
+//   Qaytaradi { id }. m.eski (Drive ID) bo'lsa — o'sha fayl savatga, faqat «08 DEVONXONA» ichidagi bo'lsa (server qatorni yoza olmaganda). Qaytaradi { ok }.
+function koprikDevonSaqla(kod, m) {
+  ruxsat_(kod, 'devon');
+  m = m || {};
+  if (m.eski) {
+    try { var e = DriveApp.getFileById(String(m.eski)), p = e.getParents(), ota = p.hasNext() ? p.next().getParents() : null, bobo = ota && ota.hasNext() ? ota.next().getParents() : null;
+      if (bobo && bobo.hasNext() && bobo.next().getName() === '08 DEVONXONA') e.setTrashed(true); } catch (x) { }
+    return { ok: true };
+  }
+  var qism = String(m.qism || ''), nom = String(m.nom || '');
+  if (!/^(Kirim|Chiqim|Ijro)$/.test(qism) || !nom || nom.length > 200 || /[\/\\]/.test(nom)) throw new Error('Devon fayli nomi noto\'g\'ri.');
+  var bayt = Utilities.base64Decode(String(m.b64 || ''));
+  if (bayt.length < 1000) throw new Error('Xat skani bo\'sh.');
+  return { id: devonFaylSaqla_(bayt, [qism], nom).getId() };
+}
+// v1.12: direktor(lar)ga shaxsan Telegram — skan PDF + tugma (Devon.gs devonDirShaxsiy_ ning o'zi). m = { matn, faylId, tugma }. Qaytaradi { xato: '' | sabab }.
+function koprikDevonTg(kod, m) {
+  ruxsat_(kod, 'devon');
+  m = m || {};
+  return { xato: devonDirShaxsiy_(SpreadsheetApp.openById(SS_ID), String(m.matn || ''), String(m.faylId || ''), String(m.tugma || '')) };
+}
+// v1.12: server yasagan kelishuv + dalolatnoma → «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>» (KelishuvBekor.gs kbHujjat_ papkasi va nomlari).
+//   m = { yil, nom (kengaytmasiz), pdfB64, docB64, eski }. pdfB64 bo'lsa: PDF va Word qo'yiladi (qayta urinishda shu nomli fayl bor bo'lsa — o'shasi qaytadi);
+//   eski — almashtirilgan fayllar (Drive ID), faqat «Kelishuv» ichidagilari savatga (kbOchir_). Qaytaradi { pdf, doc } (faqat eski bo'lsa — { ok }).
+function koprikKbSaqla(kod, m) {
+  kbU_(kod);
+  m = m || {};
+  var eski = (m.eski || []).map(String), r = { ok: true };
+  if (m.pdfB64) {
+    var yil = String(m.yil || '').replace(/\D/g, '').slice(0, 4), nom = String(m.nom || '');
+    if (yil.length !== 4 || !/^Kelishuv_bekor_[^\/\\]{3,160}$/.test(nom) || !m.docB64) throw new Error('Kelishuv hujjati nomi noto\'g\'ri.');
+    var papka = papka_(KB_PAPKA.concat([yil]));
+    var DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    var top = function (n, mime) { var it = papka.getFilesByName(n); while (it.hasNext()) { var f = it.next(); if (eski.indexOf(f.getId()) < 0 && !f.isTrashed() && f.getMimeType() === mime) return f; } return null; };
+    var pdf = top(nom + '.pdf', 'application/pdf') || papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.pdfB64)), 'application/pdf', nom + '.pdf'));
+    var doc = top(nom + '.docx', DOCX) || papka.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.docB64)), DOCX, nom + '.docx'));
+    r = { pdf: pdf.getId(), doc: doc.getId() };
+  }
+  eski.forEach(function (id) {
+    try { var e = DriveApp.getFileById(id), p = e.getParents(), ota = p.hasNext() ? p.next().getParents() : null;
+      if (ota && ota.hasNext() && ota.next().getName() === KB_PAPKA[KB_PAPKA.length - 1]) e.setTrashed(true); } catch (x) { }
+  });
+  return r;
+}
+// v1.12: yangi shartnoma skanlarining ixtiyoriy nazorati (Topshiriq.gs skanNazTekshir_: belgi 06d P ga, yurist/direktorga Telegram) — server topHozir dan.
+function koprikSkanNaz(kod) {
+  ruxsat_(kod, 'admin');
+  return { n: skanNazTekshir_(SpreadsheetApp.openById(SS_ID)) };
 }

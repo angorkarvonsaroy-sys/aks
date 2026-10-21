@@ -56,9 +56,11 @@ function sect(m) {
   const land = m.w > m.h, W = land ? 16838 : 11909, H = land ? 11906 : 16834;   // Docs eksporti: albom — 16838 × 11906, kitob — 11909 × 16834
   return '<w:sectPr><w:pgSz w:h="' + H + '" w:w="' + W + '" w:orient="' + (land ? 'landscape' : 'portrait') + '"/><w:pgMar w:bottom="' + tw(m.past) + '" w:top="' + tw(m.tepa) + '" w:left="' + tw(m.chap) + '" w:right="' + tw(m.ong) + '" w:header="720" w:footer="720"/><w:pgNumType w:start="1"/></w:sectPr>';
 }
+// sahifa uzilishi (appendPageBreak) — Google eksportidagidek: bo'sh xatboshi ichida <w:br w:type="page"/>
+const PB = P0 + '<w:pPr>' + PBDR + '<w:spacing w:after="0" w:before="0" w:line="276" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/><w:jc w:val="left"/><w:rPr/></w:pPr>' + R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr><w:br w:type="page"/></w:r></w:p>';
 function documentXml(m) {
   let k = 0, nn = 0;
-  const h = m.el.map((e, i) => e.t === 'tbl' ? jadval(e, ++k) : par(e, i === 0 && !e.x && e.al == null && e.sz == null && e.before == null)).join('');
+  const h = m.el.map((e, i) => e.t === 'tbl' ? jadval(e, ++k) : e.t === 'pb' ? PB : par(e, i === 0 && !e.x && e.al == null && e.sz == null && e.before == null)).join('');
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r' + NS + '<w:body>' + h.replace(/w14:paraId="00000000"/g, () => 'w14:paraId="' + (++nn).toString(16).toUpperCase().padStart(8, '0') + '"') + sect(m) + '</w:body></w:document>';
 }
 function stylesXml(n) {   // har jadvalga alohida «TableN» uslubi (Google eksportidagidek)

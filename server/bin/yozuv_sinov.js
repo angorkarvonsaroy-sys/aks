@@ -22,6 +22,9 @@
 //            aks-yozuv-sinov shpdf [27/351] [IJ-27/141] — shartnoma PDF (sotuv va ijara): serverda qayta yasab, eski tizim Drive'ga qo'ygan PDF (03 S / 04 V havolasi) bilan so'zma-so'z solishtirish; shartnoma PDF ni yoqish
 //            aks-yozuv-sinov tekshir   — 🎲 tekshiruv qo'ng'irog'i javobi: 06p M:O javob, 06q qoidabuzarlik qatori, qayta tekshiruv (10 + 06p) — nusxa varaqlarda; ijroTekshirJavob ni yoqish
 //            aks-yozuv-sinov imzosiz   — ✕ imzolanmagan ijara: 06l so'rov qatori va javob, 04 C/D/W + 06j bekor yozuvi — nusxa varaqlarda; ijaraImzosizSorov/Javob ni yoqish
+//            aks-yozuv-sinov devon     — 📮 kirim xat: 11_Devonxona qatori va tarix (nusxa varaqda, eski yozgan qator bilan), skan Drive'ga (Koprik v1.12, SINOV fayl, savatga); devonKirimSaqla ni yoqish
+//            aks-yozuv-sinov kb        — 🤝 kelishuv bilan bekor: hujjat (PDF so'zma-so'z, Word matni) eski tizim yasagani bilan, 06m qatori (nusxada), Drive (Koprik v1.12); kbTayyorla ni yoqish
+//            aks-yozuv-sinov tophozir  — 🤖 topshiriq qoidalari: server «quruq» hisoblaydi, eski topHozir yozadi, 10_Topshiriqlar dagi yangi/yopilgan qatorlar server hisobi bilan; topHozir ni yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
 const { verOk } = require('../lib/versiya');
@@ -1537,9 +1540,228 @@ async function imzosizSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 📮 KIRIM XAT (Devon.gs devonKirimSaqla): 11_Devonxona nusxasida server yo'li bilan «soxta» kirim xat qatori (devonYoz) va tarix (devonTarix) — eski tizim yozgan
+// oxirgi kirim xat qatori bilan (qiymat turi, format); skan Drive'ga — Koprik v1.12 koprikDevonSaqla bilan SINOV fayl «08 DEVONXONA / Kirim / <yil>» ga, robot o'qiydi, savatga.
+// Telegram sinalmaydi. Haqiqiy varaqlarga tegilmaydi.
+async function devonSinov() {
+  const DV = require('../api/devon_yoz')._ichki;
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k112 = verOk(ver, '1.12') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k112 ? ' ✅' : ' ⚠ (1.12 kerak — Drive va Telegram)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  try {
+    if (!M.varaqlar.some(v => v.title === DV.DEVON_V)) { console.log('11_Devonxona varag\'i yo\'q — solishtirib bo\'lmaydi.'); return; }
+    console.log('\n=== 📮 KIRIM XAT — 11_Devonxona qatori va tarix ===');
+    const n11 = await nusxala(DV.DEVON_V);
+    const R = await DV.devonRowsYangi(n11);
+    const es = R.L.filter(z => z.turi === 'Kirim').pop();
+    const t0 = Date.now();
+    const bugun = V.bugun().split('-').reverse().join('.');
+    const w = await DV.devonYoz(n11, R, { turi: 'Kirim', tartib: R.L.filter(z => z.turi === 'Kirim').reduce((m, z) => Math.max(m, Number(z.tartib) || 0), 0) + 1, kim: 'SINOV XODIM', tashkilot: 'SINOV TASHKILOT', raqam: '01-SINOV', sana: bugun, mazmun: 'SINOV — nusxa varaq, o\'chiriladi', fayl: 'SINOV', holati: 'Rezolyutsiya kutmoqda' });
+    await DV.devonTarix(n11, w, 'Telegram: direktorga yuborildi (shaxsan, skan bilan)');
+    console.log('Yozish: ' + (Date.now() - t0) + ' ms · ID ' + w.id + ', kirim №' + w.tartib + ', qator ' + w.qator + (es ? ' · eski tizim yozgan kirim xat qatori ' + es.qator + ' (№' + es.tartib + ', ' + es.holati + ')' : ' · eski kirim xat yo\'q'));
+    if (es) x += await qatorSolishtir(n11, w.qator, 1, 20, '— Kirim xat qatori (A–T; S — tarix 2 qator)', es.qator); else console.log('  (11_Devonxona da kirim xat yo\'q — solishtirilmadi)');
+    console.log('\n=== 📮 SKAN → Drive (Koprik v1.12 koprikDevonSaqla) ===');
+    if (!k112) { console.log('  ⚠ Koprik 1.12 emas — Drive sinalmadi.'); x++; }
+    else {
+      const PDF0 = Buffer.from('%PDF-1.4\n' + '% SINOV — AKS TIZIM server sinovi, o\'chiriladi\n'.repeat(40) + '%%EOF\n');
+      const t1 = Date.now();
+      const f = await koprik.chaqir('koprikDevonSaqla', adm.kirish_kodi, [{ qism: 'Kirim', nom: 'SINOV_server_' + Date.now().toString(36), b64: PDF0.toString('base64') }], { muddat: 120000, urinish: 1 });
+      if (!f || !f.id) { console.log('  ✖ Drive ID qaytmadi'); x++; }
+      else {
+        console.log('  fayl Drive\'ga qo\'yildi: ' + f.id + ' (' + (Date.now() - t1) + ' ms)');
+        let o = null; try { o = await G.driveFayl(f.id, KEY); } catch (e) { console.log('  ✖ robot o\'qiy olmadi: ' + e.message); x++; }
+        if (o) { const bir = Buffer.compare(o.bytes, PDF0) === 0; console.log('  ' + (bir ? '✅' : '✖') + ' robot o\'qidi: ' + o.nom + ', ' + o.bytes.length + ' bayt' + (bir ? ' — bir xil' : ' — FARQ')); if (!bir) x++; }
+        await koprik.chaqir('koprikDevonSaqla', adm.kirish_kodi, [{ eski: f.id }]).then(() => console.log('  SINOV fayl savatga tashlandi.')).catch(e => console.log('  ⚠ SINOV faylni savatga tashlab bo\'lmadi: ' + e.message));
+      }
+    }
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x && k112) { await redis.set('yozuv_yondi:devon', '1'); console.log('✅ HAMMASI BIR XIL — 📮 kirim xatni saqlash endi server orqali (skan Drive\'ga va direktorga Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.12 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
+// Word (.docx) → xatboshilar matni (bo'shlarsiz; jadval kataklari ham) — Google eksporti bilan server nusxasini matn bo'yicha solishtirish
+function docxMatnlar(buf) {
+  const Z = XL.zipOqi(buf); const d = String(Z['word/document.xml'] || '');
+  const un = v => v.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, '\'');
+  return [...d.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map(m => [...m[0].matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map(z => un(z[1])).join('').replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+// 🤝 KELISHUV BILAN BEKOR (KelishuvBekor.gs kbTayyorla): (1) 06m dagi oxirgi so'rov hujjati serverda qayta yasaladi — eski tizim Drive'ga qo'ygan PDF bilan so'zma-so'z,
+// Word — Google Doc eksporti bilan matn bo'yicha (bayt-ma-bayt — ma'lumot uchun); (2) 06m nusxasida yangi so'rov qatori va qayta tayyorlash kataklari — eski
+// yozgan qator bilan (qiymat turi, format); (3) Drive — Koprik v1.12 koprikKbSaqla bilan SINOV fayllar «07 BEKOR QILISH / Kelishuv / <yil>» ga, robot o'qiydi, savatga.
+async function kbSinov() {
+  const KBH = require('../lib/kb_hujjat'), KB = require('../api/kb_yoz')._ichki, s = v => String(v == null ? '' : v);
+  const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (!(await PDF.bor())) { console.log('⏳ PDF dasturi (Chromium) hali tayyor emas — 3 daqiqadan keyin qayta ishga tushiring.'); return; }
+  try { execFileSync('pdftotext', ['-v'], { stdio: 'ignore' }); } catch (e) { console.log('⚠ pdftotext yo\'q (poppler-utils) — solishtirib bo\'lmaydi.'); return; }
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k112 = verOk(ver, '1.12') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k112 ? ' ✅' : ' ⚠ (1.12 kerak — Drive)'));
+  const M = await G.varaqlar(ID, KEY);
+  let x = 0;
+  if (!M.varaqlar.some(v => v.title === KBH.KB_VARAQ)) { console.log('06m_Kelishuv_bekor varag\'i yo\'q (eski tizim birinchi so\'rovda o\'zi ochadi) — solishtirib bo\'lmaydi.'); return; }
+  // (1) hujjat
+  console.log('\n=== 🤝 KELISHUV + DALOLATNOMA — eski tizim yasagan hujjat bilan ===');
+  const rows = await KBH.kbRowsKozgu();
+  const es = rows.filter(z => z.pdf && !/^SRV:/.test(z.pdf)).pop();
+  if (!es) { console.log('  ⚠ 06m da eski tizim yasagan hujjatli so\'rov yo\'q — avval eski tizimda bitta kelishuv tayyorlang (📎 Hujjatlar → ijara shartnomasi → 🤝 O\'zaro kelishuv), keyin sinovni qayta ishga tushiring.'); x++; }
+  else {
+    console.log('Namuna: so\'rov KB-' + es.id + ' (' + es.no + ', ' + es.fish + ', ' + es.dokon + ') · ' + es.vaqt + ' · ' + es.kim + ' · ' + es.holati);
+    let xx = null; try { xx = await KBH.kbTekshir(es.no, es.id, rows, { tekshirma: true }); } catch (e) { console.log('  ✖ ' + e.message); x++; }
+    if (xx) {
+      const adminmi = (await V.qatorlar('07_Xodimlar')).map(z => z.x).some(z => s(z[1]).trim() === s(es.kim).trim() && /(^|,)\s*admin\s*(,|$)/.test(s(z[18])));
+      const sanaIso = es.sana.split('.').reverse().join('-');
+      const D = { sabab: es.sabab, sana: sanaIso, qarz: es.qarz === 'Йўқ' ? 0 : Number(es.qarz) || 0, kalit: Number(es.kalit) || 0, hisob: KBH.kbLotin(es.hisob), holat: es.holat === 'Соз' ? 'soz' : 'kamchilik',
+        izoh: KBH.kbLotin(es.izoh).replace(/[.;,\s]+$/, ''), xodim: adminmi ? '' : await KBH.kbXodimIsm(es.kim) };
+      const t0 = Date.now();
+      const f = await KBH.kbHujjat(xx, D);
+      console.log('  server: ' + f.bet + ' bet · ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s' + (xx.ogoh.length ? ' · ma\'lumot: ' + xx.ogoh.join(' ') : ''));
+      let eskiB = null; try { eskiB = (await G.driveFayl(es.pdf, KEY)).bytes; } catch (e) { console.log('  ✖ robot eski PDF ni o\'qiy olmadi: ' + e.message); x++; }
+      if (eskiB) {
+        x += pdfSolishtir(eskiB, f.pdf);
+        const q = sozSolishtir(eskiB, f.pdf);
+        if (q.sozlar[0] !== q.sozlar[1] || q.betlar[0] !== q.betlar[1] || q.farq) { x++; console.log('  ✖ so\'zlar joyi: eski ' + q.sozlar[0] + ' / server ' + q.sozlar[1] + ' so\'z, betlar ' + q.betlar.join('/') + ', ' + q.farq + ' ta farq, eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt'); q.ch.forEach(c => console.log('     ' + c)); }
+        else console.log('  ✅ ' + q.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt)');
+      }
+      if (es.doc && !/^SRV:/.test(es.doc)) {
+        let eskiD = null; try { eskiD = await G.driveEksport(es.doc, DOCX, KEY); } catch (e) { console.log('  ⚠ Google Doc eksporti o\'qilmadi (Word solishtirilmadi): ' + e.message); }
+        if (eskiD) {
+          const A = docxMatnlar(eskiD), B = docxMatnlar(f.docx);
+          let k = -1; for (let i = 0; i < Math.max(A.length, B.length); i++) if (A[i] !== B[i]) { k = i; break; }
+          if (k < 0) console.log('  ✅ Word: ' + A.length + ' xatboshi matni Google Doc eksporti bilan bir xil');
+          else { x++; console.log('  ✖ Word matni farq qiladi (xatboshi ' + (k + 1) + ' / eski ' + A.length + ', server ' + B.length + '): eski «' + qisqa(A[k], 70) + '» | server «' + qisqa(B[k], 70) + '»'); }
+          await zipQismlar('Word (bayt-ma-bayt, ma\'lumot uchun)', eskiD, f.docx, false).then(z => { if (z) { const dA = String(XL.zipOqi(eskiD)['word/document.xml'] || ''), dB = String(XL.zipOqi(f.docx)['word/document.xml'] || ''); let i = 0; while (i < dA.length && dA[i] === dB[i]) i++; console.log('     document.xml birinchi farq ' + i + '-belgida: eski «' + dA.slice(Math.max(0, i - 40), i + 80).replace(/\s+/g, ' ') + '» | server «' + dB.slice(Math.max(0, i - 40), i + 80).replace(/\s+/g, ' ') + '»'); } });
+        }
+      }
+    }
+  }
+  // (2) 06m qatori — nusxa varaqda
+  const ochir = [];
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  try {
+    console.log('\n=== 🤝 06m_Kelishuv_bekor qatori (nusxa varaqda) ===');
+    const n06m = await nusxala(KBH.KB_VARAQ);
+    const R = await KB.kbRowsYangi(n06m);
+    const eq = R.L[R.L.length - 1];
+    const qator = ['IJ-27/1', 'SINOV MIJOZ', 'B1-1-1', 'SINOV — nusxa varaq, o\'chiriladi', V.bugun().split('-').reverse().join('.'), 'Йўқ', '2', '12345', 'Соз', ''];
+    const t1 = Date.now();
+    const w = await KB.kbSorovYoz(n06m, R, { qator, pdfId: 'SRV:kb/sinov.pdf', docId: 'SRV:kb/sinov.docx', kim: 'SINOV XODIM' });
+    console.log('Yozish: ' + (Date.now() - t1) + ' ms · ID ' + w.id + ', qator ' + w.qator + (eq ? ' · eski tizim yozgan qator ' + eq.qator + ' (KB-' + eq.id + ', ' + eq.holati + ')' : ''));
+    if (eq) x += await qatorSolishtir(n06m, w.qator, 1, 24, '— So\'rov qatori (A–X)', eq.qator); else console.log('  (06m bo\'sh — solishtirilmadi)');
+    await KB.kbQaytaYoz(n06m, { qator: w.qator, skan: '' }, { qator: qator.slice(0, 7).concat(['12346', 'Камчиликлар бор', 'SINOV izoh']), pdfId: 'SRV:kb/sinov2.pdf', docId: 'SRV:kb/sinov2.docx' }, 'SINOV XODIM');
+    if (eq) { const [a, b] = await Promise.all([G.kataklarOqi(ID, n06m, 'A' + eq.qator + ':X' + eq.qator, KEY), G.kataklarOqi(ID, n06m, 'A' + w.qator + ':X' + w.qator, KEY)]);
+      x += solishtir(a[0] || [], b[0] || [], [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 23], '— Qayta tayyorlash kataklari (C–O, W tarix)'); }
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  // (3) Drive
+  console.log('\n=== 🤝 Hujjatlar → Drive (Koprik v1.12 koprikKbSaqla) ===');
+  if (!k112) { console.log('  ⚠ Koprik 1.12 emas — Drive sinalmadi.'); x++; }
+  else {
+    const P0 = Buffer.from('%PDF-1.4\n' + '% SINOV — AKS TIZIM server sinovi, o\'chiriladi\n'.repeat(40) + '%%EOF\n'), D0 = XL.zipYasa([{ nom: 'sinov.txt', data: Buffer.from('SINOV') }]);
+    const nom = 'Kelishuv_bekor_SINOV_' + Date.now().toString(36), t2 = Date.now();
+    const r = await koprik.chaqir('koprikKbSaqla', adm.kirish_kodi, [{ yil: V.bugun().slice(0, 4), nom, pdfB64: P0.toString('base64'), docB64: D0.toString('base64'), eski: [] }], { muddat: 120000, urinish: 1 });
+    if (!r || !r.pdf || !r.doc) { console.log('  ✖ Drive ID qaytmadi'); x++; }
+    else {
+      console.log('  fayllar Drive\'ga qo\'yildi: ' + r.pdf + ', ' + r.doc + ' (' + (Date.now() - t2) + ' ms)');
+      let o = null; try { o = await G.driveFayl(r.pdf, KEY); } catch (e) { console.log('  ✖ robot o\'qiy olmadi: ' + e.message); x++; }
+      if (o) { const bir = Buffer.compare(o.bytes, P0) === 0; console.log('  ' + (bir ? '✅' : '✖') + ' robot o\'qidi: ' + o.nom + ', ' + o.bytes.length + ' bayt' + (bir ? ' — bir xil' : ' — FARQ')); if (!bir) x++; }
+      await koprik.chaqir('koprikKbSaqla', adm.kirish_kodi, [{ eski: [r.pdf, r.doc] }]).then(() => console.log('  SINOV fayllar savatga tashlandi.')).catch(e => console.log('  ⚠ SINOV fayllarni savatga tashlab bo\'lmadi: ' + e.message));
+    }
+  }
+  console.log('');
+  if (!x && k112) { await redis.set('yozuv_yondi:kb', '1'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv + dalolatnoma endi serverda yasaladi (PDF va Word darhol; Drive nusxasi — fonda eski tizim). Skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i hozircha eski tizimda. Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.12 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
+// 🤖 TOPSHIRIQ QOIDALARI (Topshiriq.gs topAvto / topHozir): server «quruq» hisoblaydi (hech narsa yozmaydi) → eski tizim topHozir haqiqatan yozadi →
+// 10_Topshiriqlar dagi yangi qatorlar va holati o'zgargan qatorlar server hisobi bilan solishtiriladi (kalit, sarlavha, izoh, mas'ul, muddat, muhimlik; yopish sababi).
+// Eski tizim yozadi va Telegram yuboradi — bu uning oddiy ishi (trigger 2 soatda shuni qiladi).
+async function tophozirSinov() {
+  const TA = require('../api/top_avto')._ichki, s = v => String(v == null ? '' : v), n0 = v => s(v).replace(/ /g, ' ');
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k15 = verOk(ver, '1.5') && !/^xato/.test(ver), k112 = verOk(ver, '1.12') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak — Telegram)') + (k112 ? '' : ' · skan nazorati (koprikSkanNaz) uchun 1.12 kerak — hozircha eski trigger o\'zi qiladi'));
+  console.log('Ko\'zgu yangilanmoqda (eski tizim bilan bir xil ma\'lumot bo\'lsin)…'); const tk = Date.now(); await tetik.yangilaKut(90000); console.log('  ' + ((Date.now() - tk) / 1000).toFixed(0) + ' s');
+  console.log('\n=== 🤖 TOPSHIRIQ QOIDALARI — server hisobi (quruq) ===');
+  const R0 = await TP.topRowsYangi(TP.TOP_V);
+  const t0 = Date.now();
+  const q = await TA.topAvto(adm.kirish_kodi, { quruq: true });
+  console.log('Server: nomzod ' + q.nomzod + ' ta (band ' + q.band + ') → yangi ' + q.yangi.length + ' ta, yopiladi ' + q.yop.length + ' ta · ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+  q.yangi.forEach(o => console.log('  + ' + o.kalit + ' → ' + o.kimga + ' · ' + o.muddat + ' · ' + o.muhim + ' · «' + qisqa(o.sarlavha, 40) + '» · ' + qisqa(n0(o.izoh), 60)));
+  q.yop.forEach(z => console.log('  − №' + z.id + ' → ' + z.holat + ' (' + z.kim + '): ' + qisqa(z.dalil, 70)));
+  console.log('\n=== eski tizim topHozir (haqiqatan yozadi) ===');
+  const t1 = Date.now(); let o;
+  try { o = await koprik.chaqir('topHozir', adm.kirish_kodi, [], { muddat: 180000, urinish: 1 }); } catch (e) { console.log('  ✖ eski tizim: ' + e.message); o = null; }
+  if (!o) { console.log('⚠ eski tizim javob bermadi — YOQILMADI.'); return; }
+  console.log('Eski tizim: ' + JSON.stringify(o) + ' · ' + ((Date.now() - t1) / 1000).toFixed(1) + ' s');
+  if (o.ok === false) { console.log('⚠ eski tizim band (lock) — birozdan keyin qayta ishga tushiring.'); return; }
+  const R1 = await TP.topRowsYangi(TP.TOP_V);
+  let x = 0;
+  const yangiQ = R1.L.filter(t => t.qator > R0.l);
+  console.log('\n— Yangi qatorlar: eski tizim ' + yangiQ.length + ' ta (javobida ' + o.yangi + '), server ' + q.yangi.length + ' ta');
+  const U = [['qoida', 'qoida'], ['kalit', 'kalit'], ['sarlavha', 'sarlavha'], ['izoh', 'izoh'], ['no', 'no'], ['mid', 'mid'], ['kimga', 'kimga'], ['kimBerdi', 'kimBerdi'], ['muddat', 'muddat'], ['muhim', 'muhim']];
+  q.yangi.forEach(p => {
+    const t = yangiQ.find(z => z.kalit === p.kalit);
+    if (!t) { x++; console.log('  ✖ server kutgan, eski yozmagan: ' + p.kalit + ' (' + p.kimga + ')'); return; }
+    const f = U.filter(([a, b]) => n0(p[a]) !== n0(t[b])).concat(t.manba !== 'Tizim' ? [['manba']] : [], t.holati !== 'Jarayonda' ? [['holati']] : []);
+    if (f.length) { x++; console.log('  ✖ ' + p.kalit + ': ' + f.map(([a, b]) => a + ' — eski «' + qisqa(n0(t[b || a]), 50) + '» server «' + qisqa(n0(p[a]), 50) + '»').join('; ')); }
+    else console.log('  ✅ ' + p.kalit + ' → ' + t.kimga + ' · ' + t.muddat + ' (№' + t.id + ')');
+  });
+  yangiQ.filter(t => !q.yangi.some(p => p.kalit === t.kalit)).forEach(t => { x++; console.log('  ✖ eski yozgan, server kutmagan: ' + t.kalit + ' (' + t.kimga + ', ' + t.manba + ') №' + t.id); });
+  const eskiHol = {}; R0.L.forEach(t => eskiHol[t.id] = t);
+  const ozg = R1.L.filter(t => eskiHol[t.id] && eskiHol[t.id].holati === 'Jarayonda' && t.holati !== 'Jarayonda');
+  console.log('\n— Holati o\'zgargan (yopilgan / tekshiruvga) qatorlar: eski tizim ' + ozg.length + ' ta (javobida ' + o.yopildi + '), server ' + q.yop.length + ' ta');
+  q.yop.forEach(p => {
+    const t = R1.L.find(z => s(z.id) === s(p.id));
+    if (!t || t.holati === 'Jarayonda') { x++; console.log('  ✖ server yopmoqchi, eski yopmagan: №' + p.id + ' → ' + p.holat + ' (' + p.dalil + ')'); return; }
+    const f = [];
+    if (t.holati !== p.holat) f.push('holati eski «' + t.holati + '» server «' + p.holat + '»');
+    if (n0(t.yopdi) !== n0(p.kim)) f.push('yopdi eski «' + t.yopdi + '» server «' + p.kim + '»');
+    if (n0(t.dalil) !== n0(p.dalil)) f.push('dalil eski «' + qisqa(t.dalil, 50) + '» server «' + qisqa(p.dalil, 50) + '»');
+    if (p.hj && t.isbot !== 'HJ:' + p.hj) f.push('U eski «' + t.isbot + '» server «HJ:' + p.hj + '»');
+    if (f.length) { x++; console.log('  ✖ №' + p.id + ': ' + f.join('; ')); } else console.log('  ✅ №' + p.id + ' → ' + t.holati + ' (' + t.yopdi + '): ' + qisqa(t.dalil, 60));
+  });
+  ozg.filter(t => !q.yop.some(p => s(p.id) === s(t.id))).forEach(t => { if (t.yopdi === 'tizim' || t.holati === 'Tekshiruvda') { x++; console.log('  ✖ eski yopgan, server kutmagan: №' + t.id + ' → ' + t.holati + ' (' + t.yopdi + '): ' + qisqa(t.dalil, 60)); }
+    else console.log('  (№' + t.id + ' ni shu orada xodim yopdi: ' + t.yopdi + ' — hisobga olinmadi)'); });
+  await tetik.varaqlarYangila([TP.TOP_V]).catch(() => {});
+  console.log('');
+  if (!x && k15) { await redis.set('yozuv_yondi:top_avto', '1'); console.log('✅ HAMMASI BIR XIL — 🤖 «Hozir tekshirish» endi serverda (yangi topshiriqlar, avtomatik yopish, xodimga Telegram — ko\'prik). Eski 2 soatlik trigger ishlayveradi.' + (!q.yangi.length && !q.yop.length ? '\n   (Bu safar ikkala tomonda ham yangi topshiriq va yopish yo\'q edi — nomzodlar ' + q.nomzod + ' ta, hammasi band; «hech narsa yo\'q» mosligi tasdiqlandi. Keyingi haqiqiy topshiriq ochilganda aks-bugun ko\'rsatadi.)' : '') + ' Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 (async () => {
   const arg = process.argv[2];
-  if (arg === 'tekshir') {
+  if (arg === 'devon') {
+    console.log('Hozir: kirim xat — ' + ((await redis.get('yozuv_yondi:devon')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await devonSinov();
+  } else if (arg === 'kb') {
+    console.log('Hozir: kelishuv hujjati — ' + ((await redis.get('yozuv_yondi:kb')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await kbSinov();
+  } else if (arg === 'tophozir') {
+    console.log('Hozir: topshiriq qoidalari (Hozir tekshirish) — ' + ((await redis.get('yozuv_yondi:top_avto')) === '1' ? 'serverda' : 'eski tizimda'));
+    await tophozirSinov();
+  } else if (arg === 'tekshir') {
     console.log('Hozir: tekshiruv javobi — ' + ((await redis.get('yozuv_yondi:ijro_tekshir')) === '1' ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
@@ -1591,7 +1813,7 @@ async function imzosizSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';

@@ -85,8 +85,10 @@ function html(m) {
 p{margin:0;padding:0;white-space:pre-wrap;overflow-wrap:break-word}.nw{white-space:nowrap}.ba{line-break:anywhere}
 table{table-layout:fixed;margin:0}
 td{vertical-align:top;box-decoration-break:clone;-webkit-box-decoration-break:clone}tr.pend td{box-shadow:inset 0 calc(-1 * var(--ch)) 0 0 var(--rang)}`;
+  // Sahifa uzilishi (appendPageBreak): Docs'da uzilish bo'sh xatboshi ichida — keyingi sahifa o'sha xatboshining davomi (bo'sh qator) bilan boshlanadi
+  const pb = '<div style="break-after:page;height:0"></div>' + parHtml({ t: 'p', x: '' }, false);
   return XP.kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body><div class="ust"><div class="ich">'
-    + m.el.map(e => e.t === 'tbl' ? jadvalHtml(e) : parHtml(e, false)).join('') + '</div></div></body></html>');
+    + m.el.map(e => e.t === 'tbl' ? jadvalHtml(e) : e.t === 'pb' ? pb : parHtml(e, false)).join('') + '</div></div></body></html>');
 }
 // Docs jadval sahifada bo'linganda 1-sahifadagi qismni pastki chiziq bilan yopadi. Chromium yopmaydi — shuning uchun PDF dan oldin
 // sahifalash ustunlar (multicol, ustun balandligi = sahifa ichi) bilan sinab ko'riladi: sahifa oxiridagi qator kataklariga

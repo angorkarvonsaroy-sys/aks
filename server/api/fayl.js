@@ -67,11 +67,17 @@ async function kbFayl([kodSes, id, k]) {
   const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
   if (!(u.huquq.indexOf('admin') >= 0 || u.huquq.indexOf('ijara_kelishuv') >= 0)) throw new S.Xato('Ijarani kelishuv bilan bekor qilishga ruxsatingiz yo\'q (huquq: «ijara_kelishuv»). Direktorga murojaat qiling.');
   const V = require('../lib/varaq');
-  const s = (await V.qatorlar('06m_Kelishuv_bekor')).map(({ r }) => ({ id: r[0] || '', no: String(r[2] || '').trim(), fish: r[3] || '', pdf: r[13] || '', skan: r[15] || '' })).find(z => z.id && String(z.id) === String(id));
+  const s = (await V.qatorlar('06m_Kelishuv_bekor')).map(({ r }) => ({ id: r[0] || '', no: String(r[2] || '').trim(), fish: r[3] || '', pdf: r[13] || '', doc: r[14] || '', skan: r[15] || '' })).find(z => z.id && String(z.id) === String(id));
   if (!s) throw new S.Xato('So\'rov topilmadi.');
-  if (k === 'doc') return eski('kbFayl', u.kod, [id, k]);
   const fam = (String(s.fish || '').replace(/["«»'`ʻʼ‘’“”]/g, '').trim().split(/\s+/)[0] || 'Ijarachi').replace(/[\\/:*?<>|]/g, '');   // kbFam_
   const nomB = 'Kelishuv_bekor_' + s.no.replace(/\//g, '-') + '_' + fam;
+  if (k === 'doc') {   // Word: serverda yasalgan .docx (SRV yoki Drive'ga ko'chgani) → eski so'rovlardagi Google Doc — eski tizim eksport qiladi (kbEksport_)
+    if (!s.doc) throw new S.Xato('Fayl topilmadi.');
+    const PK = b => !!b && b.subarray(0, 2).toString('latin1') === 'PK';
+    const f = await require('./xat_chiqar')._ichki.pdfOl(s.doc).catch(() => null);
+    if (f && PK(f.bytes)) return { b64: f.bytes.toString('base64'), nom: nomB + '.docx', mime: DOCX };
+    return eski('kbFayl', u.kod, [id, k]);
+  }
   const fid = k === 'skan' ? s.skan : s.pdf;
   if (!fid) throw new S.Xato(k === 'skan' ? 'Skan hali yuklanmagan.' : 'Fayl topilmadi.');
   const f = await ol(fid); if (!f) return eski('kbFayl', u.kod, [id, k]);

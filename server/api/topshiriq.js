@@ -217,4 +217,4 @@ async function tqRoyxat([kodSes, d]) {
 }
 
 module.exports = { topRoyxat, topQoidaYoz, tasdiqRoyxat, tasdiqFayl, topMening, tqRoyxat };
-module.exports._ichki = { tasdiqItem, topHjHujjat, TOP_HJ_TUR_L };   // api/tasdiq_navbat.js, api/qadam_hujjat.js
+module.exports._ichki = { tasdiqItem, topHjHujjat, topQoidaCfg, topMlMijoz, TOP_HJ_TUR_L };   // api/tasdiq_navbat.js, api/qadam_hujjat.js

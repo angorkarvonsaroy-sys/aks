@@ -36,6 +36,7 @@ function jadval(qatorlar) {
   };
   return t;
 }
+const ElementType = { PARAGRAPH: 'p', TABLE: 'tbl', PAGE_BREAK: 'pb' };
 // Yangi hujjat (DocumentApp.create): A4, hoshiyalar 72 pt, bitta bo'sh xatboshi bilan boshlanadi
 function hujjat() {
   const m = { w: 595.28, h: 841.89, tepa: 72, past: 72, chap: 72, ong: 72, el: [paragraf('')._m] };
@@ -47,8 +48,12 @@ function hujjat() {
     // matn sozlamalari (shrift, o'lcham, qalinlik) jadvaldan oldingi xatboshidan (eski buyruq va xatlarning Google eksportidan)
     appendTable(q) { const t = jadval(q); const old = [...m.el].reverse().find(e => e.t === 'p') || {}; m.el.push(t._m);
       const bo = paragraf('')._m; bo.font = old.font || null; bo.sz = old.sz || null; bo.b = old.b == null ? null : old.b; bo.auto = true; m.el.push(bo); return t; },
+    // appendPageBreak: Docs yangi (bo'sh) xatboshi ichiga sahifa uzilishini qo'yadi — keyingi element yangi sahifadan boshlanadi
+    appendPageBreak() { m.el.push({ t: 'pb' }); return b; },
+    // getChild(i) — faqat o'chirish uchun (DocumentApp.create boshidagi bo'sh xatboshini olib tashlash: KelishuvBekor.gs kbHujjat_)
+    getChild(i) { const e = m.el[i]; return { getType: () => e ? e.t : '', asParagraph: () => ({ getText: () => (e && e.x) || '' }), removeFromParent() { const k = m.el.indexOf(e); if (k >= 0) m.el.splice(k, 1); } }; },
   };
   return { body: b, model: m };
 }
 
-module.exports = { hujjat, HorizontalAlignment };
+module.exports = { hujjat, HorizontalAlignment, ElementType };
