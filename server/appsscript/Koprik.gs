@@ -1,4 +1,5 @@
-// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.12). Boshqa fayllar o'zgarmaydi.
+// FAYL: Koprik.gs — Apps Script loyihasidagi «Koprik» fayli (v1.13). Boshqa fayllar o'zgarmaydi.
+// v1.13: koprikKbSaqla — imzolangan kelishuv SKANI ni ham qabul qiladi ({ yil, skanNom, skanB64 } → { skan }): kbSkan serverda, fayl «Kelishuv / <yil>» ga shu orqali.
 // v1.12: koprikDevonSaqla — kirim xat skanini «AKS TIZIM / 08 DEVONXONA / Kirim / <yil>» ga (Devon.gs devonFaylSaqla_ ning o'zi; 11_Devonxona ni server yozadi);
 //        koprikDevonTg — direktor(lar)ga shaxsan Telegram, skan PDF + tugma (devonDirShaxsiy_ ning o'zi; natija matni serverga qaytadi — tarixga va kotibaga);
 //        koprikKbSaqla — server yasagan kelishuv + dalolatnoma (PDF va Word) ni «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>» ga (06m ni server yozadi);
@@ -70,7 +71,7 @@ function koprikSessiya_(kod) {
 // v1.1: xat zanjiri (Xat.gs xatZanjir_ — Script Properties XAT_ZANJIR). Server yurist mezonida ishlatadi.
 function koprikZanjir(kod) { if (!foydalanuvchi_(kod)) throw new Error('Sessiya tugagan.'); return (typeof xatZanjir_ === 'function') ? xatZanjir_() : {}; }   // v1.4: har qanday xodim (undiruvchi ham)
 // v1.2: server qaysi imkoniyatlar borligini shu bilan biladi
-function koprikVersiya(kod) { return '1.12'; }
+function koprikVersiya(kod) { return '1.13'; }
 // v1.2: skanni Drive'ga yuklash (yurist bosqichi / rad ajrimi). Tekshiruv, papka, fayl nomi, 06d yozuvi — hujjatYukla_ ning o'zi.
 function koprikHujjatYukla(kod, m, sh) { const u = ruxsat_(kod, 'yurist'); return hujjatYukla_(u, m, sh); }
 // v1.2: xodimga shaxsan Telegram (07_Xodimlar U ustuni) — yuTgXodim_ ning o'zi
@@ -200,10 +201,19 @@ function koprikDevonTg(kod, m) {
 // v1.12: server yasagan kelishuv + dalolatnoma → «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>» (KelishuvBekor.gs kbHujjat_ papkasi va nomlari).
 //   m = { yil, nom (kengaytmasiz), pdfB64, docB64, eski }. pdfB64 bo'lsa: PDF va Word qo'yiladi (qayta urinishda shu nomli fayl bor bo'lsa — o'shasi qaytadi);
 //   eski — almashtirilgan fayllar (Drive ID), faqat «Kelishuv» ichidagilari savatga (kbOchir_). Qaytaradi { pdf, doc } (faqat eski bo'lsa — { ok }).
+//   v1.13: m = { yil, skanNom, skanB64 } — ikkala tomon imzolagan skan (kbSkan nomi «KB-<id>_<no>_imzolangan_<vaqt>.pdf»), qaytaradi { skan }.
 function koprikKbSaqla(kod, m) {
   kbU_(kod);
   m = m || {};
   var eski = (m.eski || []).map(String), r = { ok: true };
+  if (m.skanB64) {
+    var yilS = String(m.yil || '').replace(/\D/g, '').slice(0, 4), nomS = String(m.skanNom || '');
+    if (yilS.length !== 4 || !/^KB-\d+_[^\/\\]{3,160}\.pdf$/.test(nomS)) throw new Error('Kelishuv skani nomi noto\'g\'ri.');
+    var papkaS = papka_(KB_PAPKA.concat([yilS])), itS = papkaS.getFilesByName(nomS), fS = null;
+    while (itS.hasNext()) { var zS = itS.next(); if (!zS.isTrashed() && zS.getMimeType() === 'application/pdf') { fS = zS; break; } }
+    if (!fS) fS = papkaS.createFile(Utilities.newBlob(Utilities.base64Decode(String(m.skanB64)), 'application/pdf', nomS));
+    return { skan: fS.getId() };
+  }
   if (m.pdfB64) {
     var yil = String(m.yil || '').replace(/\D/g, '').slice(0, 4), nom = String(m.nom || '');
     if (yil.length !== 4 || !/^Kelishuv_bekor_[^\/\\]{3,160}$/.test(nom) || !m.docB64) throw new Error('Kelishuv hujjati nomi noto\'g\'ri.');

@@ -24,6 +24,7 @@
 //            aks-yozuv-sinov imzosiz   — ✕ imzolanmagan ijara: 06l so'rov qatori va javob, 04 C/D/W + 06j bekor yozuvi — nusxa varaqlarda; ijaraImzosizSorov/Javob ni yoqish
 //            aks-yozuv-sinov devon     — 📮 kirim xat: 11_Devonxona qatori va tarix (nusxa varaqda, eski yozgan qator bilan), skan Drive'ga (Koprik v1.12, SINOV fayl, savatga); devonKirimSaqla ni yoqish
 //            aks-yozuv-sinov kb        — 🤝 kelishuv bilan bekor: hujjat (PDF so'zma-so'z, Word matni) eski tizim yasagani bilan, 06m qatori (nusxada), Drive (Koprik v1.12); kbTayyorla ni yoqish
+//            aks-yozuv-sinov kb2       — 🤝 kelishuv: skan yuklash, so'rovni bekor qilish, direktor tasdig'i/radi (06m kataklari, 04 C/D/W + 06j — nusxa varaqlarda), skan Drive'ga (Koprik v1.13); kbSkan/kbBekor/kbTasdiq ni yoqish
 //            aks-yozuv-sinov tophozir  — 🤖 topshiriq qoidalari: server «quruq» hisoblaydi, eski topHozir yozadi, 10_Topshiriqlar dagi yangi/yopilgan qatorlar server hisobi bilan; topHozir ni yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
 'use strict';
@@ -1536,7 +1537,7 @@ async function imzosizSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:imzosiz', '1'); console.log('✅ HAMMASI BIR XIL — ✕ imzolanmagan ijara: xodim so\'rovi va direktor javobi (✅ bekor / ✖ rad) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await redis.set('yozuv_yondi:imzosiz', '1'); await redis.set('yozuv_yondi:imzosiz_bekor', '1'); console.log('✅ HAMMASI BIR XIL — ✕ imzolanmagan ijara: xodim so\'rovi, direktor javobi (✅ bekor / ✖ rad) va direktorning darhol bekor qilishi (ijaraImzosizBekor — o\'sha yozuvlar) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1691,6 +1692,86 @@ async function kbSinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.12 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 🤝 KELISHUV — SKAN / BEKOR / TASDIQ (KelishuvBekor.gs kbSkan, kbBekor, kbTasdiq): 06m nusxasida soxta so'rov qatoriga skan kataklari (M, P:R, T:V, X), rad va tasdiq
+// javobi (M, T:V, W), bekor (M, W) — eski tizim yozgan shunday qatorlar bilan; 04 nusxasida «Aktiv» ijaraga C/D/W + 06j nusxasida jurnal qatori — eski kelishuv bilan bekor
+// qilingan qator bilan (bo'lsa); skan Drive'ga — Koprik v1.13 koprikKbSaqla skan rejimi (SINOV fayl, robot o'qiydi, savatga). Telegram va 06d (hujjat_yoz) sinalmaydi.
+async function kb2Sinov() {
+  const KBH = require('../lib/kb_hujjat'), KB = require('../api/kb_yoz')._ichki, s = v => String(v == null ? '' : v);
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
+  const k113 = verOk(ver, '1.13') && !/^xato/.test(ver);
+  console.log('Eski tizim ko\'prigi: v' + ver + (k113 ? ' ✅' : ' ⚠ (1.13 kerak — skan Drive\'ga)'));
+  const M = await G.varaqlar(ID, KEY);
+  const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  const ikki = async (nusxa, eq, w, ust, sarl) => { if (!eq) { console.log('  (' + sarl + ' — eski tizim yozgan namuna qator yo\'q, solishtirilmadi)'); return 0; }
+    const [a, b] = await Promise.all([G.kataklarOqi(ID, nusxa, 'A' + eq.qator + ':X' + eq.qator, KEY), G.kataklarOqi(ID, nusxa, 'A' + w.qator + ':X' + w.qator, KEY)]);
+    return solishtir(a[0] || [], b[0] || [], ust, '— ' + sarl + ' (eski qator ' + eq.qator + ', KB-' + eq.id + ' ' + eq.holati + ')'); };
+  try {
+    if (!M.varaqlar.some(v => v.title === KBH.KB_VARAQ)) { console.log('06m_Kelishuv_bekor varag\'i yo\'q — solishtirib bo\'lmaydi.'); return; }
+    console.log('\n=== 🤝 SKAN / BEKOR / TASDIQ — 06m_Kelishuv_bekor kataklari (nusxa varaqda) ===');
+    const n06m = await nusxala(KBH.KB_VARAQ);
+    const R = await KB.kbRowsYangi(n06m);
+    const eSkan = R.L.filter(z => z.skan).pop(), eBek = R.L.filter(z => z.holati === 'Bekor').pop(), eTas = R.L.filter(z => z.holati === 'Tasdiqlandi').pop(), eRad = R.L.filter(z => z.holati === 'Rad etildi').pop();
+    console.log('Namunalar: skan ' + (eSkan ? 'KB-' + eSkan.id : '—') + ' · rad ' + (eRad ? 'KB-' + eRad.id : '—') + ' · tasdiq ' + (eTas ? 'KB-' + eTas.id : '—') + ' · bekor ' + (eBek ? 'KB-' + eBek.id : '—'));
+    const w = await KB.kbSorovYoz(n06m, R, { qator: ['IJ-27/1', 'SINOV MIJOZ', 'B1-1-1', 'SINOV — nusxa varaq, o\'chiriladi', V.bugun().split('-').reverse().join('.'), 'Йўқ', '2', '12345', 'Соз', ''], pdfId: 'SRV:kb/sinov.pdf', docId: 'SRV:kb/sinov.docx', kim: 'SINOV XODIM' });
+    const sr = { qator: w.qator, id: w.id, skan: '' };
+    const t0 = Date.now();
+    await KB.kbSkanYoz(n06m, sr, 'SRV:kb/sinov_skan.pdf', 'SINOV XODIM', 3);
+    console.log('Skan kataklari: ' + (Date.now() - t0) + ' ms · qator ' + w.qator);
+    x += await ikki(n06m, eSkan, w, [13, 16, 17, 18, 20, 21, 22, 24], 'skan: M holati, P:R skan/vaqt/kim, T:V tozalangan, X sahifa');
+    await KB.kbJavobYoz(n06m, sr, 'Rad etildi', 'SINOV — rad sababi', 'SINOV DIREKTOR', 'rad etildi — SINOV — rad sababi');
+    x += await ikki(n06m, eRad, w, [13, 20, 21, 22, 23], 'rad: M, T:V javob, W tarix');
+    await KB.kbJavobYoz(n06m, sr, 'Tasdiqlandi', '', 'SINOV DIREKTOR', 'tasdiqlandi — shartnoma bekor qilindi');
+    x += await ikki(n06m, eTas, w, [13, 20, 21, 22, 23], 'tasdiq: M, T:V javob, W tarix');
+    await KB.kbBekorYoz(n06m, sr, 'SINOV XODIM', 'SINOV sabab');
+    x += await ikki(n06m, eBek, w, [13, 23], 'bekor: M, W tarix');
+    if (!eSkan && !eRad && !eTas && !eBek) { const b = (await G.kataklarOqi(ID, n06m, 'A' + w.qator + ':X' + w.qator, KEY))[0] || [];
+      console.log('  server yozdi: M ' + tur(b[12]) + ' «' + qisqa(b[12] && b[12].formattedValue, 16) + '» · P ' + tur(b[15]) + ' · Q ' + tur(b[16]) + ' ' + fmt(b[16]) + ' · X ' + tur(b[23]) + ' ' + fmt(b[23]) + ' · W ' + tur(b[22]) + ' (06m da eski namuna qatorlar yo\'q — solishtirilmadi)'); }
+
+    console.log('\n=== 🤝 TASDIQ ✅ — 04 (C, D, W) + 06j_Tahrir_jurnali (nusxa varaqlarda) ===');
+    const n04 = await nusxala('04_Ijara_shartnomalar'), n06j = await nusxala('06j_Tahrir_jurnali');
+    const X4 = await G.oraliqOqi(ID, n04, 'A2:X', KEY);
+    let eb = -1, ak = -1; X4.forEach((r, i) => { if (/Ўзаро келишув билан/.test(s(r[22]))) eb = i; if (s(r[2]).trim() === 'Aktiv') ak = i; });
+    if (ak < 0) { console.log('04 da «Aktiv» ijara yo\'q — bekor yozuvi sinalmadi.'); x++; }
+    else {
+      const r = X4[ak];
+      const xx = { qator: ak + 2, no: s(r[0]).trim(), dokon: s(r[4]).trim(), mid: s(r[5]).trim(), fish: s(r[23]).trim() };
+      const srF = { id: w.id, sana: V.bugun().split('-').reverse().join('.'), kim: 'SINOV XODIM', sabab: 'SINOV sabab' };
+      const t1 = Date.now();
+      const ogoh = await KB.kbBekorQil({ fish: 'SINOV DIREKTOR' }, xx, srF, { s4: n04, jurnal: n06j });
+      console.log('Yozish: ' + (Date.now() - t1) + ' ms · 04 qator ' + xx.qator + ' (' + xx.no + ')' + (eb >= 0 ? ' · eski tizim kelishuv bilan bekor qilgan qator ' + (eb + 2) : '') + (ogoh.length ? ' · ogoh: ' + ogoh.join(' ') : ''));
+      const [a, b] = await Promise.all([eb >= 0 ? G.kataklarOqi(ID, n04, 'A' + (eb + 2) + ':X' + (eb + 2), KEY) : Promise.resolve([[]]), G.kataklarOqi(ID, n04, 'A' + xx.qator + ':X' + xx.qator, KEY)]);
+      if (eb >= 0) x += solishtir(a[0] || [], b[0] || [], [3, 4, 23], '— 04 kataklari (C Holati, D Bekor sanasi, W Izoh)');
+      else { const y = b[0] || []; console.log('  server yozdi: C ' + tur(y[2]) + ' · D ' + tur(y[3]) + ' ' + fmt(y[3]) + ' · W ' + tur(y[22]) + ' (eski tizim kelishuv bilan bekor qilgan ijara yo\'q — solishtirilmadi; imzosiz sinovida D «son DATE dd.MM.yyyy» tasdiqlangan)'); }
+      const A = await G.ustunOqi(ID, n06j, 'A', KEY);
+      x += await qatorSolishtir(n06j, A.length, 1, 10, '— 06j jurnal qatori (A–J)');
+    }
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('\nNusxa varaqlar o\'chirildi.');
+  }
+  console.log('\n=== 🤝 Skan → Drive (Koprik v1.13 koprikKbSaqla skan) ===');
+  if (!k113) { console.log('  ⚠ Koprik 1.13 emas — Drive sinalmadi.'); x++; }
+  else {
+    const P0 = Buffer.from('%PDF-1.4\n' + '% SINOV — AKS TIZIM server sinovi, o\'chiriladi\n'.repeat(40) + '%%EOF\n');
+    const nom = 'KB-0_SINOV_imzolangan_' + Date.now().toString(36) + '.pdf', t2 = Date.now();
+    const r = await koprik.chaqir('koprikKbSaqla', adm.kirish_kodi, [{ yil: V.bugun().slice(0, 4), skanNom: nom, skanB64: P0.toString('base64') }], { muddat: 120000, urinish: 1 });
+    if (!r || !r.skan) { console.log('  ✖ Drive ID qaytmadi'); x++; }
+    else {
+      console.log('  fayl Drive\'ga qo\'yildi: ' + r.skan + ' (' + (Date.now() - t2) + ' ms)');
+      let o = null; try { o = await G.driveFayl(r.skan, KEY); } catch (e) { console.log('  ✖ robot o\'qiy olmadi: ' + e.message); x++; }
+      if (o) { const bir = Buffer.compare(o.bytes, P0) === 0; console.log('  ' + (bir ? '✅' : '✖') + ' robot o\'qidi: ' + o.nom + ', ' + o.bytes.length + ' bayt' + (bir ? ' — bir xil' : ' — FARQ')); if (!bir) x++; }
+      await koprik.chaqir('koprikKbSaqla', adm.kirish_kodi, [{ eski: [r.skan] }]).then(() => console.log('  SINOV fayl savatga tashlandi.')).catch(e => console.log('  ⚠ SINOV faylni savatga tashlab bo\'lmadi: ' + e.message));
+    }
+  }
+  console.log('');
+  if (!x && k113) { await redis.set('yozuv_yondi:kb2', '1'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv: skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i/radi endi server orqali (skan Drive\'ga va Telegram — eski tizim ko\'prigi; tasdiqda skan 06d ga serverda). Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.13 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 // 🤖 TOPSHIRIQ QOIDALARI (Topshiriq.gs topAvto / topHozir): server «quruq» hisoblaydi (hech narsa yozmaydi) → eski tizim topHozir haqiqatan yozadi →
 // 10_Topshiriqlar dagi yangi qatorlar va holati o'zgargan qatorlar server hisobi bilan solishtiriladi (kalit, sarlavha, izoh, mas'ul, muddat, muhimlik; yopish sababi).
 // Eski tizim yozadi va Telegram yuboradi — bu uning oddiy ishi (trigger 2 soatda shuni qiladi).
@@ -1762,6 +1843,12 @@ async function tophozirSinov() {
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kbSinov();
+  } else if (arg === 'kb2') {
+    console.log('Hozir: kelishuv skan/bekor/tasdiq — ' + ((await redis.get('yozuv_yondi:kb2')) === '1' ? 'serverda' : 'eski tizimda'));
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await kb2Sinov();
   } else if (arg === 'tophozir') {
     console.log('Hozir: topshiriq qoidalari (Hozir tekshirish) — ' + ((await redis.get('yozuv_yondi:top_avto')) === '1' ? 'serverda' : 'eski tizimda'));
     await tophozirSinov();
@@ -1817,7 +1904,7 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';

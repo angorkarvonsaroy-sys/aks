@@ -3,9 +3,10 @@
 //   ijaraImzosizSorov — shartnomani tuzgan xodim (04 Masul_xodim) direktordan so'raydi: 06l_Imzosiz_sorovlar ga qator («Kutilmoqda»), guruhga Telegram.
 //   ijaraImzosizJavob — direktor ✅ / ✖ («👔 Direktor → Tasdiqlar»): ✅ — shartlar QAYTA tekshiriladi va bekor qilinadi (04 C «Bekor qilindi», D bugun,
 //     W izoh; 06j_Tahrir_jurnali «Holati: Aktiv → Bekor qilindi»; 01 nazorati), 06l H:K javob; ikkala holda xodimga shaxsiy Telegram.
-//   (ijaraImzosizBekor — direktor darhol — hali eski tizimda; o'qishlar ijaraImzosizRoyxat / ijaraImzosizHolat — api/taminot.js.)
+//   ijaraImzosizBekor — direktor darhol (so'rovsiz): shartlar + imzBekorQil; shu shartnoma bo'yicha xodimning «Kutilmoqda» so'rovi bo'lsa — «Tasdiqlandi» («direktor o'zi bekor qildi») + xodimga Telegram.
+//   (o'qishlar ijaraImzosizRoyxat / ijaraImzosizHolat — api/taminot.js.)
 // Shartlar: IJ-27/…, 04 «Aktiv», imzolangan SHARTNOMA skani (06d Faol) yo'q, 05 / 05b (Буферда) to'lov yo'q, 06h da ochiq bekor so'rovi yo'q.
-// Yoqilishi: Redis yozuv_yondi:imzosiz («aks-yozuv-sinov imzosiz») va Koprik ≥ 1.5 (Telegram). Aks holda — eski tizim.
+// Yoqilishi: Redis yozuv_yondi:imzosiz («aks-yozuv-sinov imzosiz») va Koprik ≥ 1.5 (Telegram); ijaraImzosizBekor — yozuv_yondi:imzosiz_bekor (o'sha sinov). Aks holda — eski tizim.
 'use strict';
 const crypto = require('crypto');
 const S = require('./sessiya');
@@ -31,8 +32,8 @@ function hozir() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => St
   return { dmy, dmyHm: dmy + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()), iso: d.toISOString().slice(0, 10) }; }
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
 
-async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:imzosiz')) !== '1') return false; } catch (e) { return false; }
+async function serverda(kod, bayroq = 'yozuv_yondi:imzosiz') {
+  try { if ((await redis.get(bayroq)) !== '1') return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
@@ -174,5 +175,27 @@ async function ijaraImzosizJavob(args) {
   return { ok: true, natija: r.natija };
 }
 
-module.exports = { ijaraImzosizSorov, ijaraImzosizJavob };
+// ------------------------------------------------------------------ ijaraImzosizBekor(kod, no, sabab) — direktor darhol bekor qiladi
+async function ijaraImzosizBekor(args) {
+  const [kodSes, no0, sabab0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  const no = s(no0).trim(), sabab = s(sabab0).replace(/\s+/g, ' ').trim();
+  if (!/^IJ-27\/\d+$/.test(no)) throw new S.Xato('Bu yo\'l faqat ijara shartnomasi (IJ-27/…) uchun: ' + no);
+  if (sabab.length < 5) throw new S.Xato('Sababini yozing (kamida 5 belgi).');
+  if (!(await serverda(u.kod, 'yozuv_yondi:imzosiz_bekor'))) return eskiTizim('ijaraImzosizBekor', u, [no, sabab]);
+  const r = await qulfBilan(async () => {
+    const x = await imzTekshir(no);
+    const ogoh = await imzBekorQil(u, x, sabab, 'direktor — imzolanmagan: ' + sabab);
+    // shu shartnoma bo'yicha xodimning kutilayotgan so'rovi bo'lsa — yopiladi (06l varag'i bo'lmasa — so'rov ham yo'q)
+    let sr = null; try { sr = (await imzSorovlarYangi()).L.find(z => z.no === no && z.holati === 'Kutilmoqda') || null; } catch (e) { sr = null; }
+    if (sr) await imzJavobYoz(IMZ_VARAQ, sr, 'Tasdiqlandi', 'direktor o\'zi bekor qildi', u.fish);
+    return { x, ogoh, sr };
+  }).catch(e => { if (e.yozilmadi) return null; throw e; });
+  if (!r) return eskiTizim('ijaraImzosizBekor', u, [no, sabab]);
+  if (r.sr) await imzXodimTg(u.kod, r.sr, true, '');
+  await yangila([S4_V, JUR_V].concat(r.sr ? [IMZ_VARAQ] : []));
+  return { ok: true, no, dokon: r.x.dokon, fish: r.x.fish, ogoh: r.ogoh };
+}
+
+module.exports = { ijaraImzosizSorov, ijaraImzosizJavob, ijaraImzosizBekor };
 module.exports._ichki = { imzSorovlarYangi, imzTekshir, imzBekorQil, imzSorovYoz, imzJavobYoz, IMZ_VARAQ, IMZ_SARLAVHA, S4_V, JUR_V };
