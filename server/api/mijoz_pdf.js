@@ -42,7 +42,9 @@ function kartaHtml(r, bugun) {
 
 // Shrift farqlari (sinov, 22.10): Google «·» ni Times New Roman eni (0,25 em) bilan chizadi, serverdagi Liberation Serif 2.1.5 da u 0,333 em —
 // 10 px jadvalda har «·» dan keyingi so'z 0,6 pt suriladi. Belgi inline-block bilan TNR eniga keltiriladi (PDF matni o'zgarmaydi).
-const TUZAT = h => h.replace(/·/g, '<span style="display:inline-block;width:0.25em;text-align:center">·</span>');
+// «✔» / «✘» (hujjatlar jadvali): Google'da ikkalasi 1,0 em (7,5 pt), serverdagi o'rinbosar shriftlarda 0,85 / 0,68 em — inline-block 1 em.
+const TUZAT = h => h.replace(/·/g, '<span style="display:inline-block;width:0.25em;text-align:center">·</span>')
+  .replace(/[✔✘]/g, m => '<span style="display:inline-block;width:1em">' + m + '</span>');
 // Yadro (sinov ham shuni ishlatadi): opt = { bugun, sahifa: 'html' | 'google' }
 async function kartaPdfYasa(kodSes, mid, opt = {}) {
   const r = await mijozKarta([kodSes, mid]), m = r.mijoz;
