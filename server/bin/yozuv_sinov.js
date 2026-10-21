@@ -388,7 +388,7 @@ function pdfMatn(buf) {
     const info = execFileSync('pdfinfo', [f]).toString('utf8');
     const bet = +((/Pages:\s+(\d+)/.exec(info) || [])[1] || 0), olcham = ((/Page size:\s+([^\n]+)/.exec(info) || [])[1] || '').trim();
     const yasovchi = ((/Creator:\s+([^\n]+)/.exec(info) || [])[1] || '').trim();
-    const m = t.normalize('NFKC').replace(/\u00ad/g, '');
+    const m = t.normalize('NFKC').replace(/[\u00ad\u200b]/g, '');   // yumshoq defis va ko'rinmas bo'sh joy (Docs qator uzilishida qo'yadi) — matn emas
     return { matn: m, betlar: m.split('\f').slice(0, bet), bet, olcham, yasovchi };
   } finally { try { fs.unlinkSync(f); } catch (e) { } }
 }
