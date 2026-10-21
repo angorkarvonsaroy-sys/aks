@@ -73,6 +73,8 @@ A.sifatXodimlar = async ([kodSes]) => {
 };
 
 Object.assign(A, require('./mijoz'));
+// 👤 mijozKartaPdf (Mijoz.gs v2.3) — mijoz kartasi PDF serverda (yozuv_yondi:mijoz_karta_pdf + Chromium), aks holda eski tizim
+Object.assign(A, require('./mijoz_pdf'));
 // ---------------- 📎 Hujjatlar: ro'yxatlar (Hujjat.gs o'qiydigan qismi)
 Object.assign(A, require('./hujjat'));
 delete A.HUJJAT_TURLARI;

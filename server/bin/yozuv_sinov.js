@@ -25,6 +25,7 @@
 //            aks-yozuv-sinov devon     — 📮 kirim xat: 11_Devonxona qatori, tarix va «direktor ko'rdi» (nusxa varaqda, eski yozgan qator bilan), skan Drive'ga (Koprik v1.12, SINOV fayl, savatga); devonKirimSaqla ni yoqish
 //            aks-yozuv-sinov kb        — 🤝 kelishuv bilan bekor: hujjat (PDF so'zma-so'z, Word matni) eski tizim yasagani bilan, 06m qatori (nusxada), Drive (Koprik v1.12); kbTayyorla ni yoqish
 //            aks-yozuv-sinov kb2       — 🤝 kelishuv: skan yuklash, so'rovni bekor qilish, direktor tasdig'i/radi (06m kataklari, 04 C/D/W + 06j — nusxa varaqlarda), skan Drive'ga (Koprik v1.13); kbSkan/kbBekor/kbTasdiq ni yoqish
+//            aks-yozuv-sinov mijozpdf [M0251 …] — 👤 mijoz kartasi PDF: eski tizim yasagani bilan matn, sahifa va so'zlar joyi (ikki sahifa varianti); yoqish
 //            aks-yozuv-sinov topmening — 📌 Topshiriqlarim: hujjat topshiriqlarini yopish (har xodim: server quruq hisob → eski topMening yozadi → solishtirish); yoqish
 //            aks-yozuv-sinov tophozir  — 🤖 topshiriq qoidalari: server «quruq» hisoblaydi, eski topHozir yozadi, 10_Topshiriqlar dagi yangi/yopilgan qatorlar server hisobi bilan; topHozir ni yoqish
 //            aks-yozuv-sinov ochir     — hammasini o'chirish (eski tizimga qaytadi)
@@ -1789,6 +1790,50 @@ async function kb2Sinov() {
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.13 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
+// 👤 MIJOZ KARTASI PDF (Mijoz.gs mijozKartaPdf): bir nechta mijoz uchun eski tizim PDF'i (direktor nomidan, ko'prik) va server PDF'i — matn, sahifalar,
+// so'zlar joyi. Sahifa chekkasi ikki variantda sinaladi: HTML'dagi @page (14 mm / 12 mm) yoki Google standarti (0,5 dyuym) — moslari tanlanadi.
+// Vaqt («… ҳолатига») eski PDF dagidek beriladi. Mijoz berilmasa — qarzi bor sotuv, ijara va do'koni bor mijoz avtomatik tanlanadi. Hech narsa yozilmaydi.
+async function mijozpdfSinov(midlar) {
+  const MP = require('../api/mijoz_pdf')._ichki, s = v => String(v == null ? '' : v);
+  if (!(await PDF.bor())) { console.log('⏳ PDF dasturi (Chromium) hali tayyor emas — 3 daqiqadan keyin qayta ishga tushiring.'); return; }
+  try { execFileSync('pdftotext', ['-v'], { stdio: 'ignore' }); } catch (e) { console.log('⚠ pdftotext yo\'q (poppler-utils) — solishtirib bo\'lmaydi.'); return; }
+  const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(z => (z.huquqlar || []).includes('admin') && String(z.kirish_kodi || '').length >= 8);
+  const tok = await S.sessiyaOch(adm.kirish_kodi), ks = adm.kirish_kodi + '|' + tok;
+  if (!midlar.length) {
+    const R3 = (await V.qatorlar('03_Sotuv_shartnomalar')).filter(z => s(z.r[0]).trim() && !/bekor/i.test(s(z.r[13])));
+    const R4 = (await V.qatorlar('04_Ijara_shartnomalar')).filter(z => s(z.r[0]).trim() && !/bekor/i.test(s(z.r[2])));
+    const a = R3.filter(z => V.son(z.x[31]) > 0).pop(), b = R4[R4.length - 1], c = R3[0];
+    [a && s(a.r[4]).trim(), b && s(b.r[5]).trim(), c && s(c.r[4]).trim()].filter(Boolean).forEach(m => { if (midlar.indexOf(m) < 0) midlar.push(m); });
+  }
+  const natija = { html: 0, google: 0 }; let xato = 0;
+  try {
+    for (const mid of midlar) {
+      console.log('\n=== 👤 MIJOZ KARTASI — mijoz ID ' + mid + ' ===');
+      let t0 = Date.now(), e;
+      try { e = await koprik.chaqir('mijozKartaPdf', adm.kirish_kodi, [mid], { muddat: 120000, urinish: 1 }); } catch (er) { console.log('  ✖ eski tizim: ' + er.message); xato++; continue; }
+      const te = Date.now() - t0;
+      const eb = Buffer.from(e.b64, 'base64');
+      const vq = (/(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}) ҳолатига/.exec(pdfMatn(eb).matn) || [])[1] || '';
+      for (const v of ['html', 'google']) {
+        t0 = Date.now();
+        let y; try { y = await MP.kartaPdfYasa(ks, mid, { bugun: vq, sahifa: v }); } catch (er) { console.log('  ✖ server (' + v + '): ' + er.message); natija[v]++; continue; }
+        const ty = Date.now() - t0;
+        console.log('\n  — sahifa varianti «' + v + '» · eski tizim ' + (te / 1000).toFixed(1) + ' s · server ' + (ty / 1000).toFixed(1) + ' s · vaqt ' + vq);
+        if (e.nom !== y.nom || e.mime !== y.mime) { natija[v]++; console.log('  ✖ fayl nomi: eski ' + e.nom + ' | server ' + y.nom); }
+        const yb = Buffer.from(y.b64, 'base64');
+        natija[v] += pdfSolishtir(eb, yb);
+        const q = sozSolishtir(eb, yb);
+        if (q.sozlar[0] !== q.sozlar[1] || q.betlar[0] !== q.betlar[1] || q.farq) { natija[v]++; console.log('  ✖ so\'zlar joyi: eski ' + q.sozlar[0] + ' / server ' + q.sozlar[1] + ' so\'z, betlar ' + q.betlar.join('/') + ', ' + q.farq + ' ta farq, eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt'); q.ch.slice(0, 4).forEach(c => console.log('     ' + c)); }
+        else console.log('  ✅ ' + q.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt)');
+      }
+    }
+  } finally { await redis.del('ses:' + tok); }
+  console.log('\nNatija: «html» varianti — ' + (natija.html ? natija.html + ' ta farq' : 'BIR XIL') + ' · «google» varianti — ' + (natija.google ? natija.google + ' ta farq' : 'BIR XIL'));
+  const tanlov = !natija.html ? 'html' : !natija.google ? 'google' : '';
+  if (!xato && tanlov && midlar.length) { await redis.set('mijoz_karta_sahifa', tanlov); await redis.set('yozuv_yondi:mijoz_karta_pdf', '1'); console.log('✅ HAMMASI BIR XIL («' + tanlov + '» sahifa) — 👤 mijoz kartasi PDF endi serverda yasaladi. Qaytarish: aks-yozuv-sinov ochir'); }
+  else console.log('⚠ ' + (xato ? xato + ' ta eski tizim xatosi' : 'ikkala variantda ham farq') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
+}
+
 // 📌 MENING TOPSHIRIQLARIM (Topshiriq.gs topMening → topHalHujjat_): har ishlayotgan xodim uchun server «quruq» hisoblaydi — qaysi hujjat topshiriqlari
 // darhol «Tekshiruvda» / «Bajarildi» bo'ladi; yopiladigani bor xodim uchun eski tizim topMening haqiqatan yozadi (xodim sahifani ochgandagidek, Telegram ham) →
 // 10_Topshiriqlar dagi o'zgargan qatorlar server hisobi bilan (holat, yopdi, dalil, U). Hech kimda bo'lmasa — «hech narsa yo'q» mosligi.
@@ -1907,6 +1952,9 @@ async function tophozirSinov() {
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kb2Sinov();
+  } else if (arg === 'mijozpdf') {
+    console.log('Hozir: mijoz kartasi PDF — ' + ((await redis.get('yozuv_yondi:mijoz_karta_pdf')) === '1' ? 'serverda (sahifa: ' + (await redis.get('mijoz_karta_sahifa')) + ')' : 'eski tizimda'));
+    await mijozpdfSinov(process.argv.slice(3).map(z => String(z).trim()).filter(Boolean));
   } else if (arg === 'topmening') {
     console.log('Hozir: Topshiriqlarim (hujjat topshiriqlarini yopish) — ' + ((await redis.get('yozuv_yondi:top_mening')) === '1' ? 'serverda' : 'eski tizimda'));
     await topmeningSinov();
@@ -1965,7 +2013,7 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening');
+    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf');
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
     const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';
