@@ -2,6 +2,8 @@
 // Tartib eski tizimdagidek: tekshiruvlar → qulf → takror xat tekshiruvi → tartib raqami → skan Drive'ga («AKS TIZIM / 08 DEVONXONA / Kirim / <yil>»,
 // Koprik v1.12 koprikDevonSaqla — direktor hisobi) → 11_Devonxona ga qator → qulf ochiladi → direktor(lar)ga shaxsan Telegram (skan PDF + «📮 Rezolyutsiya
 // qo'yish» tugmasi — eski devonDirShaxsiy_ ning o'zi, Koprik v1.12 koprikDevonTg) → natija tarixga; bormasa — kotibaga ogohlantirish.
+// devonKordi (v1.5 «DIREKTOR KO'RDI»): direktor kirim xat kartasini / skanini birinchi marta ochganda — Ijro (R) JSON ga «kordi» {v, fish} + tarix; faqat
+// «Rezolyutsiya kutmoqda» xatda, bir marta. devonFayl (api/fayl.js) ham shu yadroni chaqiradi. Yoqilishi: yozuv_yondi:devon_kordi (o'sha sinov, Koprik kerak emas).
 // Boshqa devon amallari (chiqim, rezolyutsiya, ijro …) — hali eski tizimda. Yoqilishi: Redis yozuv_yondi:devon («aks-yozuv-sinov devon») va Koprik ≥ 1.12.
 'use strict';
 const crypto = require('crypto');
@@ -136,5 +138,41 @@ async function devonKirimSaqla(args) {
   return { ok: true, id: row.id, tartib: row.tartib, ogoh };
 }
 
-module.exports = { devonKirimSaqla };
-module.exports._ichki = { devonRowsYangi, devonYoz, devonTarix, devonNorm, devonRaqNorm, devonFaylNom, koprik112, DEVON_V, DEVON_S };
+// ------------------------------------------------------------------ v1.5: direktor kirim xatni ko'rdi (devonKordi_)
+const devonIjro = x => { try { return JSON.parse(x.ijro || '{}') || {}; } catch (e) { return {}; } };
+async function kordiServerda() { try { return (await redis.get('yozuv_yondi:devon_kordi')) === '1'; } catch (e) { return false; } }
+// yozuv yadrosi (sinov ham shuni ishlatadi): R — JSON (avvalgi maydonlar + kordi), S — tarix. Qaytaradi kordi vaqti
+async function devonKordiYoz(varaq, x, fish) {
+  const J = devonIjro(x);
+  J.kordi = { v: hozir().dmyHm, fish };
+  try {
+    await G.yoz(env.aksBazaId, [{ varaq, katak: 'R' + x.qator, qiymat: [[JSON.stringify(J)]] }], env.googleKey);
+    await devonTarix(varaq, x, 'direktor ko\'rdi (' + fish + ')');
+  } catch (e) { throw yozilmadi(e); }
+  return J.kordi.v;
+}
+// devonKordi_ — qulf ichida, 11 Google'dan yangi. Qaytaradi { ok, kordi, oldin? , yozildi? }
+async function kordiYadro(id, fish) {
+  return qulfBilan(async () => {
+    const R = await devonRowsYangi();
+    const x = R.L.find(z => String(z.id) === String(id));
+    if (!x || x.turi !== 'Kirim') throw xato('Kirim xat topilmadi.');
+    const J = devonIjro(x);
+    if (J.kordi) return { ok: true, kordi: J.kordi.v, oldin: true };
+    if (x.holati !== 'Rezolyutsiya kutmoqda') return { ok: true, kordi: '', oldin: true };   // eski (ko'rib chiqilgan) xatlar belgilanmaydi
+    return { ok: true, kordi: await devonKordiYoz(DEVON_V, x, fish), yozildi: true };
+  });
+}
+async function devonKordi(args) {
+  const [kodSes, id] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await kordiServerda())) return eskiTizim('devonKordi', u, [id]);
+  const r = await kordiYadro(id, u.fish).catch(e => { if (e.yozilmadi) return null; throw e; });
+  if (!r) return eskiTizim('devonKordi', u, [id]);   // robotda yozish huquqi yo'q — hech narsa yozilmagan
+  const yoz = r.yozildi; delete r.yozildi;
+  if (yoz) await yangila([DEVON_V]);
+  return r;
+}
+
+module.exports = { devonKirimSaqla, devonKordi };
+module.exports._ichki = { devonRowsYangi, devonYoz, devonTarix, devonKordiYoz, kordiYadro, kordiServerda, devonNorm, devonRaqNorm, devonFaylNom, koprik112, DEVON_V, DEVON_S };

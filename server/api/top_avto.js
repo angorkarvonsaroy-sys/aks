@@ -98,9 +98,10 @@ function topHal(t, ctx, hozir) {
   return '';
 }
 // topHalHujjat_: ochiq hujjat topshiriqlari — JSHSHIR kiritilgan bo'lsa «Bajarildi»; hujjat yuklangan bo'lsa «Tekshiruvda» (+ U «HJ:<id>», tekshiruvchiga Telegram);
-// shartnoma bekor qilingan bo'lsa «Bajarildi». quruq — yozmaydi, faqat ro'yxat. Qaytaradi { n, yop: [{id, holat, dalil}], tg: [{id, h}] }
-async function topHalHujjat(R, HJ, mlM, bekorNo, quruq) {
-  const H = R.L.filter(t => t.holati === 'Jarayonda' && TS.topHjTur(t) && TS.topHjTur(t) !== 'MANZIL' && TS.topHjTur(t) !== 'BOSHQA');
+// shartnoma bekor qilingan bo'lsa «Bajarildi». quruq — yozmaydi, faqat ro'yxat. filtr — faqat shu topshiriqlar (topMening: xodimniki; R.L esa — hammasi,
+// «shu hujjat bo'yicha Telegram allaqachon ketganmi» tekshiruvi uchun). Qaytaradi { n, yop: [{id, holat, dalil}], tg: [{id, h}] }
+async function topHalHujjat(R, HJ, mlM, bekorNo, quruq, filtr) {
+  const H = R.L.filter(t => t.holati === 'Jarayonda' && TS.topHjTur(t) && TS.topHjTur(t) !== 'MANZIL' && TS.topHjTur(t) !== 'BOSHQA' && (!filtr || filtr(t)));
   const out = { n: 0, yop: [], tg: [] }; if (!H.length) return out;
   const rejada = new Set();
   for (const t of H) {
@@ -203,6 +204,34 @@ async function koprik112(kod) {
   return kv.ok;
 }
 
+// ------------------------------------------------------------------ topMening ichidagi topHalHujjat_ (Topshiriq.gs v2.2: xodim «📌 Topshiriqlarim» ni ochganda
+// uning ochiq hujjat topshiriqlari — hujjat yuklangan bo'lsa darhol «Tekshiruvda», JSHSHIR kiritilgan bo'lsa «Bajarildi»; bekor qilingan shartnoma — tekshirilmaydi,
+// eski tizimdagidek). 10 / 06d / 02 — Google'dan YANGI. Qaytaradi: yopilganlar soni; null — server qila olmaydi (bayroq yo'q, qulf band, yozish huquqi yo'q) → eski tizim.
+// opt.quruq — yozmaydi (sinov): { n, yop, tg }
+async function topMeningYop(u, opt = {}) {
+  const quruq = !!opt.quruq;
+  if (!quruq) {
+    try { if ((await redis.get('yozuv_yondi:top_mening')) !== '1') return null; } catch (e) { return null; }
+    if (!(await require('./qadam_hujjat')._ichki.koprik17(u.kod))) return null;   // koprikTopTasdiqTg
+  }
+  const { xodimTeng } = require('../lib/xodim');
+  const meniki = t => xodimTeng(t.kimga, u.fish);
+  const ish = async () => {
+    const R = await TP.topRowsYangi(TOP_V);
+    const QH = require('./qadam_hujjat')._ichki;
+    const HJ = await QH.hjYangi();
+    const mlM = R.L.some(t => t.holati === 'Jarayonda' && meniki(t) && TS.topHjTur(t) === 'JSHSHIR') ? await QH.mlYangi() : {};
+    try { return await topHalHujjat(R, HJ, mlM, null, quruq, meniki); }
+    catch (e) { if (e.yozilmadi) return { yoq: true }; throw e; }
+  };
+  const r = quruq ? await ish() : await qulfUrin(ish);
+  if (r === null || r.yoq) return null;
+  if (quruq) return r;
+  if (r.tg.length) tasdiqTg(u.kod, r.tg);
+  if (r.n) await yangila([TOP_V]);
+  return r.n;
+}
+
 // ------------------------------------------------------------------ topHozir(kod) — direktor: «🤖 Hozir tekshirish»
 async function topHozir(args) {
   const [kodSes] = args;
@@ -220,4 +249,4 @@ async function topHozir(args) {
 }
 
 module.exports = { topHozir };
-module.exports._ichki = { topAvto, topCtx, topHal, topHalHujjat, TOP_V };
+module.exports._ichki = { topAvto, topCtx, topHal, topHalHujjat, topMeningYop, TOP_V };

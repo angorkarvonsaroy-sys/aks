@@ -109,4 +109,4 @@ async function qadamHujjat(args) {
 }
 
 module.exports = { qadamXatBekor, qadamSkan, qadamHujjat };
-module.exports._ichki = { topHujjatYop, hjYangi, koprik17 };
+module.exports._ichki = { topHujjatYop, hjYangi, mlYangi, koprik17 };

@@ -36,8 +36,12 @@ async function devonFayl([kodSes, id, k]) {
   else if (!k || k === 'xat') { fid = x.fayl || (x.turi === 'Chiqim' ? Jx.pdf : ''); nom = (x.turi === 'Kirim' ? 'Kirim_' : 'Chiqim_') + x.tartib + '_' + devonFaylNom(x.turi === 'Kirim' ? x.tashkilot : x.raqam) + (x.turi === 'Chiqim' && x.fayl ? ((Jx.yub || {}).usul === 'qol' ? '_qabul_belgisi' : '_imzolangan') : '') + '.pdf'; }
   else if (/^f:/.test(k)) { const t = (Jx.top || {})[k.slice(2)]; if (!t || !t.f) throw new S.Xato('Isbot fayli topilmadi.'); fid = t.f; nom = 'Ijro_' + x.tartib + '_' + devonFaylNom(k.slice(2)) + '.pdf'; }
   if (!fid) throw new S.Xato('Fayl yo\'q.');
-  // direktor kirim xatni birinchi marta ochdi — eski tizim «ko'rdi» belgisini yozadi (devonKordi_)
-  if ((!k || k === 'xat') && x.turi === 'Kirim' && x.holati === 'Rezolyutsiya kutmoqda' && (u.huquq || []).indexOf('admin') >= 0 && !Jx.kordi) return eski('devonFayl', u.kod, [id, k]);
+  // direktor kirim xatni birinchi marta ochdi — «ko'rdi» belgisi (devonKordi_): serverda (yozuv_yondi:devon_kordi), aks holda — eski tizim (u yozadi va faylni beradi)
+  if ((!k || k === 'xat') && x.turi === 'Kirim' && x.holati === 'Rezolyutsiya kutmoqda' && (u.huquq || []).indexOf('admin') >= 0 && !Jx.kordi) {
+    const DY = require('./devon_yoz')._ichki;
+    if (!(await DY.kordiServerda())) return eski('devonFayl', u.kod, [id, k]);
+    try { const r = await DY.kordiYadro(x.id, u.fish); if (r && r.yozildi) require('../lib/kozgu_tetik').varaqlarYangila([DY.DEVON_V]).catch(() => {}); } catch (e) { }   // eski: try { devonKordi_ } catch (e) { }
+  }
   const f = await ol(fid); if (!f) return eski('devonFayl', u.kod, [id, k]);
   return { b64: f.bytes.toString('base64'), nom, mime: 'application/pdf' };
 }

@@ -175,11 +175,16 @@ async function topMening([kodSes]) {
   const bugun = V.bugun().split('-').reverse().join('.');
   const hafta = new Date(Date.now() + 5 * 3600000 - 7 * 86400000).toISOString().slice(0, 10);
   const meniki = x => xodimTeng(x.kimga, u.fish);
-  const R = (await J.topRows()).filter(meniki).map(J.topKor);
-  if (await topHalKerak(R.filter(x => x.holati === 'Jarayonda'))) {
-    const r = await koprik.chaqir('topMening', u.kod, []);
-    require('../lib/kozgu_tetik').varaqlarYangila(['10_Topshiriqlar']).catch(() => {});
-    return r;
+  let R = (await J.topRows()).filter(meniki).map(J.topKor);
+  if (await topHalKerak(R.filter(x => x.holati === 'Jarayonda'))) {   // v1.9: hujjat yuklangan bo'lsa — darhol yopiladi (topHalHujjat_)
+    let n = null;
+    try { n = await require('./top_avto')._ichki.topMeningYop(u); } catch (e) { console.error('topMening (server yopish):', e.message); n = null; }
+    if (n === null) {   // server qila olmadi (bayroq yo'q / qulf band / yozish huquqi yo'q) — avvalgidek eski tizim
+      const r = await koprik.chaqir('topMening', u.kod, []);
+      require('../lib/kozgu_tetik').varaqlarYangila(['10_Topshiriqlar']).catch(() => {});
+      return r;
+    }
+    if (n) R = (await J.topRows()).filter(meniki).map(J.topKor);
   }
   const ochiq = R.filter(x => x.holati === 'Jarayonda' || x.holati === 'Tekshiruvda');
   await topTalabBelgi(ochiq);
