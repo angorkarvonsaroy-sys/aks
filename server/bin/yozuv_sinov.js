@@ -30,6 +30,7 @@
 //            aks-yozuv-sinov devon2    — devonxona qolgan amallari (chiqim xat ro'yxati, yuborildi, rezolyutsiya, ijro topshirish, tasdiq, rezolyutsiya qaytarish, bekor):
 //                                        11 va 10 NUSXALARIDA to'liq yo'l, eski tizim yozgan qatorlar bilan (tur/format), JSON va tarix naqshlari; Koprik 1.15; yoqish
 //            aks-yozuv-sinov devonxat  — blankadagi chiquvchi xat: eski tizim yasagan xatlarni server qayta yasab PDF (so'zlar joyi) va Word bilan solishtiradi; yoqish
+//            aks-yozuv-sinov ertalab   — 07c_Ertalab_svod yozuvi (undErtalabYubor): nusxa varaqda bugungi qatorlar yozish / qayta yozish, eski tizim yozgan qator bilan (tur/format)
 //            aks-yozuv-sinov kirish    — 🔑 07b_Kirish_jurnali qatori (PIN kirishi): nusxa varaqda, eski yozgan oxirgi qator bilan; yoqish (eski tizimga pinKir yuborilmaydi)
 //            aks-yozuv-sinov mijozpdf [M0251 …] — 👤 mijoz kartasi PDF: eski tizim yasagani bilan matn, sahifa va so'zlar joyi (ikki sahifa varianti); yoqish
 //            aks-yozuv-sinov topmening — 📌 Topshiriqlarim: hujjat topshiriqlarini yopish (har xodim: server quruq hisob → eski topMening yozadi → solishtirish); yoqish
@@ -2089,6 +2090,44 @@ async function devonxatSinov() {
   else { await redis.del('yozuv_yondi:devon_xat'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (blankadagi xat eski tizimda yasalaveradi).'); }
 }
 
+// ☀️ 07c ERTALAB SVOD (Monitoring.gs monErtalabYoz_): nusxa varaqda server 2 ta sinov qator yozadi, keyin qayta yozadi (bugungi eski qatorlar o'chirilib, yangilari);
+// qator kataklari eski tizim yozgan oxirgi qator bilan solishtiriladi (qiymat turi, format).
+async function ertalabSinov() {
+  const ER = require('../lib/ertalab');
+  console.log('\n=== ☀️ 07c_Ertalab_svod — bugungi qatorlar (nusxa varaqda) ===');
+  const M = await G.varaqlar(ID, KEY);
+  const src = M.varaqlar.find(v => v.title === ER.ERTALAB_V); if (!src) { console.log('07c varag\'i yo\'q — solishtirib bo\'lmaydi.'); return; }
+  const nusxa = 'zz_sinov_07c';
+  const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length, newSheetName: nusxa } }], KEY);
+  const ng = j.replies[0].duplicateSheet.properties.sheetId; let x = 0;
+  try {
+    await G.gid(ID, nusxa, KEY, true);
+    const A = await G.oraliqOqi(ID, nusxa, 'A2:H', KEY); let l = 1; A.forEach((r, i) => { if (String(r[0] || '') !== '') l = i + 2; });
+    const eskiQ = l >= 2 ? l : 0;
+    const bugun = V.bugun(), bugunD = bugun.split('-').reverse().join('.');
+    const borBugun = A.filter(r => String(r[0] || '') === bugunD).length;
+    console.log('Eski tizim yozgan oxirgi qator: ' + (eskiQ || 'yo\'q') + ' · bugungi (' + bugunD + ') qatorlar: ' + borBugun);
+    const rows = [{ fish: 'SINOV XODIM 1', q: 3, s: 5, y: 1, n: 40, muddati: 123456789, holat: '✅ yuborildi' }, { fish: 'SINOV XODIM 2', q: 0, s: 2, y: 0, n: 12, muddati: 0, holat: '❌ Telegramga ulanmagan — topshiriq bormadi' }];
+    let t0 = Date.now();
+    const r1 = await ER.ertalabYoz(nusxa, bugun, rows);
+    console.log('1-yozuv: ' + (Date.now() - t0) + ' ms · ' + JSON.stringify(r1) + (r1.ochirildi === borBugun ? ' ✅ bugungi eski qatorlar o\'chirildi' : ' ✖ o\'chirilgan ' + r1.ochirildi + ', kutilgan ' + borBugun));
+    if (r1.ochirildi !== borBugun) x++;
+    if (r1.qator > 2) x += await qatorSolishtir(nusxa, r1.qator, 1, 8, '— 07c qatori (A–H)', r1.qator - 1);   // undan oldingi qator — eski tizim yozgani
+    else console.log('  (07c da eski qator yo\'q — solishtirilmadi)');
+    t0 = Date.now();
+    const r2 = await ER.ertalabYoz(nusxa, bugun, rows);
+    const A2 = await G.oraliqOqi(ID, nusxa, 'A2:B', KEY); const sinov = A2.filter(r => String(r[0] || '') === bugunD && /^SINOV XODIM/.test(String(r[1] || ''))).length;
+    console.log('2-yozuv (qayta): ' + (Date.now() - t0) + ' ms · ' + JSON.stringify(r2) + (r2.ochirildi === rows.length && sinov === rows.length ? ' ✅ takror yozilmadi (eski 2 ta o\'chib, 2 ta yangi)' : ' ✖ varaqda SINOV qatorlar: ' + sinov));
+    if (!(r2.ochirildi === rows.length && sinov === rows.length)) x++;
+  } finally {
+    await G.soralar(ID, [{ deleteSheet: { sheetId: ng } }], KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('Nusxa varaq o\'chirildi.');
+  }
+  console.log('');
+  if (!x) console.log('✅ HAMMASI BIR XIL — 07c yozuvi to\'g\'ri. Yoqish: aks-vaqt yoq und_ertalab (eski trigger o\'chiriladi).');
+  else console.log('⚠ ' + x + ' ta farq — und_ertalab ni YOQMANG, avval tuzatish kerak.');
+}
+
 // 🔑 07b KIRISH JURNALI (Monitoring.gs monKirishYoz_): nusxa varaqqa server yo'li bilan qator — eski tizim yozgan oxirgi qator bilan (qiymat turi, format)
 async function kirishSinov() {
   const KY = require('../api/kirish_yoz');
@@ -2293,6 +2332,8 @@ async function tophozirSinov() {
   } else if (arg === 'devonxat') {
     console.log('Hozir: blankadagi chiquvchi xat — ' + ((await redis.get('yozuv_yondi:devon_xat')) === '1' ? 'serverda' : 'eski tizimda'));
     await devonxatSinov();
+  } else if (arg === 'ertalab') {
+    await ertalabSinov();
   } else if (arg === 'kirish') {
     console.log('Hozir: 07b kirish jurnali — ' + ((await redis.get('yozuv_yondi:kirish07b')) === '1' ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
     const M = await G.varaqlar(ID, KEY);

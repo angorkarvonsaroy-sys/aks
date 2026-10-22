@@ -19,7 +19,8 @@ const s = v => String(v == null ? '' : v);
     console.log('🔎 «' + ish.tavsif + '» — quruq sinov (yuborilmaydi, yozilmaydi)…');
     const t0 = Date.now(); const r = await VQ.sinov(ish);
     if (r.xabarlar) { console.log('  ' + r.xabarlar.length + ' ta xabar tayyor' + (r.ochiq !== undefined ? ' · ochiq topshiriqlar: ' + r.ochiq : '') + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)' + (r.sabab ? ' · ' + r.sabab : ''));
-      r.xabarlar.forEach(x => { console.log('\n  → ' + x.kimga + ':'); console.log('    ' + x.matn.replace(/<\/?b>/g, '').split('\n').join('\n    ')); }); }
+      r.xabarlar.forEach(x => { console.log('\n  → ' + x.kimga + ':'); console.log('    ' + x.matn.replace(/<\/?b>/g, '').split('\n').join('\n    ')); });
+      if (r.svod07c) { console.log('\n  07c_Ertalab_svod ga yoziladigan qatorlar (Sana | Xodim | Qizil | Sariq | Yashil | Mijozlar | Muddati_otgan | Holat):'); r.svod07c.forEach(z => console.log('    ' + [VQ.toshkent().dmyHm.slice(0, 10), z.fish, z.q, z.s, z.y, z.n, z.muddati, z.holat].join(' | '))); } }
     else console.log('  natija (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s): ' + JSON.stringify(r));
   } else if (arg === 'hozir') {
     console.log('⏰ «' + ish.tavsif + '» hozir bajarilmoqda…');
