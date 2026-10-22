@@ -18,6 +18,8 @@
 //   ijro_kechki  — ijroKechki (18:15): lib/ijro_kun.js — 06r kunlik ijro, 06q qoidabuzarliklar, xodimlarga Telegram, zinapoya.
 //   yurist_kunlik — yuristKunlik (20:05): lib/kunlik_xabar.js — direktorga «⚖ Yurist bo'limi».
 //   taminot_eslatma — taminotEslatma (dushanba 09:00): lib/kunlik_xabar.js — ta'minot dalolatnomasi eslatmasi.
+//   kechki_hisobot — kechkiHisobotYubor (20:00): lib/kunlik_xabar.js — guruhga kunlik (+ shanba haftalik, oy oxiri oylik) hisobot (Koprik v1.16).
+//   zaxira_kunlik  — zaxiraKunlik (02:00): lib/kunlik_xabar.js — AKS_BAZA ning Drive nusxasi (Koprik v1.16 koprikZaxira).
 //   ijro_tanla   — ijroTekshiruvTanla (09:30): lib/ijro_kun.js — tasodifiy tekshiruv (10 + 06p); oyning 1-kuni — ijroOylik.
 'use strict';
 const { q, redis } = require('./db');
@@ -113,6 +115,8 @@ const ISHLAR = [
   { nom: 'ijro_kechki', fn: 'ijroKechki', tavsif: '📒 Kunlik ijro + qoidabuzarliklar (ijroKechki)', har: 'kun:18:15', eski: 'ijroKechki — har kuni 18:15', ish: (kod, opt) => IK.ijroKechki(kod, opt) },
   { nom: 'yurist_kunlik', fn: 'yuristKunlik', tavsif: '⚖ Direktorga yurist bo\'limi xabari (yuristKunlik)', har: 'kun:20:05', eski: 'yuristKunlik — har kuni 20:05', ish: (kod, opt) => KX.yuristKunlik(kod, opt) },
   { nom: 'taminot_eslatma', fn: 'taminotEslatma', tavsif: '📦 Ta\'minot haftalik dalolatnoma eslatmasi (taminotEslatma)', har: 'hafta:1:09:00', eski: 'taminotEslatma — har dushanba 09:00', ish: (kod, opt) => KX.taminotEslatma(kod, opt) },
+  { nom: 'kechki_hisobot', fn: 'kechkiHisobotYubor', tavsif: '🏢 Guruhga kunlik/haftalik/oylik hisobot (kechkiHisobotYubor)', har: 'kun:20:00', eski: 'kechkiHisobotYubor — har kuni 20:00', ish: (kod, opt) => KX.kechkiHisobot(kod, opt) },
+  { nom: 'zaxira_kunlik', fn: 'zaxiraKunlik', tavsif: '💾 AKS_BAZA kunlik zaxira nusxasi (zaxiraKunlik)', har: 'kun:02:00', eski: 'zaxiraKunlik — har kecha 02:00', ish: (kod, opt) => KX.zaxiraKunlik(kod, opt) },
   { nom: 'ijro_tanla', fn: 'ijroTekshiruvTanla', tavsif: '🎲 Tasodifiy tekshiruv + oylik xulosa (ijroTekshiruvTanla)', har: 'kun:09:30', eski: 'ijroTekshiruvTanla — har kuni 09:30', ish: (kod, opt) => IK.ijroTekshiruvTanla(kod, Object.assign({ oylikKor: !!(opt && opt.quruq) }, opt)) },
 ];
 
