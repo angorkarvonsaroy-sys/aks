@@ -12,6 +12,8 @@
 //   top_kechki  — topKechki (20:10): direktorga kun yakuni — kim nechta bajardi / qoldi / muddati o'tgan (tgYubor_ — koprikTgYubor).
 //   und_ertalab — undErtalabYubor (09:00, yakshanbadan tashqari): lib/ertalab.js — undiruvchilarga ertalabki topshiriq, 07c_Ertalab_svod, direktorga svod.
 //   mon_eslatma — monEslatmaYubor (09:10, yakshanbadan tashqari): lib/ertalab.js — skansiz yangi shartnomalar eslatmasi.
+//   xat_kechikkan   — xatKechikkanTekshir (17:00): lib/kechikkan.js — yetkazilmagan ogohlantirish xatlari (direktorga, mas'ulga).
+//   bekor_kechikkan — bekorKechikkanTekshir (17:15): lib/kechikkan.js — bekor qilish skanlari kechikkan (xodimga, ≥2 ish kuni — direktorga).
 'use strict';
 const { q, redis } = require('./db');
 
@@ -86,9 +88,12 @@ async function topKechkiIsh(kod, opt = {}) {
   return { yuborildi: 1, xodimlar: K.length, bajardi: K.reduce((a, k) => a + X[k].b, 0), qoldi: K.reduce((a, k) => a + X[k].q, 0), kechikkan: K.reduce((a, k) => a + X[k].k, 0) };
 }
 const ER = require('./ertalab');
+const KC = require('./kechikkan');
 const ISHLAR = [
   { nom: 'top_avto', fn: 'topAvto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
   { nom: 'und_ertalab', fn: 'undErtalabYubor', tavsif: '☀️ Undiruvchilarga ertalabki topshiriq + 07c svod (undErtalabYubor)', har: 'kun:09:00', eski: 'undErtalabYubor — har kuni 09:00', ish: (kod, opt) => ER.undErtalab(kod, opt) },
+  { nom: 'xat_kechikkan', fn: 'xatKechikkanTekshir', tavsif: '✉️ Yetkazilmagan xatlar nazorati (xatKechikkanTekshir)', har: 'kun:17:00', eski: 'xatKechikkanTekshir — har kuni 17:00', ish: (kod, opt) => KC.xatKechikkan(kod, opt) },
+  { nom: 'bekor_kechikkan', fn: 'bekorKechikkanTekshir', tavsif: '✂️ Bekor qilish skanlari nazorati (bekorKechikkanTekshir)', har: 'kun:17:15', eski: 'bekorKechikkanTekshir — har kuni 17:15', ish: (kod, opt) => KC.bekorKechikkan(kod, opt) },
   { nom: 'mon_eslatma', fn: 'monEslatmaYubor', tavsif: '📎 Skansiz shartnoma eslatmasi (monEslatmaYubor)', har: 'kun:09:10', eski: 'monEslatmaYubor — har kuni 09:10', ish: (kod, opt) => ER.monEslatma(kod, opt) },
   { nom: 'top_ertalab', fn: 'topErtalab', tavsif: '☀️ Xodimlarga bugungi topshiriqlar (topErtalab)', har: 'kun:08:30', eski: 'topErtalab — har kuni 08:30', ish: topErtalabIsh },
   { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
