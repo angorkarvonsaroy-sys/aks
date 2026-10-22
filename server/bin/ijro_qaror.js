@@ -29,7 +29,8 @@ const ball = q => q.Tur === 'xat3' || q.Tur === 'soxta' ? 3 : 1;
   const dir = (XD.find(x => x.huquq.indexOf('admin') >= 0) || {}).fish || 'direktor';
   const pasId = new Set(R.L.filter(t => s(t.qoida) === 'pasport').map(t => s(t.id)));
   const oy = L.filter(q => ijroIso(q.Sana).slice(0, 7) === OY && q.Holati !== 'Uzrli');
-  const xat = oy.filter(q => q.Tur === 'xat' || q.Tur === 'xat3');
+  let qoidaSana = ''; try { qoidaSana = String((await redis.get('ijro_xat_qoida_sana')) || ''); } catch (e) { }   // yangi qoida kuchga kirgan kun — undan keyingi xat ballari haqiqiy, tegilmaydi
+  const xat = oy.filter(q => (q.Tur === 'xat' || q.Tur === 'xat3') && (!qoidaSana || ijroIso(q.Sana) < qoidaSana));
   const pas = oy.filter(q => q.Tur === 'top' && /^top\|/.test(s(q.Kalit)) && pasId.has(s(q.Kalit).split('|')[1]));
   const och = R.L.filter(t => s(t.qoida) === 'pasport' && t.holati === 'Jarayonda');
   // ko'rsatish
@@ -37,6 +38,7 @@ const ball = q => q.Tur === 'xat3' || q.Tur === 'soxta' ? 3 : 1;
   xat.forEach(q => { xodim[q.Xodim].xat += ball(q); }); pas.forEach(q => { xodim[q.Xodim].pas += ball(q); });
   console.log('\n1) 06q — oktabr, uzrsiz qoidabuzarliklar → Uzrli (Uzr_kim: ' + dir + '):');
   console.log('   xat / xat3 (pochta): ' + xat.length + ' ta · pasport topshirig\'i: ' + pas.length + ' ta');
+  if (qoidaSana) console.log('   (yangi xat qoidasi ' + qoidaSana + ' dan kuchda — shu kundan keyingi xat ballari haqiqiy, uzrli qilinmaydi)');
   Object.keys(xodim).sort().forEach(f => { const o = xodim[f]; if (!o.xat && !o.pas) return;
     console.log('   • ' + f + ': ' + o.oldin + ' ball → ' + (o.oldin - o.xat - o.pas) + ' ball (xat −' + o.xat + ', pasport −' + o.pas + ')'); });
   console.log('\n2) 10_Topshiriqlar — «pasport» ochiq topshiriqlar muddati → ' + MUDDAT + ': ' + och.length + ' ta');

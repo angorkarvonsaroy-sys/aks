@@ -5,6 +5,7 @@
 //                        qoidabuzarliklar (kalit bo'yicha takrorlanmaydi), xodimga Telegram, zinapoya (ijroZina — Redis).
 //   ijroTekshiruvTanla — Ijro.gs ijroTekshiruvTanla (09:30): oyning 1-kuni — ijroOylik (o'tgan oy xulosasi direktorga); yakshanbadan tashqari —
 //                        kechagi ish kuni yozuvlaridan har undiruvchiga 2 ta tasodifiy tekshiruv (10_Topshiriqlar + 06p_Tekshiruv), tekshiruvchiga Telegram.
+// 23.10.2026 direktor qarori: XAT MUHLATI 1 ISH KUNI (api/qadam.js xatMuhlat/xatIshKun) — vaqt_yondi:ijro_kechki yoqilgach; quruq sinovda eski qoida (solishtirish uchun).
 // opt.quruq — yozmaydi, yubormaydi: nima bo'lishini qaytaradi; bugun eski tizim allaqachon bajargan bo'lsa — uning natijasi bilan solishtiradi (aks-vaqt sinov).
 // opt.varaq / opt.tgYoq — nusxa varaqqa haqiqiy yozuv, Telegram'siz (aks-yozuv-sinov ijrokun).
 // Eski tizimdan farqi (yetkazish, matn emas): Telegram 4096 belgidan uzun xabarni rad etadi — qadamKechki xabari uzun bo'lsa qatorlar bo'yicha bo'lib yuboriladi
@@ -118,6 +119,8 @@ async function ijroKechki(kod, opt = {}) {
   let hozir = TS.topHozirIso();
   if (opt.quruq && eskiKun.length) { const t = eskiKun.map(r => seriyaVaqt(r.Yozildi)).filter(Boolean).sort()[0]; if (t) hozir = bugun + ' ' + t; }
   const H = UU.length ? await q.qdHisob(kod, UU.map(x => x.fish), bugun, XD) : {};
+  // 23.10 direktor qarori: xatlar uchun 1 ish kuni muhlat — server ijro_kechki ni o'ziga olgach (bayroq); quruq sinovda eski tizim bilan solishtirish uchun — eski qoida
+  const yangiX = opt.yangiQoida !== undefined ? !!opt.yangiQoida : await q.xatYangiQoida();
   if (!opt.quruq && !opt.varaq) await zinaBoshla(oy, XD, L0).catch(e => console.error('ijro zina bosh:', e.message));
   const Y = yuboruvchi(kod, opt, 'ijroKechki');
   // 06r qatori: bor bo'lsa — o'sha qator, yo'q bo'lsa — A ustunining oxiridan keyin. Yozuvlar oxirida bitta so'rovda
@@ -134,22 +137,29 @@ async function ijroKechki(kod, opt = {}) {
     const o2 = Object.assign({ xodim: f, sana: bugun }, o); if (!iy.IJRO_TUR[o2.tur]) return;
     if (o2.kalit && kalitlar.has(o2.kalit)) return;
     let r;
-    if (opt.quruq) { const T0 = iy.IJRO_TUR[o2.tur]; r = { tur: o2.tur, nomi: T0[0], ogirlik: T0[1], no: o2.no || '', tafsilot: o2.tafsilot || '' }; }
+    if (opt.quruq) { const T0 = iy.IJRO_TUR[o2.tur]; r = { tur: o2.tur, nomi: o2.nomi || T0[0], ogirlik: T0[1], no: o2.no || '', tafsilot: o2.tafsilot || '' }; }
     else { r = await iy.ijroYoz(QV, o2); if (!r) { kalitlar.add(o2.kalit); return; } }
     kalitlar.add(o2.kalit); out.push(r); yangiLog.push(Object.assign({ xodim: f, kalit: o2.kalit }, r));
     L06.push({ ID: r.id || '', Sana: bugun, Xodim: f, Tur: o2.tur, Nomi: r.nomi, Shartnoma: r.no, Tafsilot: r.tafsilot, Holati: 'Hisobda', Tushuntirish: '', Kalit: o2.kalit });
   };
   const yangi = {};
   for (const x of UU) { const h = H[x.fish]; if (!h) continue; const f = x.fish; const Lx = yangi[f] = [];
-    const k = q.ijroKun(h, f, bugun, Xj, T, S, opt.quruq ? hozir : null); const foiz = q.ijroFoiz(k, 0);
+    const k = q.ijroKun(h, f, bugun, Xj, T, S, opt.quruq ? hozir : null, yangiX); const foiz = q.ijroFoiz(k, 0);
     kunQator(f, k, foiz);
     if (k.rB < k.rT) await yoz(f, { tur: 'reja', kalit: 'reja|' + bugun + '|' + f, tafsilot: 'Bajarildi ' + k.rB + ' / ' + k.rT + ' mijoz' + (h.otkaz.length ? ' · o\'tkazilgan: ' + h.otkaz.length : '') }, Lx);
     if (h.nazorat && h.nazorat.qilinmadi) await yoz(f, { tur: 'nazorat', kalit: 'nazorat|' + bugun + '|' + f, tafsilot: h.nazorat.qilinmadi + ' ta mijozga qo\'ng\'iroq qilinmadi: ' + h.nazorat.qilinmaganlar.slice(0, 8).map(z => z.no + (z.kerak === 'eslatma0' ? ' (va\'da kuni)' : z.kerak === 'eslatma1' ? ' (va\'da ertaga)' : '')).join(', ') }, Lx);
     if (h.otkaz.length > QD_OTKAZ_CHEGARA) await yoz(f, { tur: 'otkaz', kalit: 'otkaz|' + bugun + '|' + f, tafsilot: h.otkaz.length + ' ta mijoz o\'tkazildi: ' + h.otkaz.slice(0, 6).map(o => o.no + ' «' + o.sabab + '»').join('; ') }, Lx);
     for (const h2 of Xj.filter(z => z.holati === 'Tayyorlandi' && S[z.no] && xodimTeng(S[z.no].undiruvchi, f) && X.xatIso(z.sana) <= bugun && X.xatIso(z.sana) >= IJRO_BOSH)) {
       const rad = /^Rad\|(\d{2})\.(\d{2})\.(\d{4})/.exec(s(h2.tek));   // isbotni yurist qaytargan — hisob qaytarilgan kundan
-      const kun = kunFarq(rad ? rad[3] + '-' + rad[2] + '-' + rad[1] : X.xatIso(h2.sana), bugun);
+      const bosh = rad ? rad[3] + '-' + rad[2] + '-' + rad[1] : X.xatIso(h2.sana);
       const fio = (S[h2.no] || {}).fish || '';
+      if (yangiX) {   // 23.10 qoidasi: muhlat — keyingi ish kuni; o'tsa 1 ball (bir marta), 3 ish kunidan beri — 3 ball
+        const ik = q.xatIshKun(bosh, bugun), muh = q.xatMuhlat(bosh);
+        if (ik >= 1 && ik < 3 && !rad) await yoz(f, { tur: 'xat', nomi: 'Xat muhlatida (1 ish kuni) yetkazilmadi', kalit: 'xat|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' ' + dmy(bosh) + ' da chiqarilgan, muhlati (' + dmy(muh) + ') o\'tdi — yetkazilmadi' }, Lx);
+        if (ik >= 3) await yoz(f, { tur: 'xat3', nomi: 'Xat 3 ish kunidan beri yetkazilmadi', kalit: 'xat3|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' ' + ik + ' ish kunidan beri yetkazilmagan (muhlat ' + dmy(muh) + ')' }, Lx);
+        continue;
+      }
+      const kun = kunFarq(bosh, bugun);
       if (kun === 0 && !rad) await yoz(f, { tur: 'xat', kalit: 'xat|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' bugun chiqarilgan, yetkazilmadi' }, Lx);
       if (kun >= 2) await yoz(f, { tur: 'xat3', kalit: 'xat3|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' ' + (kun + 1) + ' kundan beri yetkazilmagan' }, Lx);
     }

@@ -395,13 +395,19 @@ const ijroBall = q => IJRO_TUR_OGIR[q.Tur] ? IJRO_OGIR_BALL : 1;
 const ijroPog = ball => ball >= IJRO_ZINA[2] ? 3 : ball >= IJRO_ZINA[1] ? 2 : ball >= IJRO_ZINA[0] ? 1 : 0;
 function ijroFoiz(k, soxta) { const t = k.rT + k.nT + k.xT + k.tT, b = k.rB + k.nB + k.xB + k.tB; if (!t) return null; return Math.max(0, Math.min(100, Math.round(b / t * 100) - (soxta || 0) * IJRO_SOXTA_MINUS)); }
 function ijroYig(A) { const z = { rT: 0, rB: 0, nT: 0, nB: 0, xT: 0, xB: 0, tT: 0, tB: 0 }; A.forEach(k => Object.keys(z).forEach(y => z[y] += Number(k[y]) || 0)); return z; }
-function ijroKun(h, fish, bugun, Xj, T, Sx, hozir0) {   // hozir0 — sinovda eski trigger vaqti (18:15)
+// 23.10.2026 DIREKTOR QARORI — xatlar uchun 1 ISH KUNI MUHLAT (pochta orqali yetkaziladi): xat chiqarilgan kundan keyingi ish kuni (yakshanba o'tkaziladi) — muhlat.
+// Qoida ijro_kechki serverga o'tgach kuchga kiradi (Redis vaqt_yondi:ijro_kechki = 1; eski tizim «o'z kunida» qoidasida qoladi) — aks-vaqt yoq ijro_kechki.
+const xatMuhlat = iso => { const d = new Date(iso + 'T12:00:00Z'); do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0); return d.toISOString().slice(0, 10); };
+const xatIshKun = (iso, bugun) => { let k = 0; const d = new Date(iso + 'T12:00:00Z'), ox = new Date(bugun + 'T12:00:00Z'); while (d < ox) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() !== 0) k++; } return k; };
+async function xatYangiQoida() { try { return (await redis.get('vaqt_yondi:ijro_kechki')) === '1'; } catch (e) { return false; } }
+function ijroKun(h, fish, bugun, Xj, T, Sx, hozir0, yangi) {   // hozir0 — sinovda eski trigger vaqti (18:15); yangi — xat muhlati qoidasi
   const hozir = hozir0 || TS.topHozirIso();
   const navbatda = h.hamma.filter(m => m.navbatda).length;
   const rT = Math.min(QD_MAQSAD, navbatda), rB = Math.min(rT, h.bajarildi.length);
   const nT = h.nazorat ? h.nazorat.kerak : 0, nB = nT - (h.nazorat ? h.nazorat.qilinmadi : 0);
-  const xs = Xj.filter(x => X.xatIso(x.sana) === bugun && x.holati !== 'Bekor' && Sx[x.no] && qdTeng(Sx[x.no].undiruvchi, fish));
-  const xB = xs.filter(x => x.holati === 'Yuborildi' && X.xatIso(x.yetSana || x.sana) === bugun).length;
+  // eski: bugun chiqarilgan xatlar — bugun yetkazilganmi; yangi: muhlati bugun tugaydigan xatlar — muhlatigacha yetkazilganmi
+  const xs = Xj.filter(x => (yangi ? xatMuhlat(X.xatIso(x.sana)) === bugun : X.xatIso(x.sana) === bugun) && x.holati !== 'Bekor' && Sx[x.no] && qdTeng(Sx[x.no].undiruvchi, fish));
+  const xB = xs.filter(x => x.holati === 'Yuborildi' && (yangi ? X.xatIso(x.yetSana || x.sana) <= bugun : X.xatIso(x.yetSana || x.sana) === bugun)).length;
   const ts = T.filter(t => qdTeng(t.kimga, fish) && t.holati !== 'Bekor' && TS.topIso(t.muddat).slice(0, 10) === bugun && TS.topIso(t.muddat) <= hozir);
   const tB = ts.filter(t => (t.holati === 'Bajarildi' || t.holati === 'Tekshiruvda') && t.kechikdi !== 'Ha').length;
   return { rT, rB, nT, nB, xT: xs.length, xB, tT: ts.length, tB };
@@ -410,7 +416,7 @@ async function ijroQisqa(fish, h, bugun) {
   const oy = bugun.slice(0, 7);
   const [Xj, T, Q, KL] = await Promise.all([J.xatJurnal(), J.topRows(), ijroQator('06q_Qoidabuzarlik', IJRO_S), ijroQator('06r_Ijro_kun', IJRO_KS)]);
   const Sx = {}; h.hamma.forEach(m => Sx[m.no] = { undiruvchi: fish });
-  const bk = ijroKun(h, fish, bugun, Xj, T, Sx);
+  const bk = ijroKun(h, fish, bugun, Xj, T, Sx, null, await xatYangiQoida());
   const K = KL.filter(r => qdTeng(r.Xodim, fish) && ijroIso(r.Sana).slice(0, 7) === oy)
     .map(r => ({ sana: ijroIso(r.Sana), rT: r.Reja_talab, rB: r.Reja_bajardi, nT: r.Nazorat_talab, nB: r.Nazorat_bajardi, xT: r.Xat_talab, xB: r.Xat_ozkunida, tT: r.Top_talab, tB: r.Top_vaqtida, foiz: r.Foiz }));
   const M = Q.filter(q => q.ID !== '' && qdTeng(q.Xodim, fish) && ijroIso(q.Sana).slice(0, 7) === oy && q.Holati !== 'Uzrli');
@@ -822,11 +828,11 @@ async function ijroKorish([kodSes, d]) {
   const H = joriy && UU.length ? await qdHisob(u.kod, UU.map(x => x.fish), bugun, XD) : null;
   const T0 = joriy ? await J.topRows() : [], hozirI = TS.topHozirIso();
   const Xj = H ? await J.xatJurnal() : [], T = H ? T0 : [], Sx = {}; if (H) (await U.undShartnomalar()).forEach(x => Sx[x.no] = x);
-  const yakshanba = new Date(bugun + 'T12:00:00Z').getUTCDay() === 0;
+  const yakshanba = new Date(bugun + 'T12:00:00Z').getUTCDay() === 0, yangiX = await xatYangiQoida();
   const xodimlar = U0.map(x => {
     const K = KL.filter(r => qdTeng(r.Xodim, x.fish) && ijroIso(r.Sana).slice(0, 7) === oy)
       .map(r => ({ sana: ijroIso(r.Sana), rT: r.Reja_talab, rB: r.Reja_bajardi, nT: r.Nazorat_talab, nB: r.Nazorat_bajardi, xT: r.Xat_talab, xB: r.Xat_ozkunida, tT: r.Top_talab, tB: r.Top_vaqtida, foiz: r.Foiz }));
-    const bk = yakshanba ? null : x.undiruvchi ? (H && H[x.fish] ? ijroKun(H[x.fish], x.fish, bugun, Xj, T, Sx) : null) : (T0.length ? ijroTopKun(T0, x.fish, bugun, hozirI) : null);
+    const bk = yakshanba ? null : x.undiruvchi ? (H && H[x.fish] ? ijroKun(H[x.fish], x.fish, bugun, Xj, T, Sx, null, yangiX) : null) : (T0.length ? ijroTopKun(T0, x.fish, bugun, hozirI) : null);
     const M = L.filter(q => qdTeng(q.Xodim, x.fish) && ijroIso(q.Sana).slice(0, 7) === oy && q.Holati !== 'Uzrli');
     const son = { soni: M.length, ball: M.reduce((a, q) => a + ijroBall(q), 0), soxta: M.filter(q => q.Tur === 'soxta').length, tushuntirishsiz: M.filter(q => !String(q.Tushuntirish || '').trim()).length };
     const yig = ijroYig(K);
@@ -853,4 +859,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS };
+module.exports._ichki = { qadamXulosa, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };

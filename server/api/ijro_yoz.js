@@ -79,13 +79,13 @@ async function ijroYoz(varaq, o) {
   const id = (L.length ? Math.max(...L.map(q => Number(q.ID) || 0)) : 0) + 1;
   const sana = o.sana || V.bugun(), vaqt = hozirIso();
   const row = (L.length ? L[L.length - 1].qator : 1) + 1;
-  const ball = T[1] === 'og\'ir' ? IJRO_OGIR_BALL : 1;
+  const ball = T[1] === 'og\'ir' ? IJRO_OGIR_BALL : 1, nomi = o.nomi || T[0];   // o.nomi — 23.10 xat muhlati qoidasida boshqa nom
   let q;
   try {
-    q = await G.qatorQoshR(env.aksBazaId, varaq, row, [id, '', o.xodim, o.tur, T[0], T[1], ball, o.no || '', o.fish || '', s(o.tafsilot).slice(0, 900), 'Hisobda', '', '', '', '', o.kalit || '', ''], env.googleKey);
+    q = await G.qatorQoshR(env.aksBazaId, varaq, row, [id, '', o.xodim, o.tur, nomi, T[1], ball, o.no || '', o.fish || '', s(o.tafsilot).slice(0, 900), 'Hisobda', '', '', '', '', o.kalit || '', ''], env.googleKey);
     await G.sanaYoz(env.aksBazaId, [{ varaq, qator: q, ustun: 2, iso: sana }, { varaq, qator: q, ustun: 17, iso: vaqt, naqsh: 'dd.MM.yyyy HH:mm' }], env.googleKey);
   } catch (e) { throw yozilmadi(e); }
-  return { id, tur: o.tur, nomi: T[0], ogirlik: T[1], no: o.no || '', tafsilot: o.tafsilot || '', qator: q };
+  return { id, tur: o.tur, nomi, ogirlik: T[1], no: o.no || '', tafsilot: o.tafsilot || '', qator: q };
 }
 // ijroZina_: zinapoya — yangi pog'onaga chiqqanda bir marta xabar (holat — Redis)
 async function ijroZina(kod, fish, XD, L) {
