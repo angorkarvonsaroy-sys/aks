@@ -120,7 +120,8 @@ function yhSvod(jurnal, xat, tolov, hujjat) {
   const yub = xat.filter(h => h.holati === 'Yuborildi');
   const skan = (hujjat || []).filter(h => h.kod === 'OGOHLANTIRISH');
   const isbot = (hujjat || []).filter(h => h.kod === 'XAT_OLDIM' || h.kod === 'POCHTA');
-  const dav = a => a.length ? yhDmy(yhIso(a[0])) + ' — ' + yhDmy(yhIso(a[a.length - 1])) : '';
+  // davr — eng erta va eng kech sana (23.10.2026: avval ro'yxatdagi birinchi va oxirgisi olinardi — skanlar yuklangan tartibda bo'lgani uchun «14.05.2026 — 20.04.2026» kabi teskari chiqardi)
+  const dav = a => { const L = a.map(yhIso).filter(Boolean).sort(); return L.length ? yhDmy(L[0]) + ' — ' + yhDmy(L[L.length - 1]) : ''; };
   const sanalar = ch => jurnal.filter(j => s(j.chora) === ch).map(j => j.sana);
   return {
     chora: Object.keys(c).map(k => ({ nom: k, soni: c[k], davr: dav(sanalar(k)) })).sort((a, b) => b.soni - a.soni),
