@@ -2,7 +2,8 @@
 // Har ish Redis bayrog'i bilan yoqiladi: vaqt_yondi:<nom> (aks-vaqt yoq <nom> / ochir <nom>). Bayroq o'chiq bo'lsa server hech narsa qilmaydi —
 // eski tizimning triggeri ishlayveradi. Yoqilgach eski trigger Apps Script'da qo'lda o'chiriladi (ikkalasi birga ishlamasin).
 // Vaqt oynasi (Toshkent): har ish o'z «bo'lak»ida bir marta — masalan har 2 soatda: 00:05, 02:05, … 22:05 (eski everyHours(2) ham kecha-kunduz).
-// Server o'sha paytda o'chiq bo'lsa (yangilanish), qayta ishga tushgach o'sha bo'lak hali o'tmagan bo'lsa — darhol bajariladi. Xato bo'lsa — 1 daqiqadan
+// Server o'sha paytda o'chiq bo'lsa (yangilanish), qayta ishga tushgach o'sha bo'lak hali o'tmagan bo'lsa — darhol bajariladi (kunlik ish — faqat belgilangan
+// vaqtdan 90 daqiqa ichida; 22.10: yoqilganda o'sha kuni kechqurun ertalabki xabar ketib qolgan edi). Xato bo'lsa — 1 daqiqadan
 // keyin yana (bo'lakda ko'pi bilan 3 urinish). Har bajarilish: Redis vaqt_jurnal (oxirgi 300) + rpc_jurnal (qayerda = 'vaqt') — aks-vaqt / aks-bugun.
 // Ishlar:
 //   top_avto    — Topshiriq.gs topAvto (har 2 soatda): api/top_avto.js topAvto (yozuv_yondi:top_avto va Koprik ≥ 1.5 bo'lsa serverda; aks holda
@@ -22,7 +23,10 @@ function toshkent(ms) { const d = new Date((ms || Date.now()) + 5 * 3600 * 1000)
 function bolak(ish, t) {
   if (ish.har === 'soat2') { if (t.daq < 5) return null; return t.iso + 'T' + String(t.soat - t.soat % 2).padStart(2, '0'); }
   const m = /^kun:(\d{2}):(\d{2})$/.exec(ish.har);
-  if (m) { if (t.soat < +m[1] || (t.soat === +m[1] && t.daq < +m[2])) return null; return t.iso; }
+  if (m) {   // kunlik ish: belgilangan vaqtdan boshlab 90 daqiqa ichida (server o'chiq bo'lsa shu oynada yetib oladi); kechroq — bugun o'tkazib yuboriladi
+    const d = t.soat * 60 + t.daq - (+m[1] * 60 + +m[2]);
+    if (d < 0 || d > 90) return null; return t.iso;
+  }
   return null;
 }
 function keyingi(ish, t) {   // ko'rsatish uchun: keyingi bo'lak boshlanishi

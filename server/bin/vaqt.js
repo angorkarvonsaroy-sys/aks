@@ -10,6 +10,7 @@ const s = v => String(v == null ? '' : v);
   if ((arg === 'hozir' || arg === 'sinov' || arg === 'yoq' || arg === 'ochir') && !ish) { console.log('Ish nomi noto\'g\'ri. Bor ishlar: ' + VQ.ISHLAR.map(z => z.nom).join(', ')); process.exit(1); }
   if (arg === 'yoq') {
     await redis.set('vaqt_yondi:' + ish.nom, '1');
+    const b = VQ.bolak(ish, VQ.toshkent()); if (b) await redis.set('vaqt:' + ish.nom + ':bolak', b, 'EX', 48 * 3600);   // bugungi vaqti o'tib bo'lgan — bugun bajarilmaydi, keyingisidan
     console.log('✅ «' + ish.tavsif + '» serverda jadval bo\'yicha YOQILDI (' + (ish.har === 'soat2' ? 'har 2 soatda: 00:05, 02:05 … 22:05' : 'har kuni ' + ish.har.slice(4)) + ').');
     console.log('   ENDI eski trigger o\'chirilsin: Apps Script → ⏰ Триггеры → «' + ish.eski.split(' — ')[0] + '» qatorida ⋮ → Удалить триггер.');
   } else if (arg === 'ochir') {
