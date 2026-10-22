@@ -7,7 +7,7 @@
 //   tekshiruvchiga Telegram — Koprik v1.7 koprikTopTasdiqTg; fayl hali serverda (SRV) bo'lsa — Drive'ga ko'chgach).
 //   skanNazTekshir_ (v2.1, yangi skanlarning ixtiyoriy nazorati — Script Properties bilan) — eski tizimning o'zi (Koprik v1.12 koprikSkanNaz).
 //   tgTugmaOrnat_ (Telegram tugmalari triggeri) — faqat Apps Script'da; eski topAvto triggeri (har 2 soat) uni o'zi o'rnatib turadi — bu yerda yo'q.
-// Eski topAvto triggeri (har 2 soatda) ishlayveradi — ikkalasi bitta qoidalar bilan, shuning uchun bir xil topshiriq ikki marta ochilmaydi (band kalit).
+// Eski topAvto triggeri (har 2 soatda) — lib/vaqt.js «top_avto» (vaqt_yondi:top_avto) yoqilgach serverda; eski trigger Apps Script'da o'chiriladi (22.10.2026).
 // Yoqilishi: Redis yozuv_yondi:top_avto («aks-yozuv-sinov tophozir») va Koprik ≥ 1.5. Aks holda — eski tizim.
 'use strict';
 const crypto = require('crypto');
@@ -249,4 +249,4 @@ async function topHozir(args) {
 }
 
 module.exports = { topHozir };
-module.exports._ichki = { topAvto, topCtx, topHal, topHalHujjat, topMeningYop, TOP_V };
+module.exports._ichki = { topAvto, topCtx, topHal, topHalHujjat, topMeningYop, qulfUrin, TOP_V };

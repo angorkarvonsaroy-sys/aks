@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# AKS TIZIM — ⏰ vaqt bo'yicha ishlar (eski Apps Script triggerlari o'rni). Ishlatish:
+#   aks-vaqt                 — ro'yxat va holat (yoqilganmi, keyingi vaqt, oxirgi bajarilish), oxirgi 10 ta yozuv
+#   aks-vaqt hozir <nom>     — ishni hozir bir marta bajarish (sinov; natija ko'rsatiladi)
+#   aks-vaqt yoq <nom>       — serverda jadval bo'yicha yoqish (keyin eski trigger Apps Script'da o'chiriladi)
+#   aks-vaqt ochir <nom>     — o'chirish (eski trigger ishlayveradi)
+cd /opt/aks/app && exec sudo -u aks -H node bin/vaqt.js "$@"

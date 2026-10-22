@@ -110,6 +110,7 @@ async function main() {
   require('./bekor_yoz')._ichki.boshla();   // Drive'ga ko'chmagan bekor qilish hujjatlari — har 15 daqiqada
   require('./yurist_aloqa')._ichki.boshla();   // Drive'ga ko'chmagan yurist aloqa xatlari — har 15 daqiqada
   require('./kb_yoz')._ichki.boshla();   // Drive'ga ko'chmagan kelishuv hujjatlari — har 15 daqiqada
+  require('../lib/vaqt').boshla();   // ⏰ vaqt bo'yicha ishlar (eski triggerlar o'rni) — har daqiqada tekshiriladi, bayroq vaqt_yondi:<nom>
   console.log(`${new Date().toISOString()} AKS api ${VERSIYA} tinglayapti: 127.0.0.1:${env.appPort}`);
 }
 main().catch(e => { console.error('API ishga tushmadi:', e); process.exit(1); });
