@@ -11,7 +11,7 @@ const s = v => String(v == null ? '' : v);
   if (arg === 'yoq') {
     await redis.set('vaqt_yondi:' + ish.nom, '1');
     const b = VQ.bolak(ish, VQ.toshkent()); if (b) await redis.set('vaqt:' + ish.nom + ':bolak', b, 'EX', 48 * 3600);   // bugungi vaqti o'tib bo'lgan — bugun bajarilmaydi, keyingisidan
-    console.log('✅ «' + ish.tavsif + '» serverda jadval bo\'yicha YOQILDI (' + (ish.har === 'soat2' ? 'har 2 soatda: 00:05, 02:05 … 22:05' : 'har kuni ' + ish.har.slice(4)) + ').');
+    console.log('✅ «' + ish.tavsif + '» serverda jadval bo\'yicha YOQILDI (' + (ish.har === 'soat2' ? 'har 2 soatda: 00:05, 02:05 … 22:05' : VQ.harMatn(ish.har)) + ').');
     console.log('   ENDI eski trigger o\'chirilsin: Apps Script → ⏰ Триггеры → «' + ish.eski.split(' — ')[0] + '» qatorida ⋮ → Удалить триггер.');
   } else if (arg === 'ochir') {
     await redis.del('vaqt_yondi:' + ish.nom);
@@ -35,7 +35,7 @@ const s = v => String(v == null ? '' : v);
     console.log('================ ⏰ VAQT BO\'YICHA ISHLAR — ' + VQ.toshkent().dmyHm + ' (Toshkent) ================');
     for (const h of H) {
       const o = h.oxirgi;
-      console.log((h.yoq ? '🟢 SERVERDA' : '⚪ eski triggerda') + '  ' + h.nom.padEnd(12) + ' ' + h.tavsif + ' · ' + (h.har === 'soat2' ? 'har 2 soatda' : 'har kuni ' + h.har.slice(4)) + (h.yoq ? ' · keyingi ' + h.keyingi : '') + ' · eski: ' + h.eski);
+      console.log((h.yoq ? '🟢 SERVERDA' : '⚪ eski triggerda') + '  ' + h.nom.padEnd(12) + ' ' + h.tavsif + ' · ' + VQ.harMatn(h.har) + (h.yoq ? ' · keyingi ' + h.keyingi : '') + ' · eski: ' + h.eski);
       console.log('              oxirgi: ' + (o ? o.vaqt + ' ' + (o.ok ? '✅ ' + JSON.stringify(o.natija) : '✖ ' + o.xato) + ' (' + (o.ms / 1000).toFixed(1) + ' s)' : '— hali bajarilmagan'));
     }
     const J = (await redis.lrange('vaqt_jurnal', 0, 9)).map(z => { try { return JSON.parse(z); } catch (e) { return null; } }).filter(Boolean);

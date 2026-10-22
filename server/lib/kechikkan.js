@@ -102,4 +102,4 @@ async function bekorKechikkan(kod, opt = {}) {
   return { sorovlar: L.length, qizil: qizil.length, xodimlar: xodim, guruh };
 }
 
-module.exports = { xatKechikkan, bekorKechikkan, bekorIshKun };
+module.exports = { xatKechikkan, bekorKechikkan, bekorIshKun, xodimlar };

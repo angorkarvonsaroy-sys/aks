@@ -223,4 +223,4 @@ async function ijaraImzosizHolat([kodSes, no]) {
 }
 
 module.exports = { taminotDirektor, taminotSvodOl, taminotBoshlang, kbDirektor, ijaraImzosizRoyxat, kbHolat, ijaraImzosizHolat };
-module.exports._ichki = { tamRows, tamJismoniy, tamFirmalar };
+module.exports._ichki = { tamRows, tamJismoniy, tamFirmalar, tamOtganHafta };

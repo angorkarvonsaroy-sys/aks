@@ -16,6 +16,8 @@
 //   bekor_kechikkan — bekorKechikkanTekshir (17:15): lib/kechikkan.js — bekor qilish skanlari kechikkan (xodimga, ≥2 ish kuni — direktorga).
 //   qadam_kechki — qadamKechki (18:00): lib/ijro_kun.js — direktorga «🌙 Bugungi ish natijasi» (reja bajarilmagan bo'lsa).
 //   ijro_kechki  — ijroKechki (18:15): lib/ijro_kun.js — 06r kunlik ijro, 06q qoidabuzarliklar, xodimlarga Telegram, zinapoya.
+//   yurist_kunlik — yuristKunlik (20:05): lib/kunlik_xabar.js — direktorga «⚖ Yurist bo'limi».
+//   taminot_eslatma — taminotEslatma (dushanba 09:00): lib/kunlik_xabar.js — ta'minot dalolatnomasi eslatmasi.
 //   ijro_tanla   — ijroTekshiruvTanla (09:30): lib/ijro_kun.js — tasodifiy tekshiruv (10 + 06p); oyning 1-kuni — ijroOylik.
 'use strict';
 const { q, redis } = require('./db');
@@ -27,6 +29,8 @@ function toshkent(ms) { const d = new Date((ms || Date.now()) + 5 * 3600 * 1000)
 // bo'lak kaliti: 'soat2' — har 2 soat (00,02,…22), daqiqa ≥ 5 dan; 'kun:HH:MM' — kuniga bir marta, shu vaqtdan boshlab
 function bolak(ish, t) {
   if (ish.har === 'soat2') { if (t.daq < 5) return null; return t.iso + 'T' + String(t.soat - t.soat % 2).padStart(2, '0'); }
+  const h = /^hafta:(\d):(\d{2}):(\d{2})$/.exec(ish.har);   // haftada bir: hafta:1:09:00 — dushanba 09:00 (0 — yakshanba)
+  if (h) { if (t.d.getUTCDay() !== +h[1]) return null; const d = t.soat * 60 + t.daq - (+h[2] * 60 + +h[3]); if (d < 0 || d > 90) return null; return t.iso; }
   const m = /^kun:(\d{2}):(\d{2})$/.exec(ish.har);
   if (m) {   // kunlik ish: belgilangan vaqtdan boshlab 90 daqiqa ichida (server o'chiq bo'lsa shu oynada yetib oladi); kechroq — bugun o'tkazib yuboriladi
     const d = t.soat * 60 + t.daq - (+m[1] * 60 + +m[2]);
@@ -34,8 +38,11 @@ function bolak(ish, t) {
   }
   return null;
 }
+const HAFTA = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+function harMatn(har) { if (har === 'soat2') return 'har 2 soatda'; const h = /^hafta:(\d):(.+)$/.exec(har); if (h) return 'har ' + HAFTA[+h[1]] + ' ' + h[2]; return 'har kuni ' + har.slice(4); }
 function keyingi(ish, t) {   // ko'rsatish uchun: keyingi bo'lak boshlanishi
   if (ish.har === 'soat2') { const h = t.soat - t.soat % 2 + (t.daq >= 5 ? 2 : 0); return (h >= 24 ? 'ertaga ' : '') + String(h % 24).padStart(2, '0') + ':05'; }
+  const h = /^hafta:(\d):(\d{2}):(\d{2})$/.exec(ish.har); if (h) return HAFTA[+h[1]] + ' ' + h[2] + ':' + h[3];
   const m = /^kun:(\d{2}):(\d{2})$/.exec(ish.har); return m ? ((t.soat > +m[1] || (t.soat === +m[1] && t.daq >= +m[2])) ? 'ertaga ' : '') + m[1] + ':' + m[2] : '?';
 }
 async function adminKod() {
@@ -93,6 +100,7 @@ async function topKechkiIsh(kod, opt = {}) {
 const ER = require('./ertalab');
 const KC = require('./kechikkan');
 const IK = require('./ijro_kun');
+const KX = require('./kunlik_xabar');
 const ISHLAR = [
   { nom: 'top_avto', fn: 'topAvto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
   { nom: 'und_ertalab', fn: 'undErtalabYubor', tavsif: '☀️ Undiruvchilarga ertalabki topshiriq + 07c svod (undErtalabYubor)', har: 'kun:09:00', eski: 'undErtalabYubor — har kuni 09:00', ish: (kod, opt) => ER.undErtalab(kod, opt) },
@@ -103,6 +111,8 @@ const ISHLAR = [
   { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
   { nom: 'qadam_kechki', fn: 'qadamKechki', tavsif: '🌙 Direktorga bugungi ish natijasi (qadamKechki)', har: 'kun:18:00', eski: 'qadamKechki — har kuni 18:00', ish: (kod, opt) => IK.qadamKechki(kod, opt) },
   { nom: 'ijro_kechki', fn: 'ijroKechki', tavsif: '📒 Kunlik ijro + qoidabuzarliklar (ijroKechki)', har: 'kun:18:15', eski: 'ijroKechki — har kuni 18:15', ish: (kod, opt) => IK.ijroKechki(kod, opt) },
+  { nom: 'yurist_kunlik', fn: 'yuristKunlik', tavsif: '⚖ Direktorga yurist bo\'limi xabari (yuristKunlik)', har: 'kun:20:05', eski: 'yuristKunlik — har kuni 20:05', ish: (kod, opt) => KX.yuristKunlik(kod, opt) },
+  { nom: 'taminot_eslatma', fn: 'taminotEslatma', tavsif: '📦 Ta\'minot haftalik dalolatnoma eslatmasi (taminotEslatma)', har: 'hafta:1:09:00', eski: 'taminotEslatma — har dushanba 09:00', ish: (kod, opt) => KX.taminotEslatma(kod, opt) },
   { nom: 'ijro_tanla', fn: 'ijroTekshiruvTanla', tavsif: '🎲 Tasodifiy tekshiruv + oylik xulosa (ijroTekshiruvTanla)', har: 'kun:09:30', eski: 'ijroTekshiruvTanla — har kuni 09:30', ish: (kod, opt) => IK.ijroTekshiruvTanla(kod, Object.assign({ oylikKor: !!(opt && opt.quruq) }, opt)) },
 ];
 
@@ -161,4 +171,4 @@ async function holat() {
 }
 // quruq sinov: hech narsa yozmaydi va yubormaydi — nima bo'lishini qaytaradi (aks-vaqt sinov <nom>)
 async function sinov(ish) { return ish.ish(await adminKod(), { quruq: true }); }
-module.exports = { ISHLAR, boshla, tekshir, bajar, sinov, holat, toshkent, bolak, adminKod };
+module.exports = { ISHLAR, boshla, tekshir, bajar, sinov, holat, toshkent, bolak, adminKod, harMatn };
