@@ -26,8 +26,9 @@ const ustunN = h => h.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 
   console.log('================ «27/8» → SANA bo\'lib qolgan shartnoma raqamlari — ' + (bajar ? 'TIKLANMOQDA' : 'KO\'RISH (hech narsa yozilmaydi)') + ' ================');
   const T = [], N = [], X = [];
   for (const [varaq, u, sar] of USTUNLAR) {
-    let R, A;
-    try { [R, A] = await Promise.all([G.oraliqOqi(env.aksBazaId, varaq, u + '1:' + u, env.googleKey, 'UNFORMATTED_VALUE'), G.oraliqOqi(env.aksBazaId, varaq, 'A1:A', env.googleKey, 'UNFORMATTED_VALUE')]); }
+    let R, A = [];   // Google: daqiqasiga 60 o'qish — A ustuni faqat buzilgan katak bo'lsa o'qiladi
+    try { R = await G.oraliqOqi(env.aksBazaId, varaq, u + '1:' + u, env.googleKey, 'UNFORMATTED_VALUE');
+      if (R.some((r, i) => i > 0 && typeof (r || [])[0] === 'number')) A = await G.oraliqOqi(env.aksBazaId, varaq, 'A1:A', env.googleKey, 'UNFORMATTED_VALUE'); }
     catch (e) { X.push(varaq + ' ' + u + ': o\'qib bo\'lmadi — ' + e.message); continue; }
     if (s((R[0] || [])[0]).trim() !== sar) { X.push(varaq + ' ' + u + ': sarlavha «' + s((R[0] || [])[0]) + '» (kutilgan «' + sar + '») — o\'tkazib yuborildi'); continue; }
     R.forEach((r, i) => { const v = (r || [])[0]; if (i === 0 || typeof v !== 'number') return;
@@ -43,8 +44,9 @@ const ustunN = h => h.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 
   if (!bajar) console.log('\nHech narsa yozilmadi. Tiklash uchun: aks-raqam-tikla bajar');
   else if (T.length) {
     await G.xomYoz(env.aksBazaId, T.map(z => ({ varaq: z.varaq, qator: z.qator, ustun: ustunN(z.u), qiymat: z.yangi })), env.googleKey);
-    let ok = 0;
-    for (const z of T) { const r = await G.oraliqOqi(env.aksBazaId, z.varaq, z.u + z.qator, env.googleKey, 'UNFORMATTED_VALUE'); if (s(((r[0] || [])[0])) === z.yangi) ok++; }
+    let ok = 0; const C = {};   // tekshirish — har ustun bir marta o'qiladi
+    for (const z of T) { const k = z.varaq + '|' + z.u; if (!C[k]) C[k] = await G.oraliqOqi(env.aksBazaId, z.varaq, z.u + '1:' + z.u, env.googleKey, 'UNFORMATTED_VALUE');
+      if (s(((C[k][z.qator - 1] || [])[0])) === z.yangi) ok++; }
     console.log('\n' + (ok === T.length ? '✅' : '⚠') + ' Tiklandi: ' + ok + ' / ' + T.length + (ok === T.length ? ' — hammasi matn bo\'lib turibdi' : ' — FARQ BOR, Claude\'ga ko\'rsating'));
     const vq = [...new Set(T.map(z => z.varaq))];
     try { await Promise.race([tetik.varaqlarYangila(vq), new Promise(r => setTimeout(r, 25000))]); } catch (e) { }
