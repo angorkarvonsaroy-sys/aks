@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — Koprik versiyasi: aks-koprik [kerakli versiya]
+cd /opt/aks/app && exec sudo -u aks -H node bin/koprik_versiya.js "$@"
