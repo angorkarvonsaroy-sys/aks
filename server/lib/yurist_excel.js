@@ -1,5 +1,7 @@
 // AKS TIZIM — yurist hujjatlarining Excel nusxasi (Yurhujjat.gs v25.4 yhExcel_ — bayonnoma, ikki varaq; yhPenyaExcel_ — penya hisobi).
 // Eski kod so'zma-so'z: jadval chaqiruvlari lib/xlsx_google.js yozuvchisida, fayl — Google eksporti tuzilishida.
+// 23.10.2026 tuzatildi (eski xato): «Ставка» formati '0,0%' (vergul — minglik ajratuvchi) 0,1% ni «0%» ko'rsatardi → '0.0%';
+// summalar '# ##0' (bo'sh joy — oddiy belgi) faqat bitta bo'sh joy qo'yardi («8333 333») → '#,##0' (minglik guruhlash, «8 333 333»).
 'use strict';
 const XG = require('./xlsx_google');
 const YM = require('./yurist_malumot');
@@ -21,9 +23,9 @@ function penyaKitob(M) {
   s1.getRange(1, 1, b1.length, 7).setValues(b1.map(r => { while (r.length < 7) r.push(''); return r; }));
   s1.getRange(5, 1, 1, 7).setFontWeight('bold').setBackground('#0B3D2E').setFontColor('#FFFFFF');
   s1.getRange(1, 1).setFontWeight('bold').setFontSize(13); s1.setFrozenRows(5);
-  s1.getRange(6, 3, Math.max(1, b1.length - 5), 1).setNumberFormat('# ##0');
-  s1.getRange(6, 7, Math.max(1, b1.length - 5), 1).setNumberFormat('# ##0');
-  s1.getRange(6, 6, Math.max(1, P.satr.length), 1).setNumberFormat('0,0%');
+  s1.getRange(6, 3, Math.max(1, b1.length - 5), 1).setNumberFormat('#,##0');
+  s1.getRange(6, 7, Math.max(1, b1.length - 5), 1).setNumberFormat('#,##0');
+  s1.getRange(6, 6, Math.max(1, P.satr.length), 1).setNumberFormat('0.0%');
   [40, 120, 120, 120, 110, 90, 130].forEach((w, i) => s1.setColumnWidth(i + 1, w));
   return ss;
 }
@@ -46,7 +48,7 @@ function bayonnomaKitob(M, X) {
   s2.getRange(1, 1, b2.length, 5).setValues(b2.map(r => { while (r.length < 5) r.push(''); return r; }));
   s2.getRange(4, 1, 1, 5).setFontWeight('bold').setBackground('#0B3D2E').setFontColor('#FFFFFF');
   s2.getRange(1, 1).setFontWeight('bold').setFontSize(13); s2.setFrozenRows(4);
-  s2.getRange(5, 4, Math.max(1, b2.length - 4), 2).setNumberFormat('# ##0');
+  s2.getRange(5, 4, Math.max(1, b2.length - 4), 2).setNumberFormat('#,##0');
   s2.setColumnWidth(2, 95); s2.setColumnWidth(3, 130); s2.setColumnWidth(4, 130); s2.setColumnWidth(5, 140);
   return ss;
 }
