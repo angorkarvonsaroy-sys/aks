@@ -61,6 +61,9 @@ function dirQmMatn(matn, oldin) {
 
 // ------------------------------------------------------------------ HTML
 // Chromium @page chekkalarini butun px ga (0,75 pt) yaxlitlaydi — qolgan ulush body padding bilan to'ldiriladi (matn x = 85,05 aniq).
+// Xatboshi oraliqlari (spacing before / after) — PADDING bilan: CSS da qo'shni margin'lar birlashadi (kattasi qoladi), Google Docs esa ikkalasini
+// QO'SHADI (devonxat sinovi, 22.10: № qatoridan keyingi xatboshining before=8 № margin'i bilan birlashib yo'qolgan edi). № / Директор / imzo qatorlari
+// margin bilan qoladi — padding bilan yonma-yon kelganda birlashmaydi (yig'indi).
 const PX = 0.75, pxPast = v => Math.floor(v / PX + 1e-9), qoldiq = v => +(v - pxPast(v) * PX).toFixed(3);
 const CSS = `@page{size:${SAH.w}pt ${SAH.h}pt;margin:${pxPast(SAH.tepa)}px ${pxPast(SAH.ong)}px ${Math.ceil(SAH.past / PX)}px ${pxPast(SAH.chap)}px}
 *{box-sizing:content-box}html{margin:0;padding:0}body{margin:0;padding:${qoldiq(SAH.tepa)}pt 0 0 ${qoldiq(SAH.chap)}pt;width:${ENI}pt}
@@ -104,8 +107,11 @@ function xatHtml(o) {
   const para = (matn, b) => {
     const sz = z(b.sz || 11);
     const tek = (b.al || 'both') === 'both';
-    const st = ['text-align:' + (tek ? 'left' : AL[b.al]), 'margin-top:' + z((b.before || 0) + keyingiOldin) + 'pt', 'margin-bottom:' + z(b.after || 0) + 'pt',
-      'padding-left:' + Math.round((b.left || 0) / 0.75) * 0.75 + 'pt'   /* Docs chekinishni butun px ga yaxlitlaydi: 28,4 → 28,5 */, 'text-indent:' + (b.ind ? 28.5 : 0) + 'pt', 'font-size:' + sz + 'pt', 'line-height:' + (sz * 1.15 * (b.ls || 1)).toFixed(3) + 'pt'];
+    const ls = b.ls || 1;
+    const st = ['text-align:' + (tek ? 'left' : AL[b.al]), 'padding-top:' + z((b.before || 0) + keyingiOldin) + 'pt', 'padding-bottom:' + z(b.after || 0) + 'pt',
+      'padding-left:' + Math.round((b.left || 0) / 0.75) * 0.75 + 'pt'   /* Docs chekinishni butun px ga yaxlitlaydi: 28,4 → 28,5 */, 'text-indent:' + (b.ind ? 28.5 : 0) + 'pt', 'font-size:' + sz + 'pt', 'line-height:' + (sz * 1.15 * ls).toFixed(3) + 'pt'];
+    // Docs qator oralig'i > 1 bo'lsa qo'shimcha joyni matn OSTIGA qo'yadi (matn qator boshida qoladi), Chromium esa teng bo'lib ustiga ham qo'yadi — matn yarmiga ko'tariladi
+    if (ls > 1) st.push('position:relative', 'top:-' + (sz * 1.15 * (ls - 1) / 2).toFixed(4) + 'pt');
     if (b.b) st.push('font-weight:bold');
     keyingiOldin = 0;
     // Google Docs chiziqcha/qiyshiq chiziqdan keyin qatorni bo'lmaydi («198-уйдаги» butun o'tadi) — Chromium bo'ladi; so'z butun qoldiriladi.
@@ -135,7 +141,7 @@ function xatHtml(o) {
   const imzo = '<p class="dir">Директор<span class="n">______________________</span>&#8203;<span class="f">Ҳайдаров К.Ҳ.</span></p>'
     + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
     + '<p class="k9" style="margin-bottom:0">' + (asl ? esc(asl) : '<br>') + '</p>';
-  const havola = o.havola ? '<p style="font-size:' + z(10) + 'pt;line-height:' + (z(10) * 1.15).toFixed(3) + 'pt;margin-top:' + z(2) + 'pt;margin-bottom:0;text-align:left">' + esc(o.havola) + '</p>' : '';
+  const havola = o.havola ? '<p style="font-size:' + z(10) + 'pt;line-height:' + (z(10) * 1.15).toFixed(3) + 'pt;padding-top:' + z(2) + 'pt;text-align:left">' + esc(o.havola) + '</p>' : '';
   return kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body>' + shapka()
     + '<p class="no">№ ' + esc(o.raqam) + '&#8203;<span class="o">' + esc(o.sanaMatn) + '</span></p>' + havola
     + html + imzo + '</body></html>');

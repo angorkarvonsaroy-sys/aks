@@ -2032,6 +2032,21 @@ async function devon2Sinov() {
   else { await redis.del('yozuv_yondi:devon2'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
 }
 
+// Qatorma-qator: eski va server PDF dagi har bir matn qatorining yuqori chegarasi (so'zlar bir xil ketma-ketlikda bo'lsa) — farq o'zgargan joylar chiqariladi
+function qatorFarq(eskiB, yangiB) {
+  const A = sozJoy(eskiB), B = sozJoy(yangiB);
+  if (A.length !== B.length) return;
+  const L = []; let j = null;
+  A.forEach((a, i) => { const b = B[i]; if (!b || a[1] !== b[1]) return;
+    if (j && j.bet === a[0] && Math.abs(j.ye - a[3]) < 0.6) { j.n++; j.dy += (a[3] - b[3]); if (j.matn.length < 34) j.matn += ' ' + a[1]; }
+    else { j = { bet: a[0], ye: a[3], ys: b[3], n: 1, dy: a[3] - b[3], matn: a[1] }; L.push(j); } });
+  let oldin = null, k = 0;
+  console.log('    qator: eski y | server y | farq (eski − server) — faqat farq o\'zgargan qatorlar');
+  L.forEach((l, i) => { const d = l.dy / l.n; const chiq = oldin === null || Math.abs(d - oldin) >= 0.25 || i === L.length - 1;
+    if (chiq && k < 40) { console.log('    ' + l.bet + '-bet ' + l.ye.toFixed(1).padStart(6) + ' | ' + l.ys.toFixed(1).padStart(6) + ' | ' + (d >= 0 ? '+' : '') + d.toFixed(2).padStart(5) + '  «' + l.matn + '»'); k++; }
+    oldin = d; });
+}
+
 // 📮 BLANKADAGI CHIQUVCHI XAT (Devon.gs devonChiqimYoz / devonXatYasa_): 11 dagi eski tizim yasagan oxirgi 2 ta xatni (R JSON da pdf, doc, oluvchi, xat)
 // server o'sha ma'lumotdan qayta yasaydi — PDF matni, sahifalari, so'zlar joyi va Word (Google eksporti bilan qismma-qism) solishtiriladi. Hech narsa yozilmaydi.
 async function devonxatSinov() {
@@ -2058,7 +2073,7 @@ async function devonxatSinov() {
       let ePdf; try { ePdf = (await G.driveFayl(J.pdf, KEY)).bytes; } catch (e) { console.log('  ⚠ eski PDF ni robot o\'qiy olmadi: ' + e.message); x++; continue; }
       x += pdfSolishtir(ePdf, f.pdf);
       const w = sozSolishtir(ePdf, f.pdf);
-      if (w.sozlar[0] !== w.sozlar[1] || w.betlar[0] !== w.betlar[1] || w.farq) { x++; console.log('  ✖ so\'zlar joyi: eski ' + w.sozlar[0] + ' / server ' + w.sozlar[1] + ' so\'z, betlar ' + w.betlar.join('/') + ', ' + w.farq + ' ta farq, eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt'); w.ch.forEach(c => console.log('     ' + c)); }
+      if (w.sozlar[0] !== w.sozlar[1] || w.betlar[0] !== w.betlar[1] || w.farq) { x++; console.log('  ✖ so\'zlar joyi: eski ' + w.sozlar[0] + ' / server ' + w.sozlar[1] + ' so\'z, betlar ' + w.betlar.join('/') + ', ' + w.farq + ' ta farq, eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt'); qatorFarq(ePdf, f.pdf); }
       else console.log('  ✅ ' + w.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt)');
       let eDoc = null; try { eDoc = await G.driveEksport(J.doc, DOCX, KEY); } catch (e) { console.log('  ⚠ Google Doc eksporti o\'qilmadi (Word solishtirilmadi): ' + e.message); }
       if (eDoc) {
