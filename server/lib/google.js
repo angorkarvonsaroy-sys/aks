@@ -95,19 +95,43 @@ async function ustunOqi(sheetId, varaq, ustun, kalitFayl) {
   const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!' + ustun + ':' + ustun)}?${p}`, kalitFayl);
   return ((j.values && j.values[0]) || []).map(v => v == null ? '' : v);
 }
+// ---- «27/8» HIMOYASI (23.10.2026, eski tizimdan kelgan xato tuzatildi): USER_ENTERED da «27/1» … «27/12» kabi shartnoma raqami SANAGA aylanib ketardi
+// (27.08.2026) — 05 I, 06q H, 06 C da shunday qatorlar topildi. Sanaga aylanadigan «son/son» matnlar (kun ≤ 31 va oy ≤ 12) USER_ENTERED so'rovda bo'sh
+// qoldiriladi va keyin o'sha kataklarga RAW (talqinsiz, matn bo'lib) yoziladi. «27/368» kabilar sanaga aylanmaydi — tegilmaydi.
+function sanaBolar(v) { if (typeof v !== 'string') return false; const m = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(v); if (!m) return false;
+  const a = +m[1], b = +m[2]; return a >= 1 && b >= 1 && ((a <= 31 && b <= 12) || (a <= 12 && b <= 31)); }
+const harfU = n => { let r = ''; while (n > 0) { const m = (n - 1) % 26; r = String.fromCharCode(65 + m) + r; n = Math.floor((n - 1) / 26); } return r; };
+const ustunN = h => h.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0);
+// qatorlar (2 o'lchamli) → { q: nusxa (sanaBolar → ''), fix: [[qatorIndeks, ustunIndeks, qiymat]] }
+function ajrat(qatorlar) { const fix = []; const qq = (qatorlar || []).map((r, i) => Array.isArray(r) ? r.map((v, j) => { if (sanaBolar(v)) { fix.push([i, j, String(v).trim()]); return ''; } return v; }) : r); return { q: qq, fix }; }
+async function xomYoz(sheetId, kataklar, kalitFayl) {   // [{ varaq, qator, ustun (1 dan), qiymat }] — RAW
+  if (!kataklar.length) return;
+  return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, 'POST',
+    { valueInputOption: 'RAW', data: kataklar.map(k => ({ range: q(k.varaq) + '!' + harfU(k.ustun) + k.qator, majorDimension: 'ROWS', values: [[k.qiymat]] })) }, kalitFayl);
+}
+const qatorRaqam = (j, n) => { const m = /!\$?[A-Z]+\$?(\d+)/.exec((j && j.updates && j.updates.updatedRange) || ''); return m ? Number(m[1]) : n; };
+
 // Kataklarga yozish — USER_ENTERED: Apps Script setValue(matn) bilan bir xil talqin (sana «2026-10-17» → sana, «27/315» matn ustunida — matn).
 // data: [{ varaq, katak: 'F12' yoki 'F12:H12', qiymat: [[…]] }]
 async function yoz(sheetId, data, kalitFayl) {
-  return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, 'POST',
-    { valueInputOption: 'USER_ENTERED', data: data.map(d => ({ range: q(d.varaq) + '!' + d.katak, majorDimension: 'ROWS', values: d.qiymat })) }, kalitFayl);
+  const X = [];
+  const D = data.map(d => { const a = ajrat(d.qiymat); if (a.fix.length) { const m = /^([A-Z]+)(\d+)/.exec(d.katak); if (m) a.fix.forEach(([i, j, v]) => X.push({ varaq: d.varaq, qator: +m[2] + i, ustun: ustunN(m[1]) + j, qiymat: v })); else return d; }
+    return Object.assign({}, d, { qiymat: a.q }); });
+  const r = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, 'POST',
+    { valueInputOption: 'USER_ENTERED', data: D.map(d => ({ range: q(d.varaq) + '!' + d.katak, majorDimension: 'ROWS', values: d.qiymat })) }, kalitFayl);
+  if (X.length) await xomYoz(sheetId, X, kalitFayl);
+  return r;
 }
 // Jurnal varag'i oxiriga qator qo'shish (Apps Script appendRow o'rni): A ustunidagi oxirgi to'ldirilgan qatordan keyingi qatorga.
 async function qatorQosh(sheetId, varaq, qator, kalitFayl) {
   const p = new URLSearchParams({ majorDimension: 'COLUMNS', valueRenderOption: 'UNFORMATTED_VALUE' });
   const j = await ol(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A:A')}?${p}`, kalitFayl);
   const n = ((j.values && j.values[0]) || []).length + 1;
-  return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
-    { majorDimension: 'ROWS', values: [qator] }, kalitFayl);
+  const a = ajrat([qator]);
+  const j2 = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
+    { majorDimension: 'ROWS', values: a.q }, kalitFayl);
+  if (a.fix.length) { const r = qatorRaqam(j2, n); await xomYoz(sheetId, a.fix.map(([i, c, v]) => ({ varaq, qator: r + i, ustun: c + 1, qiymat: v })), kalitFayl); }
+  return j2;
 }
 // Kataklarga sana formati (setNumberFormat('dd.MM.yyyy') o'rni). kataklar: [{ varaq, qator (1 dan), ustun (1 dan) }]
 const gidKesh = {};
@@ -154,17 +178,21 @@ async function soralar(sheetId, requests, kalitFayl) {
 // Jurnal oxiriga qator (appendRow o'rni) — n: kutilgan qator (A ustunidagi oxirgi to'ldirilgandan keyingi). Google qo'shishni o'zi navbatga qo'yadi:
 // shu orada boshqa yozuv n-qatorni egallagan bo'lsa — yangi qator undan keyingisiga tushadi (ustma-ust yozilmaydi). Haqiqiy qator raqami qaytadi.
 async function qatorQoshR(sheetId, varaq, n, qator, kalitFayl) {
+  const a = ajrat([qator]);
   const j = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
-    { majorDimension: 'ROWS', values: [qator] }, kalitFayl);
-  const m = /!\$?[A-Z]+\$?(\d+)/.exec((j.updates && j.updates.updatedRange) || '');
-  return m ? Number(m[1]) : n;
+    { majorDimension: 'ROWS', values: a.q }, kalitFayl);
+  const r = qatorRaqam(j, n);
+  if (a.fix.length) await xomYoz(sheetId, a.fix.map(([i, c, v]) => ({ varaq, qator: r + i, ustun: c + 1, qiymat: v })), kalitFayl);
+  return r;
 }
 // Bir nechta qatorni oxiriga (setValues(l+1, …) o'rni) — qatorQoshR kabi, lekin qatorlar ro'yxati; birinchi qatorning haqiqiy raqami qaytadi.
 async function qatorlarQoshR(sheetId, varaq, n, qatorlar, kalitFayl) {
+  const a = ajrat(qatorlar);
   const j = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(q(varaq) + '!A' + n)}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`, 'POST',
-    { majorDimension: 'ROWS', values: qatorlar }, kalitFayl);
-  const m = /!\$?[A-Z]+\$?(\d+)/.exec((j.updates && j.updates.updatedRange) || '');
-  return m ? Number(m[1]) : n;
+    { majorDimension: 'ROWS', values: a.q }, kalitFayl);
+  const r = qatorRaqam(j, n);
+  if (a.fix.length) await xomYoz(sheetId, a.fix.map(([i, c, v]) => ({ varaq, qator: r + i, ustun: c + 1, qiymat: v })), kalitFayl);
+  return r;
 }
 // Kataklar haqida to'liq ma'lumot (qiymat turi, format, formula) — yozuvni eski tizim yozganiga solishtirish uchun
 async function kataklarOqi(sheetId, varaq, a1, kalitFayl) {
@@ -216,4 +244,4 @@ async function driveEksport(faylId, mime, kalitFayl) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-module.exports = { driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };
+module.exports = { sanaBolar, ajrat, xomYoz, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq };

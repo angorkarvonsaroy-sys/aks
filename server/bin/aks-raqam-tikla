@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — sanaga aylanib qolgan «27/8» kabi shartnoma raqamlari: aks-raqam-tikla — ko'rish · aks-raqam-tikla bajar — tiklash
+cd /opt/aks/app && exec sudo -u aks -H node bin/raqam_tikla.js "$@"
