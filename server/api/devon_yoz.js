@@ -124,7 +124,7 @@ async function devonKirimSaqla(args) {
     const f = await koprik.chaqir('koprikDevonSaqla', u.kod, [{ qism: 'Kirim', nom, b64: bayt.toString('base64') }], { muddat: 120000, urinish: 1 });
     if (!f || !f.id) throw new Error('Skan Drive\'ga saqlanmadi (Drive ID qaytmadi).');
     try { return await devonYoz(DEVON_V, R, { turi: 'Kirim', tartib, kim: u.fish, tashkilot, raqam, sana, mazmun, fayl: f.id, holati: 'Rezolyutsiya kutmoqda' }); }
-    catch (e) { if (e.yozilmadi) koprik.chaqir('koprikDevonSaqla', u.kod, [{ eski: f.id }]).catch(() => {}); throw e; }   // qator yozilmadi — fayl savatga
+    catch (e) { await yetimTozala(u, f.id); throw e; }   // qator yozilmadi — fayl savatga (har qanday xatoda, 23.10)
   }).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!row) return eskiTizim('devonKirimSaqla', u, [d0]);   // robotda yozish huquqi yo'q — hech narsa yozilmagan
   // v1.5: direktorga shaxsan — skan bilan, darhol; yuborilmasa sababi tarixga va kotibaga
@@ -253,6 +253,13 @@ async function faylSaqla(u, qism, nom, bayt, docx, opt) {
   return f;
 }
 const faylOchir = (u, id) => { if (id && !/^SINOV_/.test(s(id))) koprik.chaqir('koprikDevonSaqla', u.kod, [{ eski: id }]).catch(() => {}); };   // devonOchir_
+// 23.10.2026 (eski xato tuzatildi): qator yozilmay qolsa skan Drive'da YETIM qolardi — avval faqat «ruxsat yo'q» xatosida savatga tashlanardi.
+// Endi HAR QANDAY xatoda: varaq qayta o'qiladi — fayl ID biror qatorda bo'lmasa (qator chindan yozilmagan) → savatga; bo'lsa (javob yo'qolgan, qator bor) — tegilmaydi.
+async function yetimTozala(u, id, varaq) {
+  if (!id || /^SINOV_/.test(s(id))) return;
+  try { const R = await devonRowsYangi(varaq || DEVON_V); if (R.L.some(x => x.fayl === id)) return; } catch (e) { return; }   // o'qib bo'lmasa — fayl qoladi (xavfsiz tomon)
+  faylOchir(u, id);
+}
 async function devonYubSaqla(Y, nomB, u, opt) {   // devonYubSaqla_: kvitansiya skanini saqlaydi, J.yub ni qaytaradi
   const y = Object.assign({}, Y.y);
   if (Y.kvBayt) y.kvF = (await faylSaqla(u, 'Chiqim', nomB + '_kvitansiya_' + devonFaylNom(y.kv), Y.kvBayt, null, opt)).id;
@@ -287,7 +294,7 @@ async function chiqimSaqlaYadro(u, d, opt = {}) {
   const fayl = await faylSaqla(u, 'Chiqim', 'CH-' + tartib + '_' + devonFaylNom(d.raqam) + '_' + devonFaylNom(d.tashkilot), d.bayt, null, opt);
   let row;
   try { row = await devonYoz(varaq, R, { turi: 'Chiqim', tartib, kim: u.fish, tashkilot: d.tashkilot, raqam: d.raqam, sana: d.sana, mazmun: d.mazmun, fayl: fayl.id, holati: 'Yuborildi', bogliq: kirim ? kirim.id : '' }); }
-  catch (e) { if (e.yozilmadi) faylOchir(u, fayl.id); throw e; }
+  catch (e) { await yetimTozala(u, fayl.id, varaq); throw e; }
   const yub = await devonYubSaqla(d.Y, 'CH-' + tartib + '_' + devonFaylNom(d.raqam), u, opt);
   await yozK(varaq, [[kat('R', row.qator), JSON.stringify({ yub })]]);
   await devonTarix(varaq, row, 'yuborildi — ' + devonYubMatn(yub));
