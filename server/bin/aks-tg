@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — serverdagi Telegram: aks-tg | aks-tg sinov | aks-tg guruh
+cd /opt/aks/app && exec sudo -u aks -H node bin/tg.js "$@"

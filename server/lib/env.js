@@ -38,5 +38,8 @@ module.exports = {
   uiFayl: E.UI_FAYL || '/opt/aks/private/Index.html',
   xaritaFayl: E.XARITA_FAYL || '/opt/aks/private/Xarita.html',
   // 1-kompaniya (Angor Karvon Saroy) jadvali; boshqa kompaniyalar bazadagi kompaniyalar jadvalidan olinadi
+  // Telegram bot kaliti (23.10.2026 reja, 1-qadam): faqat /opt/aks/.env da (TG_TOKEN=…); bo'sh bo'lsa — Telegram avvalgidek Koprik orqali. TG_GURUH — hisobot guruhi chat ID.
+  tgToken: E.TG_TOKEN || '',
+  tgGuruh: E.TG_GURUH || '',
   aksBazaId: E.AKS_BAZA_ID || '1qqBgS99WeIVEq_BwQ4-qdUWpRoGAKJpUum86aCDSJJE',
 };
