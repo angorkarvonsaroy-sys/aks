@@ -33,6 +33,19 @@ function diskkaYoz(tur, nom, buf) {
   try { const dir = path.join(env.hujjatPapka || '/opt/aks/hujjat', 'shartnoma', tur); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, nom.replace(/[^\w.-]/g, '_')), buf); }
   catch (err) { console.error('shartnoma pdf: diskka yozilmadi:', err.message); }
 }
+// 23.10.2026 (eski xato tuzatildi): eski shartnomaPdf / ijaraPdf har bosishda Drive'da yangi Google Doc + PDF qoldiradi (eskisi savatga tushmaydi).
+// Endi Drive nusxasi tayyor bo'lgach (fonda) Koprik ≥ 1.17 koprikNusxaTozala bilan shu nomdagi eski nusxalar savatga — eng yangisi qoladi.
+let kv17 = { ok: false, t: 0 };
+async function koprik17(kod) {
+  if (Date.now() - kv17.t < (kv17.ok ? 1800000 : 120000)) return kv17.ok;
+  try { kv17 = { ok: koprik.bor() && require('../lib/versiya').verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.17'), t: Date.now() }; } catch (e) { kv17 = { ok: false, t: Date.now() }; }
+  return kv17.ok;
+}
+async function nusxaTozala(kod, yol, nom) {
+  try { if (!(await koprik17(kod))) return; const r = await koprik.chaqir('koprikNusxaTozala', kod, [{ yol, nomlar: [nom] }], { muddat: 120000, urinish: 1 });
+    if (r && r.ochirildi) console.log('shartnoma pdf: eski nusxa savatga —', nom, r.ochirildi); }
+  catch (e) { console.error('nusxa tozalash (' + nom + '):', e.message); }
+}
 async function mijoz(mid) { return ((await V.qatorlar('02_Mijozlar')).find(z => s(z.r[0]) === s(mid)) || { r: null }).r; }   // 02 (displayValues, 25 ustun)
 
 // ---- sotuv: 03 qatori (ko'rinish), 02 mijoz, 03b to'lov jadvali → { pdf, bet, nom, qolgan, bosh, r, mr, shablon }
@@ -70,6 +83,7 @@ async function shartnomaPdf(args) {
   diskkaYoz('sotuv', h.nom + '.pdf', h.pdf);
   // fonda: eski tizim Drive'ga Google Doc + PDF nusxasini qo'yadi va 03 S ga havolani yozadi (avvalgidek; natijasi kutilmaydi)
   koprik.chaqir('shartnomaPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
+    .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.1 Sotuv shartnomalari'], h.nom))
     .then(() => tetik.varaqlarYangila(['03_Sotuv_shartnomalar'])).catch(err => console.error('shartnomaPdf (Drive, eski tizim):', err.message));
   return { ok: true, no: h.r[0], pdf: u.admin ? PAPKA.sotuv : '', doc: u.admin ? PAPKA.sotuv : '', nom: h.nom + '.pdf', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
 }
@@ -81,9 +95,11 @@ async function ijaraPdf(args) {
   const h = await ijaraYasa(no);
   diskkaYoz('ijara', h.nom + '.pdf', h.pdf);
   koprik.chaqir('ijaraPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
+    .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.2 Ijara shartnomalari'], h.nom))
     .then(() => tetik.varaqlarYangila(['04_Ijara_shartnomalar'])).catch(err => console.error('ijaraPdf (Drive, eski tizim):', err.message));
   return { ok: true, no: h.r[0], pdf: u.admin ? PAPKA.ijara : '', doc: u.admin ? PAPKA.ijara : '', nom: h.nom + '.pdf', shablon: h.sotilgan ? 'egasi nomidan' : 'MChJ nomidan', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
 }
 
 module.exports = { shartnomaPdf, ijaraPdf };
+module.exports._ichki = { nusxaTozala, koprik17 };
 module.exports._ichki = { sotuvYasa, ijaraYasa, bayroq, PAPKA };

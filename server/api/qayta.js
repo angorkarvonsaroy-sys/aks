@@ -665,7 +665,11 @@ async function qaytaHujjatlar(args) {
   try { const dir = path.join(env.hujjatPapka || '/opt/aks/hujjat', 'qayta', String(x.id).replace(/[^\w-]/g, '_')); fs.mkdirSync(dir, { recursive: true }); N.forEach(n => fs.writeFileSync(path.join(dir, n.nom), n.pdf)); }
   catch (err) { console.error('qayta hujjat: diskka yozilmadi:', err.message); }
   // fonda: eski tizimning o'zi Drive papkasi + Google Doc nusxalari + 06k Z va jurnal (avvalgidek; natijasi kutilmaydi)
-  koprik.chaqir('qaytaHujjatlar', u.kod, [x.id], { muddat: 300000, urinish: 1 }).then(() => yangila([QT_VARAQ])).catch(err => console.error('qayta hujjat (Drive, eski tizim):', err.message));
+  // 23.10: eski qaytaHujjatlar har bosishda papkada yangi Doc + PDF qoldiradi — tayyor bo'lgach eski nusxalar savatga (Koprik ≥ 1.17, shartnoma_pdf.js nusxaTozala)
+  const qtPapka = ['AKS TIZIM', '03 HUJJATLAR', '03.3 Qayta tuzish', x.id + ' ' + s(x.eski).replace('/', '-') + ' → ' + s(x.yangi).replace('/', '-') + ' ' + s(x.fish).split(' ')[0]];
+  koprik.chaqir('qaytaHujjatlar', u.kod, [x.id], { muddat: 300000, urinish: 1 })
+    .then(async () => { const SP = require('./shartnoma_pdf')._ichki; for (const n of N) await SP.nusxaTozala(u.kod, qtPapka, s(n.nom).replace(/\.pdf$/, '')); })
+    .then(() => yangila([QT_VARAQ])).catch(err => console.error('qayta hujjat (Drive, eski tizim):', err.message));
   const qolgan = [].concat(...N.map(n => n.qolgan || []));
   return { ok: true, fayllar: N.map(n => ({ k: n.k, nom: n.nom, b64: n.pdf.toString('base64') })), qolgan: Array.from(new Set(qolgan)), bosh: N[3].bosh || [], papka: u.admin ? s(x.papka) : '' };
 }
