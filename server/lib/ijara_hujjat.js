@@ -17,7 +17,11 @@ function sanaBolak(ddmmyyyy) { const p = s(ddmmyyyy).split('.'); if (p.length !=
 
 // Belgilar lug'ati (Kod.gs ijaraPdf T bilan bir xil) + ogohlantirishlar
 function belgilar(r, mr, dr) {
-  const sotilgan = s(dr[18]) !== 'SOTILMAGAN';
+  // 23.10.2026 (eski xato tuzatildi): avval 01 S bo'sh bo'lsa ham «sotilgan» deb olinib, egasi shabloni BO'SH egasi bilan chiqardi.
+  // Endi: S bo'sh va R (sotuv shartnomasi) bo'sh — SOTILMAGAN (MChJ nomidan); S bo'sh, R bor — sotilgan, egasi o'rniga chiziq + ogohlantirish.
+  const egasiS = s(dr[18]).trim(), sotuvR = s(dr[17]).trim();
+  const sotilgan = egasiS ? egasiS !== 'SOTILMAGAN' : !!sotuvR;
+  const egasiYoq = sotilgan && !egasiS;
   const sh = sanaBolak(r[1]), ps = sanaBolak(mr[9]), mu = sanaBolak(mr[10]), b = sanaBolak(r[9]);
   const t = sanaBolak(num(r[12]) > 0 ? r[28] : r[10]);   // bepul davr tugashi (AC), bo'lmasa tugash sanasi (K)
   const baza = Number(dr[6]); const j = NARX_JADVAL[baza];
@@ -46,12 +50,14 @@ function belgilar(r, mr, dr) {
     B_YIL: b.yil, B_KUN: b.kun, B_OY: b.oy, T_YIL: t.yil, T_KUN: t.kun, T_OY: t.oy,
     BAZA: fmt(baza), P_NAQD: fmt(baza), P_120: fmt(p120), P_60: fmt(p60), P_0: fmt(p0),
     TEL: telPlus(mr[4]) + (mr[5] ? ', ' + telPlus(mr[5]) : ''),
-    EGASI: sotilgan ? s(dr[18]) : '', SOTUV_SH: sotilgan ? s(dr[17]) : '', TILXAT: r[7] || '',
+    EGASI: sotilgan ? (egasiYoq ? '______________________' : egasiS) : '', SOTUV_SH: sotilgan ? sotuvR : '', TILXAT: r[7] || '',
     BEPUL_OY: String(bepul), BEPUL_OY_SOZ: sozBilan(bepul), IJARA_HAQI_MATN, KEYINGI_MATN, PENYA_MATN, OYLIK: fmt(oylik)
   };
   const bosh = [['Pasport', mr[6]], ['JSHSHIR', mr[11]], ['Pasport sanasi', mr[9]], ['Manzil', manzil], ['Telefon', mr[4]]].filter(x => !s(x[1]).trim()).map(x => x[0]);
   const pm = s(mr[10]).split('.'); if (pm.length === 3) { const pmd = new Date(Date.UTC(+pm[2], +pm[1] - 1, +pm[0])); const kun = Math.round((pmd - new Date()) / 86400000); if (kun < 0) bosh.push('PASPORT MUDDATI TUGAGAN (' + mr[10] + ')'); else if (kun < 90) bosh.push('pasport muddati ' + kun + ' kundan keyin tugaydi (' + mr[10] + ')'); }
   if (s(mr[11]).replace(/\D/g, '').length !== 14 && s(mr[11]).trim()) bosh.push('JSHSHIR 14 raqam emas (' + mr[11] + ')');
+  if (egasiYoq) bosh.push('Do\'kon egasi (01_Dokonlar S ustuni) — do\'kon sotilgan (' + sotuvR + '), egasi yozilmagan: shartnomada egasi o\'rniga chiziq qoldirildi — 01 S ni to\'ldirib qayta yarating');
+  if (!egasiS && !sotuvR) bosh.push('01_Dokonlar S ustuni bo\'sh — do\'kon SOTILMAGAN deb olindi (MChJ nomidan)');
   if (!j) bosh.push('baza narxi (' + fmt(baza) + ') rasmiy prays-listda yo\'q — 4-bo\'lim narxlari formula bo\'yicha');
   return { T, bosh, sotilgan, shablonNom: sotilgan ? IJARA_SHABLON_EGASI : IJARA_SHABLON_MCHJ };
 }
