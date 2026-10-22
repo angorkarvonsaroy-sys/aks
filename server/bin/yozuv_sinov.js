@@ -31,6 +31,7 @@
 //                                        11 va 10 NUSXALARIDA to'liq yo'l, eski tizim yozgan qatorlar bilan (tur/format), JSON va tarix naqshlari; Koprik 1.15; yoqish
 //            aks-yozuv-sinov devonxat  — blankadagi chiquvchi xat: eski tizim yasagan xatlarni server qayta yasab PDF (so'zlar joyi) va Word bilan solishtiradi; yoqish
 //            aks-yozuv-sinov ertalab   — 07c_Ertalab_svod yozuvi (undErtalabYubor): nusxa varaqda bugungi qatorlar yozish / qayta yozish, eski tizim yozgan qator bilan (tur/format)
+//            aks-yozuv-sinov ijrokun   — 📒 ijroKechki yozuvi: 06r va 06q NUSXALARIDA (bugungi kechki qoidabuzarliklar nusxadan olib tashlanib, server qayta yozadi), eski yozgan qatorlar bilan (tur/format), Telegram'siz
 //            aks-yozuv-sinov kirish    — 🔑 07b_Kirish_jurnali qatori (PIN kirishi): nusxa varaqda, eski yozgan oxirgi qator bilan; yoqish (eski tizimga pinKir yuborilmaydi)
 //            aks-yozuv-sinov mijozpdf [M0251 …] — 👤 mijoz kartasi PDF: eski tizim yasagani bilan matn, sahifa va so'zlar joyi (ikki sahifa varianti); yoqish
 //            aks-yozuv-sinov topmening — 📌 Topshiriqlarim: hujjat topshiriqlarini yopish (har xodim: server quruq hisob → eski topMening yozadi → solishtirish); yoqish
@@ -2128,6 +2129,53 @@ async function ertalabSinov() {
   else console.log('⚠ ' + x + ' ta farq — und_ertalab ni YOQMANG, avval tuzatish kerak.');
 }
 
+// 📒 IJRO KECHKI (Ijro.gs ijroKechki): 06r va 06q nusxalarida server yo'li bilan haqiqiy yozuv. 06q nusxasidan bugungi kechki qoidabuzarliklar
+// olib tashlanadi — server ularni qayta yozadi; 06r da bugungi qatorlar (eski tizim 18:15 da yozgan) ustidan yoziladi. Telegram yuborilmaydi.
+async function ijrokunSinov() {
+  const IK = require('../lib/ijro_kun'), IY = require('../api/ijro_yoz')._ichki, Qd = require('../api/qadam')._ichki, VQ = require('../lib/vaqt');
+  const M = await G.varaqlar(ID, KEY); const ochir = []; let x = 0;
+  const nusxala = async varaq => { const src = M.varaqlar.find(v => v.title === varaq); if (!src) throw new Error('Varaq topilmadi: ' + varaq);
+    const j = await G.soralar(ID, [{ duplicateSheet: { sourceSheetId: src.sheetId, insertSheetIndex: M.varaqlar.length + ochir.length, newSheetName: 'zz_sinov_' + varaq } }], KEY);
+    ochir.push(j.replies[0].duplicateSheet.properties.sheetId); await G.gid(ID, 'zz_sinov_' + varaq, KEY, true); return 'zz_sinov_' + varaq; };
+  const bugun = V.bugun(), iso = v => typeof v === 'number' ? V.iso(v) : String(v || '').slice(0, 10).split('.').reverse().join('-');
+  const KT = ['reja', 'nazorat', 'otkaz', 'xat', 'xat3', 'top', 'tasdiq', 'yuqabul', 'yubosqich'];
+  try {
+    const nk = await nusxala(IK.IJRO_KUN), nq = await nusxala(IY.IJRO_VARAQ);
+    const K0 = await IY.ijroQatorYangi(nk, Qd.IJRO_KS), Q0 = await IY.ijroQatorYangi(nq, IY.IJRO_S);
+    const kunB = K0.filter(r => iso(r.Sana) === bugun), qB = Q0.filter(r => iso(r.Sana) === bugun && KT.indexOf(String(r.Tur)) >= 0);
+    console.log('\n=== 📒 06r_Ijro_kun / 06q_Qoidabuzarlik — nusxa varaqlarda ===');
+    console.log('Eski tizim bugun yozgan: 06r ' + kunB.length + ' qator · 06q kechki qoidabuzarlik ' + qB.length + ' ta (nusxadan olib tashlandi — server qayta yozadi)');
+    if (qB.length) { const g = await G.gid(ID, nq, KEY);
+      await G.soralar(ID, qB.map(r => r.qator).sort((a, b) => b - a).map(q => ({ deleteDimension: { range: { sheetId: g, dimension: 'ROWS', startIndex: q - 1, endIndex: q } } })), KEY); }
+    const t0 = Date.now();
+    const r = await IK.ijroKechki(await VQ.adminKod(), { varaq: { kun: nk, q: nq }, tgYoq: true });
+    console.log('Server: ' + r.natija + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
+    const K1 = await IY.ijroQatorYangi(nk, Qd.IJRO_KS), Q1 = await IY.ijroQatorYangi(nq, IY.IJRO_S);
+    const kunB1 = K1.filter(r2 => iso(r2.Sana) === bugun);
+    const ok06r = kunB1.length === r.kun06r && (!kunB.length || kunB1.length >= kunB.length);
+    console.log('06r bugungi qatorlar: oldin ' + kunB.length + ' → keyin ' + kunB1.length + ' (server ' + r.kun06r + ' xodimga yozdi)' + (ok06r ? ' ✅ takror qator yo\'q' : ' ✖ takror yoki yo\'qolgan qator'));
+    if (!ok06r) x++;
+    const eskiK = K1.filter(r2 => iso(r2.Sana) < bugun).pop();
+    if (r.kunLog && r.kunLog.length && eskiK) x += await qatorSolishtir(nk, r.kunLog[0].qator, 1, 12, '— 06r qatori (A–L)', eskiK.qator);
+    const yangiQ = Q1.filter(r2 => iso(r2.Sana) === bugun && KT.indexOf(String(r2.Tur)) >= 0);
+    const ek = new Set(qB.map(r2 => String(r2.Kalit))), sk = new Set(yangiQ.map(r2 => String(r2.Kalit)));
+    console.log('06q: server ' + yangiQ.length + ' ta yozdi · eski tizim 18:15 da ' + qB.length + ' ta · ikkalasida bir xil kalit ' + yangiQ.filter(r2 => ek.has(String(r2.Kalit))).length + ' ta');
+    yangiQ.filter(r2 => !ek.has(String(r2.Kalit))).forEach(r2 => console.log('  🆕 faqat server: ' + r2.Xodim + ' — ' + r2.Kalit));
+    qB.filter(r2 => !sk.has(String(r2.Kalit))).forEach(r2 => console.log('  ⚪ faqat eski: ' + r2.Xodim + ' — ' + r2.Kalit));
+    const id = yangiQ.map(r2 => Number(r2.ID)); if (new Set(id).size !== id.length) { console.log('  ✖ ID takrorlangan'); x++; }
+    const eskiQ = Q1.filter(r2 => !(iso(r2.Sana) === bugun && KT.indexOf(String(r2.Tur)) >= 0)).pop();
+    if (yangiQ.length && eskiQ) x += await qatorSolishtir(nq, yangiQ[0].qator, 1, 17, '— 06q qatori (A–Q)', eskiQ.qator);
+    else console.log('  (06q ga yangi qator yozilmadi — format solishtirilmadi)');
+    console.log('(Server hozirgi holatni oladi, eski tizim 18:15 dagisini — shu orada qilingan ish farq berishi mumkin; bu xato emas.)');
+  } finally {
+    if (ochir.length) await G.soralar(ID, ochir.map(g => ({ deleteSheet: { sheetId: g } })), KEY).catch(e => console.log('Nusxani o\'chirib bo\'lmadi: ' + e.message));
+    console.log('Nusxa varaqlar o\'chirildi.');
+  }
+  console.log('');
+  if (!x) console.log('✅ YOZUV BIR XIL — 06r va 06q to\'g\'ri yoziladi.');
+  else console.log('⚠ ' + x + ' ta farq — ijro_kechki ni YOQMANG, Claude\'ga ko\'rsating.');
+}
+
 // 🔑 07b KIRISH JURNALI (Monitoring.gs monKirishYoz_): nusxa varaqqa server yo'li bilan qator — eski tizim yozgan oxirgi qator bilan (qiymat turi, format)
 async function kirishSinov() {
   const KY = require('../api/kirish_yoz');
@@ -2334,6 +2382,11 @@ async function tophozirSinov() {
     await devonxatSinov();
   } else if (arg === 'ertalab') {
     await ertalabSinov();
+  } else if (arg === 'ijrokun') {
+    const M = await G.varaqlar(ID, KEY);
+    const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
+    if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
+    await ijrokunSinov();
   } else if (arg === 'kirish') {
     console.log('Hozir: 07b kirish jurnali — ' + ((await redis.get('yozuv_yondi:kirish07b')) === '1' ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
     const M = await G.varaqlar(ID, KEY);

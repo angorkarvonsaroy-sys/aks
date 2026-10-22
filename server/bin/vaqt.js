@@ -21,6 +21,8 @@ const s = v => String(v == null ? '' : v);
     const t0 = Date.now(); const r = await VQ.sinov(ish);
     if (r.xabarlar) { console.log('  ' + r.xabarlar.length + ' ta xabar tayyor' + (r.ochiq !== undefined ? ' · ochiq topshiriqlar: ' + r.ochiq : '') + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)' + (r.sabab ? ' · ' + r.sabab : ''));
       r.xabarlar.forEach(x => { console.log('\n  → ' + x.kimga + ':'); console.log('    ' + x.matn.replace(/<\/?b>/g, '').split('\n').join('\n    ')); });
+      if (r.chiqish) { console.log('\n  ---- Eski tizim bugun qilgani bilan solishtirish ----'); r.chiqish.forEach(l => console.log('    ' + l));
+        console.log('\n  ' + (!r.eskiBor ? 'ℹ Eski tizim bugun hali bajarmagan — faqat xabarlarni ko\'zdan kechiring.' : !r.farq ? '✅ HAMMASI BIR XIL — server eski tizim bilan bir xil hisobladi.' : '⚠ ' + r.farq + ' ta farq — Claude\'ga ko\'rsating (18:15 dan keyin qilingan ish bo\'lsa — tabiiy).')); }
       if (r.svod07c) { console.log('\n  07c_Ertalab_svod ga yoziladigan qatorlar (Sana | Xodim | Qizil | Sariq | Yashil | Mijozlar | Muddati_otgan | Holat):'); r.svod07c.forEach(z => console.log('    ' + [VQ.toshkent().dmyHm.slice(0, 10), z.fish, z.q, z.s, z.y, z.n, z.muddati, z.holat].join(' | '))); } }
     else console.log('  natija (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s): ' + JSON.stringify(r));
   } else if (arg === 'hozir') {

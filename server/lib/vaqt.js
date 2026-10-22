@@ -14,6 +14,9 @@
 //   mon_eslatma — monEslatmaYubor (09:10, yakshanbadan tashqari): lib/ertalab.js — skansiz yangi shartnomalar eslatmasi.
 //   xat_kechikkan   — xatKechikkanTekshir (17:00): lib/kechikkan.js — yetkazilmagan ogohlantirish xatlari (direktorga, mas'ulga).
 //   bekor_kechikkan — bekorKechikkanTekshir (17:15): lib/kechikkan.js — bekor qilish skanlari kechikkan (xodimga, ≥2 ish kuni — direktorga).
+//   qadam_kechki — qadamKechki (18:00): lib/ijro_kun.js — direktorga «🌙 Bugungi ish natijasi» (reja bajarilmagan bo'lsa).
+//   ijro_kechki  — ijroKechki (18:15): lib/ijro_kun.js — 06r kunlik ijro, 06q qoidabuzarliklar, xodimlarga Telegram, zinapoya.
+//   ijro_tanla   — ijroTekshiruvTanla (09:30): lib/ijro_kun.js — tasodifiy tekshiruv (10 + 06p); oyning 1-kuni — ijroOylik.
 'use strict';
 const { q, redis } = require('./db');
 
@@ -89,6 +92,7 @@ async function topKechkiIsh(kod, opt = {}) {
 }
 const ER = require('./ertalab');
 const KC = require('./kechikkan');
+const IK = require('./ijro_kun');
 const ISHLAR = [
   { nom: 'top_avto', fn: 'topAvto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
   { nom: 'und_ertalab', fn: 'undErtalabYubor', tavsif: '☀️ Undiruvchilarga ertalabki topshiriq + 07c svod (undErtalabYubor)', har: 'kun:09:00', eski: 'undErtalabYubor — har kuni 09:00', ish: (kod, opt) => ER.undErtalab(kod, opt) },
@@ -97,6 +101,9 @@ const ISHLAR = [
   { nom: 'mon_eslatma', fn: 'monEslatmaYubor', tavsif: '📎 Skansiz shartnoma eslatmasi (monEslatmaYubor)', har: 'kun:09:10', eski: 'monEslatmaYubor — har kuni 09:10', ish: (kod, opt) => ER.monEslatma(kod, opt) },
   { nom: 'top_ertalab', fn: 'topErtalab', tavsif: '☀️ Xodimlarga bugungi topshiriqlar (topErtalab)', har: 'kun:08:30', eski: 'topErtalab — har kuni 08:30', ish: topErtalabIsh },
   { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
+  { nom: 'qadam_kechki', fn: 'qadamKechki', tavsif: '🌙 Direktorga bugungi ish natijasi (qadamKechki)', har: 'kun:18:00', eski: 'qadamKechki — har kuni 18:00', ish: (kod, opt) => IK.qadamKechki(kod, opt) },
+  { nom: 'ijro_kechki', fn: 'ijroKechki', tavsif: '📒 Kunlik ijro + qoidabuzarliklar (ijroKechki)', har: 'kun:18:15', eski: 'ijroKechki — har kuni 18:15', ish: (kod, opt) => IK.ijroKechki(kod, opt) },
+  { nom: 'ijro_tanla', fn: 'ijroTekshiruvTanla', tavsif: '🎲 Tasodifiy tekshiruv + oylik xulosa (ijroTekshiruvTanla)', har: 'kun:09:30', eski: 'ijroTekshiruvTanla — har kuni 09:30', ish: (kod, opt) => IK.ijroTekshiruvTanla(kod, Object.assign({ oylikKor: !!(opt && opt.quruq) }, opt)) },
 ];
 
 // ------------------------------------------------------------------ bajarish va jurnal
@@ -154,4 +161,4 @@ async function holat() {
 }
 // quruq sinov: hech narsa yozmaydi va yubormaydi — nima bo'lishini qaytaradi (aks-vaqt sinov <nom>)
 async function sinov(ish) { return ish.ish(await adminKod(), { quruq: true }); }
-module.exports = { ISHLAR, boshla, tekshir, bajar, sinov, holat, toshkent, bolak };
+module.exports = { ISHLAR, boshla, tekshir, bajar, sinov, holat, toshkent, bolak, adminKod };

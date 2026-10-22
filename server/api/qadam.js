@@ -395,8 +395,8 @@ const ijroBall = q => IJRO_TUR_OGIR[q.Tur] ? IJRO_OGIR_BALL : 1;
 const ijroPog = ball => ball >= IJRO_ZINA[2] ? 3 : ball >= IJRO_ZINA[1] ? 2 : ball >= IJRO_ZINA[0] ? 1 : 0;
 function ijroFoiz(k, soxta) { const t = k.rT + k.nT + k.xT + k.tT, b = k.rB + k.nB + k.xB + k.tB; if (!t) return null; return Math.max(0, Math.min(100, Math.round(b / t * 100) - (soxta || 0) * IJRO_SOXTA_MINUS)); }
 function ijroYig(A) { const z = { rT: 0, rB: 0, nT: 0, nB: 0, xT: 0, xB: 0, tT: 0, tB: 0 }; A.forEach(k => Object.keys(z).forEach(y => z[y] += Number(k[y]) || 0)); return z; }
-function ijroKun(h, fish, bugun, Xj, T, Sx) {
-  const hozir = TS.topHozirIso();
+function ijroKun(h, fish, bugun, Xj, T, Sx, hozir0) {   // hozir0 — sinovda eski trigger vaqti (18:15)
+  const hozir = hozir0 || TS.topHozirIso();
   const navbatda = h.hamma.filter(m => m.navbatda).length;
   const rT = Math.min(QD_MAQSAD, navbatda), rB = Math.min(rT, h.bajarildi.length);
   const nT = h.nazorat ? h.nazorat.kerak : 0, nB = nT - (h.nazorat ? h.nazorat.qilinmadi : 0);
@@ -849,4 +849,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa, qdHisob };
+module.exports._ichki = { qadamXulosa, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS };
