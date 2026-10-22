@@ -795,6 +795,10 @@ function ijroTopKun(T, fish, bugun, hozir) {
 // trigger holati (ScriptApp) eski tizimda — oxirgi ma'lum javob Redis'da; 6 soatdan eskirsa fonda yangilanadi
 async function ijroTrigger(kod) {
   const { redis } = require('../lib/db');
+  // ⏰ ijro_kechki / ijro_tanla serverda (lib/vaqt.js) bo'lsa eski ijroKorish CHAQIRILMAYDI: u triggerlardan biri yo'qligini ko'rib, ikkalasini qayta
+  // o'rnatardi (ijroTriggerOrnat) — eski va server birga ishlab, xabarlar ikki marta ketardi
+  try { const [k, t] = await Promise.all([redis.get('vaqt_yondi:ijro_kechki'), redis.get('vaqt_yondi:ijro_tanla')]);
+    if (k === '1' || t === '1') return { ok: true, kechki: true, tanla: true, server: true }; } catch (e) { return { ok: true, kechki: true, tanla: true }; }
   const ol = async () => { const r = await koprik.chaqir('ijroKorish', kod, [{}]); if (r && r.trigger) { const t = Object.assign({}, r.trigger); delete t.ornatildi; delete t.xato;
     await redis.set('ijro_trigger', JSON.stringify({ t: Date.now(), v: t })); return t; } return null; };
   let z = null; try { const s = await redis.get('ijro_trigger'); if (s) z = JSON.parse(s); } catch (e) { }
