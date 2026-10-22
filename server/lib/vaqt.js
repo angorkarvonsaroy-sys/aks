@@ -5,8 +5,10 @@
 // Server o'sha paytda o'chiq bo'lsa (yangilanish), qayta ishga tushgach o'sha bo'lak hali o'tmagan bo'lsa — darhol bajariladi. Xato bo'lsa — 1 daqiqadan
 // keyin yana (bo'lakda ko'pi bilan 3 urinish). Har bajarilish: Redis vaqt_jurnal (oxirgi 300) + rpc_jurnal (qayerda = 'vaqt') — aks-vaqt / aks-bugun.
 // Ishlar:
-//   top_avto — Topshiriq.gs topAvto (har 2 soatda): api/top_avto.js topAvto (yozuv_yondi:top_avto va Koprik ≥ 1.5 bo'lsa serverda; aks holda
-//              eski tizimning o'zi — ko'prik topHozir). Direktor kodi bilan (Telegram / koprikSkanNaz uchun eski tizim sessiyasi).
+//   top_avto    — Topshiriq.gs topAvto (har 2 soatda): api/top_avto.js topAvto (yozuv_yondi:top_avto va Koprik ≥ 1.5 bo'lsa serverda; aks holda
+//                 eski tizimning o'zi — ko'prik topHozir). Direktor kodi bilan (Telegram / koprikSkanNaz uchun eski tizim sessiyasi).
+//   top_ertalab — topErtalab (08:30): har xodimga bugungi ochiq topshiriqlari (Telegram — koprikTgChat); 10 Google'dan yangi.
+//   top_kechki  — topKechki (20:10): direktorga kun yakuni — kim nechta bajardi / qoldi / muddati o'tgan (tgYubor_ — koprikTgYubor).
 'use strict';
 const { q, redis } = require('./db');
 
@@ -32,8 +34,9 @@ async function adminKod() {
 }
 
 // ------------------------------------------------------------------ ishlar
-async function topAvtoIsh(kod) {
+async function topAvtoIsh(kod, opt = {}) {
   const TA = require('../api/top_avto')._ichki, TP = require('../api/topshiriq_yoz')._ichki, koprik = require('../api/koprik'), tetik = require('./kozgu_tetik');
+  if (opt.quruq) { const r = await TA.topAvto(kod, { quruq: true }); return { quruq: true, yangi: r.yangi, yopildi: r.yopildi }; }
   let serverda = false;
   try { serverda = (await redis.get('yozuv_yondi:top_avto')) === '1' && (await TP.koprik15(kod)); } catch (e) { serverda = false; }
   if (serverda) {
@@ -46,15 +49,47 @@ async function topAvtoIsh(kod) {
   if (r && r.ok === false) throw new Error('eski tizim: ' + (r.xato || 'bajarilmadi'));
   return { qayerda: 'eski', yangi: r && r.yangi, yopildi: r && r.yopildi };
 }
+// Topshiriq.gs topErtalab — matnlar aynan; xodim Telegram'siz bo'lsa yoki topshirig'i bo'lmasa — o'tkazib yuboriladi; yuborish xatosi e'tiborsiz (eski: try/catch)
+async function topErtalabIsh(kod, opt = {}) {
+  const TP = require('../api/topshiriq_yoz')._ichki, J = require('./jurnallar'), koprik = require('../api/koprik');
+  const XD = await TP.topXodimlar();
+  const R = (await TP.topRowsYangi(TP.TOP_V)).L.map(J.topKor).filter(x => x.holati === 'Jarayonda');
+  let yuborildi = 0, xato = 0, kimlar = []; const matnlar = [];
+  for (const x of XD) {
+    if (!x.tg) continue; const L = R.filter(t => t.kimga === x.fish); if (!L.length) continue;
+    const kech = L.filter(t => t.kechikkan).length;
+    const m = '☀️ <b>Bugungi topshiriqlaringiz: ' + L.length + ' ta</b>' + (kech ? ' (🔴 ' + kech + ' tasi muddati o\'tgan)' : '') + '\n' + L.slice(0, 12).map(t => '• ' + (t.kechikkan ? '🔴 ' : '') + t.sarlavha + (t.no ? ' · ' + t.no : '') + ' — ' + t.muddat).join('\n') + '\n\nAKS ilovasi → 📌 Topshiriqlar';
+    if (opt.quruq) { matnlar.push({ kimga: x.fish, matn: m }); continue; }
+    try { await koprik.chaqir('koprikTgChat', kod, [x.tg, m]); yuborildi++; kimlar.push(x.fish.split(' ')[0] + ' ' + L.length); } catch (e) { xato++; console.error('topErtalab tg:', x.fish, e.message); }
+  }
+  if (opt.quruq) return { quruq: true, ochiq: R.length, xabarlar: matnlar };
+  return { ochiq: R.length, yuborildi, xato, kimlar: kimlar.join(', ') };
+}
+// Topshiriq.gs topKechki — direktor(lar)ga (tgYubor_); hech kimda bajarilgan/ochiq topshiriq bo'lmasa yuborilmaydi
+async function topKechkiIsh(kod, opt = {}) {
+  const TP = require('../api/topshiriq_yoz')._ichki, J = require('./jurnallar'), koprik = require('../api/koprik');
+  const t = toshkent(), bugun = t.dmyHm.slice(0, 10);
+  const R = (await TP.topRowsYangi(TP.TOP_V)).L.map(J.topKor); const X = {};
+  R.forEach(x => { if (!x.kimga) return; const o = X[x.kimga] = X[x.kimga] || { b: 0, q: 0, k: 0 };
+    if (x.holati === 'Bajarildi' && s(x.yopildi).slice(0, 10) === bugun) o.b++; if (x.holati === 'Jarayonda') { o.q++; if (x.kechikkan) o.k++; } });
+  const K = Object.keys(X).filter(k => X[k].b || X[k].q); if (!K.length) return { yuborildi: 0, sabab: 'bo\'sh' };
+  K.sort((a, b) => X[b].k - X[a].k || X[b].q - X[a].q);
+  const m = '📌 <b>Topshiriqlar — ' + bugun + '</b>\n' + K.map(k => (X[k].k ? '🔴' : X[k].q ? '🟡' : '🟢') + ' ' + k + ': bajardi ' + X[k].b + ' · qoldi ' + X[k].q + (X[k].k ? ' (muddati o\'tgan ' + X[k].k + ')' : '')).join('\n');
+  if (opt.quruq) return { quruq: true, xabarlar: [{ kimga: 'direktor', matn: m }] };
+  await koprik.chaqir('koprikTgYubor', kod, [m]);
+  return { yuborildi: 1, xodimlar: K.length, bajardi: K.reduce((a, k) => a + X[k].b, 0), qoldi: K.reduce((a, k) => a + X[k].q, 0), kechikkan: K.reduce((a, k) => a + X[k].k, 0) };
+}
 const ISHLAR = [
-  { nom: 'top_avto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
+  { nom: 'top_avto', fn: 'topAvto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
+  { nom: 'top_ertalab', fn: 'topErtalab', tavsif: '☀️ Xodimlarga bugungi topshiriqlar (topErtalab)', har: 'kun:08:30', eski: 'topErtalab — har kuni 08:30', ish: topErtalabIsh },
+  { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
 ];
 
 // ------------------------------------------------------------------ bajarish va jurnal
 async function jurnalYoz(ish, t0, ok, natija, xato) {
   const yoz = { vaqt: toshkent().dmyHm, nom: ish.nom, ms: Date.now() - t0, ok, natija: natija || null, xato: xato ? s(xato).slice(0, 300) : null };
   try { await redis.lpush('vaqt_jurnal', JSON.stringify(yoz)); await redis.ltrim('vaqt_jurnal', 0, 299); await redis.set('vaqt:' + ish.nom + ':oxirgi', JSON.stringify(yoz)); } catch (e) { }
-  q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [ish.nom === 'top_avto' ? 'topAvto' : ish.nom, 'vaqt', yoz.ms, ok, yoz.xato]).catch(() => {});
+  q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [ish.fn || ish.nom, 'vaqt', yoz.ms, ok, yoz.xato]).catch(() => {});
   return yoz;
 }
 // bitta ishni hozir bajarish (jadval yoki aks-vaqt hozir). Qaytaradi jurnal yozuvi
@@ -103,4 +138,6 @@ async function holat() {
   }
   return out;
 }
-module.exports = { ISHLAR, boshla, tekshir, bajar, holat, toshkent, bolak };
+// quruq sinov: hech narsa yozmaydi va yubormaydi — nima bo'lishini qaytaradi (aks-vaqt sinov <nom>)
+async function sinov(ish) { return ish.ish(await adminKod(), { quruq: true }); }
+module.exports = { ISHLAR, boshla, tekshir, bajar, sinov, holat, toshkent, bolak };
