@@ -172,7 +172,7 @@ function malumotnomaModel(M, ism) {
         ['Етказилганлик исботи (тилхат/почта)', sv.isbot + ' та', ''],
         ['Мижоз берган тўлов ваъдаси', sv.vada + ' марта', 'тўлиқ бажарган ' + sv.toliq + ', қисман ' + sv.qisman + ', бузган ' + sv.buzgan + (sv.belgisiz ? ', натижаси белгиланмаган ' + sv.belgisiz : '')],
         ['Қабул қилинган тўлов', sv.tolovSoni + ' та', sv.tolovDavr]]),
-    [230, 160, 170], false);
+    [200, 140, 180], false);   // 23.10.2026: eski [230,160,170] = 560 pt — sahifa (520 pt: A4 595 − chekka 45 − 30) chetidan chiqib ketardi
   yhMatn(b, 'Жами ' + sv.jami + ' та ундирув ҳаракати қайд этилган. Берилган ' + sv.vada + ' та ваъданинг ' + (sv.qisman + sv.buzgan + sv.belgisiz) + ' таси тўлиқ бажарилмаган.', 10.5, true);
   yhMatn(b, sv.xatHammasi >= 3
     ? 'Судгача низони ҳал қилиш тартиби: ' + sv.xatHammasi + ' та ёзма огоҳлантириш мавжуд' + (sv.isbot ? ', ' + sv.isbot + ' таси бўйича етказилганлик исботи юкланган' : ', БИРОҚ етказилганлик исботи юкланмаган — юрист текширсин') + '.'
