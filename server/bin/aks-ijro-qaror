@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — direktor qarori 23.10.2026 (ijro intizomi): aks-ijro-qaror — ko'rish (hech narsa yozilmaydi) · aks-ijro-qaror bajar — yozish
+cd /opt/aks/app && exec sudo -u aks -H node bin/ijro_qaror.js "$@"
