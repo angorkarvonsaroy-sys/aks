@@ -158,5 +158,54 @@ async function taminotTasdiq(args) {
   return { ok: true, partiya, ha, jami, soni: R.length, natija: R.length + ' ta mahsulot, ' + tamPul(jami) + " so'm." };
 }
 
-module.exports = { taminotKiritish, taminotTasdiq };
+// ------------------------------------------------------------------ 💵 taminotTolov (Taminot.gs v26.11) — ta'minotchiga to'lov, isbot PDF majburiy
+// 23.10.2026: serverda (yozuv_yondi:taminot + Koprik ≥ 1.19): tekshiruvlar va xato matnlari aynan; 09b qatori server; isbot PDF Drive'ga — Koprik v1.19 koprikTamIsbot
+// («06 TAMINOT / ISBOTLAR», shu nomli fayl bo'lsa o'shasi — qayta urinishda nusxa yo'q); direktorga Telegram — server (xato e'tiborsiz). Aks holda — eski tizim.
+const TAM_TV = '09b_Taminot_tolovlari';
+let kv19 = { ok: false, t: 0 };
+async function koprik19(kod) {
+  if (kv19.t && Date.now() - kv19.t < (kv19.ok ? 30 : 2) * 60000) return kv19.ok;
+  try { kv19 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.19'), t: Date.now() }; } catch (e) { kv19 = { ok: false, t: Date.now() }; }
+  return kv19.ok;
+}
+const raqamT = v => Number(s(v).replace(/\D/g, '')) || 0;
+async function taminotTolov(args) {
+  const [kodSes, d0] = args; const d = d0 || {};
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverda(u.kod)) || !(await koprik19(u.kod))) return eskiTizim('taminotTolov', u, [d0]);
+  const tTuri = d.tTuri === 'Yuridik' ? 'Yuridik' : 'Jismoniy';
+  const taminotchi = s(d.taminotchi).trim();
+  if (!taminotchi) throw new S.Xato('Ta\'minotchi tanlanmadi.');
+  const summa = Math.round(Number(s(d.summa).replace(/[^\d.]/g, '')) || 0);
+  if (summa <= 0) throw new S.Xato('Summani yozing.');
+  const sana = s(d.sana).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sana)) throw new S.Xato('Sanani tanlang.');
+  if (sana > V.bugun()) throw new S.Xato('Sana kelajakda bo\'lishi mumkin emas.');
+  const usul = ['Naqd', 'Bank', 'Plastik'].indexOf(s(d.usul)) >= 0 ? s(d.usul) : 'Naqd';
+  const bayt = Buffer.from(s(d.b64), 'base64');
+  if (bayt.length < 1000) throw new S.Xato('ISBOT MAJBURIY: ' + (tTuri === 'Jismoniy' ? 'imzolangan tilxat skanini' : "to'lov hujjati skanini") + ' yuklang — isbotsiz to\'lov saqlanmaydi.');
+  if (bayt.slice(0, 5).toString('latin1') !== '%PDF-') throw new S.Xato('Isbot fayli PDF emas — kameradan skanerlang yoki PDF tanlang.');
+  const tilxat = s(d.tilxat).trim(), izoh = s(d.izoh).trim();
+  const w = await qulfBilan(async () => {
+    const [R9, R9b] = await Promise.all([G.oraliqOqi(env.aksBazaId, TAM_V, 'A2:P', env.googleKey), G.oraliqOqi(env.aksBazaId, TAM_TV, 'A2:L', env.googleKey)]);
+    const k = tTuri + '|' + taminotchi, h = { kelt: 0, tolan: 0 };
+    R9.forEach(r => { if (s(r[0]) && s(r[13]) === 'Tasdiqlandi' && s(r[3]) + '|' + s(r[4]) === k) h.kelt += raqamT(r[9]); });
+    let m = -1; R9b.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
+    const Y = R9b.slice(0, m + 1);
+    Y.forEach(r => { if (s(r[0]) && s(r[2]) + '|' + s(r[3]) === k) h.tolan += raqamT(r[4]); });
+    const id = (Y.length ? Math.max(...Y.map(r => Number(s(r[0]).replace(/\D/g, '')) || 0)) : 0) + 1, l = m + 2;
+    const nom = 'Tolov_' + tamDMY(sana).replace(/\./g, '-') + '_' + taminotchi.replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40) + '_' + id + '.pdf';
+    const f = await koprik.chaqir('koprikTamIsbot', u.kod, [{ nom, b64: bayt.toString('base64') }], { muddat: 120000 });
+    if (!f || !f.id) throw new S.Xato('Isbot fayli Drive\'ga saqlanmadi — qayta urinib ko\'ring.');
+    const q = await G.qatorQoshR(env.aksBazaId, TAM_TV, l + 1, [id, tamDMY(sana), tTuri, taminotchi, summa, usul, tilxat, nom, f.id, u.fish, hozirDmyHm(), izoh], env.googleKey)
+      .catch(e => { if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — isbot fayli saqlandi (' + nom + '), direktorga ayting.'); throw e; });
+    if (q !== l + 1) await ogoh({ varaq: TAM_TV, qator: q, xato: 'kutilgan qator ' + (l + 1) + ' — shu orada boshqa yozuv qo\'shilgan (to\'lov ID ' + id + ')' });
+    return { id, nom, qoldiq: h.kelt - h.tolan - summa };
+  });
+  tgDirektor(u.kod, "💵 Ta'minotchiga to'lov: " + taminotchi + ', <b>' + tamPul(summa) + "</b> so'm (" + usul + (tilxat ? ', ' + tilxat : '') + '). Isbot ✅. Qoldiq qarz: <b>' + tamPul(w.qoldiq) + '</b>.');
+  await kut(tetik.varaqlarYangila([TAM_TV]).catch(e => console.error('ko\'zgu (09b):', e.message)), 15000);
+  return { ok: true, id: w.id, summa, qoldiq: w.qoldiq, nom: w.nom };
+}
+
+module.exports = { taminotKiritish, taminotTasdiq, taminotTolov };
 module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15 };

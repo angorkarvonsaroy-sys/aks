@@ -192,4 +192,4 @@ async function topSkanTopilmadi(args) {
 }
 
 module.exports = { topBer, topSkanTopilmadi };
-module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, koprik15, TOP_V };
+module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, koprik15, serverda, qulfBilan, TOP_V };

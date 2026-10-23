@@ -370,7 +370,9 @@ async function qadamKutish([kodSes, d0]) {
   if (!st.topId || QD_KUTISH_TUR.indexOf(st.tur) < 0) throw new S.Xato('Bu ish o\'zingizga bog\'liq — «⏸️ Kutyapman» faqat skan, hujjat yoki mijozni olib kelish topshirig\'ida. «Bugun qila olmayman» dan foydalaning.');
   if (!(await eskiV22(u.kod))) throw new S.Xato('«⏸️ Kutyapman» hali ishga tushmagan — eski tizim (Qadam.gs v2.2) yangilanishi kerak. Direktorga ayting.');
   const mIso = qdMuddatIso(st.muddat);
-  if (!mIso || sana > mIso) { const r = await koprik.chaqir('qadamKutish', u.kod, [d0]); await tetik.yangilaKut(20000); return r; }   // direktor ruxsati — eski tizim (10_Topshiriqlar)
+  if (!mIso || sana > mIso) {   // direktor ruxsati (qdKutishSora_) — 23.10: serverda (yozuv_yondi:topshiriq bo'lsa), aks holda eski tizim
+    if (await require('./topshiriq_yoz')._ichki.serverda(u.kod)) return kutishSora(u, m, st, sana, sabab, bugun);
+    const r = await koprik.chaqir('qadamKutish', u.kod, [d0]); await tetik.yangilaKut(20000); return r; }
   const G = require('../lib/google'), env = require('../lib/env');
   const bm = m.bugun.map(b => (b.vaqt ? b.vaqt + ' ' : '') + b.matn).join(' | ').slice(0, 1000), v = hozirDmyHms();
   await qdQulf('qadam', async () => {
@@ -386,6 +388,29 @@ async function qadamKutish([kodSes, d0]) {
   });
   await Promise.race([tetik.varaqlarYangila([QDV]).catch(e => console.error('ko\'zgu (qadamKutish):', e.message)), new Promise(r => setTimeout(r, 15000))]);
   return { ok: true, gacha: sana, matn: m.no + ' — ' + qdDmy(sana) + ' gacha kutishga qo\'yildi. O\'sha kuni navbatga o\'zi qaytadi.' };
+}
+
+// qdKutishSora_ (Qadam.gs v2.2): kun topshiriq muddatidan keyin — direktordan ruxsat. 10_Topshiriqlar ga «kutish|<no>|<qadam kaliti, | → ~>|<sana>|<topshiriq ID>»,
+// direktorga Telegram (tgYubor_ — xato e'tiborsiz). Javob — qadamKutishRuxsat (api/qadam_yoz.js).
+async function kutishSora(u, m, st, sana, sabab, bugun) {
+  const TP = require('./topshiriq_yoz')._ichki, { qisqaIsm } = require('../lib/ism');
+  const kalit = 'kutish|' + m.no + '|' + s(st.k).replace(/\|/g, '~') + '|' + sana + '|' + (st.topId || '');
+  const yangi = await TP.qulfBilan(async () => {   // topBer bilan bir qulf (qulf:topshiriq) — 10 ga bir vaqtda bittadan
+    const R = await TP.topRowsYangi(TP.TOP_V);
+    if (R.L.some(t => /^kutish\|/.test(t.kalit) && t.kalit.split('|')[1] === m.no && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda')))
+      throw new S.Xato('Bu mijoz bo\'yicha kutish so\'rovi allaqachon direktorda — javobini kuting. Bu orada boshqa mijozlar bilan ishlang.');
+    const dir = ((await TP.topXodimlar()).find(z => z.admin) || {}).fish; if (!dir) throw new S.Xato('Direktor 07_Xodimlar da topilmadi.');
+    try {
+      return await TP.topYoz(TP.TOP_V, { manba: 'Xodim', qoida: 'kutish', kalit, sarlavha: 'Topshiriqni muddatidan keyinga qoldirishga ruxsat so\'rayapti: ' + qdDmy(sana) + ' gacha',
+        izoh: sabab + ' | undiruvchi: ' + u.fish + ' | qadam: ' + st.t + ' | topshiriq muddati: ' + (st.muddat || '—'), no: m.no, mid: m.mid, kimga: dir, kimBerdi: u.fish,
+        muddat: qdDmy(bugun) + ' 18:00', muhim: 'Shoshilinch' }, R);
+    } catch (e) { if (e.yozilmadi) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — direktorga ayting.'); throw e; }
+  });
+  const esc = x => s(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  koprik.chaqir('koprikTgYubor', u.kod, ['⏸️ <b>' + esc(u.fish) + '</b> — <b>' + m.no + '</b> ' + esc(qisqaIsm(m.fish)) + ': «' + esc(st.t) + '» topshirig\'ini muddatidan (' + esc(st.muddat || '—') + ') keyinga — <b>' + qdDmy(sana)
+    + '</b> gacha qoldirishga ruxsat so\'rayapti:\n«' + esc(sabab) + '»\nJavob — ilovada 📌 Topshiriqlar (✓ Ruxsat / ✕ Rad).']).catch(e => console.error('kutish so\'rovi tg:', e.message));
+  await Promise.race([tetik.varaqlarYangila([TP.TOP_V]).catch(() => {}), new Promise(r => setTimeout(r, 15000))]);
+  return { ok: true, ruxsat: true, id: yangi.id, matn: 'Direktordan ruxsat so\'raldi. Javob kelguncha bu mijoz navbat oxirida turadi — boshqa mijozlar bilan ishlang.' };
 }
 
 // ------------------------------------------------------------------ Ijro.gs ijroQisqa_
