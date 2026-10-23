@@ -10,6 +10,7 @@ const { q } = require('./db');
 
 const s = v => String(v == null ? '' : v);
 const TG_MAX = 4096;
+const M = {};   // module.exports — ichki chaqiruvlar M.api orqali (sinovda almashtirish uchun)
 function bor() { return !!env.tgToken; }
 function jurnal(fn, ms, ok, xato) { q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [fn, 'tg', ms, ok, xato ? s(xato).slice(0, 300) : null]).catch(() => {}); }
 function bolak(m) { if (m.length <= TG_MAX) return [m]; const B = []; let b = '';
@@ -38,7 +39,7 @@ async function api(metod, tana, fayl) {
 // tgYuborChat_(chat, matn, klav): HTML, uzun — bo'laklab (klaviatura — oxirgi bo'lakka). Qaytaradi oxirgi xabar message_id
 async function chat(id, matn, klav) {
   const B = bolak(s(matn)); let r = null;
-  for (let i = 0; i < B.length; i++) { const p = { chat_id: s(id), text: B[i], parse_mode: 'HTML', disable_web_page_preview: true }; if (klav && i === B.length - 1) p.reply_markup = klav; r = await api('sendMessage', p); }
+  for (let i = 0; i < B.length; i++) { const p = { chat_id: s(id), text: B[i], parse_mode: 'HTML', disable_web_page_preview: true }; if (klav && i === B.length - 1) p.reply_markup = klav; r = await M.api('sendMessage', p); }
   return r ? r.message_id : 0;
 }
 // tgDirektorlar_: 07_Xodimlar — Ishlayapti, «admin», Telegram ID (U)
@@ -57,16 +58,62 @@ async function direktor(matn) {
 // tgGuruh_: hisobot guruhi (TG_GURUH)
 async function guruh(matn) {
   if (!env.tgGuruh) throw new Error('TG_GURUH yo\'q — hisobot guruhi chat ID .env da sozlanmagan.');
-  for (const b of bolak(s(matn))) await api('sendMessage', { chat_id: env.tgGuruh, text: b, parse_mode: 'HTML', disable_web_page_preview: true });
+  for (const b of bolak(s(matn))) await M.api('sendMessage', { chat_id: env.tgGuruh, text: b, parse_mode: 'HTML', disable_web_page_preview: true });
   return true;
 }
 // tgFaylYubor_: fayl (PDF/rasm) + caption (+ tugmalar). Qaytaradi message_id
 async function fayl(id, bayt, nom, caption, klav, mime) {
   const p = { chat_id: s(id), caption: s(caption).slice(0, 1024), parse_mode: 'HTML' }; if (klav) p.reply_markup = klav;
-  const r = await api('sendDocument', p, { bayt, nom, mime }); return r ? r.message_id : 0;
+  const r = await M.api('sendDocument', p, { bayt, nom, mime }); return r ? r.message_id : 0;
 }
-async function tugmalarOzgartir(id, msg, klav) { return api('editMessageReplyMarkup', { chat_id: s(id), message_id: msg, reply_markup: klav || { inline_keyboard: [] } }); }
-async function callbackJavob(cbId, matn) { return api('answerCallbackQuery', { callback_query_id: s(cbId), text: s(matn).slice(0, 190) }); }
-async function men() { return api('getMe', {}); }
+async function tugmalarOzgartir(id, msg, klav) { return M.api('editMessageReplyMarkup', { chat_id: s(id), message_id: msg, reply_markup: klav || { inline_keyboard: [] } }); }
+async function callbackJavob(cbId, matn) { return M.api('answerCallbackQuery', { callback_query_id: s(cbId), text: s(matn).slice(0, 190) }); }
+async function men() { return M.api('getMe', {}); }
 
-module.exports = { bor, api, chat, direktor, direktorlar, guruh, fayl, tugmalarOzgartir, callbackJavob, men, bolak };
+// ---------------------------------------------------------------- 2-QADAM: eski Koprik tg* funksiyalarining o'rni (api/koprik.js chaqir() shu yerga buradi)
+// Qaysi funksiya serverda: koprikTgYubor, koprikTgChat, koprikTgGuruh, koprikTg (fish → xodim), koprikDevonTg (skan bilan, direktorga tugma).
+// koprikTopTasdiqTg / koprikXatTasdiqTg — HALI Koprik'da (tugma javoblari eski tgTugmaPoll da; 3-qadamda).
+const KOPRIK_ORNI = { koprikTgYubor: 1, koprikTgChat: 1, koprikTgGuruh: 1, koprikTg: 1, koprikDevonTg: 1 };
+async function xodimTg(fish) {   // yuTgXodim_: 07_Xodimlar B → U (xodimTeng)
+  const { xodimTeng } = require('./xodim');
+  const r = (await V.qatorlar('07_Xodimlar')).find(({ x }) => xodimTeng(s(x[1]), fish)); return r ? s(r.x[20]).trim() : '';
+}
+// devonTgYubor_: matn (+ Drive'dagi skan — robot o'qiydi, G.driveFayl) → xato matni yoki ''
+async function devonYubor(chat, matn, faylId, klav) {
+  let f = null;
+  if (faylId) { try { f = await require('./google').driveFayl(faylId, env.googleKey); } catch (e) { f = null; } }
+  try {
+    if (!f) { await chat_(chat, matn, klav); return ''; }
+    if (s(matn).replace(/<[^>]+>/g, '').length <= 1000) { await fayl(chat, f.bytes, f.nom || 'skan.pdf', matn, klav, f.mime); return ''; }
+    await chat_(chat, matn, klav); await fayl(chat, f.bytes, f.nom || 'skan.pdf', '', null, f.mime); return '';
+  } catch (e) { return e.message.replace(/^Telegram( xabar yuborilmadi)?: /, ''); }
+}
+const chat_ = (id, m, k) => chat(id, m, k);
+// devonDirShaxsiy_: har direktorga (07: admin + Ishlayapti) skan + «tugma» (ilovaga havola, ?k=<kirish kodi>)
+async function devonDirektorlar(matn, faylId, tugma) {
+  let D = [];
+  try { D = (await V.qatorlar('07_Xodimlar')).filter(({ x: r }) => s(r[10]).trim() === 'Ishlayapti' && /admin/i.test(s(r[18]))).map(({ x: r }) => ({ fish: s(r[1]).trim(), tg: s(r[20]).trim().replace(/\.0+$/, ''), kod: s(r[11]).trim() })); }
+  catch (e) { return '07_Xodimlar o\'qilmadi: ' + e.message; }
+  if (!D.length) return 'direktor 07_Xodimlar da topilmadi';
+  const xato = [];
+  for (const d of D) {
+    if (!d.tg) { xato.push(d.fish + ': Telegram ulanmagan (07 U ustuni bo\'sh)'); continue; }
+    const url = d.kod && /^https:\/\//.test(env.ilovaUrl) ? env.ilovaUrl + (env.ilovaUrl.indexOf('?') >= 0 ? '&' : '?') + 'k=' + encodeURIComponent(d.kod) : '';
+    const xt = await devonYubor(d.tg, matn, faylId, url && tugma ? { inline_keyboard: [[{ text: tugma, url }]] } : null);
+    if (xt) xato.push((D.length > 1 ? d.fish + ': ' : '') + xt);
+  }
+  return xato.join('; ');
+}
+// koprik.chaqir(fn, kod, args) o'rni — natija shakli Koprik bilan bir xil
+async function koprikOrni(fn, args) {
+  const a = args || [];
+  if (fn === 'koprikTgYubor') { await direktor(s(a[0])); return { ok: true }; }
+  if (fn === 'koprikTgChat') { await chat(s(a[0]), s(a[1])); return { ok: true }; }
+  if (fn === 'koprikTgGuruh') { await guruh(s(a[0])); return { ok: true }; }
+  if (fn === 'koprikTg') { try { const tg = await xodimTg(s(a[0])); if (tg) await chat(tg, s(a[1])); } catch (e) { console.error('yuTgXodim_:', e.message); } return { ok: true }; }
+  if (fn === 'koprikDevonTg') { const m = a[0] || {}; if (m.chat) return { xato: await devonYubor(s(m.chat), s(m.matn), s(m.faylId), null) }; return { xato: await devonDirektorlar(s(m.matn), s(m.faylId), s(m.tugma)) }; }
+  throw new Error('Telegram: ' + fn + ' serverda yo\'q');
+}
+async function serverda() { try { return bor() && (await require('./db').redis.get('yozuv_yondi:tg')) === '1'; } catch (e) { return false; } }
+
+module.exports = Object.assign(M, { KOPRIK_ORNI, koprikOrni, serverda, xodimTg, bor, api, chat, direktor, direktorlar, guruh, fayl, tugmalarOzgartir, callbackJavob, men, bolak });

@@ -46,13 +46,16 @@ async function birUrinish(tana, opt) {
 }
 
 // Har bir eski tizim chaqiruvi rpc_jurnal ga (qayerda = 'eski') — server ichidan ketganlari ham (aks-bugun koprik: haqiqiy ko'chirish navbati)
-function jurnal(fn, ms, ok, xato) {
+function jurnal(fn, ms, ok, xato, qayerda) {
   if (fn === 'koprikVersiya') return;
-  try { require('../lib/db').q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [String(fn).slice(0, 80), 'eski', ms, ok, xato ? String(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { }
+  try { require('../lib/db').q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', [String(fn).slice(0, 80), qayerda || 'eski', ms, ok, xato ? String(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { }
 }
 // fn — eski tizimdagi funksiya nomi; kod — xodimning kirish kodi (sessiyasiz); args — qolgan argumentlar;
 // opt — { muddat: ms, urinish: n } (uzoq fon ishlari: masalan eski qaytaHujjatlar 40–70 s — bitta urinish, takror chaqirilsa Drive'da nusxalar ko'payadi)
 async function chaqir(fn, kod, args, opt) {
+  // 23.10.2026 Telegram 2-qadam: tg* funksiyalar serverning o'zidan (lib/telegram.js) — bayroq yozuv_yondi:tg va TG_TOKEN bo'lsa; aks holda avvalgidek Koprik
+  const TG = require('../lib/telegram');
+  if (TG.KOPRIK_ORNI[fn] && (await TG.serverda())) { const t0 = Date.now(); try { const r = await TG.koprikOrni(fn, args); jurnal(fn, Date.now() - t0, true, null, 'tg'); return r; } catch (e) { jurnal(fn, Date.now() - t0, false, e.message, 'tg'); throw e; } }
   if (!bor()) throw new Error('Bu amal («' + fn + '») hali serverga ko\'chirilmagan, eski tizim ko\'prigi esa sozlanmagan.');
   const tana = JSON.stringify({ s: env.bridgeSecret, fn, kod, args: args || [] });
   const t0 = Date.now();
