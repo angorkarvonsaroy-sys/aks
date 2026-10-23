@@ -35,6 +35,9 @@ const xato = m => new S.Xato(m);
 
 // yordamchilar (Devon.gs bilan bir xil)
 const devonS = v => s(v).replace(/\s+/g, ' ').trim();
+// 24.10.2026 (eski xato tuzatildi — ikkala tizimda ham bor edi): matn «=», «+», «-», «@» bilan boshlansa Google uni FORMULA / son deb oladi (#ERROR!, «+998…» → son).
+// Bunday qiymat oldiga «'» qo'yiladi — Sheets uni matn sifatida saqlaydi, «'» katakda ko'rinmaydi (getDisplayValues ham «'» siz qaytaradi).
+const matnK = v => /^[=+\-@]/.test(s(v)) ? "'" + s(v) : v;
 const devonNorm = v => s(v).toLowerCase().replace(/[«»"'`ʻʼ‘’\s.,№#-]/g, '');      // tashkilot nomi solishtirish
 const devonRaqNorm = v => s(v).toLowerCase().replace(/[\s№#]/g, '');               // xat raqami: faqat bo'shliq va № belgisi e'tiborsiz
 const devonHtml = v => s(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -88,7 +91,7 @@ async function devonRowsYangi(varaq) {
 async function devonYoz(varaq, R, o) {
   const id = R.L.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0) + 1;
   const vaqt = hozir().dmyHm;
-  const row = [id, o.turi, o.tartib, vaqt, o.kim, o.tashkilot, o.raqam, o.sana, o.mazmun || '', o.fayl,
+  const row = [id, o.turi, o.tartib, vaqt, o.kim, matnK(o.tashkilot), matnK(o.raqam), o.sana, matnK(o.mazmun || ''), o.fayl,
     o.holati, '', '', '', '', '', '', '', vaqt + ' ' + o.kim + ': kiritildi', o.bogliq || ''];
   let q;
   try { q = await G.qatorQoshR(env.aksBazaId, varaq, R.l + 1, row, env.googleKey); } catch (e) { throw yozilmadi(e); }
@@ -371,7 +374,7 @@ async function rezYadro(u, x0, p, opt = {}) {   // p = { tur, matn, muddat, asos
   });
   const vaqt = hozir().dmyHm, J = devonIjroJ(x);
   const J2 = Object.assign(J, { tid, top: {}, kordi: J.kordi || { v: vaqt, fish: u.fish } });
-  try { await G.yoz(env.aksBazaId, [{ varaq, katak: 'K' + x.qator + ':R' + x.qator, qiymat: [['Ijroda', p.tur, p.asosiy.fish, p.yordam.join(', '), p.muddat, p.matn, vaqt + ' · ' + u.fish, JSON.stringify(J2)]] }], env.googleKey); }
+  try { await G.yoz(env.aksBazaId, [{ varaq, katak: 'K' + x.qator + ':R' + x.qator, qiymat: [['Ijroda', p.tur, p.asosiy.fish, p.yordam.join(', '), p.muddat, matnK(p.matn), vaqt + ' · ' + u.fish, JSON.stringify(J2)]] }], env.googleKey); }
   catch (e) { throw yozilmadi(e); }
   await devonTarix(varaq, x, 'rezolyutsiya: ' + DEVON_TUR[p.tur] + ' → ' + p.asosiy.fish + (p.yordam.length ? ' (+' + p.yordam.join(', ') + ')' : '') + ', muddat ' + p.muddat + ' (' + u.fish + ')');
   return { x, rows };
@@ -659,7 +662,7 @@ async function devonChiqimYoz(args) {
     const kutilgan = tahrir ? 'Tayyorlandi' : 'Tayyorlanmoqda';
     if (!y || y.holati !== kutilgan) { faylOchir(u, f.pdf); faylOchir(u, f.doc); throw xato('Xat shu orada o\'zgargan (hozir: ' + (y ? y.holati : 'yo\'q') + ') — ro\'yxatni yangilab qayta urinib ko\'ring.'); }
     const J = Object.assign({}, eskiJ, { pdf: f.pdf, doc: f.doc, bet: f.bet, oluvchi, xat, tahrir: tahrir ? (Number(eskiJ.tahrir) || 0) + 1 : 0 });
-    const K = [[kat('F', y.qator) + ':' + kat('I', y.qator), [oluvchi.join(' '), raqam, sana, mazmun]], [kat('K', y.qator), 'Tayyorlandi'], [kat('R', y.qator), JSON.stringify(J)]];
+    const K = [[kat('F', y.qator) + ':' + kat('I', y.qator), [matnK(oluvchi.join(' ')), matnK(raqam), sana, matnK(mazmun)]], [kat('K', y.qator), 'Tayyorlandi'], [kat('R', y.qator), JSON.stringify(J)]];
     if (kotib && tahrir) K.push([kat('T', y.qator), kirim ? kirim.id : '']);
     try { await G.yoz(env.aksBazaId, K.map(z => ({ varaq, katak: z[0], qiymat: [Array.isArray(z[1]) ? z[1] : [z[1]]] })), env.googleKey); } catch (e) { throw yozilmadi(e); }
     await devonTarix(varaq, y, (tahrir ? 'tahrirlandi' + (devonRaqNorm(raqam) !== devonRaqNorm(x.raqam) ? ' (raqam: ' + x.raqam + ' → ' + raqam + ')' : '') : 'blankada yozildi') + ' — ' + f.bet + ' bet (' + u.fish + ')');
