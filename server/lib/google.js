@@ -244,4 +244,4 @@ async function driveEksport(faylId, mime, kalitFayl) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-module.exports = { sanaBolar, ajrat, xomYoz, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN };
+module.exports = { sanaBolar, ajrat, xomYoz, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN, SCOPE_DRIVE };

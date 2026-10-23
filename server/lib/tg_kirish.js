@@ -202,10 +202,14 @@ async function itemOl(ctx, k) {
 async function tasdiqBajar(ctx, u, k, ha, izoh) {
   if (ctx.quruq) { ctx.log.push({ yozuv: 'QAROR ' + k + ' ' + (ha ? '✅ tasdiq' : '✖ qaytarish «' + izoh + '»') + ' — ' + u.fish + ' (tasdiq navbatiga qo\'yilardi)' }); return { ok: true }; }
   const TN = require('../api/tasdiq_navbat')._ichki, uu = { kod: u.kod, fish: u.fish, huquq: u.huquq };
+  if ((await TN.kutilmoqda())[k]) throw new Error('Bu isbot hozir ko\'rib chiqilmoqda — bir oz kuting.');
+  const TQ = require('../api/tasdiq_qaror')._ichki; if (await TQ.yoqilgan()) return TQ.qaror(uu, k, ha, izoh, ctx);   // 3b: qaror serverning o'zida
   if (await TN.yoqilgan()) { if ((await TN.kutilmoqda())[k]) throw new Error('Bu isbot hozir ko\'rib chiqilmoqda — bir oz kuting.'); return TN.navbatga(uu, k, ha, izoh, 'tasdiqQil', [k, ha, izoh]); }
   const r = await require('../api/koprik').chaqir('tasdiqQil', u.kod, [k, ha, izoh]); tetik.yangilaKut(20000).catch(() => {}); return r;
 }
-async function tqAmal(ctx, u, id, amal) {   // 👍 / ↩ — eski tqAmal (06t, tiklash, Telegram yangilash — eski kodning o'zi)
+async function tqAmal(ctx, u, id, amal, qr) {   // 👍 — serverda (3b, tasdiq_qaror); ↩ tiklash — hali eski tqAmal (Drive'da faylni qaytarish — Koprik v1.18 bilan)
+  const TQ = require('../api/tasdiq_qaror')._ichki;
+  if (amal === 'togri' && qr && await TQ.yoqilgan()) return TQ.tqTogri({ kod: u.kod, fish: u.fish, huquq: u.huquq }, qr, ctx);
   if (ctx.quruq) { ctx.log.push({ yozuv: 'tqAmal ' + id + ' ' + amal + ' — ' + u.fish + ' (Koprik)' }); return { ok: true, natija: '(quruq)' }; }
   const r = await require('../api/koprik').chaqir('tqAmal', u.kod, [id, amal]); tetik.yangilaKut(20000).catch(() => {}); return r;
 }
@@ -246,7 +250,7 @@ async function tqTugma(ctx, cb, d) {
     if (d[0] === 'tq') { await javobla(ctx, cb, 'Yuborilmoqda…'); const n = d[1] === 'K' ? await TT.kutYubor(ctx, chat) : d[1] === 'Q' ? await TT.radYubor(ctx, chat) : 0; return { tur, kim: u.fish, natija: n + ' ta yuborildi' }; }
     const qr = (await J.tqRows()).find(z => s(z.id) === s(d[2])); if (!qr) { await javobla(ctx, cb, 'Qaror topilmadi.'); return { tur, kim: u.fish, nima: d[2], natija: 'qaror topilmadi' }; }
     if (qr.direktor) { await javobla(ctx, cb, 'Allaqachon ko\'rib chiqilgan: ' + qr.direktor.split('|')[0]); await klavQoy(ctx, chat, msg, { inline_keyboard: [] }); return { tur, kim: u.fish, nima: d[2], natija: 'allaqachon' }; }
-    if (d[1] === 'O') { await tqAmal(ctx, u, qr.id, 'togri'); await javobla(ctx, cb, '👍 Belgilandi'); return { tur, kim: u.fish, nima: d[2], natija: '👍 to\'g\'ri qaytargan' }; }
+    if (d[1] === 'O') { await tqAmal(ctx, u, qr.id, 'togri', qr); await javobla(ctx, cb, '👍 Belgilandi'); return { tur, kim: u.fish, nima: d[2], natija: '👍 to\'g\'ri qaytargan' }; }
     if (d[1] === 'U') { await klavQoy(ctx, chat, msg, { inline_keyboard: [[{ text: '✅ Ha — isbotni tiklayman', callback_data: 'tr|Y|' + qr.id }], [{ text: '↩ Orqaga', callback_data: 'tr|B|' + qr.id }]] });
       await javobla(ctx, cb, 'Isbot qayta kuchga kiradi, xodimning minusi uzrli bo\'ladi, «qayta yuklang» topshirig\'i yopiladi. Xabar ostidagi «✅ Ha» ni bosing.', true); return { tur, kim: u.fish, nima: d[2], natija: 'tasdiq so\'raldi' }; }
     if (d[1] === 'B') { await klavQoy(ctx, chat, msg, TT.tqKlav(qr)); await javobla(ctx, cb, ''); return { tur, kim: u.fish, nima: d[2], natija: 'orqaga' }; }

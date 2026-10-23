@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — isbot qarori serverda: aks-tasdiq-qaror | sinov [k] | yoq | ochir
+cd /opt/aks/app && exec sudo -u aks -H node bin/tasdiq_qaror.js "$@"

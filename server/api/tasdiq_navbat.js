@@ -116,20 +116,23 @@ async function navbatga(u, k, ha, izoh, fn, args) {
 }
 
 // ------------------------------------------------------------------ amallar
+// 23.10 (Telegram 3b): yozuv_yondi:tasdiq_qaror bo'lsa — qaror SERVERNING O'ZIDA, darhol (api/tasdiq_qaror.js); navbat va eski tizim kerak emas
 async function tasdiqQil(args) {
   const [kodSes, k0, ha, izoh] = args;
   const u = await S.ruxsat(kodSes);
   const k = s(k0);
-  if (!(await yoqilgan())) return koprik.chaqir('tasdiqQil', u.kod, [k0, ha, izoh]).then(async r => { await tetik.yangilaKut(20000); return r; });
   if ((await kutilmoqda())[k]) throw new S.Xato('Bu isbot hozir ko\'rib chiqilmoqda — bir oz kuting.');
+  const TQ = require('./tasdiq_qaror')._ichki; if (await TQ.yoqilgan()) return TQ.qaror(u, k, !!ha, izoh);
+  if (!(await yoqilgan())) return koprik.chaqir('tasdiqQil', u.kod, [k0, ha, izoh]).then(async r => { await tetik.yangilaKut(20000); return r; });
   return navbatga(u, k, ha, izoh, 'tasdiqQil', [k0, ha, izoh]);
 }
 async function topTasdiq(args) {
   const [kodSes, id, ha, izoh] = args;
   const u = await S.ruxsat(kodSes);
-  if (!(await yoqilgan())) return koprik.chaqir('topTasdiq', u.kod, [id, ha, izoh]).then(async r => { await tetik.yangilaKut(20000); return r; });
   const k = 't' + s(id);
   if ((await kutilmoqda())[k]) throw new S.Xato('Bu isbot hozir ko\'rib chiqilmoqda — bir oz kuting.');
+  const TQ = require('./tasdiq_qaror')._ichki; if (await TQ.yoqilgan()) return TQ.qaror(u, k, !!ha, izoh);
+  if (!(await yoqilgan())) return koprik.chaqir('topTasdiq', u.kod, [id, ha, izoh]).then(async r => { await tetik.yangilaKut(20000); return r; });
   return navbatga(u, k, ha, izoh, 'topTasdiq', [id, ha, izoh]);
 }
 
