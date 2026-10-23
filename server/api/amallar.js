@@ -7,12 +7,16 @@ const koprik = require('./koprik');
 const { q } = require('../lib/db');
 
 const A = {};
+const { redis } = require('../lib/db');
+const TK = require('../lib/tg_kirish');   // 📥 Telegram 3-qadam (23.10.2026): ulash / kod / PIN o'rnatish — yozuv_yondi:tg_kirish bo'lsa serverda
 
 // ---------------- PIN (Pin.gs)
 A.pinHolat = async ([kod]) => {
   const x = await S.xodimKod(kod);
   if (!x) throw new S.Xato('Kirish taqiqlangan. Havolani qayta oching.');
-  return { ism: x.ism, pinBor: !!x.pin, tgBor: !!x.tg, telBor: !!x.tel, tel: S.telYashir(x.tel), blok: await S.blokDaq(kod), bot: 'aks_karvon_bot' };
+  // PIN / Telegram hozirgina serverda yozilgan bo'lishi mumkin (ko'zgu hali yetib kelmagan) — Redis pin_yangi / tg_ulandi
+  const pinBor = !!(x.pin || await redis.get('pin_yangi:' + x.kod)), tgBor = !!(await TK.tgOl(x));
+  return { ism: x.ism, pinBor, tgBor, telBor: !!x.tel, tel: S.telYashir(x.tel), blok: await S.blokDaq(kod), bot: 'aks_karvon_bot' };
 };
 
 A.pinKir = async ([kod, pin]) => {
@@ -20,16 +24,18 @@ A.pinKir = async ([kod, pin]) => {
   if (!x) throw new S.Xato('Kirish taqiqlangan. Havolani qayta oching.');
   const b = await S.blokDaq(kod); if (b) throw new S.Xato('Kirish ' + b + ' daqiqaga bloklangan. Keyinroq urinib ko\'ring.');
   pin = String(pin || '');
-  let togri = !!x.pin && S.pinTekshir(x.pin, kod, pin), koprikdan = false;
-  // PIN hozirgina o'rnatilgan/almashtirilgan bo'lishi mumkin (ko'zgu 5 daqiqada keladi) — eski tizimdan tasdiq olinadi
-  if (!togri && koprik.bor()) {
+  const kirish = await TK.yoqilgan();   // Telegram 3-qadam yoqilgan: PIN ni server o'zi o'rnatadi (pin_yangi), eski pinKir ga murojaat yo'q
+  const saqlangan = (await redis.get('pin_yangi:' + x.kod)) || x.pin;
+  let togri = !!saqlangan && S.pinTekshir(saqlangan, kod, pin), koprikdan = false;
+  // PIN hozirgina eski tizimda o'rnatilgan/almashtirilgan bo'lishi mumkin (ko'zgu 5 daqiqada keladi) — eski tizimdan tasdiq olinadi
+  if (!togri && !kirish && koprik.bor()) {
     try { const r = await koprik.chaqir('pinKir', kod, [pin]); if (r && r.tok) { togri = true; koprikdan = true; } }
     catch (e) { if (!x.pin || !/noto'g'ri|bloklan/i.test(e.message)) throw new S.Xato(e.message); }
   }
-  if (!x.pin && !togri) throw new S.Xato('PIN hali o\'rnatilmagan.');
+  if (!saqlangan && !togri) throw new S.Xato('PIN hali o\'rnatilmagan.');
   if (!togri) {
     const h = await S.xatoYoz(kod);
-    if (h.blok) throw new S.Xato(S.XATO_MAX + ' marta noto\'g\'ri PIN. Kirish ' + S.BLOK_DAQ + ' daqiqaga bloklandi.');
+    if (h.blok) { if (kirish) TK.blokXabar(x).catch(() => {}); throw new S.Xato(S.XATO_MAX + ' marta noto\'g\'ri PIN. Kirish ' + S.BLOK_DAQ + ' daqiqaga bloklandi.'); }
     throw new S.Xato('PIN noto\'g\'ri. Yana ' + h.qoldi + ' ta urinish qoldi.');
   }
   await S.xatoToza(kod);
@@ -45,11 +51,13 @@ A.pinKir = async ([kod, pin]) => {
 
 A.pinTirik = async ([kodSes]) => ({ ok: !!(await S.foydalanuvchi(kodSes)) });
 
-// Birinchi kirish / PIN tiklash — Telegram bot eski tizimda; ko'prik orqali
+// Birinchi kirish / PIN tiklash — yozuv_yondi:tg_kirish bo'lsa serverda (lib/tg_kirish.js: bot xabarlarini server o'qiydi, 07 T/U ni server yozadi);
+// aks holda avvalgidek Telegram bot eski tizimda — ko'prik orqali
 for (const fn of ['tgUlanishBoshla', 'tgUlanishTekshir', 'pinKodYubor']) {
-  A[fn] = async ([kod, ...rest]) => koprik.chaqir(fn, kod, rest);
+  A[fn] = async ([kod, ...rest]) => (await TK.yoqilgan()) ? TK[fn]([kod, ...rest]) : koprik.chaqir(fn, kod, rest);
 }
 A.pinOrnat = async ([kod, tgKod, pin]) => {
+  if (await TK.yoqilgan()) return TK.pinOrnat([kod, tgKod, pin]);
   const r = await koprik.chaqir('pinOrnat', kod, [tgKod, pin]);   // eski tizim jadvalga yozadi; 5 daqiqada ko'zguga keladi
   const x = await S.xodimKod(kod);
   if (!x) throw new S.Xato('Kirish taqiqlangan.');

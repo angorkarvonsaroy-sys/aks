@@ -55,7 +55,10 @@ function jurnal(fn, ms, ok, xato, qayerda) {
 async function chaqir(fn, kod, args, opt) {
   // 23.10.2026 Telegram 2-qadam: tg* funksiyalar serverning o'zidan (lib/telegram.js) — bayroq yozuv_yondi:tg va TG_TOKEN bo'lsa; aks holda avvalgidek Koprik
   const TG = require('../lib/telegram');
-  if (TG.KOPRIK_ORNI[fn] && (await TG.serverda())) { const t0 = Date.now(); try { const r = await TG.koprikOrni(fn, args); jurnal(fn, Date.now() - t0, true, null, 'tg'); return r; } catch (e) { jurnal(fn, Date.now() - t0, false, e.message, 'tg'); throw e; } }
+  if (TG.KOPRIK_ORNI[fn] && (await TG.serverda(fn))) { const t0 = Date.now(); let koprikka = false;
+    try { const r = await TG.koprikOrni(fn, args); if (r && r.koprikka) koprikka = true; else { jurnal(fn, Date.now() - t0, true, null, 'tg'); return r; } } catch (e) { jurnal(fn, Date.now() - t0, false, e.message, 'tg'); throw e; }
+    if (koprikka) jurnal(fn, Date.now() - t0, true, 'fayl robotga ko\'rinmadi → Koprik', 'tg');   // davom — eski Koprik (direktor hisobi faylni ko'radi)
+  }
   if (!bor()) throw new Error('Bu amal («' + fn + '») hali serverga ko\'chirilmagan, eski tizim ko\'prigi esa sozlanmagan.');
   const tana = JSON.stringify({ s: env.bridgeSecret, fn, kod, args: args || [] });
   const t0 = Date.now();

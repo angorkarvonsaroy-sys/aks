@@ -192,7 +192,9 @@ async function topAvto(kod, opt = {}) {
   if (quruq) return { ok: true, yangi, yop, nomzod: C.length, band: C.filter(c => !yangi.some(y => y.kalit === c.kalit)).length };
   // tgTugmaOrnat_ — faqat Apps Script (eski trigger o'zi o'rnatadi). skanNazTekshir_ — eski tizimning o'zi (Koprik v1.12), xato e'tiborsiz
   let skanNaz = null;
-  try { if (await koprik112(kod)) skanNaz = (await koprik.chaqir('koprikSkanNaz', kod, [], { muddat: 90000, urinish: 1 }) || {}).n; } catch (e) { console.error('koprikSkanNaz:', e.message); }
+  // 23.10: vaqt_yondi:skan_naz yoqilgan bo'lsa — serverning o'zi har 10 daqiqada (lib/tg_ishlar.js), eski koprikSkanNaz chaqirilmaydi (ikki marta ketmasin)
+  let snServer = false; try { snServer = (await redis.get('vaqt_yondi:skan_naz')) === '1'; } catch (e) { }
+  try { if (!snServer && await koprik112(kod)) skanNaz = (await koprik.chaqir('koprikSkanNaz', kod, [], { muddat: 90000, urinish: 1 }) || {}).n; } catch (e) { console.error('koprikSkanNaz:', e.message); }
   if (hj.tg.length) tasdiqTg(kod, hj.tg);
   if (yangi.length) TP.topTg(kod, yangi, XD);
   return { ok: true, yangi: yangi.length, yopildi, skanNaz };

@@ -17,22 +17,22 @@ function bolak(m) { if (m.length <= TG_MAX) return [m]; const B = []; let b = ''
   m.split('\n').forEach(z => { if (b && (b + '\n' + z).length > TG_MAX) { B.push(b); b = z; } else b = b ? b + '\n' + z : z; }); if (b) B.push(b); return B; }
 
 // Telegram API chaqiruvi (JSON yoki multipart). Qaytaradi result; xato — Error('Telegram xabar yuborilmadi: …') (eski tgYuborChat_ matni)
-async function api(metod, tana, fayl) {
+async function api(metod, tana, fayl, opt) {
   if (!bor()) throw new Error('TG_TOKEN yo\'q (serverda Telegram o\'chiq).');
-  const t0 = Date.now(); let oxirgi;
+  opt = opt || {}; const t0 = Date.now(); let oxirgi;
   for (let u = 0; u < 3; u++) {
     try {
       let r;
       if (fayl) { const fd = new FormData(); Object.keys(tana).forEach(k => { if (tana[k] != null) fd.append(k, typeof tana[k] === 'object' ? JSON.stringify(tana[k]) : String(tana[k])); });
         fd.append(fayl.maydon || 'document', new Blob([fayl.bayt], { type: fayl.mime || 'application/pdf' }), fayl.nom || 'fayl.pdf');
         r = await fetch('https://api.telegram.org/bot' + env.tgToken + '/' + metod, { method: 'POST', body: fd, signal: AbortSignal.timeout(60000) }); }
-      else r = await fetch('https://api.telegram.org/bot' + env.tgToken + '/' + metod, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tana), signal: AbortSignal.timeout(30000) });
+      else r = await fetch('https://api.telegram.org/bot' + env.tgToken + '/' + metod, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tana), signal: AbortSignal.timeout(opt.muddat || 30000) });
       const j = await r.json().catch(() => ({ ok: false, description: 'javob tushunarsiz (' + r.status + ')' }));
-      if (j.ok) { jurnal(metod, Date.now() - t0, true); return j.result; }
+      if (j.ok) { if (!opt.jurnalsiz) jurnal(metod, Date.now() - t0, true); return j.result; }
       oxirgi = new Error('Telegram xabar yuborilmadi: ' + (j.description || r.status));
-      if (!(r.status === 429 || r.status >= 500)) break;
+      if (!(r.status === 429 || r.status >= 500) || opt.urinishsiz) break;
       await new Promise(z => setTimeout(z, j.parameters && j.parameters.retry_after ? j.parameters.retry_after * 1000 : 2000 * (u + 1)));
-    } catch (e) { oxirgi = new Error('Telegram: ' + e.message); await new Promise(z => setTimeout(z, 1500 * (u + 1))); }
+    } catch (e) { oxirgi = new Error('Telegram: ' + e.message); if (opt.urinishsiz) break; await new Promise(z => setTimeout(z, 1500 * (u + 1))); }
   }
   jurnal(metod, Date.now() - t0, false, oxirgi.message); throw oxirgi;
 }
@@ -72,8 +72,9 @@ async function men() { return M.api('getMe', {}); }
 
 // ---------------------------------------------------------------- 2-QADAM: eski Koprik tg* funksiyalarining o'rni (api/koprik.js chaqir() shu yerga buradi)
 // Qaysi funksiya serverda: koprikTgYubor, koprikTgChat, koprikTgGuruh, koprikTg (fish → xodim), koprikDevonTg (skan bilan, direktorga tugma).
-// koprikTopTasdiqTg / koprikXatTasdiqTg — HALI Koprik'da (tugma javoblari eski tgTugmaPoll da; 3-qadamda).
-const KOPRIK_ORNI = { koprikTgYubor: 1, koprikTgChat: 1, koprikTgGuruh: 1, koprikTg: 1, koprikDevonTg: 1 };
+// 3-QADAM (yozuv_yondi:tg_kirish ham yoqilgan bo'lsa): koprikTopTasdiqTg / koprikXatTasdiqTg — isbot fayli + ✅/✖ tugmalari serverdan (lib/tg_tasdiq.js);
+// tugma javoblari serverdagi poll (lib/tg_poll.js → lib/tg_kirish.js). Fayl robotga ko'rinmasa — { koprikka: true } → api/koprik.js eski Koprik'ka beradi.
+const KOPRIK_ORNI = { koprikTgYubor: 1, koprikTgChat: 1, koprikTgGuruh: 1, koprikTg: 1, koprikDevonTg: 1, koprikTopTasdiqTg: 2, koprikXatTasdiqTg: 2 };   // 2 — faqat tg_kirish bilan
 async function xodimTg(fish) {   // yuTgXodim_: 07_Xodimlar B → U (xodimTeng)
   const { xodimTeng } = require('./xodim');
   const r = (await V.qatorlar('07_Xodimlar')).find(({ x }) => xodimTeng(s(x[1]), fish)); return r ? s(r.x[20]).trim() : '';
@@ -112,8 +113,15 @@ async function koprikOrni(fn, args) {
   if (fn === 'koprikTgGuruh') { await guruh(s(a[0])); return { ok: true }; }
   if (fn === 'koprikTg') { try { const tg = await xodimTg(s(a[0])); if (tg) await chat(tg, s(a[1])); } catch (e) { console.error('yuTgXodim_:', e.message); } return { ok: true }; }
   if (fn === 'koprikDevonTg') { const m = a[0] || {}; if (m.chat) return { xato: await devonYubor(s(m.chat), s(m.matn), s(m.faylId), null) }; return { xato: await devonDirektorlar(s(m.matn), s(m.faylId), s(m.tugma)) }; }
+  if (fn === 'koprikTopTasdiqTg') return require('./tg_tasdiq').topTasdiqTg(a[0]);
+  if (fn === 'koprikXatTasdiqTg') return require('./tg_tasdiq').xatTasdiqTg(a[0]);
   throw new Error('Telegram: ' + fn + ' serverda yo\'q');
 }
-async function serverda() { try { return bor() && (await require('./db').redis.get('yozuv_yondi:tg')) === '1'; } catch (e) { return false; } }
+// fn berilsa: 2-toifa (tasdiq tugmalari) uchun yana yozuv_yondi:tg_kirish ham kerak (3-qadam — aks-tg-kirish yoq)
+async function serverda(fn) {
+  try { const r = require('./db').redis; if (!bor() || (await r.get('yozuv_yondi:tg')) !== '1') return false;
+    return !(fn && KOPRIK_ORNI[fn] === 2) || (await r.get('yozuv_yondi:tg_kirish')) === '1'; } catch (e) { return false; }
+}
+async function kirishYoqilgan() { try { return bor() && (await require('./db').redis.get('yozuv_yondi:tg_kirish')) === '1'; } catch (e) { return false; } }
 
-module.exports = Object.assign(M, { KOPRIK_ORNI, koprikOrni, serverda, xodimTg, bor, api, chat, direktor, direktorlar, guruh, fayl, tugmalarOzgartir, callbackJavob, men, bolak });
+module.exports = Object.assign(M, { KOPRIK_ORNI, koprikOrni, serverda, kirishYoqilgan, xodimTg, bor, api, chat, direktor, direktorlar, guruh, fayl, tugmalarOzgartir, callbackJavob, men, bolak });

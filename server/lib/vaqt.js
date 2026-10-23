@@ -21,6 +21,8 @@
 //   kechki_hisobot — kechkiHisobotYubor (20:00): lib/kunlik_xabar.js — guruhga kunlik (+ shanba haftalik, oy oxiri oylik) hisobot (Koprik v1.16).
 //   zaxira_kunlik  — zaxiraKunlik (02:00): lib/kunlik_xabar.js — AKS_BAZA ning Drive nusxasi (Koprik v1.16 koprikZaxira).
 //   ijro_tanla   — ijroTekshiruvTanla (09:30): lib/ijro_kun.js — tasodifiy tekshiruv (10 + 06p); oyning 1-kuni — ijroOylik.
+//   skan_naz     — skanNazTekshir_ (har 10 daqiqada; eski tgTugmaPoll ichida edi): lib/tg_ishlar.js — yangi shartnoma skanlari yurist/direktorga (ixtiyoriy nazorat).
+//   tq_kechki    — tqKechki_ (20:05; eski tgTugmaPoll ichida edi): lib/tg_ishlar.js — direktorga «⚖ Yurist bugun» xulosasi.
 'use strict';
 const { q, redis } = require('./db');
 
@@ -31,6 +33,8 @@ function toshkent(ms) { const d = new Date((ms || Date.now()) + 5 * 3600 * 1000)
 // bo'lak kaliti: 'soat2' — har 2 soat (00,02,…22), daqiqa ≥ 5 dan; 'kun:HH:MM' — kuniga bir marta, shu vaqtdan boshlab
 function bolak(ish, t) {
   if (ish.har === 'soat2') { if (t.daq < 5) return null; return t.iso + 'T' + String(t.soat - t.soat % 2).padStart(2, '0'); }
+  const dq = /^daq:(\d+)$/.exec(ish.har);   // har N daqiqada (daq:10 — 00, 10, 20 … har bo'lakda bir marta)
+  if (dq) { const n = +dq[1]; return t.iso + 'T' + String(t.soat).padStart(2, '0') + ':' + String(t.daq - t.daq % n).padStart(2, '0'); }
   const h = /^hafta:(\d):(\d{2}):(\d{2})$/.exec(ish.har);   // haftada bir: hafta:1:09:00 — dushanba 09:00 (0 — yakshanba)
   if (h) { if (t.d.getUTCDay() !== +h[1]) return null; const d = t.soat * 60 + t.daq - (+h[2] * 60 + +h[3]); if (d < 0 || d > 90) return null; return t.iso; }
   const m = /^kun:(\d{2}):(\d{2})$/.exec(ish.har);
@@ -41,9 +45,10 @@ function bolak(ish, t) {
   return null;
 }
 const HAFTA = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
-function harMatn(har) { if (har === 'soat2') return 'har 2 soatda'; const h = /^hafta:(\d):(.+)$/.exec(har); if (h) return 'har ' + HAFTA[+h[1]] + ' ' + h[2]; return 'har kuni ' + har.slice(4); }
+function harMatn(har) { if (har === 'soat2') return 'har 2 soatda'; const dq = /^daq:(\d+)$/.exec(har); if (dq) return 'har ' + dq[1] + ' daqiqada'; const h = /^hafta:(\d):(.+)$/.exec(har); if (h) return 'har ' + HAFTA[+h[1]] + ' ' + h[2]; return 'har kuni ' + har.slice(4); }
 function keyingi(ish, t) {   // ko'rsatish uchun: keyingi bo'lak boshlanishi
   if (ish.har === 'soat2') { const h = t.soat - t.soat % 2 + (t.daq >= 5 ? 2 : 0); return (h >= 24 ? 'ertaga ' : '') + String(h % 24).padStart(2, '0') + ':05'; }
+  const dq = /^daq:(\d+)$/.exec(ish.har); if (dq) { const n = +dq[1], m = t.soat * 60 + t.daq - t.daq % n + n; return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
   const h = /^hafta:(\d):(\d{2}):(\d{2})$/.exec(ish.har); if (h) return HAFTA[+h[1]] + ' ' + h[2] + ':' + h[3];
   const m = /^kun:(\d{2}):(\d{2})$/.exec(ish.har); return m ? ((t.soat > +m[1] || (t.soat === +m[1] && t.daq >= +m[2])) ? 'ertaga ' : '') + m[1] + ':' + m[2] : '?';
 }
@@ -117,6 +122,8 @@ const ISHLAR = [
   { nom: 'taminot_eslatma', fn: 'taminotEslatma', tavsif: '📦 Ta\'minot haftalik dalolatnoma eslatmasi (taminotEslatma)', har: 'hafta:1:09:00', eski: 'taminotEslatma — har dushanba 09:00', ish: (kod, opt) => KX.taminotEslatma(kod, opt) },
   { nom: 'kechki_hisobot', fn: 'kechkiHisobotYubor', tavsif: '🏢 Guruhga kunlik/haftalik/oylik hisobot (kechkiHisobotYubor)', har: 'kun:20:00', eski: 'kechkiHisobotYubor — har kuni 20:00', ish: (kod, opt) => KX.kechkiHisobot(kod, opt) },
   { nom: 'zaxira_kunlik', fn: 'zaxiraKunlik', tavsif: '💾 AKS_BAZA kunlik zaxira nusxasi (zaxiraKunlik)', har: 'kun:02:00', eski: 'zaxiraKunlik — har kecha 02:00', ish: (kod, opt) => KX.zaxiraKunlik(kod, opt) },
+  { nom: 'skan_naz', fn: 'skanNazTekshir', tavsif: '🗂 Yangi shartnoma skanlari — ixtiyoriy nazorat (skanNazTekshir_)', har: 'daq:10', eski: 'tgTugmaPoll ichida — har 10 daqiqada', ish: (kod, opt) => require('./tg_ishlar').skanNaz(kod, opt) },
+  { nom: 'tq_kechki', fn: 'tqKechki', tavsif: '⚖ Direktorga «Yurist bugun» xulosasi (tqKechki_)', har: 'kun:20:05', eski: 'tgTugmaPoll ichida — har kuni 20:05', ish: (kod, opt) => require('./tg_ishlar').tqKechki(kod, opt) },
   { nom: 'ijro_tanla', fn: 'ijroTekshiruvTanla', tavsif: '🎲 Tasodifiy tekshiruv + oylik xulosa (ijroTekshiruvTanla)', har: 'kun:09:30', eski: 'ijroTekshiruvTanla — har kuni 09:30', ish: (kod, opt) => IK.ijroTekshiruvTanla(kod, Object.assign({ oylikKor: !!(opt && opt.quruq) }, opt)) },
 ];
 

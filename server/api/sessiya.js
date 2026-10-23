@@ -75,4 +75,4 @@ async function xatoToza(kod) { await redis.del('pinx:' + kod, 'pinblok:' + kod);
 
 const telYashir = d => d.length === 9 ? d.slice(0, 2) + ' *** ** ' + d.slice(7) : '';
 
-module.exports = { Xato, xodimKod, foydalanuvchi, ruxsat, sessiyaOch, pinTekshir, blokDaq, xatoYoz, xatoToza, telYashir, SESSIYA_SEK, XATO_MAX, BLOK_DAQ };
+module.exports = { Xato, xodimKod, foydalanuvchi, ruxsat, sessiyaOch, pinIz, pinTekshir, blokDaq, xatoYoz, xatoToza, telYashir, SESSIYA_SEK, XATO_MAX, BLOK_DAQ };

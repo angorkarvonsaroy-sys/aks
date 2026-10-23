@@ -3,6 +3,7 @@
 //   aks-tg            — TG_TOKEN bormi, bot nomi (getMe), direktorlar Telegram ID soni, oxirgi 10 so'rov (rpc_jurnal qayerda='tg')
 //   aks-tg sinov      — direktor(lar)ga «🧪 Sinov» xabari (haqiqiy yuboriladi — faqat direktorga)
 //   aks-tg guruh      — hisobot guruhiga (TG_GURUH) «🧪 Sinov» xabari
+//   (3-qadam — botdan keladiganlar: aks-tg-kirish)
 //   aks-tg yoq / ochir — 2-qadam: serverdagi Telegram chaqiruvlari (koprikTgYubor/TgChat/TgGuruh/Tg/DevonTg) to'g'ridan-to'g'ri / Koprik orqali (bayroq yozuv_yondi:tg)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -14,7 +15,8 @@ const env = require('../lib/env');
   console.log('================ 📱 TELEGRAM (serverdan) ================');
   console.log('TG_TOKEN (.env): ' + (TG.bor() ? 'bor (' + env.tgToken.length + ' belgi, oxiri …' + env.tgToken.slice(-4) + ')' : 'YO\'Q — Telegram avvalgidek Koprik orqali') + ' · TG_GURUH: ' + (env.tgGuruh ? 'bor' : 'yo\'q'));
   const bay = (await redis.get('yozuv_yondi:tg')) === '1';
-  console.log('Xabarlar yo\'li (yozuv_yondi:tg): ' + (bay ? '🟢 SERVERDAN to\'g\'ridan-to\'g\'ri' : '⚪ Koprik orqali (eski tizim)') + ' · hali Koprik\'da: tasdiq tugmalari (koprikTopTasdiqTg, koprikXatTasdiqTg)');
+  const bk = (await redis.get('yozuv_yondi:tg_kirish')) === '1';
+  console.log('Xabarlar yo\'li (yozuv_yondi:tg): ' + (bay ? '🟢 SERVERDAN to\'g\'ridan-to\'g\'ri' : '⚪ Koprik orqali (eski tizim)') + ' · tasdiq tugmalari va botdan keladiganlar (yozuv_yondi:tg_kirish): ' + (bk ? '🟢 serverda' : '⚪ eski tizimda (aks-tg-kirish)'));
   if (arg === 'yoq') { if (!TG.bor()) { console.log('✖ TG_TOKEN yo\'q — yoqib bo\'lmaydi.'); } else { await redis.set('yozuv_yondi:tg', '1'); console.log('✅ YOQILDI — endi Telegram xabarlari serverdan to\'g\'ridan-to\'g\'ri (eski tizim tegilmaydi; qaytarish: aks-tg ochir).'); } }
   if (arg === 'ochir') { await redis.del('yozuv_yondi:tg'); console.log('⛔ O\'CHIRILDI — xabarlar yana Koprik orqali.'); }
   if (!TG.bor()) { await pool.end(); redis.disconnect(); process.exit(0); }

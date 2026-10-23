@@ -134,4 +134,4 @@ async function topTasdiq(args) {
 }
 
 module.exports = { tasdiqQil, topTasdiq };
-module.exports._ichki = { oldindan, kutilmoqda, ishchi, NAVBAT, KUT };
+module.exports._ichki = { oldindan, kutilmoqda, ishchi, navbatga, yoqilgan, NAVBAT, KUT };   // navbatga, yoqilgan — lib/tg_kirish.js (Telegram tugmasi)

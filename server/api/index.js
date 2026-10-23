@@ -111,6 +111,7 @@ async function main() {
   require('./yurist_aloqa')._ichki.boshla();   // Drive'ga ko'chmagan yurist aloqa xatlari — har 15 daqiqada
   require('./kb_yoz')._ichki.boshla();   // Drive'ga ko'chmagan kelishuv hujjatlari — har 15 daqiqada
   require('../lib/vaqt').boshla();   // ⏰ vaqt bo'yicha ishlar (eski triggerlar o'rni) — har daqiqada tekshiriladi, bayroq vaqt_yondi:<nom>
+  require('../lib/tg_poll').boshla();   // 📥 Telegram botdan yangiliklar (getUpdates) — bayroq yozuv_yondi:tg_kirish (aks-tg-kirish yoq); o'chiq bo'lsa 10 s da bir qaraydi
   console.log(`${new Date().toISOString()} AKS api ${VERSIYA} tinglayapti: 127.0.0.1:${env.appPort}`);
 }
 main().catch(e => { console.error('API ishga tushmadi:', e); process.exit(1); });
