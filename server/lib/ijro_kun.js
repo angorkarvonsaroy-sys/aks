@@ -163,7 +163,9 @@ async function ijroKechki(kod, opt = {}) {
       if (kun === 0 && !rad) await yoz(f, { tur: 'xat', kalit: 'xat|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' bugun chiqarilgan, yetkazilmadi' }, Lx);
       if (kun >= 2) await yoz(f, { tur: 'xat3', kalit: 'xat3|' + h2.raqam, no: h2.no, fish: fio, tafsilot: h2.raqam + ' — ' + q.qdXatNom(h2) + ' ' + (kun + 1) + ' kundan beri yetkazilmagan' }, Lx);
     }
-    for (const t of T.filter(t => xodimTeng(t.kimga, f) && t.holati === 'Jarayonda' && TS.topIso(t.muddat) && TS.topIso(t.muddat) < hozir && TS.topIso(t.muddat) >= IJRO_BOSH)) {
+    // 23.10 23:40 DIREKTOR QARORI: «Ogohlantirish xatini yetkazing» (kalit xat|…) topshirig'i eslatma bo'lib qoladi, muddati o'tsa BALL YOZILMAYDI —
+    // xat uchun ball faqat xat qoidasidan (xat / xat3), bitta xatga ikki marta jazo bo'lmasin. Yangi xat qoidasi bilan birga (yangiX).
+    for (const t of T.filter(t => xodimTeng(t.kimga, f) && t.holati === 'Jarayonda' && TS.topIso(t.muddat) && TS.topIso(t.muddat) < hozir && TS.topIso(t.muddat) >= IJRO_BOSH && !(yangiX && /^xat\|/.test(s(t.kalit))))) {
       const olib = /^olib\|/.test(s(t.kalit));   // olib kelish topshirig'i — har kun
       await yoz(f, { tur: 'top', kalit: 'top|' + t.id + (olib ? '|' + bugun : ''), no: t.no, tafsilot: '«' + t.sarlavha + '» — muddat ' + t.muddat + (olib ? ' · hali bajarilmagan (har kun hisoblanadi)' : '') }, Lx);
     }

@@ -433,7 +433,7 @@ function ijroKun(h, fish, bugun, Xj, T, Sx, hozir0, yangi) {   // hozir0 — sin
   // eski: bugun chiqarilgan xatlar — bugun yetkazilganmi; yangi: muhlati bugun tugaydigan xatlar — muhlatigacha yetkazilganmi
   const xs = Xj.filter(x => (yangi ? xatMuhlat(X.xatIso(x.sana)) === bugun : X.xatIso(x.sana) === bugun) && x.holati !== 'Bekor' && Sx[x.no] && qdTeng(Sx[x.no].undiruvchi, fish));
   const xB = xs.filter(x => x.holati === 'Yuborildi' && (yangi ? X.xatIso(x.yetSana || x.sana) <= bugun : X.xatIso(x.yetSana || x.sana) === bugun)).length;
-  const ts = T.filter(t => qdTeng(t.kimga, fish) && t.holati !== 'Bekor' && TS.topIso(t.muddat).slice(0, 10) === bugun && TS.topIso(t.muddat) <= hozir);
+  const ts = T.filter(t => qdTeng(t.kimga, fish) && t.holati !== 'Bekor' && TS.topIso(t.muddat).slice(0, 10) === bugun && TS.topIso(t.muddat) <= hozir && !(yangi && /^xat\|/.test(String(t.kalit || ''))));   // 23.10: xat|… topshirig'i foizga ham kirmaydi (xat — xT/xB da)
   const tB = ts.filter(t => (t.holati === 'Bajarildi' || t.holati === 'Tekshiruvda') && t.kechikdi !== 'Ha').length;
   return { rT, rB, nT, nB, xT: xs.length, xB, tT: ts.length, tB };
 }
