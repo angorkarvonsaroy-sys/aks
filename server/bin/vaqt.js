@@ -10,7 +10,9 @@ const s = v => String(v == null ? '' : v);
   if ((arg === 'hozir' || arg === 'sinov' || arg === 'yoq' || arg === 'ochir') && !ish) { console.log('Ish nomi noto\'g\'ri. Bor ishlar: ' + VQ.ISHLAR.map(z => z.nom).join(', ')); process.exit(1); }
   if (arg === 'yoq') {
     await redis.set('vaqt_yondi:' + ish.nom, '1');
-    if (ish.nom === 'ijro_kechki' && !(await redis.get('ijro_xat_qoida_sana'))) { await redis.set('ijro_xat_qoida_sana', VQ.toshkent().iso); console.log('   📮 Xatlar uchun 1 ish kuni muhlat qoidasi (direktor qarori 23.10) shu kundan kuchda: ' + VQ.toshkent().iso); }
+    // yangi xat qoidasi birinchi kuni: bugungi 18:15 o'tgan bo'lsa (bugungi hisobni eski trigger eski qoida bilan qilgan, bugun qayta bajarilmaydi) — ERTAGA
+    const tq = VQ.toshkent(), qs = tq.soat * 60 + tq.daq >= 18 * 60 + 15 ? VQ.toshkent(Date.now() + 86400000).iso : tq.iso;
+    if (ish.nom === 'ijro_kechki' && !(await redis.get('ijro_xat_qoida_sana'))) { await redis.set('ijro_xat_qoida_sana', qs); console.log('   📮 Xatlar uchun 1 ish kuni muhlat qoidasi (direktor qarori 23.10) shu kundan kuchda: ' + qs); }
     const b = VQ.bolak(ish, VQ.toshkent()); if (b) await redis.set('vaqt:' + ish.nom + ':bolak', b, 'EX', 48 * 3600);   // bugungi vaqti o'tib bo'lgan — bugun bajarilmaydi, keyingisidan
     console.log('✅ «' + ish.tavsif + '» serverda jadval bo\'yicha YOQILDI (' + (ish.har === 'soat2' ? 'har 2 soatda: 00:05, 02:05 … 22:05' : VQ.harMatn(ish.har)) + ').');
     console.log('   ENDI eski trigger o\'chirilsin: Apps Script → ⏰ Триггеры → «' + ish.eski.split(' — ')[0] + '» qatorida ⋮ → Удалить триггер.');
