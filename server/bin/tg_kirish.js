@@ -30,7 +30,7 @@ function chop(y) { const x = y.xabarlar || y.log || []; x.forEach(z => { if (z.y
     console.log('✅ YOQILDI: botdan keladigan xabarlar (ulash, PIN, ✅/✖ tugmalar, /tekshiruv), skan_naz (har 10 daq), tq_kechki (20:05) — endi SERVERDA.');
     console.log('   Poll 10 soniya ichida boshlanadi. Eski tgTugmaPoll triggeri O\'CHIRILGAN bo\'lishi shart — aks holda pastda «Conflict» ko\'rinadi.');
     console.log('   Qaytarish: aks-tg-kirish ochir, keyin Apps Script\'da tgTugmaOrnat ▶.');
-    await new Promise(r => setTimeout(r, 12000));
+    await new Promise(r => setTimeout(r, 15000));
   }
   if (arg === 'ochir') { await redis.del('yozuv_yondi:tg_kirish', 'vaqt_yondi:skan_naz', 'vaqt_yondi:tq_kechki'); console.log('⛔ O\'CHIRILDI — bot xabarlarini yana eski tizim o\'qiydi (Apps Script\'da tgTugmaOrnat ▶ ni ishga tushiring).'); }
   if (!TG.bor()) return tugat(0);
@@ -41,6 +41,7 @@ function chop(y) { const x = y.xabarlar || y.log || []; x.forEach(z => { if (z.y
   const tirik = h.tirik ? Math.round((Date.now() - h.tirik) / 1000) : -1;
   console.log('Poll (getUpdates): ' + (h.yoq ? (tirik >= 0 && tirik < 120 ? '🟢 tirik (' + tirik + ' s oldin)' : '🔴 TIRIK EMAS' + (tirik >= 0 ? ' (oxirgi ' + tirik + ' s oldin)' : ' (hech qachon)') + ' — pm2 aks-api ishlayaptimi?') : '⚪ o\'chiq') + ' · offset: ' + h.offset);
   if (h.konflikt) console.log('⚠ CONFLICT bo\'lgan: ' + h.konflikt + '\n   → Apps Script\'da tgTugmaPoll triggeri hali ishlayapti. Uni o\'chiring.');
+  if (h.xato) console.log('⚠ Oxirgi poll xatosi: ' + h.xato);
   for (const nom of ['skan_naz', 'tq_kechki']) { const y = (await redis.get('vaqt_yondi:' + nom)) === '1'; let ox = null; try { ox = JSON.parse((await redis.get('vaqt:' + nom + ':oxirgi')) || 'null'); } catch (e) { }
     console.log('⏰ ' + nom.padEnd(10) + (y ? '🟢 SERVERDA' : '⚪ eski trigger ichida') + (ox ? ' · oxirgi: ' + ox.vaqt + ' ' + (ox.ok ? '✅ ' + JSON.stringify(ox.natija).slice(0, 120) : '✖ ' + ox.xato) : '')); }
   try { const w = await TG.api('getWebhookInfo', {}, null, { jurnalsiz: true }); console.log('Botda kutayotgan yangiliklar: ' + (w.pending_update_count || 0) + (w.url ? ' · ⚠ webhook o\'rnatilgan: ' + w.url : ' · webhook yo\'q ✅')); } catch (e) { console.log('getWebhookInfo: ✖ ' + e.message); }

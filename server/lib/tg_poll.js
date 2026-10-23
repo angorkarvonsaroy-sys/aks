@@ -16,8 +16,10 @@ async function birAylanish() {
   const off = Number(await redis.get('tg_offset')) || 0;
   const tana = { timeout: 25, allowed_updates: ['message', 'callback_query'] }; if (off) tana.offset = off;
   let R;
-  try { R = await TG.api('getUpdates', tana, null, { jurnalsiz: true, muddat: 40000, urinishsiz: true }); konflikt = 0; }
+  await redis.set('tg_poll:tirik', String(Date.now()), 'EX', 600).catch(() => {});   // so'rov boshlanganda ham (uzun so'rov 25 s — javob kelguncha ham «tirik»)
+  try { R = await TG.api('getUpdates', tana, null, { jurnalsiz: true, muddat: 40000, urinishsiz: true }); konflikt = 0; await redis.del('tg_poll:xato').catch(() => {}); }
   catch (e) {
+    await redis.set('tg_poll:xato', new Date().toISOString() + ' ' + e.message.slice(0, 200), 'EX', 3600).catch(() => {});
     if (/Conflict/i.test(e.message)) {
       konflikt++;
       await redis.set('tg_poll:konflikt', new Date().toISOString() + ' ' + e.message.slice(0, 200), 'EX', 86400).catch(() => {});
@@ -45,7 +47,7 @@ async function sikl() {
 function boshla() { if (yurmoqda) return; yurmoqda = true; sikl().catch(e => console.error('tg poll:', e.message)); }
 function toxta() { toxtash = true; }
 async function holat() {
-  const [tirik, off, kon, yoq] = await Promise.all([redis.get('tg_poll:tirik'), redis.get('tg_offset'), redis.get('tg_poll:konflikt'), K.yoqilgan()]);
-  return { yoq, tirik: tirik ? Number(tirik) : 0, offset: Number(off) || 0, konflikt: kon || '' };
+  const [tirik, off, kon, yoq, xato] = await Promise.all([redis.get('tg_poll:tirik'), redis.get('tg_offset'), redis.get('tg_poll:konflikt'), K.yoqilgan(), redis.get('tg_poll:xato')]);
+  return { yoq, tirik: tirik ? Number(tirik) : 0, offset: Number(off) || 0, konflikt: kon || '', xato: xato || '' };
 }
 module.exports = { boshla, toxta, holat, birAylanish };
