@@ -3,6 +3,7 @@
 //   aks-tasdiq-qaror             — holat: bayroq, tekshiruvdagi isbotlar soni, 06t oxirgi 5 qaror
 //   aks-tasdiq-qaror sinov [k]   — QURUQ: tekshiruvdagi bitta isbot (k — t<ID> | x<raqam> | n<ID>; berilmasa — yurist navbatidagi birinchisi) uchun ✅ va ✖ qarori
 //                                  nima yozishi / kimga nima yuborishi ko'rsatiladi. Hech narsa yozilmaydi va yuborilmaydi.
+//   aks-tasdiq-qaror tikla [ID]  — QURUQ: «↩ Isbotni tiklash» (06t dagi yurist qaytargan, direktor ko'rmagan qaror; ID berilmasa — eng oxirgisi) nima qilishi
 //   aks-tasdiq-qaror yoq / ochir — yozuv_yondi:tasdiq_qaror (yoqilganda navbat va eski tasdiqQil ishlatilmaydi)
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -35,6 +36,19 @@ function chop(log) { log.forEach(z => { if (z.yozuv) console.log('     📝 ' + 
       chop(ctx.log);
     }
     console.log('\n✅ Quruq sinov tugadi. Hech narsa yozilmadi va yuborilmadi.');
+    return tugat(0);
+  }
+  if (arg === 'tikla') {
+    const L2 = (await J.tqRows()).filter(q => q.rol === 'yurist' && q.qaror === 'Rad' && !q.direktor), id = process.argv[3];
+    const q = id ? L2.find(z => String(z.id) === String(id)) : L2[L2.length - 1];
+    console.log('Yurist qaytargan, siz hali ko\'rmagan qarorlar: ' + L2.length + (L2.length ? ' (ID: ' + L2.map(z => z.id).join(', ') + ')' : ''));
+    if (!q) { console.log('✖ Tiklash sinovi uchun qaror yo\'q' + (id ? ': ID ' + id : '') + '.'); return tugat(0); }
+    const XD = await TT.xodimlar(), d = XD.find(z => z.admin), u = { kod: d.kod, fish: d.fish, huquq: s(d.huquq).toLowerCase().split(',').map(z => z.trim()) };
+    console.log('\n🧪 QURUQ «↩ Isbotni tiklash» — 06t ID ' + q.id + ' · ' + q.kalit + ' · ' + (q.no || '') + ' · yurist sababi: «' + q.sabab + '» · tiklash nusxasi: ' + (q.tiklash ? 'bor' : 'YO\'Q'));
+    const ctx = TT.quruq();
+    try { const r = await TQ.tqTiklash(u, q, ctx); console.log('   → ' + JSON.stringify(r)); } catch (e) { console.log('   ✖ ' + e.message); }
+    chop(ctx.log);
+    console.log('\n✅ Quruq sinov tugadi. Hech narsa yozilmadi va yuborilmadi. Koprik v1.18: ' + ((await TQ.koprik18(u.kod)) ? '✅ bor' : '✖ hali yo\'q (haqiqiy tiklash eski tizimda qoladi)'));
     return tugat(0);
   }
   const Q = (await J.tqRows()).slice(-5);

@@ -210,6 +210,7 @@ async function tasdiqBajar(ctx, u, k, ha, izoh) {
 async function tqAmal(ctx, u, id, amal, qr) {   // 👍 — serverda (3b, tasdiq_qaror); ↩ tiklash — hali eski tqAmal (Drive'da faylni qaytarish — Koprik v1.18 bilan)
   const TQ = require('../api/tasdiq_qaror')._ichki;
   if (amal === 'togri' && qr && await TQ.yoqilgan()) return TQ.tqTogri({ kod: u.kod, fish: u.fish, huquq: u.huquq }, qr, ctx);
+  if (amal === 'tikla' && qr && await TQ.yoqilgan() && (ctx.quruq || await TQ.koprik18(u.kod))) return TQ.tqTiklash({ kod: u.kod, fish: u.fish, huquq: u.huquq }, qr, ctx);
   if (ctx.quruq) { ctx.log.push({ yozuv: 'tqAmal ' + id + ' ' + amal + ' — ' + u.fish + ' (Koprik)' }); return { ok: true, natija: '(quruq)' }; }
   const r = await require('../api/koprik').chaqir('tqAmal', u.kod, [id, amal]); tetik.yangilaKut(20000).catch(() => {}); return r;
 }
@@ -254,7 +255,7 @@ async function tqTugma(ctx, cb, d) {
     if (d[1] === 'U') { await klavQoy(ctx, chat, msg, { inline_keyboard: [[{ text: '✅ Ha — isbotni tiklayman', callback_data: 'tr|Y|' + qr.id }], [{ text: '↩ Orqaga', callback_data: 'tr|B|' + qr.id }]] });
       await javobla(ctx, cb, 'Isbot qayta kuchga kiradi, xodimning minusi uzrli bo\'ladi, «qayta yuklang» topshirig\'i yopiladi. Xabar ostidagi «✅ Ha» ni bosing.', true); return { tur, kim: u.fish, nima: d[2], natija: 'tasdiq so\'raldi' }; }
     if (d[1] === 'B') { await klavQoy(ctx, chat, msg, TT.tqKlav(qr)); await javobla(ctx, cb, ''); return { tur, kim: u.fish, nima: d[2], natija: 'orqaga' }; }
-    if (d[1] === 'Y') { const r = await tqAmal(ctx, u, qr.id, 'tikla'); await javobla(ctx, cb, '✅ Isbot tiklandi'); await yubor(ctx, chat, '✅ ' + TT.esc((r || {}).natija || 'Isbot tiklandi')).catch(() => {}); return { tur, kim: u.fish, nima: d[2], natija: '↩ tiklandi' }; }
+    if (d[1] === 'Y') { const r = await tqAmal(ctx, u, qr.id, 'tikla', qr); await javobla(ctx, cb, '✅ Isbot tiklandi'); await yubor(ctx, chat, '✅ ' + TT.esc((r || {}).natija || 'Isbot tiklandi')).catch(() => {}); return { tur, kim: u.fish, nima: d[2], natija: '↩ tiklandi' }; }
     return { tur, kim: u.fish, nima: d[2], natija: 'noma\'lum amal' };
   } catch (e) { await javobla(ctx, cb, '⚠ ' + e.message); await yubor(ctx, chat, '⚠ ' + TT.esc(e.message)).catch(() => {}); return { tur, kim: u.fish, nima: d[2], natija: '⚠ ' + e.message }; }
 }

@@ -6,7 +6,7 @@
 // Avval qaror eski tizimda bajarilardi (api/tasdiq_navbat.js navbati — Koprik tasdiqQil); token almashtirilgach (4-qadam) eski kod Telegram'ga chiqa olmaydi,
 // shuning uchun qaror butunlay serverda. Yozuvlar — Google'ga (robot), Telegram — lib/telegram.js, fayl Drive'ga ko'chirish — Koprik koprikHujjatBekorFayl (fonda).
 // Yoqilishi: yozuv_yondi:tasdiq_qaror (aks-tasdiq-qaror yoq) + yozuv_yondi:tg + tg_kirish. ctx (lib/tg_tasdiq.js): haqiqiy / quruq (sinov — yozmaydi, yubormaydi).
-// «↩ Isbotni tiklash» (tqTiklash_) — HALI eski tizimda (Drive'da faylni qaytarish — Koprik v1.18 bilan, 4-qadam tayyorgarligi).
+// «↩ Isbotni tiklash» (tqTiklash_) — serverda (23.10 22:30); Drive'da faylni joyiga qaytarish — Koprik v1.18 koprikFaylTikla. Koprik < 1.18 — eski tqAmal.
 'use strict';
 const crypto = require('crypto');
 const S = require('./sessiya');
@@ -285,12 +285,101 @@ async function tqTogri(u, q, ctx) {
   return { ok: true, natija: '👍 Belgilandi: to\'g\'ri qaytarilgan.' };
 }
 
-// ---------------------------------------------------------------- ilova amallari (api/amallar.js): tqAmal — «togri» serverda, «tikla» hali eski tizim
+// ---------------------------------------------------------------- «↩ Isbotni tiklash» (tqTiklash_ + tqUzrli_): direktor yurist radini bekor qiladi
+// Jadvallar, 06q uzrli, Telegram — server; Drive'da faylni asl nomi/papkasiga qaytarish — Koprik v1.18 koprikFaylTikla (fonda; xato e'tiborsiz — eski kodda ham try/catch).
+let kv18 = { ok: false, t: 0 };
+async function koprik18(kod) {
+  if (kv18.t && Date.now() - kv18.t < (kv18.ok ? 30 : 2) * 60000) return kv18.ok;
+  try { kv18 = { ok: koprik.bor() && require('../lib/versiya').verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.18'), t: Date.now() }; } catch (e) { kv18 = { ok: false, t: Date.now() }; }
+  return kv18.ok;
+}
+const serialMs = v => typeof v === 'number' ? Math.round((v - 25569) * 86400000) - 5 * 3600000 : null;   // Sheets seriya (Toshkent) → ms
+async function tqTiklash(u, q0, ctx) {
+  ctx = ctx || TT.haqiqiy();
+  const Q = await tqYangi(), q = Q.L.find(z => z.id === String(q0.id)); if (!q) throw new S.Xato('Qaror topilmadi.');
+  if (q.qaror !== 'Rad' || q.rol !== 'yurist') throw new S.Xato('Faqat yurist qaytargan isbotni tiklash mumkin.');
+  if (q.direktor) throw new S.Xato('Bu rad allaqachon ko\'rib chiqilgan (' + q.direktor.split('|')[0] + ').');
+  let T = null; try { T = JSON.parse(q.tiklash || 'null'); } catch (e) { }
+  if (!T) throw new S.Xato('Bu rad uchun tiklash ma\'lumoti yo\'q (yangilanishdan oldingi rad).');
+  T.top = T.top || []; T.xat = T.xat || []; T.hj = T.hj || [];
+  const [R0, HJ, XJ] = await Promise.all([TP().topRowsYangi(TOP_V), hjYangi(), XI().xatlarYangi()]), R = R0.L, m = q.m || {};
+  // xodim hali yangi fayl yuklamaganmi
+  for (const z of T.top) { const t = R.find(x => String(x.id) === z.id); if (!t) throw new S.Xato('Topshiriq topilmadi: ' + z.id);
+    if (t.holati !== 'Jarayonda' || t.isbot) throw new S.Xato('Xodim allaqachon qayta topshirgan (topshiriq holati: ' + t.holati + ') — yangi isbotni tasdiqlang.'); }
+  for (const z of T.xat) { const h = XJ.find(x => x.raqam === z.raqam); if (!h || h.holati !== 'Tayyorlandi' || h.isbot) throw new S.Xato(z.raqam + ' xatiga yangi isbot yuklangan yoki holati o\'zgargan — yangisini tasdiqlang.'); }
+  const GR = require('./topshiriq')._ichki.TOP_HJ_TUR_L;
+  for (const z of T.hj) { const h = HJ.find(x => String(x.id) === z.id); if (!h || h.holati !== 'Bekor') throw new S.Xato('Hujjat holati o\'zgargan (' + (h ? h.holati : 'topilmadi') + ').');
+    const g = Object.keys(GR).map(k => GR[k]).find(x => x.indexOf(z.turi) >= 0) || [z.turi];
+    if (z.top && HJ.some(x => x.no === z.no && g.indexOf(x.turi) >= 0 && x.holati === 'Faol' && Number(x.id) > Number(z.id))) throw new S.Xato('Xodim yangi fayl yuklagan — yangisini tasdiqlang.'); }
+  if (!T.top.length && !T.xat.length && !T.hj.length) throw new S.Xato('Tiklanadigan narsa topilmadi.');
+  if (!ctx.quruq && T.hj.some(z => { const h = HJ.find(x => String(x.id) === z.id); return h && h.faylId && !/^SRV:/.test(h.faylId) && (z.fnom || z.papka); }) && !(await koprik18(u.kod)))
+    throw new S.Xato('Faylni Drive\'da joyiga qaytarish uchun Koprik v1.18 kerak — hali o\'rnatilmagan.');
+  const vaqt = dmyHm(), iz = 'Direktor yurist radini bekor qildi (' + u.fish + ', ' + vaqt + ')';
+  return qulfBilan(async () => {
+    // 1) topshiriqlar — «Bajarildi»
+    const D1 = [];
+    for (const z of T.top) { const t = R.find(x => String(x.id) === z.id), v = z.v || [];
+      D1.push(kat(TOP_V, t.qator, 14, ['Bajarildi', vaqt, (v[2] || '') + ' (tasdiq: ' + u.fish + ' — yurist radi bekor)', v[3] || '', v[4] || '']), kat(TOP_V, t.qator, 7, [(z.izoh ? z.izoh + ' | ' : '') + iz])); }
+    if (D1.length) await yoz(ctx, TOP_V + ' N:R/G ' + T.top.map(z => z.id).join(',') + ' ← Bajarildi (yurist radi bekor)', D1);
+    const U1 = T.top.filter(z => z.isbot).map(z => ({ varaq: TOP_V, qator: R.find(x => String(x.id) === z.id).qator, ustun: 21, qiymat: z.isbot }));
+    if (U1.length) await xomYoz(ctx, TOP_V + ' U ← isbot ' + U1.map(k => k.qiymat).join(', '), U1);
+    // 2) hujjatlar — «Faol», fayl o'z joyiga (Drive — Koprik v1.18, fonda)
+    for (const z of T.hj) { const h = HJ.find(x => String(x.id) === z.id);
+      await yoz(ctx, HUJ_V + ' N/O' + h.qator + ' (' + h.nom + ') ← Faol', [kat(HUJ_V, h.qator, 14, ['Faol']), kat(HUJ_V, h.qator, 15, [(z.izoh ? z.izoh + ' | ' : '') + iz])]);
+      if (h.faylId && !/^SRV:/.test(h.faylId) && (z.fnom || z.papka)) {
+        if (ctx.quruq) ctx.log.push({ yozuv: 'Drive (Koprik v1.18 koprikFaylTikla): fayl → «' + (z.fnom || h.nom) + '»' + (z.papka ? ', asl papkasiga' : '') });
+        else koprik.chaqir('koprikFaylTikla', u.kod, [h.faylId, z.fnom || '', z.papka || '']).catch(e => console.error('tiklash (Drive):', e.message)); } }
+    // 3) xatlar — «Yuborildi», yetkazish ma'lumoti qaytadi; 06 undiruv jurnalida belgi (undXatBelgi_)
+    let UJ = null;
+    for (const z of T.xat) { const h = XJ.find(x => x.raqam === z.raqam), v = z.v || [];
+      const D = [kat(XAT_V, h.qator, 14, [v[0] || '']), kat(XAT_V, h.qator, 16, [v[2] || '']), kat(XAT_V, h.qator, 17, [v[3] || '', v[4] || '', v[5] || '']), kat(XAT_V, h.qator, 22, [(v[8] ? v[8] + ' | ' : '') + iz])];
+      if (v.length > 10) D.push(kat(XAT_V, h.qator, 24, [q.tur === 'xat' && z.raqam === String(m.raqam) ? 'Tasdiqlandi|' + vaqt + '|' + u.fish + ' (yurist radi bekor)' : (v[10] || '')]));
+      await yoz(ctx, XAT_V + ' N:X' + h.qator + ' (' + z.raqam + ') ← Yuborildi (isbot tiklandi)', D);
+      if (v[9]) await xomYoz(ctx, XAT_V + ' W' + h.qator + ' ← pochta ' + v[9], [{ varaq: XAT_V, qator: h.qator, ustun: 23, qiymat: v[9] }]);
+      UJ = UJ || await HY().yangiQatorlar(UND_V, 'R', true);
+      for (let i = UJ.length - 1; i >= 0; i--) { const w = UJ[i].r;
+        if (s(w[8]) === z.raqam && s(w[4]) === 'Ёзма огоҳлантириш') { await yoz(ctx, UND_V + ' R/L' + UJ[i].qator + ' (' + z.raqam + ') ← ' + (z.und || 'Юборилди'),
+          [kat(UND_V, UJ[i].qator, 18, [z.und || 'Юборилди']), kat(UND_V, UJ[i].qator, 12, [(w[11] ? w[11] + ' | ' : '') + 'Етказиш исботи тикланди — директор (' + vaqt + ')'])]); break; } } }
+    // 4) ixtiyoriy skan belgisi; rad tufayli keyin yaratilgan «qayta yuklang» (skan|…) va «xatni yetkazing» (xat|…) topshiriqlari — yopiladi
+    if (q.tur === 'skan') { const h = HJ.find(x => String(x.id) === String(m.id)); if (h) await xomYoz(ctx, HUJ_V + ' P' + h.qator + ' ← Tasdiqlandi (yurist radi bekor)', [{ varaq: HUJ_V, qator: h.qator, ustun: 16, qiymat: 'Tasdiqlandi|' + vaqt + '|' + u.fish + ' (yurist radi bekor)' }]); }
+    const kal = {}; if (q.no) kal['skan|' + q.no] = 1; T.xat.forEach(z => { kal['xat|' + z.raqam] = 1; });
+    const qosh = R.filter(t => kal[t.kalit] && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda') && TS.topIso(t.yaratildi) >= s(T.iso).slice(0, 16));
+    for (const t of qosh) { if (ctx.quruq) ctx.log.push({ yozuv: TOP_V + ' ' + t.id + ' «' + t.sarlavha + '» ← Bekor (isbot tiklandi)' }); else await TP().topYop(TOP_V, t, 'Bekor', u.fish, 'Direktor yurist radini bekor qildi — isbot tiklandi'); }
+    // 5) shu rad tufayli yozilgan ijro minuslari — «Uzrli» (tqUzrli_)
+    let uzr = 0;
+    try {
+      const xr = T.xat.map(z => z.raqam), tid = T.top.map(z => z.id).concat(qosh.map(t => String(t.id))), d0 = (T.ms || 0) - 60000, D = [];
+      (await IJ().ijroQatorYangi(IJ().IJRO_VARAQ, IJ().IJRO_S)).forEach(r => { if (r.Holati === 'Uzrli') return; const p = s(r.Kalit).split('|'), ms = serialMs(r.Yozildi);
+        const keyin = ms == null ? true : ms >= d0;
+        if (keyin && ((p[0] === 'isbotrad' && xr.indexOf(p[1]) >= 0) || ((p[0] === 'xat' || p[0] === 'xat3') && xr.indexOf(p[1]) >= 0) || (p[0] === 'top' && tid.indexOf(p[1]) >= 0))) {
+          D.push(kat(IJ().IJRO_VARAQ, r.qator, 11, ['Uzrli', 'Direktor yurist radini bekor qildi', u.fish])); uzr++; } });
+      if (D.length) await yoz(ctx, IJ().IJRO_VARAQ + ' K:M ← Uzrli (' + D.length + ' ta)', D);
+    } catch (e) { console.error('tqUzrli:', e.message); uzr = 0; }
+    await xomYoz(ctx, TQ_V + ' N' + q.qator + ' (ID ' + q.id + ') ← Bekor qilindi|' + vaqt + '|' + u.fish, [{ varaq: TQ_V, qator: q.qator, ustun: 14, qiymat: 'Bekor qilindi|' + vaqt + '|' + u.fish }]);
+    // 6) Telegram
+    await tasdiqYangila(ctx, q.tgx, '↩ Direktor isbotni tikladi — qaytarish bekor (' + u.fish + ', ' + vaqt + ')', TT.tqCaption(q));
+    const dir = s(q.tgx).split(/\s+/), yu = s(m.tgx).split(/\s+/).filter(r => r && dir.indexOf(r) < 0).join(' ');
+    if (yu) await tasdiqYangila(ctx, yu, '↩ Yurist qaytargan edi: «' + q.sabab + '»\n✅ Direktor isbotni tikladi — qabul qilindi (' + vaqt + ')', m.caption || '');
+    const xm = '✅ <b>' + esc(q.no || '') + '</b> — ' + esc(m.nomi || '') + ': yurist qaytargan isbotingizni direktor tikladi — qabul qilindi, qayta yuklash shart emas.' + (uzr ? '\nShu rad uchun yozilgan qoidabuzarlik uzrli qilindi.' : '');
+    const kimlar = [m.kim]; if (q.tur === 'xat') { const x = (await U.undShartnomalar()).find(z => z.no === q.no); if (x && x.undiruvchi) kimlar.push(x.undiruvchi); }
+    for (const k of kimlar.filter((k, i) => k && kimlar.indexOf(k) === i)) await xodimga(ctx, k, xm);
+    await xodimga(ctx, q.kim, 'ℹ <b>' + esc(q.no || '') + '</b> — siz qaytargan isbotni direktor tikladi (qabul qilindi).\n' + esc(m.nomi || '') + '\nSiz yozgan sabab: «' + esc(q.sabab) + '»');
+    if (!ctx.quruq) { require('./kesh').yozuvdanKeyin(u.kod).catch(() => {});
+      await Promise.race([tetik.varaqlarYangila([TOP_V, HUJ_V, XAT_V, UND_V, TQ_V, IJ().IJRO_VARAQ]).catch(() => {}), new Promise(z => setTimeout(z, 15000))]); }
+    return { ok: true, natija: 'Isbot tiklandi — qaytarish bekor' + (uzr ? ', ' + uzr + ' ta qoidabuzarlik uzrli qilindi' : '') + '. Xodim va yuristga xabar ketdi.' };
+  });
+}
+
+// ---------------------------------------------------------------- ilova amallari (api/amallar.js): tqAmal — «togri» va «tikla» serverda (tikla — Koprik v1.18 bilan)
 async function tqAmal([kodSes, id, amal]) {
   const u = await S.ruxsat(kodSes, 'admin');
-  if (amal === 'togri' && await yoqilgan()) { const q = (await J.tqRows()).find(z => s(z.id) === s(id)); if (!q) throw new S.Xato('Qaror topilmadi.'); return tqTogri(u, q); }
+  if (await yoqilgan()) {
+    const q = (await J.tqRows()).find(z => s(z.id) === s(id)); if (!q) throw new S.Xato('Qaror topilmadi.');
+    if (amal === 'togri') return tqTogri(u, q);
+    if (amal === 'tikla' && await koprik18(u.kod)) return tqTiklash(u, q);
+  }
   const r = await koprik.chaqir('tqAmal', u.kod, [id, amal]); await tetik.yangilaKut(20000); return r;
 }
 
 module.exports = { tqAmal };
-module.exports._ichki = { yoqilgan, qaror, tqTogri, tasdiqYangila, hujjatRad, tqSnap, tqQaror, hjYangi, tqYangi };
+module.exports._ichki = { yoqilgan, qaror, tqTogri, tqTiklash, koprik18, tasdiqYangila, hujjatRad, tqSnap, tqQaror, hjYangi, tqYangi };
