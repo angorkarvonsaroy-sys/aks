@@ -52,6 +52,7 @@ async function serverda(kod) {
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 const tgDirektor = (kod, matn) => koprik.chaqir('koprikTgYubor', kod, [matn]);   // tgYubor_
+const RX = () => require('../lib/tg_ruxsat');   // 🙋 ruxsat so'rovlari — Telegram tugmalari (24.10)
 const tgFon = (kod, matn) => { tgDirektor(kod, matn).catch(e => console.error('qadam tg (ko\'prik):', e.message)); };
 const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.error('ko\'zgu (qadam):', e.message)), 15000);
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
@@ -115,7 +116,7 @@ async function ruxsatSora(u, m, sabab, bugun, H) {   // qdRuxsatSora_
       izoh: sabab + ' | undiruvchi: ' + u.fish + (keyingi ? ' | navbatdagi qadam: ' + keyingi : ''), no: m.no, mid: m.mid, kimga: dir, kimBerdi: u.fish,
       muddat: dmy(bugun) + ' 18:00', muhim: 'Shoshilinch' }, R);
   });
-  tgFon(u.kod, '🙋 <b>' + esc(u.fish) + '</b> — <b>' + m.no + '</b> ' + esc(qisqaIsm(m.fish)) + ' (⚖ da\'vo muddati o\'tgan) mijozni bugun o\'tkazishga ruxsat so\'rayapti:\n«' + esc(sabab) + '»\nJavob — ilovada 📌 Topshiriqlar (✓ Ruxsat / ✕ Rad).');
+  RX().yuborFon(u.kod, yangi.id, '🙋 <b>' + esc(u.fish) + '</b> — <b>' + m.no + '</b> ' + esc(qisqaIsm(m.fish)) + ' (⚖ da\'vo muddati o\'tgan) mijozni bugun o\'tkazishga ruxsat so\'rayapti:\n«' + esc(sabab) + '»');   // 24.10: tugmalar bilan
   await yangila([TOP_V]);
   return { ok: true, ruxsat: true, id: yangi.id, matn: 'Direktordan ruxsat so\'raldi. Javob kelguncha bu mijoz navbat oxirida turadi — keyingi mijoz bilan ishlang.', son: H.son };
 }
@@ -248,7 +249,7 @@ async function qadamMuhlatSora(args) {
   const dir = (XD.find(z => z.admin) || {}).fish; if (!dir) throw new S.Xato('Direktor 07_Xodimlar da topilmadi.');
   const t = await qulf('topshiriq', async () => TP.topYoz(TOP_V, { manba: 'Xodim', qoida: 'muhlat', kalit: 'muhlat|' + no + '|' + sana + '|' + summa, sarlavha: 'Mijozga qo\'shimcha muddat berishga ruxsat so\'rayapti: ' + dmy(sana) + ' gacha ' + qdPul(summa) + ' so\'m',
     izoh: sabab + ' | undiruvchi: ' + u.fish, no, mid: x.mid, kimga: dir, kimBerdi: u.fish, muddat: dmy(bugun) + ' 18:00', muhim: 'Shoshilinch' }, await TP.topRowsYangi(TOP_V)));
-  tgFon(u.kod, '📅 <b>' + esc(u.fish) + '</b> — <b>' + no + '</b> ' + esc(qisqaIsm(x.fish)) + ' ga qo\'shimcha muddat so\'rayapti: <b>' + dmy(sana) + '</b> gacha ' + qdPul(summa) + ' so\'m\n«' + esc(sabab) + '»\nJavob — ilovada 📌 Topshiriqlar (✓ Ruxsat / ✕ Rad).');
+  RX().yuborFon(u.kod, t.id, '📅 <b>' + esc(u.fish) + '</b> — <b>' + no + '</b> ' + esc(qisqaIsm(x.fish)) + ' ga qo\'shimcha muddat so\'rayapti: <b>' + dmy(sana) + '</b> gacha ' + qdPul(summa) + ' so\'m\n«' + esc(sabab) + '»');   // 24.10: tugmalar bilan
   await yangila([TOP_V]);
   return { ok: true, id: t.id, matn: 'Suhbat jurnalga yozildi, direktorga ruxsat so\'rovi yuborildi. Ruxsat berilsa, va\'da o\'zi yoziladi.' };
 }
@@ -334,6 +335,7 @@ async function qadamOtkazRuxsat(args) {
       await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
     }
   } catch (e) { if (e.yozilmadi) return eskiTizim('qadamOtkazRuxsat', u, args.slice(1)); throw e; }
+  RX().natijaFon(t, ha ? '✅ Ruxsat berildi — ' + u.fish + (izoh ? ': ' + izoh : '') : '✖ Rad etildi: «' + izoh + '» — ' + u.fish);
   await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + p[1] + '</b> bugun o\'tkazildi.' : '✖ Direktor ruxsat bermadi: <b>' + p[1] + '</b> — «' + izoh + '». Bugun shu mijoz bilan ishlang.');
   await yangila([TOP_V, QDV]);
   return { ok: true, natija: ha ? p[1] + ' bugun o\'tkazildi (sizning ruxsatingiz bilan).' : p[1] + ' — rad etildi, undiruvchi shu mijoz bilan ishlaydi.' };
@@ -357,6 +359,7 @@ async function qadamMuhlatRuxsat(args) {
       await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
     }
   } catch (e) { if (e.yozilmadi) return eskiTizim('qadamMuhlatRuxsat', u, args.slice(1)); throw e; }
+  RX().natijaFon(t, ha ? '✅ Ruxsat berildi — ' + u.fish + (izoh ? ': ' + izoh : '') : '✖ Rad etildi: «' + izoh + '» — ' + u.fish);
   await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + no + '</b> — yangi muddat ' + dmy(sana) + ' gacha ' + qdPul(summa) + ' so\'m. Va\'da jurnalga yozildi; bir kun oldin va o\'sha kuni eslating.'
     : '✖ Direktor qo\'shimcha muddatga ruxsat bermadi: <b>' + no + '</b> — «' + izoh + '». Keyingi chora navbatga chiqadi.');
   await yangila([TOP_V]);
@@ -385,6 +388,7 @@ async function qadamKutishRuxsat(args) {
       await topYopish(t, u.fish, 'Rad etildi: ' + izoh);
     }
   } catch (e) { if (e.yozilmadi) return eskiTizim('qadamKutishRuxsat', u, args.slice(1)); throw e; }
+  RX().natijaFon(t, ha ? '✅ Ruxsat berildi — ' + u.fish + (izoh ? ': ' + izoh : '') : '✖ Rad etildi: «' + izoh + '» — ' + u.fish);
   await tgXodim(u.kod, xodim, ha ? '✅ Direktor ruxsat berdi: <b>' + no + '</b> — «' + qadamT + '» ' + dmy(sana) + ' gacha kutadi, topshiriq muddati ham shu kunga surildi.'
     : '✖ Direktor ruxsat bermadi: <b>' + no + '</b> — «' + izoh + '». Topshiriq muddati o\'zgarmadi.');
   await yangila([TOP_V, QDV]);

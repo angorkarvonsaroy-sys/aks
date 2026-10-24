@@ -407,8 +407,8 @@ async function kutishSora(u, m, st, sana, sabab, bugun) {
     } catch (e) { if (e.yozilmadi) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — direktorga ayting.'); throw e; }
   });
   const esc = x => s(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  koprik.chaqir('koprikTgYubor', u.kod, ['⏸️ <b>' + esc(u.fish) + '</b> — <b>' + m.no + '</b> ' + esc(qisqaIsm(m.fish)) + ': «' + esc(st.t) + '» topshirig\'ini muddatidan (' + esc(st.muddat || '—') + ') keyinga — <b>' + qdDmy(sana)
-    + '</b> gacha qoldirishga ruxsat so\'rayapti:\n«' + esc(sabab) + '»\nJavob — ilovada 📌 Topshiriqlar (✓ Ruxsat / ✕ Rad).']).catch(e => console.error('kutish so\'rovi tg:', e.message));
+  require('../lib/tg_ruxsat').yuborFon(u.kod, yangi.id, '⏸️ <b>' + esc(u.fish) + '</b> — <b>' + m.no + '</b> ' + esc(qisqaIsm(m.fish)) + ': «' + esc(st.t) + '» topshirig\'ini muddatidan (' + esc(st.muddat || '—') + ') keyinga — <b>' + qdDmy(sana)
+    + '</b> gacha qoldirishga ruxsat so\'rayapti:\n«' + esc(sabab) + '»');   // 24.10: tugmalar bilan
   await Promise.race([tetik.varaqlarYangila([TP.TOP_V]).catch(() => {}), new Promise(r => setTimeout(r, 15000))]);
   return { ok: true, ruxsat: true, id: yangi.id, matn: 'Direktordan ruxsat so\'raldi. Javob kelguncha bu mijoz navbat oxirida turadi — boshqa mijozlar bilan ishlang.' };
 }
