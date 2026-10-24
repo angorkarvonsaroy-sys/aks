@@ -296,9 +296,11 @@ async function yuristgaXabar(kod, i, bugun) {
     + '\nUndiruvchi: ' + e(i.undiruvchi || '—')
     + (i.sorovSabab ? '\nSabab: «' + e(String(i.sorovSabab).slice(0, 200)) + '»' : '')
     + '\n\n🔴 <b>Qabul qilish muddati: ' + muddat + '</b> (1 ish kuni).'
-    + '\nHujjatlarni tekshiring: ilovada ⚖ Yurist → «✅ Qabul qilish» yoki «↩ Kamchilik bilan qaytarish».';
-  const TG = require('../lib/telegram');
-  for (const y of Y) { if (!y.tg) continue; try { await TG.chat(y.tg, m); } catch (e2) { console.error('yuristga xabar ' + y.fish + ':', e2.message); } }
+    + '\nHujjatlarni tekshiring va pastdagi tugmani bosing — tizimga kirish shart emas.';
+  const TG = require('../lib/telegram'), klav = require('../lib/tg_yurist').klav(i.id);   // ✅ Qabul qilaman / ↩ Kamchilik bor — botning o'zidan
+  for (const y of Y) { if (!y.tg) continue;
+    try { await TG.api('sendMessage', { chat_id: y.tg, text: m, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: klav }); }
+    catch (e2) { console.error('yuristga xabar ' + y.fish + ':', e2.message); } }
 }
 function yuIshKunQ(iso, n) { let d = new Date(String(iso).slice(0, 10) + 'T12:00:00Z'), k = 0;
   while (k < n) { d = new Date(d.getTime() + 86400000); if (d.getUTCDay() !== 0) k++; }

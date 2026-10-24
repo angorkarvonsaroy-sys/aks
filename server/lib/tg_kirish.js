@@ -140,6 +140,7 @@ async function radMatn(ctx, m, chat, matn) {
   if (!ctx.quruq) await redis.del('tg_tsw:' + chat);
   let o = null; try { o = typeof v === 'string' ? JSON.parse(v) : v; } catch (e) { return null; }
   if (o && o.rx) return require('./tg_ruxsat').radMatn(ctx, m, chat, matn, o.rx, { javobla, klavQoy, yubor });   // 🙋 ruxsat so'rovi rad sababi
+  if (o && o.yq) return require('./tg_yurist').radMatn(ctx, m, chat, matn, o, { javobla, klavQoy, yubor });   // ⚖ ish qabul qilishdagi kamchilik
   let kim = '';
   try {
     const u = await TT.tgXodim(m.from && m.from.id); if (!u) throw new Error('Siz AKS TIZIM xodimlari ro\'yxatida yo\'qsiz.'); kim = u.fish;
@@ -220,6 +221,7 @@ async function tugma(ctx, cb) {
   const d = s(cb.data).split('|');
   if (d[0] === 'tq' || d[0] === 'tr') return tqTugma(ctx, cb, d);
   if (d[0] === 'rx') return require('./tg_ruxsat').tugma(ctx, cb, d, { javobla, klavQoy, yubor });   // 🙋 «Bugungi ish» ruxsat so'rovlari
+  if (d[0] === 'yq') return require('./tg_yurist').tugma(ctx, cb, d, { javobla, klavQoy, yubor });   // ⚖ ishni botdan qabul qilish
   if (d[0] !== 'ts') return { tur: 'tugma', nima: s(cb.data), natija: 'noma\'lum — e\'tiborsiz' };
   const amal = d[1], k = d[2], chat = cb.message && cb.message.chat ? s(cb.message.chat.id) : '', msg = cb.message ? cb.message.message_id : 0;
   const u = await TT.tgXodim(cb.from && cb.from.id);
