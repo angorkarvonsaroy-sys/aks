@@ -281,6 +281,28 @@ async function yuristRad(args) {
 }
 
 // ------------------------------------------------------------------ direktor: tasdiqlash / rad etish (o'tkazish va «undirib bo'lmadi»)
+// 24.10 direktor qarori: ish yuristga o'tkazilgan zahoti unga Telegram — mijoz, qarz, qabul qilish muddati.
+// Eski tizimda bunday xabar yo'q edi: yurist ertasi kuni ilovani ochguncha bilmasdi, muddat esa 1 ish kuni.
+async function yuristgaXabar(kod, i, bugun) {
+  const YE = require('../lib/yurist_ertalab');
+  const Y = await YE.yuristlar(); if (!Y.length) return;
+  const x = (await U.undShartnomalar()).find(z => z.no === i.no) || {};
+  const muddat = Q.yuDmy(yuIshKunQ(bugun, 1));
+  const pul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[\u00a0 ,]/g, ' ');
+  const e = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const m = '⚖ <b>Yangi ish keldi</b> — <b>' + e(i.no) + '</b> ' + e(String(x.fish || i.fish || '').split(/\s+/).slice(0, 3).join(' '))
+    + (x.dokon ? ' · ' + e(x.dokon) : '')
+    + '\nJami qarz: <b>' + pul(x.jami) + '</b> so\'m' + (x.muddati ? ' (muddati o\'tgan: ' + pul(x.muddati) + ')' : '')
+    + '\nUndiruvchi: ' + e(i.undiruvchi || '—')
+    + (i.sorovSabab ? '\nSabab: «' + e(String(i.sorovSabab).slice(0, 200)) + '»' : '')
+    + '\n\n🔴 <b>Qabul qilish muddati: ' + muddat + '</b> (1 ish kuni).'
+    + '\nHujjatlarni tekshiring: ilovada ⚖ Yurist → «✅ Qabul qilish» yoki «↩ Kamchilik bilan qaytarish».';
+  const TG = require('../lib/telegram');
+  for (const y of Y) { if (!y.tg) continue; try { await TG.chat(y.tg, m); } catch (e2) { console.error('yuristga xabar ' + y.fish + ':', e2.message); } }
+}
+function yuIshKunQ(iso, n) { let d = new Date(String(iso).slice(0, 10) + 'T12:00:00Z'), k = 0;
+  while (k < n) { d = new Date(d.getTime() + 86400000); if (d.getUTCDay() !== 0) k++; }
+  return d.toISOString().slice(0, 10); }
 async function yuristTasdiq(args) {
   const [kodSes, id, ha, izoh0] = args;
   const u = await S.ruxsat(kodSes, 'admin');
@@ -296,6 +318,7 @@ async function yuristTasdiq(args) {
       if (ha) {
         await ishYoz(i, [[3, bugun], [15, 'Faol'], [20, [1, bugun]], [30, u.fish + ', ' + vaqt]], [3, 21]);
         await tarixYoz(i, 'Direktor tasdiqladi — yuristga o\'tdi', u.fish, izoh, '');
+        yuristgaXabar(u.kod, i, bugun).catch(e => console.error('yuristga xabar:', e.message));   // 24.10: yuristga darhol Telegram
       } else {
         if (izoh.length < 5) throw new S.Xato('Rad etish sababini yozing.');
         await ishYoz(i, [[15, 'Rad etildi'], [30, 'Rad: ' + u.fish + ', ' + vaqt], [16, 'Direktor rad etdi (' + vaqt.slice(0, 10) + '): ' + izoh]]);
