@@ -37,13 +37,15 @@ const ball = q => q.Tur === 'xat3' || q.Tur === 'soxta' ? 3 : 1;
   const och = R.L.filter(t => s(t.qoida) === 'pasport' && t.holati === 'Jarayonda');
   const tas = L.filter(q => q.Tur === 'tasdiq' && q.Holati !== 'Uzrli');   // 24.10: «Isbotni muddatida tekshirmadi» — vazifa olib tashlandi (hamma oy)
   // ko'rsatish
-  const xodim = {}; oy.concat(tas).forEach(q => { const o = xodim[q.Xodim] = xodim[q.Xodim] || { oldin: 0, xat: 0, pas: 0, tas: 0 }; if (oy.indexOf(q) >= 0) o.oldin += ball(q); });
-  xat.forEach(q => { xodim[q.Xodim].xat += ball(q); }); pas.forEach(q => { xodim[q.Xodim].pas += ball(q); }); tas.forEach(q => { xodim[q.Xodim].tas += ball(q); });
+  const oyQ = new Set(oy.map(q => q.qator));   // ko'rsatish uchun — faqat oktabr qatorlari (takror sanamaslik uchun)
+  const xodim = {}; oy.forEach(q => { const o = xodim[q.Xodim] = xodim[q.Xodim] || { oldin: 0, xat: 0, pas: 0, tas: 0 }; o.oldin += ball(q); });
+  const qosh = (q, k) => { if (!oyQ.has(q.qator)) return; const o = xodim[q.Xodim] = xodim[q.Xodim] || { oldin: 0, xat: 0, pas: 0, tas: 0 }; o[k] += ball(q); };
+  xat.forEach(q => qosh(q, 'xat')); pas.forEach(q => qosh(q, 'pas')); tas.forEach(q => qosh(q, 'tas'));
   console.log('\n1) 06q — oktabr, uzrsiz qoidabuzarliklar → Uzrli (Uzr_kim: ' + dir + '):');
   console.log('   xat / xat3 (pochta): ' + xat.length + ' ta · pasport topshirig\'i: ' + pas.length + ' ta · isbot tekshirmadi (yurist, 24.10 qarori): ' + tas.length + ' ta');
   if (qoidaSana) console.log('   (yangi xat qoidasi ' + qoidaSana + ' dan kuchda — shu kundan keyingi xat ballari haqiqiy, uzrli qilinmaydi)');
   Object.keys(xodim).sort().forEach(f => { const o = xodim[f]; if (!o.xat && !o.pas && !o.tas) return;
-    console.log('   • ' + f + ': ' + o.oldin + ' ball → ' + (o.oldin - o.xat - o.pas - o.tas) + ' ball (xat −' + o.xat + ', pasport −' + o.pas + ', isbot tekshiruvi −' + o.tas + ')'); });
+    console.log('   • ' + f + ': ' + o.oldin + ' ball → ' + Math.max(0, o.oldin - o.xat - o.pas - o.tas) + ' ball (xat −' + o.xat + ', pasport −' + o.pas + ', isbot tekshiruvi −' + o.tas + ')'); });
   // 24.10: tekshirish uchun — oktabr qoidabuzarliklari turi bo'yicha (faqat ko'rsatadi)
   const TUR = {}; oy.forEach(q => { const k = q.Xodim + '|' + q.Tur; TUR[k] = (TUR[k] || 0) + ball(q); });
   console.log('\n   Oktabr, uzrsiz — turi bo\'yicha (ball):');
