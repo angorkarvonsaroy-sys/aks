@@ -186,10 +186,11 @@ async function ijroKechki(kod, opt = {}) {
     for (const t of T.filter(t => xodimTeng(t.kimga, f) && t.holati === 'Jarayonda' && TS.topIso(t.muddat) && TS.topIso(t.muddat) < hozir && TS.topIso(t.muddat) >= IJRO_BOSH_XODIM))
       await yoz(f, { tur: 'top', kalit: 'top|' + t.id, no: t.no, tafsilot: '«' + t.sarlavha + '» — muddat ' + t.muddat }, Lx);
     if (x.huquq.indexOf('yurist') >= 0) {   // ijroYurist_
-      try { TN = TN || await TS.tasdiqNavbat();
+      try { if (await require('../api/avto_isbot').yoqilgan()) throw Object.assign(new Error('avto'), { avto: true });   // 24.10: isbot tekshiruvi yuristdan olingan — ball yozilmaydi
+        TN = TN || await TS.tasdiqNavbat();
         for (const it of TN.filter(it => it.tasdiqchi === 'yurist' && it.kech && s(it.muddat).slice(0, 10) >= IJRO_BOSH_XODIM))
           await yoz(f, { tur: 'tasdiq', kalit: 'tasdiq|' + it.k + '|' + it.vaqt, no: it.no, tafsilot: it.nomi + ' — ' + (it.kim || '') + ' topshirgan, tekshirish muddati ' + dmy(it.muddat) }, Lx);
-      } catch (e) { console.error('ijroYurist_ tasdiq:', e.message); }
+      } catch (e) { if (!e.avto) console.error('ijroYurist_ tasdiq:', e.message); }
       try { const YQ = require('../api/yurist').Q; YK = YK || { K: await YQ.yuKesh(), I: await J.yuIshlar() };
         const KK = YK.I.filter(i => YQ.YU_FAOL.indexOf(i.holati) >= 0 && (!i.yurist || xodimTeng(i.yurist, f))).map(i => YQ.yuKorinish(i, S[i.no], bugun, YK.K))
           .filter(k2 => k2.yuMas && k2.kechikdi > 0 && k2.chegara >= IJRO_BOSH_XODIM);
