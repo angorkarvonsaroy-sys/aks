@@ -848,7 +848,11 @@ async function ijroKorish([kodSes, d]) {
   const joriy = oy === bugun.slice(0, 7);
   const XD = await qdXodimlar();
   const U0 = adm ? XD.filter(x => x.huquq.length && x.huquq.indexOf('admin') < 0) : XD.filter(x => qdTeng(x.fish, u.fish));
-  const [L, TL, KL] = await Promise.all([ijroQatorA('06q_Qoidabuzarlik', IJRO_S), ijroQatorA('06p_Tekshiruv', IJRO_TS), ijroQatorA('06r_Ijro_kun', IJRO_KS)]);
+  const [L0, TL, KL] = await Promise.all([ijroQatorA('06q_Qoidabuzarlik', IJRO_S), ijroQatorA('06p_Tekshiruv', IJRO_TS), ijroQatorA('06r_Ijro_kun', IJRO_KS)]);
+  // 24.10 direktor qarori: isbot tekshirish yuristdan olib tashlangach — «tasdiq» qoidabuzarliklari ijro intizomida UMUMAN ko'rsatilmaydi
+  // (06q da arxiv sifatida qoladi, «Uzrli» belgisi bilan — kim va qachon bekor qilgani ko'rinib tursin).
+  const BEKOR_TUR = (await require('./avto_isbot').yoqilgan()) ? { tasdiq: 1 } : {};
+  const L = L0.filter(q => !BEKOR_TUR[q.Tur]);
   const UU = U0.filter(x => x.undiruvchi);
   const H = joriy && UU.length ? await qdHisob(u.kod, UU.map(x => x.fish), bugun, XD) : null;
   const T0 = joriy ? await J.topRows() : [], hozirI = TS.topHozirIso();
