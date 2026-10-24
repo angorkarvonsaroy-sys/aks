@@ -113,6 +113,7 @@ const ISHLAR = [
   { nom: 'und_ertalab', fn: 'undErtalabYubor', tavsif: '☀️ Undiruvchilarga ertalabki topshiriq + 07c svod (undErtalabYubor)', har: 'kun:09:00', eski: 'undErtalabYubor — har kuni 09:00', ish: (kod, opt) => ER.undErtalab(kod, opt) },
   { nom: 'xat_kechikkan', fn: 'xatKechikkanTekshir', tavsif: '✉️ Yetkazilmagan xatlar nazorati (xatKechikkanTekshir)', har: 'kun:17:00', eski: 'xatKechikkanTekshir — har kuni 17:00', ish: (kod, opt) => KC.xatKechikkan(kod, opt) },
   { nom: 'bekor_kechikkan', fn: 'bekorKechikkanTekshir', tavsif: '✂️ Bekor qilish skanlari nazorati (bekorKechikkanTekshir)', har: 'kun:17:15', eski: 'bekorKechikkanTekshir — har kuni 17:15', ish: (kod, opt) => KC.bekorKechikkan(kod, opt) },
+  { nom: 'yu_ertalab', fn: 'yuErtalab', tavsif: '⚖ Yuristga bugungi ish ro\'yxati (24.10 qarori — eski tizimda yo\'q edi)', har: 'kun:09:05', eski: 'yo\'q — yangi ish', ish: (kod, opt) => require('./yurist_ertalab').yuErtalab(kod, opt) },
   { nom: 'mon_eslatma', fn: 'monEslatmaYubor', tavsif: '📎 Skansiz shartnoma eslatmasi (monEslatmaYubor)', har: 'kun:09:10', eski: 'monEslatmaYubor — har kuni 09:10', ish: (kod, opt) => ER.monEslatma(kod, opt) },
   { nom: 'top_ertalab', fn: 'topErtalab', tavsif: '☀️ Xodimlarga bugungi topshiriqlar (topErtalab)', har: 'kun:08:30', eski: 'topErtalab — har kuni 08:30', ish: topErtalabIsh },
   { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
