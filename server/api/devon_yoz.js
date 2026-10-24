@@ -42,6 +42,9 @@ const devonNorm = v => s(v).toLowerCase().replace(/[«»"'`ʻʼ‘’\s.,№#-]/
 const devonRaqNorm = v => s(v).toLowerCase().replace(/[\s№#]/g, '');               // xat raqami: faqat bo'shliq va № belgisi e'tiborsiz
 const devonHtml = v => s(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const devonFaylNom = v => s(v).replace(/[\\\/:*?"<>|«»№#]/g, '-').replace(/\s+/g, '_').slice(0, 40);
+const MALUMOT = 'Ma\'lumot uchun', DEVON_ESKI_KUN = 10;
+// xat sanasi (yyyy-mm-dd) yuklangan kundan (bugun) DEVON_ESKI_KUN va undan ko'p kun oldinmi
+function devonEskiXat(sanaIso, bugunIso) { const a = Date.parse(sanaIso + 'T00:00:00Z'), b = Date.parse(bugunIso + 'T00:00:00Z'); return !isNaN(a) && !isNaN(b) && (b - a) / 86400000 >= DEVON_ESKI_KUN; }
 function devonSana(v, nom, kelajak) {         // 'yyyy-mm-dd' → 'dd.MM.yyyy'
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s(v)); if (!m) throw xato(nom + 'ni tanlang.');
   const bugun = hozir().iso;
@@ -113,6 +116,8 @@ async function devonKirimSaqla(args) {
   if (tashkilot.length < 3) throw xato('Tashkilot nomini kiriting.');
   if (!raqam) throw xato('Kirim xat raqamini kiriting.');
   const sana = devonSana(d.sana, 'Kirim xat sanasi');
+  // 24.10 direktor qarori: xat sanasi yuklangan kundan 10+ kun oldin bo'lsa — rezolyutsiya majburiy emas, «Ma'lumot uchun» (navbatga kirmaydi; xohlasa rezolyutsiya yozsa bo'ladi)
+  const eski = devonEskiXat(s(d.sana), hozir().iso), holati = eski ? MALUMOT : 'Rezolyutsiya kutmoqda';
   const bayt = devonPdf(d.b64);
   if (!(await serverda(u.kod))) return eskiTizim('devonKirimSaqla', u, [d0]);
   let bor = true; try { await G.gid(env.aksBazaId, DEVON_V, env.googleKey, true); } catch (e) { bor = false; }
@@ -126,7 +131,7 @@ async function devonKirimSaqla(args) {
     // devonFaylSaqla_: skan direktor Drive'iga — «AKS TIZIM / 08 DEVONXONA / Kirim / <yil>» (eski tizimning o'zi, Koprik v1.12 orqali)
     const f = await koprik.chaqir('koprikDevonSaqla', u.kod, [{ qism: 'Kirim', nom, b64: bayt.toString('base64') }], { muddat: 120000, urinish: 1 });
     if (!f || !f.id) throw new Error('Skan Drive\'ga saqlanmadi (Drive ID qaytmadi).');
-    try { return await devonYoz(DEVON_V, R, { turi: 'Kirim', tartib, kim: u.fish, tashkilot, raqam, sana, mazmun, fayl: f.id, holati: 'Rezolyutsiya kutmoqda' }); }
+    try { return await devonYoz(DEVON_V, R, { turi: 'Kirim', tartib, kim: u.fish, tashkilot, raqam, sana, mazmun, fayl: f.id, holati }); }
     catch (e) { await yetimTozala(u, f.id); throw e; }   // qator yozilmadi — fayl savatga (har qanday xatoda, 23.10)
   }).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!row) return eskiTizim('devonKirimSaqla', u, [d0]);   // robotda yozish huquqi yo'q — hech narsa yozilmagan
@@ -136,15 +141,15 @@ async function devonKirimSaqla(args) {
     + '\n<b>Xat:</b> № ' + devonHtml(raqam) + ' · ' + sana
     + (mazmun ? '\n<b>Mazmuni:</b> «' + devonHtml(mazmun) + '»' : '')
     + '\n<b>Kiritdi:</b> ' + devonHtml(u.fish)
-    + '\n\nRezolyutsiya: ilovada 👔 Direktor → Tasdiqlar yoki 📮 Devonxona.';
+    + (eski ? '\n\n📁 Xat sanasi ' + DEVON_ESKI_KUN + ' kundan eski — <b>ma\'lumot uchun</b> saqlandi, rezolyutsiya shart emas (xohlasangiz ilovada yozasiz).' : '\n\nRezolyutsiya: ilovada 👔 Direktor → Tasdiqlar yoki 📮 Devonxona.');
   let tgX = '';
-  try { const r = await koprik.chaqir('koprikDevonTg', u.kod, [{ matn: tgM, faylId: row.fayl, tugma: '📮 Rezolyutsiya qo\'yish' }], { muddat: 90000, urinish: 1 }); tgX = s(r && r.xato); }
+  try { const r = await koprik.chaqir('koprikDevonTg', u.kod, [{ matn: tgM, faylId: row.fayl, tugma: eski ? '📮 Ilovada ochish' : '📮 Rezolyutsiya qo\'yish' }], { muddat: 90000, urinish: 1 }); tgX = s(r && r.xato); }
   catch (e) { tgX = e.message; }
   const ogoh = [];
   try { await devonTarix(DEVON_V, row, tgX ? 'Direktorga Telegram yuborilmadi: ' + tgX : 'Telegram: direktorga yuborildi (shaxsan, skan bilan)'); } catch (e) { }
   if (tgX) ogoh.push('Xat saqlandi, lekin direktorga Telegram xabari bormadi (' + tgX + '). Direktorga o\'zingiz ayting.');
   await yangila([DEVON_V]);
-  return { ok: true, id: row.id, tartib: row.tartib, ogoh };
+  return { ok: true, id: row.id, tartib: row.tartib, ogoh, malumot: eski || undefined, natija: eski ? 'Xat sanasi ' + DEVON_ESKI_KUN + ' kundan eski — «Ma\'lumot uchun» saqlandi, rezolyutsiya shart emas.' : undefined };
 }
 
 // ------------------------------------------------------------------ v1.5: direktor kirim xatni ko'rdi (devonKordi_)
@@ -358,7 +363,7 @@ async function devonChiqimYubor(args) {
 async function rezYadro(u, x0, p, opt = {}) {   // p = { tur, matn, muddat, asosiy, yordam }
   const varaq = opt.varaq || DEVON_V, topV = opt.topVaraq || TOP_V;
   const { x } = await xatTop(varaq, x0, 'Kirim'); if (!x) throw xato('Kirim xat topilmadi.');
-  if (x.holati !== 'Rezolyutsiya kutmoqda') throw xato('Bu xat «' + x.holati + '» holatida — rezolyutsiya allaqachon yozilgan.');
+  if (x.holati !== 'Rezolyutsiya kutmoqda' && x.holati !== MALUMOT) throw xato('Bu xat «' + x.holati + '» holatida — rezolyutsiya allaqachon yozilgan.');
   const sarl = '📥 Kirim xat №' + x.tartib + ' — ' + x.tashkilot + ' (№' + x.raqam + ', ' + x.sana + ')';
   const tid = {}, rows = [];
   await topQulf(async () => {
@@ -567,7 +572,7 @@ async function devonRezQaytar(args) {
 async function bekorYadro(u, id, sabab, opt = {}) {
   const varaq = opt.varaq || DEVON_V;
   const { x } = await xatTop(varaq, id); if (!x) throw xato('Xat topilmadi.');
-  if (!((x.turi === 'Kirim' && x.holati === 'Rezolyutsiya kutmoqda') || (x.turi === 'Chiqim' && x.holati === 'Yuborildi' && !x.bogliq) || (x.turi === 'Chiqim' && (x.holati === 'Tayyorlandi' || x.holati === 'Tayyorlanmoqda'))))
+  if (!((x.turi === 'Kirim' && (x.holati === 'Rezolyutsiya kutmoqda' || x.holati === MALUMOT)) || (x.turi === 'Chiqim' && x.holati === 'Yuborildi' && !x.bogliq) || (x.turi === 'Chiqim' && (x.holati === 'Tayyorlandi' || x.holati === 'Tayyorlanmoqda'))))
     throw xato('Faqat rezolyutsiya yozilmagan kirim xat, imzolanmagan chiquvchi xat yoki ijroga bog\'lanmagan chiquvchi xat bekor qilinadi (hozir: ' + x.holati + ').');
   await yozK(varaq, [[kat('K', x.qator), 'Bekor']]);
   await devonTarix(varaq, x, 'bekor qilindi: ' + sabab + ' (' + u.fish + ')');
