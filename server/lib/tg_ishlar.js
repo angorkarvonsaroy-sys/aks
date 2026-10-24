@@ -22,6 +22,8 @@ async function skanNaz(kod, opt = {}) {
   const L = X.slice(0, m + 1).map((r, i) => ({ qator: i + 2, id: s(r[0]), no: s(r[1]), fish: s(r[3]), turi: s(r[5]), nom: s(r[7]), faylId: s(r[8]), kim: s(r[11]), vaqt: s(r[12]), holati: s(r[13]), naz: s(r[15]), tgx: s(r[16]) })).filter(h => h.id);
   if (!L.length) return { yangi: 0 };
   const max = Math.max(...L.map(h => Number(h.id) || 0)), oxir = Number(await redis.get('skan_naz_id')) || 0;
+  // 🤖 avto qabul (24.10): ixtiyoriy nazorat yuborilmaydi — faqat belgi suriladi (keyin yoqilsa eskilari kelib qolmasin)
+  if (await require('../api/avto_isbot').yoqilgan()) { if (!quruq && max > oxir) await redis.set('skan_naz_id', String(max)); return { yangi: 0, max, avto: true, izoh: 'avto qabul yoqiq — ixtiyoriy skan nazorati yuborilmaydi' }; }
   if (!oxir) { if (!quruq) await redis.set('skan_naz_id', String(max)); return { birinchi: true, max, izoh: 'birinchi marta — faqat belgi qo\'yildi (ID ' + max + '), eskilari yuborilmaydi' }; }
   if (max <= oxir) return { yangi: 0, max };
   if (!quruq) await redis.set('skan_naz_id', String(max));   // eski kod kabi — yuborishdan oldin (og'ir ish yiqilsa ham takror kelmaydi)

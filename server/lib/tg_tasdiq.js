@@ -198,6 +198,8 @@ async function topTasdiqTg(id) {
   const [sh, HJ, XJ] = await Promise.all([TS.topShosh(), J.hujjatJurnal(), J.xatJurnal()]);
   const it = TS.tasdiqTopItem(t, sh, HJ, XJ);
   if (!(t.holati === 'Tekshiruvda' && !/^(qayta|devon|malumot)\|/.test(s(t.kalit)))) return { ok: true, ref: '' };
+  // 🤖 avto qabul (24.10): yurist tekshiradigan isbot — tugma yuborilmaydi, server o'zi ✅ qaror qiladi (api/avto_isbot.js)
+  if (it.tasdiqchi === 'yurist') { const A = require('../api/avto_isbot'); if (await A.yoqilgan()) return A.qabul('t' + t.id); }
   for (const f of it.fayl) if (!(await faylOl(f))) return { koprikka: true };
   const r = await tasdiqYubor(haqiqiy(), it); return { ok: true, ref: r.ref };
 }
@@ -206,6 +208,8 @@ async function xatTasdiqTg(raqam) {
   const [sh, HJ] = await Promise.all([TS.topShosh(), J.hujjatJurnal()]);
   const it = h ? TS.xatTasdiqItem(h, sh, HJ) : null;
   if (!it) return { ok: false, ref: '' };
+  // 🤖 avto qabul (24.10): xat isbotini ham server o'zi qabul qiladi
+  { const A = require('../api/avto_isbot'); if (await A.yoqilgan()) return A.qabul('x' + h.raqam); }
   for (const f of it.fayl) if (!(await faylOl(f))) return { koprikka: true };
   const r = await tasdiqYubor(haqiqiy(), it); return { ok: true, ref: r.ref };
 }

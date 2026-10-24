@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — isbotlarni avtomatik qabul qilish: aks-avto-isbot | sinov [k] | yoq | ochir | navbat [bajar]
+cd /opt/aks/app && exec sudo -u aks -H node bin/avto_isbot.js "$@"

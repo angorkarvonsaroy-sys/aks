@@ -55,6 +55,7 @@ install -m 755 "$APP/bin/aks-koprik" /usr/local/bin/aks-koprik
 install -m 755 "$APP/bin/aks-tg" /usr/local/bin/aks-tg
 install -m 755 "$APP/bin/aks-tg-kirish" /usr/local/bin/aks-tg-kirish
 install -m 755 "$APP/bin/aks-tasdiq-qaror" /usr/local/bin/aks-tasdiq-qaror
+install -m 755 "$APP/bin/aks-avto-isbot" /usr/local/bin/aks-avto-isbot
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer
