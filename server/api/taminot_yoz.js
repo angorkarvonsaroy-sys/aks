@@ -6,7 +6,7 @@
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
 //   taminotFirmaQosh — yangi yuridik ta'minotchi → 09c_Taminotchilar_yuridik oxiriga (Holati «Faol»)
 //   taminotTilxat    — naqd pul tilxati (PDF; jadvalga ham, Drive'ga ham yozmaydi)
-// taminotDalolatnoma — hali eski tizimda (Drive'ga fayl qo'yadi).
+//   taminotDalolatnoma — haftalik qabul qilish-topshirish dalolatnomasi (PDF server, Drive — Koprik ≥ 1.20)
 'use strict';
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
@@ -314,5 +314,96 @@ async function taminotTilxat(args) {
   return { ok: true, raqam, b64: pdf.toString('base64'), nom: 'Tilxat_' + raqam.replace('/', '-') + '.pdf', mime: 'application/pdf' };
 }
 
-module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh, taminotTilxat };
+// ------------------------------------------------------------------ 📄 taminotDalolatnoma(kod, bosh, oxir) — haftalik qabul qilish-topshirish dalolatnomasi
+// Taminot.gs v26.11 bilan bir xil: faqat direktor, davr tekshiruvi (3 oydan oshmasin), davrdagi «Tasdiqlandi» keltirishlar
+// T_turi|Ta'minotchi bo'yicha guruhlanadi, har guruhga alohida dalolatnoma: raqam «ТД-<yil>/NNNN» (09d A ustunidan),
+// PDF → Drive «06 TAMINOT / DALOLATNOMALAR», 09d ga qator (Raqam, Sana, Davr, T_turi, Taminotchi, Pozitsiya, Summa, Fayl_ID, Kim).
+// PDF serverda yasaladi (lib/pdf.js), Drive'ga Koprik qo'yadi (koprikTamIsbot, qism «DALOLATNOMALAR» — Koprik ≥ 1.20).
+// Koprik eski bo'lsa yoki PDF dasturi yo'q bo'lsa — amal butunligicha eski tizimda bajariladi.
+const TAM_AV = '09d_Taminot_dalolatnomalari';
+let kv120 = { ok: false, t: 0 };
+async function koprik120(kod) {
+  if (kv120.t && Date.now() - kv120.t < (kv120.ok ? 30 : 2) * 60000) return kv120.ok;
+  try { kv120 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.20'), t: Date.now() }; } catch (e) { kv120 = { ok: false, t: Date.now() }; }
+  return kv120.ok;
+}
+function tamDavrTekshir(bosh, oxir) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s(bosh)) || !/^\d{4}-\d{2}-\d{2}$/.test(s(oxir))) throw new S.Xato('Davr sanalarini tanlang.');
+  if (bosh > oxir) throw new S.Xato('Davr boshi oxiridan keyin bo\'lmasin.');
+  if ((new Date(oxir + 'T00:00:00Z') - new Date(bosh + 'T00:00:00Z')) / 86400000 > 92) throw new S.Xato('Davr 3 oydan oshmasin.');
+}
+const tamIsoDan = dmy => { const p2 = s(dmy).split('.'); return p2.length === 3 ? p2[2] + '-' + p2[1] + '-' + p2[0] : ''; };
+// tamAktHtml_ — matn, jadval va imzo bloklari aynan eski kodnikidek
+function tamAktHtml(raqam, bugun, bosh, oxir, tTuri, taminotchi, f, P, jami) {
+  const T = tamEsc(s(taminotchi).toUpperCase());
+  const pre = tTuri === 'Yuridik'
+    ? 'Биз, қуйида имзо чекувчилар: ' + TAM_MCHJ + ' номидан директор <b>' + TAM_DIREKTOR + '</b> («Қабул қилувчи») ва <b>' + T + '</b> номидан ' + (f && f.direktor ? 'директор <b>' + tamEsc(s(f.direktor).toUpperCase()) + '</b>' : 'ваколатли вакили') + ' («Топширувчи») ушбу далолатномани туздик:'
+    : 'Биз, қуйида имзо чекувчилар: ' + TAM_MCHJ + ' номидан директор <b>' + TAM_DIREKTOR + '</b> («Қабул қилувчи») ва таъминотчи <b>' + T + '</b> («Топширувчи») ушбу далолатномани туздик:';
+  let jad = '<table><tr><th class="c" style="width:30px">№</th><th>Маҳсулот номи</th><th class="c" style="width:62px">Ўлчов</th><th class="c" style="width:70px">Миқдор</th><th class="r" style="width:90px">Нархи, сўм</th><th class="r" style="width:105px">Суммаси, сўм</th></tr>';
+  P.forEach((x, i) => { jad += '<tr><td class="c">' + (i + 1) + '</td><td>' + tamEsc(x.nom) + '</td><td class="c">' + tamEsc(x.olchov) + '</td><td class="c">' + x.miqdor + '</td><td class="r">' + tamPul(x.narx) + '</td><td class="r">' + tamPul(x.summa) + '</td></tr>'; });
+  jad += '<tr><td colspan="5"><b>ЖАМИ:</b></td><td class="r"><b>' + tamPul(jami) + '</b></td></tr></table>';
+  const imzoT = tTuri === 'Yuridik'
+    ? '<b>ТОПШИРДИ:</b><br>' + T + (f ? (f.stir ? '<br>СТИР: ' + tamEsc(f.stir) : '') + (f.hr ? '<br>Ҳ/р: ' + tamEsc(f.hr) : '') + (f.bank ? '<br>' + tamEsc(f.bank) + (f.mfo ? ', МФО ' + tamEsc(f.mfo) : '') : '') + (f.manzil ? '<br>Манзил: ' + tamEsc(f.manzil) : '') : '') + '<br><br>' + (f && f.direktor ? 'Директор ' : '') + '_______________ ' + (f && f.direktor ? tamEsc(s(f.direktor).toUpperCase()) : T)
+    : '<b>ТОПШИРДИ:</b><br>Таъминотчи<br><br><br>_______________ ' + T;
+  return tamHtmlBosh() +
+    '<h1>ҚАБУЛ ҚИЛИШ-ТОПШИРИШ ДАЛОЛАТНОМАСИ</h1><div class="sub">№ ' + raqam + '</div>' +
+    '<div class="sana"><span>Ангор тумани</span><span>' + sanaSoz(bugun) + '</span></div>' +
+    '<p>' + pre + '</p>' +
+    '<p>Топширувчи <b>' + tamDMY(bosh) + ' — ' + tamDMY(oxir) + '</b> даври мобайнида қуйидаги маҳсулотларни етказиб берди, Қабул қилувчи уларни сони ва сифати бўйича текшириб қабул қилиб олди:</p>' +
+    jad +
+    '<p><b>Жами сумма (сўз билан):</b> ' + SH.sozBilan(jami) + ' сўм 00 тийин.</p>' +
+    '<p>Маҳсулотлар «ANGOR KARVON SAROY» савдо мажмуаси эҳтиёжлари учун қабул қилинди. Тарафларнинг бир-бирига ушбу далолатнома бўйича эътирози йўқ. Далолатнома икки нусхада тузилди.</p>' +
+    '<div class="imzo"><div>' + imzoT + '<br><span class="k">(имзо)</span></div>' +
+    '<div><b>ҚАБУЛ ҚИЛДИ:</b><br>' + TAM_MCHJ + '<br>директори<br><br>_______________ ҲАЙДАРОВ К.<br><span class="k">(имзо)</span></div></div></body></html>';
+}
+
+async function taminotDalolatnoma(args) {
+  const [kodSes, bosh, oxir] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  tamDavrTekshir(bosh, oxir);
+  if (!(await serverda(u.kod)) || !(await PDF.bor()) || !(await koprik120(u.kod))) return eskiTizim('taminotDalolatnoma', u, [bosh, oxir]);
+  const [R9, R9c] = await Promise.all([
+    G.oraliqOqi(env.aksBazaId, TAM_V, 'A2:P', env.googleKey),
+    G.oraliqOqi(env.aksBazaId, TAM_FV, 'A2:J', env.googleKey).catch(() => [])]);
+  const R = R9.map((r0, i) => { const r = []; for (let k = 0; k < 16; k++) r.push(s(r0[k]));
+      return { qator: i + 2, id: r[0], iso: tamIsoDan(r[2]), tTuri: r[3], taminotchi: r[4], nom: r[5], olchov: r[6], miqdor: r[7],
+        narx: Number(r[8].replace(/\D/g, '')) || 0, summa: Number(r[9].replace(/\D/g, '')) || 0, holati: r[13] }; })
+    .filter(x => x.id && x.holati === 'Tasdiqlandi' && x.iso >= bosh && x.iso <= oxir);
+  if (!R.length) throw new S.Xato('Bu davrda (' + tamDMY(bosh) + '–' + tamDMY(oxir) + ') tasdiqlangan keltirish yo\'q.');
+  const firmalar = R9c.map(r0 => { const r = []; for (let k = 0; k < 10; k++) r.push(s(r0[k]));
+      return { id: r[0], nomi: r[1], direktor: r[2], stir: r[3], hr: r[4], bank: r[5], mfo: r[6], manzil: r[7], tel: r[8], holati: r[9] }; })
+    .filter(f => f.id && f.holati !== 'Bekor');
+  const Gr = {}; R.forEach(x => { (Gr[x.tTuri + '|' + x.taminotchi] = Gr[x.tTuri + '|' + x.taminotchi] || []).push(x); });
+
+  const w = await qulfBilan(async () => {
+    const A = await G.oraliqOqi(env.aksBazaId, TAM_AV, 'A2:I', env.googleKey);
+    let m = -1; A.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
+    let nmax = A.slice(0, m + 1).reduce((a2, r) => { const z = /(\d{4})$/.exec(s(r[0])); return Math.max(a2, z ? Number(z[1]) : 0); }, 0);
+    const yil = String(new Date(Date.now() + 5 * 3600 * 1000).getUTCFullYear());
+    const bugun = hozirDmyHm().slice(0, 10);
+    const fayllar = [], qatorlar = [];
+    for (const k of Object.keys(Gr)) {
+      const p2 = k.split('|'), tTuri = p2[0], taminotchi = p2[1], P = Gr[k];
+      const jami = P.reduce((a2, x) => a2 + x.summa, 0);
+      const raqam = 'ТД-' + yil + '/' + ('0000' + (++nmax)).slice(-4);
+      const f = tTuri === 'Yuridik' ? firmalar.find(x => x.nomi === taminotchi) : null;
+      const ism = tTuri === 'Jismoniy' ? await tamToliqIsm(taminotchi) : taminotchi;
+      const pdf = await PDF.yasa(tamAktHtml(raqam, bugun, bosh, oxir, tTuri, ism, f, P, jami), '',
+        { format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+      const nom = 'Dalolatnoma_' + raqam.replace('/', '-') + '_' + taminotchi.replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40) + '.pdf';
+      const d = await koprik.chaqir('koprikTamIsbot', u.kod, [{ qism: 'DALOLATNOMALAR', nom, b64: pdf.toString('base64') }], { muddat: 120000 });
+      if (!d || !d.id) throw new S.Xato('Dalolatnoma Drive\'ga saqlanmadi (' + raqam + ') — qayta urinib ko\'ring.');
+      qatorlar.push([raqam, bugun, tamDMY(bosh) + '–' + tamDMY(oxir), tTuri, taminotchi, P.length, jami, d.id, u.fish]);
+      fayllar.push({ raqam, taminotchi, soni: P.length, jami, nom, b64: pdf.toString('base64'), mime: 'application/pdf' });
+    }
+    const q = await G.qatorlarQoshR(env.aksBazaId, TAM_AV, m + 3, qatorlar, env.googleKey)
+      .catch(e => { if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — dalolatnomalar Drive\'ga saqlandi, 09d ga qo\'lda yozing.'); throw e; });
+    if (q !== m + 3) await ogoh({ varaq: TAM_AV, qator: q, xato: 'kutilgan qator ' + (m + 3) + ' — shu orada boshqa dalolatnoma qo\'shilgan' });
+    return { fayllar };
+  });
+  await kut(tetik.varaqlarYangila([TAM_AV]).catch(e => console.error('ko\'zgu (09d):', e.message)), 15000);
+  return { ok: true, fayllar: w.fayllar };
+}
+
+module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh, taminotTilxat, taminotDalolatnoma };
 module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15 };
