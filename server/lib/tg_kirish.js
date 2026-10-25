@@ -123,6 +123,11 @@ async function blokXabar(x) {
 // ================================================================== BOTDAN (lib/tg_poll.js → ishlov)
 const javobla = (ctx, cb, m, alert) => ctx.api('answerCallbackQuery', Object.assign({ callback_query_id: s(cb.id), text: s(m).slice(0, 190) }, alert ? { show_alert: true } : {})).catch(() => {});
 const yubor = (ctx, chat, matn, klav) => ctx.api('sendMessage', Object.assign({ chat_id: s(chat), text: s(matn), parse_mode: 'HTML' }, klav ? { reply_markup: klav } : {}));
+// Parolni BITTA BOSISHDA nusxalanadigan qilib yuboradi (Telegram copy_text tugmasi; qabul qilinmasa — tugmasiz)
+async function parolYubor(ctx, chat, matn, parol) {
+  try { return await yubor(ctx, chat, matn, { inline_keyboard: [[{ text: '📋 Parolni nusxalash', copy_text: { text: s(parol) } }]] }); }
+  catch (e) { console.error('copy_text tugmasi:', e.message); return yubor(ctx, chat, matn); }
+}
 const klavQoy = (ctx, chat, msg, klav) => ctx.api('editMessageReplyMarkup', { chat_id: s(chat), message_id: msg, reply_markup: klav || { inline_keyboard: [] } }).catch(e => console.error('klavQoy:', e.message));
 async function direktorga(ctx, matn) {   // tgYubor_: direktor(lar)ga; topilmasa — guruhga
   const C = await TT.adminChatlar();
@@ -223,10 +228,9 @@ async function kodYubor(ctx, m, chat) {
   try { await TT.yozuv(ctx, T07 + ' L' + x.qator + ' (' + x.fish + ') ← yangi kirish kodi', () => xodim07Yoz(x, PIN_L, yangi)); }
   catch (e) { await redis.del('kod_s:' + x.kod); await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message)); return { tur: '/kod', kim: x.fish, natija: '⚠ ' + e.message }; }
   await kodKut(yangi, 30);
-  await yubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
-    + '👉 Shu havolani bosing — darhol kirasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
-    + '✍️ Kirgach, tepadagi <b>«🔑 Parol»</b> tugmasidan o\'zingiz eslab qoladigan parol qo\'ying — keyin doimo shu parol bilan kiraverasiz.\n\n'
-    + '⚠️ Eski parolingiz endi ishlamaydi. Parolni hech kimga bermang — direktor ham, xodimlar ham so\'ramaydi.');
+  await parolYubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Kirish: ' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + 'Kirgach <b>«🔑 Parol»</b> dan o\'zingiznikini qo\'ying. Eski parol endi ishlamaydi — bu xabarni hech kimga yubormang.', yangi);
   await direktorga(ctx, '🔑 <b>' + TT.esc(x.fish) + '</b> botdan yangi kirish kodi oldi — eski kodi bekor qilindi.');
   return { tur: '/kod', kim: x.fish, natija: 'yangi kod yuborildi' };
 }
@@ -254,11 +258,10 @@ async function kodBirinchi(ctx, m, chat, y, ol) {
   catch (e) { await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message) + '\nDirektorga ayting.', ol); return { tur: 'kontakt', kim: y.fish, natija: '⚠ ' + e.message }; }
   await redis.set('tg_ulandi:' + yangi, chat, 'EX', 1800).catch(() => {});
   await kodKut(yangi, 30);
-  await yubor(ctx, chat, '✅ Xush kelibsiz, <b>' + TT.esc(ism) + '</b>! Raqamingiz tasdiqlandi.\n\n'
-    + '🔑 Vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
-    + '👉 Shu havolani bosing — darhol kirasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
-    + '✍️ Kirgach, tepadagi <b>«🔑 Parol»</b> tugmasidan o\'zingiz eslab qoladigan parol qo\'ying — keyin doimo shu parol bilan kiraverasiz.\n\n'
-    + 'Parolni hech kimga bermang.', ol);
+  await yubor(ctx, chat, '✅ Xush kelibsiz, <b>' + TT.esc(ism) + '</b>! Raqamingiz tasdiqlandi.', ol);
+  await parolYubor(ctx, chat, '🔑 Vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Kirish: ' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + 'Kirgach <b>«🔑 Parol»</b> dan o\'zingiznikini qo\'ying. Parolni hech kimga bermang.', yangi);
   await direktorga(ctx, '🆕 <b>' + TT.esc(y.fish) + '</b> tizimga ulandi — birinchi kirish kodi berildi (07_Xodimlar L' + y.qator + ').');
   return { tur: 'kontakt', kim: y.fish, natija: 'birinchi kod berildi' };
 }
@@ -383,4 +386,4 @@ async function tqTugma(ctx, cb, d) {
 async function jurnal(y) { try { await redis.lpush('tg_kirish_jurnal', JSON.stringify(Object.assign({ vaqt: TT.hozirDmyHm() }, y))); await redis.ltrim('tg_kirish_jurnal', 0, 99); } catch (e) { } }
 async function jurnalOqi(n = 20) { try { return (await redis.lrange('tg_kirish_jurnal', 0, n - 1)).map(x => JSON.parse(x)); } catch (e) { return []; } }
 
-module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, kodYubor, kodBirinchi, kodYasa, kodKut, parolXabar, PIN_TG_BOT };
+module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, parolYubor, kodYubor, kodBirinchi, kodYasa, kodKut, parolXabar, PIN_TG_BOT };
