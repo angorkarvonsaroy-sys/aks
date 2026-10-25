@@ -60,27 +60,52 @@ const PWA_BOSH = `
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); })();
 </script>`;
 
-// «/» kodsiz ochilganda (o'rnatilgan ilova ikonasi): saqlangan kod bo'lsa — darhol shunga; bo'lmasa — kodni so'raydi
-const KIRISH = `<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8">
+// «/» kodsiz ochilganda (o'rnatilgan ilova ikonasi): saqlangan kod bo'lsa — darhol shunga; bo'lmasa — kodni so'raydi.
+// 25.10 (direktor ko'rsatmasi): kod to'g'ri kelmasa ham AYNAN SHU sahifa qaytadi — qizil izoh bilan, kod maydoni joyida.
+// Oldin «Kirish taqiqlangan» degan boshi berk sahifa chiqardi va qayta kod kiritish imkoni yo'q edi.
+// «Kodimni unutdim» — Telegram botga o'tadi (/start kod), bot yangi kod yuboradi (lib/tg_kirish.js kodYubor).
+const TG_BOT = 'aks_karvon_bot';
+function kirishSahifa(xato) {
+  return `<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>AKS TIZIM</title>
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0B3D2E"><link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/icon-192.png">
 <style>html,body{margin:0;height:100%;background:#0B3D2E;font-family:Arial,sans-serif;color:#fff}
-#e{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:20px}
-img{width:120px;height:120px;border-radius:26px}.n{font-size:22px;font-weight:bold;letter-spacing:.04em}.m{font-size:13px;color:#C9D8D1}
-input{padding:12px;border-radius:10px;border:0;font-size:16px;width:260px;max-width:90vw}
-button{padding:12px 22px;border-radius:10px;border:0;background:#D4AF5A;color:#0B3D2E;font-weight:bold;font-size:16px}
-.a{position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:#9FB8AD}</style></head><body>
-<div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div><div class="m" id="x">Yuklanmoqda…</div></div>
+#e{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px}
+img{width:96px;height:96px;border-radius:22px}.n{font-size:22px;font-weight:bold;letter-spacing:.04em}.m{font-size:13px;color:#C9D8D1}
+.xa{font-size:14px;color:#FFD7D0;background:#7F1D1D;border-radius:10px;padding:10px 14px;max-width:320px;line-height:1.45}
+input{padding:13px;border-radius:10px;border:0;font-size:17px;width:280px;max-width:88vw;letter-spacing:.06em}
+button{padding:13px 26px;border-radius:10px;border:0;background:#D4AF5A;color:#0B3D2E;font-weight:bold;font-size:17px}
+a.u{color:#C9D8D1;font-size:13px;text-decoration:underline}
+.a{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:12px;color:#9FB8AD}</style></head><body>
+<div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div>
+<div id="x" class="m">Yuklanmoqda…</div>
+<div id="f" style="display:none">
+<div class="m">Shaxsiy kirish kodingizni kiriting</div><br>
+<input id="kod" type="text" inputmode="text" placeholder="Kirish kodi" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br>
+<button id="kir">Kirish</button><br><br>
+<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Kodimni unutdim</a>
+</div></div>
 <div class="a">Tizim muallifi va yaratuvchisi: <b>${MUALLIF}</b></div>
 <script>
+var XATO=${xato ? JSON.stringify(xato) : "''"};
 var k=''; try{ k=localStorage.getItem('aks_k')||''; }catch(e){}
-if(new URLSearchParams(location.search).has('chiqish')){ try{ localStorage.removeItem('aks_k'); }catch(e){} k=''; }
+if(XATO || new URLSearchParams(location.search).has('chiqish')){ try{ localStorage.removeItem('aks_k'); }catch(e){} k=''; }
 if(k){ location.replace('/?k='+encodeURIComponent(k)); }
-else { document.getElementById('x').innerHTML='Shaxsiy kirish kodingizni kiriting<br><br><input id="kod" type="text" placeholder="Kirish kodi" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br><button id="kir">Kirish</button>';
-  var kir=function(){ var v=document.getElementById('kod').value.trim(); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };   // 25.10: kod tekshirilmasdan saqlanmaydi — ilova sahifasi ochilgach saqlanadi
-  document.getElementById('kir').onclick=kir; document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); }); }
+else {
+  var xd=document.getElementById('x');
+  if(XATO){ xd.className='xa'; xd.textContent=XATO; } else { xd.style.display='none'; }
+  document.getElementById('f').style.display='block';
+  var kir=function(){ var v=document.getElementById('kod').value.replace(/\s+/g,''); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };
+  document.getElementById('kir').onclick=kir;
+  document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); });
+  try{ document.getElementById('kod').focus(); }catch(e){}
+}
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
 </script></body></html>`;
+}
+const KIRISH = kirishSahifa('');
+// kod topilmadi: boshi berk sahifa emas — o'sha kirish oynasi, qizil izoh bilan
+const TAQIQ = kirishSahifa('Bu kirish kodi tizimda topilmadi. Kodni qaytadan kiriting yoki «Kodimni unutdim» ni bosing.');
 
 // doGet (Kod.gs) ning serverdagi o'rni
 function sahifa(user, kod, bilet) {
@@ -103,12 +128,6 @@ function sahifa(user, kod, bilet) {
   return html;
 }
 
-const TAQIQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body>' +
-  '<div style="font-family:Arial;padding:40px;text-align:center"><h2>Kirish taqiqlangan</h2>' +
-  '<p>Havola noto\'g\'ri yoki eskirgan. Direktorga murojaat qiling.</p><p><a href="/?chiqish=1" style="color:#1F4E78">Boshqa kod bilan kirish</a></p>' +
-  '<p style="margin-top:60px;font-size:12px;color:#667085">AKS TIZIM · Tizim muallifi va yaratuvchisi: <b>' + MUALLIF + '</b></p></div>' +
-  // 25.10: noto'g'ri kod telefon xotirasida qolib ketmasin — aks holda ilova har ochilganda shu sahifaga tushib qolardi (kod kiritish oynasiga qaytib bo'lmasdi)
-  '<script>try{localStorage.removeItem("aks_k");}catch(e){}</script></body></html>';
 const YOQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body style="font-family:Arial;padding:40px;text-align:center">' +
   '<h2>AKS TIZIM server ishlayapti</h2><p>Ilova fayli (Index.html) hali serverga yuklanmagan.</p></body></html>';
 

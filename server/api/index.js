@@ -29,6 +29,13 @@ fastify.get('/', async (req, reply) => {
   if (!kod) return ui.KIRISH;                       // o'rnatilgan ilova ikonasi: saqlangan kod bilan qayta ochiladi
   const user = await S.xodimKod(kod);
   if (!user) return ui.TAQIQ;
+  // 25.10: kod qo'lda terilganda bosh harf/bo'sh joy bilan kelishi mumkin (api/sessiya.js xodimKod) —
+  // sahifa va telefon xotirasiga JADVALDAGI haqiqiy kod tushsin, aks holda keyingi so'rovlar mos kelmaydi.
+  if (user.kod && user.kod !== kod) {
+    const q2 = Object.keys(req.query || {}).filter(z => z !== 'k').map(z => '&' + encodeURIComponent(z) + '=' + encodeURIComponent(String(req.query[z]))).join('');
+    reply.code(302).header('Location', '/?k=' + encodeURIComponent(user.kod) + q2);
+    return '';
+  }
   // 👁 ko'rish rejimi (&sifat=ID, Kod.gs doGet v9.6): faqat direktor; sahifa xodim ismi va huquqlari (+ «sifat=ID») bilan — har so'rov sifatida() orqali
   let sahifaUser = user;
   const sifat = String(req.query.sifat || '').trim();

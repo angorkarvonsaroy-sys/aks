@@ -131,6 +131,7 @@ async function xabar(ctx, m) {
     const u = await TT.tgXodim(from);
     if (u && u.admin) { try { await TT.xulosaYubor(ctx, chat, true); } catch (e) { await yubor(ctx, chat, '⚠ ' + e.message).catch(() => {}); } return { tur: '/tekshiruv', kim: u.fish, natija: 'xulosa yuborildi' }; }
   }
+  if (/^\/kod(@\w+)?\s*$/i.test(matn)) return kodYubor(ctx, m, chat);   // 🔑 «Kodimni unutdim»
   if (matn && matn.charAt(0) !== '/') { const r = await radMatn(ctx, m, chat, matn); if (r) return r; }
   return pinXabar(ctx, m, chat, matn);
 }
@@ -152,10 +153,46 @@ async function radMatn(ctx, m, chat, matn) {
     return { tur: 'sabab', kim, nima: o.k, natija: 'qaytarildi: ' + matn.slice(0, 80) };
   } catch (e) { await yubor(ctx, chat, '⚠ ' + TT.esc(e.message)).catch(() => {}); return { tur: 'sabab', kim, nima: o.k, natija: '⚠ ' + e.message }; }
 }
+// ---------------------------------------------------------------- 🔑 «KODIMNI UNUTDIM» — /kod yoki /start kod (direktor ko'rsatmasi 25.10.2026)
+// Xodim Telegram ID si bo'yicha topiladi (raqami avval tasdiqlangan bo'lishi shart), YANGI kod yasaladi va 07_Xodimlar L ustuniga
+// yoziladi — eski kod o'sha zahoti ishlamay qoladi. Kodda o'xshash belgilar yo'q (0 O o 1 l I) — telefonda xatosiz teriladi.
+const PIN_L = 12, AKS_SAYT = 'https://aks-tizim.uz';
+const KOD_ALIF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function kodYasa(n) { let v = ''; for (let i = 0; i < n; i++) v += KOD_ALIF[crypto.randomInt(0, KOD_ALIF.length)]; return v; }
+async function kodBand(k) {
+  const r = await q(`SELECT 1 FROM v_xodimlar WHERE lower(regexp_replace(kirish_kodi, '[^A-Za-z0-9]', '', 'g')) = $1 LIMIT 1`, [S.kodNorm(k)]);
+  return !!r.rows[0];
+}
+async function kodYangi() { for (let i = 0; i < 20; i++) { const k = kodYasa(14); if (!(await kodBand(k))) return k; } throw new S.Xato('Yangi kod yasalmadi — qayta urinib ko\'ring.'); }
+
+async function kodYubor(ctx, m, chat) {
+  const u = await TT.tgXodim(m.from && m.from.id);
+  if (!u) {
+    await yubor(ctx, chat, '🔑 Yangi kirish kodi olish uchun avval raqamingizni tasdiqlang: pastdagi <b>«📱 Raqamni yuborish»</b> tugmasini bosing, keyin <b>/kod</b> deb yozing.',
+      { keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]], one_time_keyboard: true, resize_keyboard: true });
+    return { tur: '/kod', natija: 'raqam so\'raldi' };
+  }
+  const x = await S.xodimKod(u.kod);
+  if (!x) { await yubor(ctx, chat, '⚠ Xodim ro\'yxatda topilmadi. Direktorga murojaat qiling.'); return { tur: '/kod', kim: u.fish, natija: 'xodim topilmadi' }; }
+  if (!ctx.quruq && await redis.get('kod_s:' + x.kod)) { await yubor(ctx, chat, '⏳ Yangi kod yaqinda yuborildi. 2 daqiqadan keyin qayta so\'rang.'); return { tur: '/kod', kim: x.fish, natija: 'tez-tez so\'rov' }; }
+  const yangi = await kodYangi();
+  if (ctx.quruq) { ctx.log.push({ yozuv: T07 + ' L' + x.qator + ' (' + x.fish + ') ← yangi kirish kodi (' + yangi.length + ' belgi)' }); return { tur: '/kod', kim: x.fish, natija: '(quruq) yangi kod' }; }
+  await redis.set('kod_s:' + x.kod, '1', 'EX', 120);
+  try { await TT.yozuv(ctx, T07 + ' L' + x.qator + ' (' + x.fish + ') ← yangi kirish kodi', () => xodim07Yoz(x, PIN_L, yangi)); }
+  catch (e) { await redis.del('kod_s:' + x.kod); await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message)); return { tur: '/kod', kim: x.fish, natija: '⚠ ' + e.message }; }
+  await yubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, yangi kirish kodingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Tayyor havola — bosing va kiraverasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + '⚠️ Eski kodingiz endi ishlamaydi. Kodni hech kimga bermang — direktor ham, xodimlar ham so\'ramaydi.');
+  await direktorga(ctx, '🔑 <b>' + TT.esc(x.fish) + '</b> botdan yangi kirish kodi oldi — eski kodi bekor qilindi.');
+  return { tur: '/kod', kim: x.fish, natija: 'yangi kod yuborildi' };
+}
+
 // Pin.gs tgXabar_: /start <kod> va kontakt
 async function pinXabar(ctx, m, chat, matn) {
   if (matn.indexOf('/start') === 0) {
-    const t = matn.split(/\s+/)[1] || ''; const kod = t ? (ctx.ul && ctx.ul[t]) || await redis.get('tg_ul:' + t) : null;
+    const t = matn.split(/\s+/)[1] || '';
+    if (t === 'kod') return kodYubor(ctx, m, chat);   // 🔑 kirish oynasidagi «Kodimni unutdim» havolasi
+    const kod = t ? (ctx.ul && ctx.ul[t]) || await redis.get('tg_ul:' + t) : null;
     if (!ctx.quruq) { if (kod) await redis.set('tg_ulc:' + chat, kod, 'EX', 900); else await redis.del('tg_ulc:' + chat); } else ctx.log.push({ yozuv: kod ? 'ulash kodi ' + t + ' → chat ' + chat + ' (' + kod.slice(0, 4) + '…)' : 'ulash kodi yo\'q — raqam bo\'yicha topiladi' });
     await yubor(ctx, chat, 'Assalomu alaykum! AKS TIZIMga ulanish uchun pastdagi <b>«📱 Raqamni yuborish»</b> tugmasini bosing.',
       { keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]], one_time_keyboard: true, resize_keyboard: true });
@@ -268,4 +305,4 @@ async function tqTugma(ctx, cb, d) {
 async function jurnal(y) { try { await redis.lpush('tg_kirish_jurnal', JSON.stringify(Object.assign({ vaqt: TT.hozirDmyHm() }, y))); await redis.ltrim('tg_kirish_jurnal', 0, 99); } catch (e) { } }
 async function jurnalOqi(n = 20) { try { return (await redis.lrange('tg_kirish_jurnal', 0, n - 1)).map(x => JSON.parse(x)); } catch (e) { return []; } }
 
-module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, PIN_TG_BOT };
+module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, kodYubor, kodYasa, PIN_TG_BOT };
