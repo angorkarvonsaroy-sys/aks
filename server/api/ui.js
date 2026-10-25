@@ -44,7 +44,8 @@ const SHIM = `<script>
 </script>`;
 
 // Ilova sifatida o'rnatish (Chrome «Установить приложение» / «Добавить на главный экран»): manifest + belgi + kodni eslab qolish.
-// O'rnatilgan ilova «/» dan ochiladi — kod brauzer xotirasida (aks_k) turadi, ishga tushirgich (KIRISH) uni o'zi qo'yadi.
+// O'rnatilgan ilova «/» dan ochiladi — kod brauzer xotirasida (aks_k) turadi. 25.10: kod FAQAT shu yerda, ya'ni ilova sahifasi muvaffaqiyatli ochilganda saqlanadi;
+// ishga tushirgich (KIRISH) saqlamaydi va «Kirish taqiqlangan» sahifasi uni o'chiradi — noto'g'ri kod xotirada qolib, ilova shu sahifada qulflanib qolmasin.
 const PWA_BOSH = `
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0B3D2E">
@@ -75,7 +76,7 @@ var k=''; try{ k=localStorage.getItem('aks_k')||''; }catch(e){}
 if(new URLSearchParams(location.search).has('chiqish')){ try{ localStorage.removeItem('aks_k'); }catch(e){} k=''; }
 if(k){ location.replace('/?k='+encodeURIComponent(k)); }
 else { document.getElementById('x').innerHTML='Shaxsiy kirish kodingizni kiriting<br><br><input id="kod" type="password" placeholder="Kirish kodi" autocomplete="off"><br><br><button id="kir">Kirish</button>';
-  var kir=function(){ var v=document.getElementById('kod').value.trim(); if(!v) return; try{ localStorage.setItem('aks_k',v); }catch(e){} location.replace('/?k='+encodeURIComponent(v)); };
+  var kir=function(){ var v=document.getElementById('kod').value.trim(); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };   // 25.10: kod tekshirilmasdan saqlanmaydi — ilova sahifasi ochilgach saqlanadi
   document.getElementById('kir').onclick=kir; document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); }); }
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
 </script></body></html>`;
@@ -104,7 +105,9 @@ function sahifa(user, kod, bilet) {
 const TAQIQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body>' +
   '<div style="font-family:Arial;padding:40px;text-align:center"><h2>Kirish taqiqlangan</h2>' +
   '<p>Havola noto\'g\'ri yoki eskirgan. Direktorga murojaat qiling.</p><p><a href="/?chiqish=1" style="color:#1F4E78">Boshqa kod bilan kirish</a></p>' +
-  '<p style="margin-top:60px;font-size:12px;color:#667085">AKS TIZIM · Tizim muallifi va yaratuvchisi: <b>' + MUALLIF + '</b></p></div></body></html>';
+  '<p style="margin-top:60px;font-size:12px;color:#667085">AKS TIZIM · Tizim muallifi va yaratuvchisi: <b>' + MUALLIF + '</b></p></div>' +
+  // 25.10: noto'g'ri kod telefon xotirasida qolib ketmasin — aks holda ilova har ochilganda shu sahifaga tushib qolardi (kod kiritish oynasiga qaytib bo'lmasdi)
+  '<script>try{localStorage.removeItem("aks_k");}catch(e){}</script></body></html>';
 const YOQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body style="font-family:Arial;padding:40px;text-align:center">' +
   '<h2>AKS TIZIM server ishlayapti</h2><p>Ilova fayli (Index.html) hali serverga yuklanmagan.</p></body></html>';
 
