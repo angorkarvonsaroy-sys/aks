@@ -228,6 +228,7 @@ async function kodYubor(ctx, m, chat) {
   try { await TT.yozuv(ctx, T07 + ' L' + x.qator + ' (' + x.fish + ') ← yangi kirish kodi', () => xodim07Yoz(x, PIN_L, yangi)); }
   catch (e) { await redis.del('kod_s:' + x.kod); await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message)); return { tur: '/kod', kim: x.fish, natija: '⚠ ' + e.message }; }
   await kodKut(yangi, 30);
+  try { await redis.set('parol_vaqt:' + yangi, '1', 'EX', 90 * 86400); } catch (e) { }   // vaqtinchalik — kirishda doimiy parol so'raladi
   await parolYubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
     + '👉 Kirish: ' + AKS_SAYT + '/?k=' + yangi + '\n\n'
     + 'Kirgach <b>«🔑 Parol»</b> dan o\'zingiznikini qo\'ying. Eski parol endi ishlamaydi — bu xabarni hech kimga yubormang.', yangi);
@@ -258,6 +259,7 @@ async function kodBirinchi(ctx, m, chat, y, ol) {
   catch (e) { await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message) + '\nDirektorga ayting.', ol); return { tur: 'kontakt', kim: y.fish, natija: '⚠ ' + e.message }; }
   await redis.set('tg_ulandi:' + yangi, chat, 'EX', 1800).catch(() => {});
   await kodKut(yangi, 30);
+  try { await redis.set('parol_vaqt:' + yangi, '1', 'EX', 90 * 86400); } catch (e) { }   // vaqtinchalik
   await yubor(ctx, chat, '✅ Xush kelibsiz, <b>' + TT.esc(ism) + '</b>! Raqamingiz tasdiqlandi.', ol);
   await parolYubor(ctx, chat, '🔑 Vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
     + '👉 Kirish: ' + AKS_SAYT + '/?k=' + yangi + '\n\n'

@@ -20,8 +20,11 @@ A.kirishOch = async ([kod]) => {
   if (b) throw new S.Xato('Kirish ' + b + ' daqiqaga bloklangan. Keyinroq urinib ko\'ring.');
   await S.xatoToza(x.kod);
   const tok = await S.sessiyaOch(x.kod);
-  jurnal(x).catch(e => console.error('kirish jurnali:', e.message));
-  return { tok, ism: x.ism, fish: x.fish };
+  // botdan olingan VAQTINCHALIK parol bo'lsa — ilova ochilmaydi, avval xodim o'z doimiy parolini qo'yadi (direktor qarori 26.10.2026)
+  let vaqtinchalik = false;
+  try { vaqtinchalik = (await redis.get('parol_vaqt:' + x.kod)) === '1'; } catch (e) { }
+  if (!vaqtinchalik) jurnal(x).catch(e => console.error('kirish jurnali:', e.message));
+  return { tok, ism: x.ism, fish: x.fish, vaqtinchalik };
 };
 A.parolTirik = async ([kodSes]) => ({ ok: !!(await S.foydalanuvchi(kodSes)) });
 
@@ -63,7 +66,9 @@ A.parolOrnat = async ([kodSes, yangi, takror]) => {
   if (!x) throw new S.Xato('Parol jadvalga yozildi, lekin tizim uni hali ko\'rmayapti. 1 daqiqadan keyin yangi parol bilan kiring.');
 
   try { await redis.del('ses:' + s(kodSes).slice(s(kodSes).indexOf('|') + 1)); } catch (e) { }   // eski sessiya yopiladi
+  try { await redis.del('parol_vaqt:' + u.kod); await redis.del('parol_vaqt:' + x.kod); } catch (e) { }   // endi doimiy parol
   const tok = await S.sessiyaOch(x.kod);
+  jurnal(x).catch(() => {});
   TK.parolXabar(x).catch(() => {});                          // xodimga Telegram'dan ogohlantirish
   return { kod: x.kod, tok };
 };
