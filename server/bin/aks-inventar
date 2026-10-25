@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — baza inventarizatsiyasi (faqat o'qiydi): aks-inventar [varaq | hammasi]
+cd /opt/aks/app && exec sudo -u aks -H node bin/inventar.js "$@"
