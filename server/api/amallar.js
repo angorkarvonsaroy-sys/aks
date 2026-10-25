@@ -51,6 +51,9 @@ A.pinKir = async ([kod, pin]) => {
 
 A.pinTirik = async ([kodSes]) => ({ ok: !!(await S.foydalanuvchi(kodSes)) });
 
+// 🔑 Bitta parol bilan kirish (25.10.2026, PIN o'rniga): kirishOch, parolOrnat, parolTirik
+Object.assign(A, require('./parol'));
+
 // Birinchi kirish / PIN tiklash — yozuv_yondi:tg_kirish bo'lsa serverda (lib/tg_kirish.js: bot xabarlarini server o'qiydi, 07 T/U ni server yozadi);
 // aks holda avvalgidek Telegram bot eski tizimda — ko'prik orqali
 for (const fn of ['tgUlanishBoshla', 'tgUlanishTekshir', 'pinKodYubor']) {

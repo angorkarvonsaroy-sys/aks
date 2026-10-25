@@ -28,7 +28,13 @@ fastify.get('/', async (req, reply) => {
   reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');   // 25.10: brauzer sahifaning eski nusxasini saqlab qolmasin (iPhone'da «Kirish taqiqlangan» eski nusxasi chiqaverardi)
   if (!kod) return ui.KIRISH;                       // o'rnatilgan ilova ikonasi: saqlangan kod bilan qayta ochiladi
   const user = await S.xodimKod(kod);
-  if (!user) return ui.TAQIQ;
+  // 25.10: parol tanlab topishning oldini olish — bitta IP dan 15 daqiqada 20 ta noto'g'ri urinish
+  const ip = String(req.ip || '').slice(0, 45);
+  if (!user) {
+    try { const n = await redis.incr('kirx:' + ip); if (n === 1) await redis.expire('kirx:' + ip, 900); if (n > 20) return ui.KOP; } catch (e) { }
+    return ui.TAQIQ;
+  }
+  try { await redis.del('kirx:' + ip); } catch (e) { }
   // 25.10: kod qo'lda terilganda bosh harf/bo'sh joy bilan kelishi mumkin (api/sessiya.js xodimKod) —
   // sahifa va telefon xotirasiga JADVALDAGI haqiqiy kod tushsin, aks holda keyingi so'rovlar mos kelmaydi.
   if (user.kod && user.kod !== kod) {

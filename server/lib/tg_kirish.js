@@ -192,10 +192,25 @@ async function kodBand(k) {
 }
 async function kodYangi() { for (let i = 0; i < 20; i++) { const k = kodYasa(14); if (!(await kodBand(k))) return k; } throw new S.Xato('Yangi kod yasalmadi — qayta urinib ko\'ring.'); }
 
+// Jadvalga yozilgan yangi parol ko'zguga yetib kelishini kutadi (aks holda xodim darhol kira olmaydi).
+async function kodKut(kod, sek) {
+  const t0 = Date.now(), chek = (sek || 25) * 1000;
+  for (;;) {
+    const x = await S.xodimKod(kod); if (x) return x;
+    if (Date.now() - t0 > chek) return null;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+// Parol almashtirilganda xodimning o'ziga ogohlantirish (u qilmagan bo'lsa — darhol bilsin)
+async function parolXabar(x) {
+  const tg = await tgOl(x); if (!tg) return;
+  try { await TG.chat(tg, '🔑 <b>AKS TIZIM</b>: kirish parolingiz o\'zgartirildi.\nAgar buni siz qilmagan bo\'lsangiz — darhol direktorga ayting.'); } catch (e) { }
+}
+
 async function kodYubor(ctx, m, chat) {
   const u = await TT.tgXodim(m.from && m.from.id);
   if (!u) {
-    await yubor(ctx, chat, '🔑 Yangi kirish kodi olish uchun avval raqamingizni tasdiqlang: pastdagi <b>«📱 Raqamni yuborish»</b> tugmasini bosing, keyin <b>/kod</b> deb yozing.',
+    await yubor(ctx, chat, '🔑 Yangi parol olish uchun avval raqamingizni tasdiqlang: pastdagi <b>«📱 Raqamni yuborish»</b> tugmasini bosing, keyin <b>/kod</b> deb yozing.',
       { keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]], one_time_keyboard: true, resize_keyboard: true });
     return { tur: '/kod', natija: 'raqam so\'raldi' };
   }
@@ -207,9 +222,11 @@ async function kodYubor(ctx, m, chat) {
   await redis.set('kod_s:' + x.kod, '1', 'EX', 120);
   try { await TT.yozuv(ctx, T07 + ' L' + x.qator + ' (' + x.fish + ') ← yangi kirish kodi', () => xodim07Yoz(x, PIN_L, yangi)); }
   catch (e) { await redis.del('kod_s:' + x.kod); await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message)); return { tur: '/kod', kim: x.fish, natija: '⚠ ' + e.message }; }
-  await yubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, yangi kirish kodingiz:\n\n<code>' + yangi + '</code>\n\n'
-    + '👉 Tayyor havola — bosing va kiraverasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
-    + '⚠️ Eski kodingiz endi ishlamaydi. Kodni hech kimga bermang — direktor ham, xodimlar ham so\'ramaydi.');
+  await kodKut(yangi, 30);
+  await yubor(ctx, chat, '🔑 <b>' + TT.esc(x.ism) + '</b>, vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Shu havolani bosing — darhol kirasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + '✍️ Kirgach, tepadagi <b>«🔑 Parol»</b> tugmasidan o\'zingiz eslab qoladigan parol qo\'ying — keyin doimo shu parol bilan kiraverasiz.\n\n'
+    + '⚠️ Eski parolingiz endi ishlamaydi. Parolni hech kimga bermang — direktor ham, xodimlar ham so\'ramaydi.');
   await direktorga(ctx, '🔑 <b>' + TT.esc(x.fish) + '</b> botdan yangi kirish kodi oldi — eski kodi bekor qilindi.');
   return { tur: '/kod', kim: x.fish, natija: 'yangi kod yuborildi' };
 }
@@ -236,10 +253,12 @@ async function kodBirinchi(ctx, m, chat, y, ol) {
     () => xodim07QatorYoz(y.qator, y.fish, [{ ustun: PIN_L, qiymat: yangi }, { ustun: PIN_U, qiymat: chat }])); }
   catch (e) { await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message) + '\nDirektorga ayting.', ol); return { tur: 'kontakt', kim: y.fish, natija: '⚠ ' + e.message }; }
   await redis.set('tg_ulandi:' + yangi, chat, 'EX', 1800).catch(() => {});
+  await kodKut(yangi, 30);
   await yubor(ctx, chat, '✅ Xush kelibsiz, <b>' + TT.esc(ism) + '</b>! Raqamingiz tasdiqlandi.\n\n'
-    + '🔑 Kirish kodingiz:\n\n<code>' + yangi + '</code>\n\n'
-    + '👉 Tizimga kirish — shu havolani bosing:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
-    + 'Birinchi kirishda o\'zingizga 6 xonali PIN o\'rnatasiz. Kodni hech kimga bermang.', ol);
+    + '🔑 Vaqtinchalik parolingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Shu havolani bosing — darhol kirasiz:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + '✍️ Kirgach, tepadagi <b>«🔑 Parol»</b> tugmasidan o\'zingiz eslab qoladigan parol qo\'ying — keyin doimo shu parol bilan kiraverasiz.\n\n'
+    + 'Parolni hech kimga bermang.', ol);
   await direktorga(ctx, '🆕 <b>' + TT.esc(y.fish) + '</b> tizimga ulandi — birinchi kirish kodi berildi (07_Xodimlar L' + y.qator + ').');
   return { tur: 'kontakt', kim: y.fish, natija: 'birinchi kod berildi' };
 }
@@ -364,4 +383,4 @@ async function tqTugma(ctx, cb, d) {
 async function jurnal(y) { try { await redis.lpush('tg_kirish_jurnal', JSON.stringify(Object.assign({ vaqt: TT.hozirDmyHm() }, y))); await redis.ltrim('tg_kirish_jurnal', 0, 99); } catch (e) { } }
 async function jurnalOqi(n = 20) { try { return (await redis.lrange('tg_kirish_jurnal', 0, n - 1)).map(x => JSON.parse(x)); } catch (e) { return []; } }
 
-module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, kodYubor, kodBirinchi, kodYasa, PIN_TG_BOT };
+module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, kodYubor, kodBirinchi, kodYasa, kodKut, parolXabar, PIN_TG_BOT };

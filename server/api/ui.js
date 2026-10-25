@@ -80,10 +80,10 @@ a.u{color:#C9D8D1;font-size:13px;text-decoration:underline}
 <div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div>
 <div id="x" class="m">Yuklanmoqda…</div>
 <div id="f" style="display:none">
-<div class="m">Shaxsiy kirish kodingizni kiriting</div><br>
-<input id="kod" type="text" inputmode="text" placeholder="Kirish kodi" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br>
+<div class="m">Parolingizni kiriting</div><br>
+<input id="kod" type="text" inputmode="text" placeholder="Parol" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br>
 <button id="kir">Kirish</button><br><br>
-<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Kodimni unutdim</a>
+<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Parolimni unutdim</a>
 </div></div>
 <div class="a">Tizim muallifi va yaratuvchisi: <b>${MUALLIF}</b></div>
 <script>
@@ -105,7 +105,9 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catc
 }
 const KIRISH = kirishSahifa('');
 // kod topilmadi: boshi berk sahifa emas — o'sha kirish oynasi, qizil izoh bilan
-const TAQIQ = kirishSahifa('Bu kirish kodi tizimda topilmadi. Kodni qaytadan kiriting yoki «Kodimni unutdim» ni bosing.');
+const TAQIQ = kirishSahifa('Parol to\'g\'ri kelmadi. Qaytadan kiriting yoki «Parolimni unutdim» ni bosing.');
+// juda ko'p noto'g'ri urinish (api/index.js, IP bo'yicha)
+const KOP = kirishSahifa('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qayta urinib ko\'ring.');
 
 // doGet (Kod.gs) ning serverdagi o'rni
 function sahifa(user, kod, bilet) {
@@ -131,4 +133,4 @@ function sahifa(user, kod, bilet) {
 const YOQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body style="font-family:Arial;padding:40px;text-align:center">' +
   '<h2>AKS TIZIM server ishlayapti</h2><p>Ilova fayli (Index.html) hali serverga yuklanmagan.</p></body></html>';
 
-module.exports = { sahifa, TAQIQ, YOQ, KIRISH, indexBor: () => !!indexMatn() };
+module.exports = { sahifa, TAQIQ, KOP, YOQ, KIRISH, indexBor: () => !!indexMatn() };
