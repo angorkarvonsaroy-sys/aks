@@ -76,12 +76,15 @@ img{width:96px;height:96px;border-radius:22px}.n{font-size:22px;font-weight:bold
 input{padding:13px;border-radius:10px;border:0;font-size:17px;width:280px;max-width:88vw;letter-spacing:.06em}
 button{padding:13px 26px;border-radius:10px;border:0;background:#D4AF5A;color:#0B3D2E;font-weight:bold;font-size:17px}
 a.u{color:#C9D8D1;font-size:13px;text-decoration:underline}
+label.kor{display:inline-block;margin:10px 0 14px;color:#C9D8D1;font-size:13px;cursor:pointer;user-select:none}
+label.kor input{vertical-align:-2px;margin-right:6px;width:16px;height:16px}
 .a{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:12px;color:#9FB8AD}</style></head><body>
 <div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div>
 <div id="x" class="m">Yuklanmoqda…</div>
 <div id="f" style="display:none">
 <div class="m">Parolingizni kiriting</div><br>
-<input id="kod" type="text" inputmode="text" placeholder="Parol" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br>
+<input id="kod" type="password" inputmode="text" placeholder="Parol" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br>
+<label class="kor"><input type="checkbox" id="kor" onchange="korQoy()"> Parolni ko'rsatish</label><br>
 <button id="kir">Kirish</button><br><br>
 <a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Parolimni unutdim</a>
 </div></div>
@@ -96,6 +99,7 @@ else {
   if(XATO){ xd.className='xa'; xd.textContent=XATO; } else { xd.style.display='none'; }
   document.getElementById('f').style.display='block';
   var kir=function(){ var v=document.getElementById('kod').value.replace(/\s+/g,''); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };
+  window.korQoy=function(){ document.getElementById('kod').type=document.getElementById('kor').checked?'text':'password'; };
   document.getElementById('kir').onclick=kir;
   document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); });
   try{ document.getElementById('kod').focus(); }catch(e){}
