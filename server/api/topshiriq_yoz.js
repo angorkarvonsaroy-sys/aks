@@ -191,5 +191,23 @@ async function topSkanTopilmadi(args) {
   return { ok: true, kimga: w.k.fish };
 }
 
-module.exports = { topBer, topSkanTopilmadi };
+// ------------------------------------------------------------------ topBekorQil(kod, id) — direktor topshiriqni bekor qiladi
+// Topshiriq.gs v2.2 topBekorQil bilan bir xil: faqat direktor, «qayta|» va «devon|» topshiriqlari bu yerdan bekor qilinmaydi,
+// 10_Topshiriqlar N:R (Holati, Yopildi, Yopdi, Dalil, Kechikdi) — topYop orqali.
+async function topBekorQil(args) {
+  const [kodSes, id] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await serverda(u.kod))) return eskiTizim('topBekorQil', u, [id]);
+  const R = await topRowsYangi(TOP_V);
+  const x = R.L.find(t => s(t.id) === s(id));
+  if (!x) throw new S.Xato('Topshiriq topilmadi.');
+  if (/^qayta\|/.test(s(x.kalit))) throw new S.Xato('Qayta tuzish topshirig\'ini «🔁 Ochish» oynasidagi «✕ Loyihani bekor qilish» bilan yoping — band raqam ham bo\'shaydi.');
+  if (/^devon\|/.test(s(x.kalit))) throw new S.Xato('Kirim xat topshirig\'i 📮 Devonxonada «Rezolyutsiyani qaytarib olish» bilan bekor qilinadi.');
+  try { await topYop(TOP_V, x, 'Bekor', u.fish, 'direktor bekor qildi'); }
+  catch (e) { if (e.yozilmadi) return eskiTizim('topBekorQil', u, [id]); throw e; }
+  await kut(tetik.varaqlarYangila([TOP_V]).catch(e => console.error('ko\'zgu (topshiriq):', e.message)), 15000);
+  return { ok: true };
+}
+
+module.exports = { topBer, topSkanTopilmadi, topBekorQil };
 module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, koprik15, serverda, qulfBilan, TOP_V };

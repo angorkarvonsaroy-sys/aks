@@ -33,7 +33,8 @@ function qoidaFonda(kod) {
 }
 async function topQoidaCfg(kod) {
   let z = null; try { const s = await redis.get('top_qoida'); if (s) z = JSON.parse(s); } catch (e) { }
-  if (z && z.p) { if (Date.now() - (z.t || 0) > QOIDA_ESKI_MS) qoidaFonda(kod); return cfgDan(z.p); }
+  // srv:1 — qoidalar serverda saqlangan (asosiy manba), eski tizimdan qayta olinmaydi
+  if (z && z.p) { if (!z.srv && Date.now() - (z.t || 0) > QOIDA_ESKI_MS) qoidaFonda(kod); return cfgDan(z.p); }
   let p = null; try { p = await qoidaKoprikdan(kod); } catch (e) { console.error('top_qoida (ko\'prik):', e.message); }
   return cfgDan(p || {});
 }
@@ -86,13 +87,15 @@ async function topRoyxat([kodSes]) {
     qoidalar: TOP_QOIDALAR.map(q => ({ k: q[0], nom: q[1], kimga: q[3], on: cfg[q[0]].on, kun: cfg[q[0]].kun })),
     son: { ochiq: R.filter(x => x.holati === 'Jarayonda').length, kechikkan: R.filter(x => x.kechikkan).length, tekshiruv: R.filter(x => x.holati === 'Tekshiruvda').length, bugun: R.filter(x => x.holati === 'Bajarildi' && x.yopildi.slice(0, 10) === bugun).length } };
 }
-// qoidalarni saqlash — eski tizimga (Script Properties), keyin serverdagi nusxa ham shu zahoti yangilanadi
+// qoidalarni saqlash — 26.10.2026 dan SERVERDA (Redis top_qoida, srv:1 — asosiy manba).
+// Tekshiruv va chegaralar Topshiriq.gs v2.2 topQoidaYoz bilan bir xil (on: c.on !== false, kun 0–60).
+// Eski tizimdagi Script Properties nusxasi ham yangilanadi — fonda, zaxira yo'l uchun (javob kutilmaydi).
 async function topQoidaYoz([kodSes, cfg]) {
   const u = await S.ruxsat(kodSes, 'admin');
-  const r = await koprik.chaqir('topQoidaYoz', u.kod, [cfg]);
   const o = {}; TOP_QOIDALAR.forEach(q => { const c = (cfg || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: Math.max(0, Math.min(60, Number(c.kun) || 0)) }; });
-  await redis.set('top_qoida', JSON.stringify({ t: Date.now(), p: o })).catch(() => {});
-  return r;
+  await redis.set('top_qoida', JSON.stringify({ t: Date.now(), p: o, srv: 1 }));
+  if (koprik.bor()) koprik.chaqir('topQoidaYoz', u.kod, [cfg]).catch(e => console.error('topQoidaYoz (ko\'prik nusxasi):', e.message));
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ 🔎 Tekshiruvdagi isbotlar (tasdiqRoyxat, tasdiqFayl) — o'qish; tasdiqQil — eski tizimda
