@@ -75,7 +75,7 @@ button{padding:12px 22px;border-radius:10px;border:0;background:#D4AF5A;color:#0
 var k=''; try{ k=localStorage.getItem('aks_k')||''; }catch(e){}
 if(new URLSearchParams(location.search).has('chiqish')){ try{ localStorage.removeItem('aks_k'); }catch(e){} k=''; }
 if(k){ location.replace('/?k='+encodeURIComponent(k)); }
-else { document.getElementById('x').innerHTML='Shaxsiy kirish kodingizni kiriting<br><br><input id="kod" type="password" placeholder="Kirish kodi" autocomplete="off"><br><br><button id="kir">Kirish</button>';
+else { document.getElementById('x').innerHTML='Shaxsiy kirish kodingizni kiriting<br><br><input id="kod" type="text" placeholder="Kirish kodi" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br><br><button id="kir">Kirish</button>';
   var kir=function(){ var v=document.getElementById('kod').value.trim(); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };   // 25.10: kod tekshirilmasdan saqlanmaydi — ilova sahifasi ochilgach saqlanadi
   document.getElementById('kir').onclick=kir; document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); }); }
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
