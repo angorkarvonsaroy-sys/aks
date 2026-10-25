@@ -4,7 +4,8 @@
 // Telegram (direktorga, tgYubor_) — eski tizim orqali, kutilmaydi (Koprik.gs v1.5 → koprikTgYubor).
 // Yozish faqat «aks-yozuv-sinov taminot» nusxa varaqda tekshirgach yoqiladi (Redis: yozuv_yondi:taminot) va Koprik v1.5 bo'lsa.
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
-// taminotFirmaQosh, taminotTolov, taminotTilxat, taminotDalolatnoma — hali eski tizimda (Drive fayllari).
+//   taminotFirmaQosh — yangi yuridik ta'minotchi → 09c_Taminotchilar_yuridik oxiriga (Holati «Faol»)
+// taminotTilxat, taminotDalolatnoma — hali eski tizimda (Drive fayllari).
 'use strict';
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
@@ -207,5 +208,47 @@ async function taminotTolov(args) {
   return { ok: true, id: w.id, summa, qoldiq: w.qoldiq, nom: w.nom };
 }
 
-module.exports = { taminotKiritish, taminotTasdiq, taminotTolov };
+// ------------------------------------------------------------------ 🏢 taminotFirmaQosh(kod, d) — yangi yuridik ta'minotchi (09c)
+// Taminot.gs v26.11 taminotFirmaQosh bilan bir xil: «taminot» huquqi, nom ≥ 3 belgi, nom takrorlanmasin («Bekor» lar hisobga olinmaydi),
+// ID — ustundagi eng katta raqamdan keyingisi (bekor qilinganlar ham hisobda), qator oxiriga, Holati «Faol».
+// Varaq bo'lmasa — eski tizim o'zi yasaydi (server varaq yaratmaydi).
+const TAM_FV = '09c_Taminotchilar_yuridik';
+const TAM_S3 = ['ID', 'Nomi', 'Direktor', 'STIR', 'Hisob_raqam', 'Bank', 'MFO', 'Manzil', 'Telefon', 'Holati'];
+const toza = x => s(x).replace(/\s+/g, ' ').trim();
+
+async function firmaXom() {   // tamFirmalar_ manbai — Google'dan YANGI (A2:J)
+  const X = await G.oraliqOqi(env.aksBazaId, TAM_FV, 'A2:J', env.googleKey);
+  let m = -1; X.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
+  const R = X.slice(0, m + 1).map((r0, i) => { const r = []; for (let k = 0; k < TAM_S3.length; k++) r.push(s(r0[k])); return { qator: i + 2, r }; }).filter(z => z.r[0]);
+  return { R, oxirgi: m + 2 };   // oxirgi to'ldirilgan qator (ustunA_oxiri_); bo'sh bo'lsa 1
+}
+function firmaBor(R, nomi) { const n = nomi.toLowerCase(); return R.some(z => z.r[9] !== 'Bekor' && z.r[1].toLowerCase() === n); }
+
+async function taminotFirmaQosh(args) {
+  const [kodSes, d0] = args;
+  const u = await S.ruxsat(kodSes, 'taminot');
+  const d = d0 || {};
+  const nomi = toza(d.nomi);
+  if (nomi.length < 3) throw new S.Xato('Firma nomini yozing.');
+  if (!(await serverda(u.kod))) return eskiTizim('taminotFirmaQosh', u, [d0]);
+  try { const z = await firmaXom(); if (firmaBor(z.R, nomi)) throw new S.Xato('Bu firma ro\'yxatda bor: ' + nomi); }
+  catch (e) { if (e instanceof S.Xato) throw e; return eskiTizim('taminotFirmaQosh', u, [d0]); }   // varaq yo'q yoki o'qib bo'lmadi
+  const r = await qulfBilan(async () => {
+    const { R, oxirgi } = await firmaXom();                       // qulf ostida yana bir marta — shu orada qo'shilgan bo'lsa
+    if (firmaBor(R, nomi)) throw new S.Xato('Bu firma ro\'yxatda bor: ' + nomi);
+    const id = R.reduce((m, z) => Math.max(m, Number(z.r[0]) || 0), 0) + 1;
+    const qator = [id, nomi, toza(d.direktor), toza(d.stir), toza(d.hr), toza(d.bank), toza(d.mfo), toza(d.manzil), toza(d.tel), 'Faol'];
+    let q;
+    try { q = await G.qatorQoshR(env.aksBazaId, TAM_FV, oxirgi + 1, qator, env.googleKey); }
+    catch (e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; throw e; }
+    if (q !== oxirgi + 1) { console.error(new Date().toISOString(), TAM_FV, ': kutilgan qator ' + (oxirgi + 1) + ', yozildi ' + q);
+      await ogoh({ varaq: TAM_FV, qator: q, xato: 'kutilgan qator ' + (oxirgi + 1) + ' — shu orada boshqa firma qo\'shilgan, ID ' + id + ' takrorlanmaganini tekshiring' }); }
+    return { ok: true, id, nomi };
+  }).catch(e => { if (e.yozilmadi) return null; throw e; });
+  if (!r) return eskiTizim('taminotFirmaQosh', u, [d0]);          // robotda yozish huquqi yo'q — hech narsa yozilmagan
+  await kut(tetik.varaqlarYangila([TAM_FV]).catch(e => console.error('ko\'zgu (09c):', e.message)), 15000);
+  return r;
+}
+
+module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh };
 module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15 };
