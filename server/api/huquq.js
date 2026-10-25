@@ -67,6 +67,7 @@ async function huquqlarRoyxat(xodimlar) {
 async function xodimlarOqi() {
   return (await V.qatorlar(T07)).filter(z => idN(z.x[US.id]) !== '').map(z => ({
     id: idN(z.r[US.id] || z.x[US.id]), fish: s(z.r[US.fish]).trim(), lavozim: s(z.r[US.lavozim]).trim(), holat: s(z.r[US.holat]).trim(),
+    toliq: s(z.r[2]).trim(), tel: s(z.r[5]).trim(),   // C to'liq F.I.Sh., F telefon — ilovadan tahrirlanadi (xodimTahrir)
     huquq: ajrat(s(z.r[US.huquq]).toLowerCase()),
   }));
 }
@@ -190,5 +191,50 @@ async function xodimQosh([kodSes, d0]) {
     jurnal: await jurnal() };
 }
 
-module.exports = { huqRoyxat, huqSaqla, xodimQosh };
+// ------------------------------------------------------------------ ✏️ XODIM MA'LUMOTLARI (direktor so'rovi 26.10.2026)
+// Sozlamalar → Huquqlar → xodim → «✏️ Ma'lumotlarini o'zgartirish»: C to'liq kirill F.I.Sh., D lavozim, F telefon.
+// F.I.Sh. (B) BU YERDAN O'ZGARMAYDI — u tizimda kalit sifatida ishlatiladi (topshiriqlar, jurnallar, qoidabuzarliklar unga bog'langan).
+// Telefon — Telegram ulanishi shu raqam bo'yicha tekshiriladi, shuning uchun uni to'g'rilash jadvalsiz bo'lishi kerak.
+async function xodimTahrir([kodSes, d0]) {
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!u.admin) throw new S.Xato('Bu bo\'lim faqat direktor uchun.');
+  const d = d0 || {}, id = idN(d.id);
+  const toliq = s(d.toliq).replace(/\s+/g, ' ').trim();
+  const lavozim = s(d.lavozim).replace(/\s+/g, ' ').trim();
+  const tel = telRaqam(d.tel);
+  if (!id) throw new S.Xato('Xodim tanlanmadi.');
+  if (!lavozim) throw new S.Xato('Lavozimini yozing.');
+  if (tel.length !== 9) throw new S.Xato('Telefon raqami 9 ta raqamdan iborat bo\'lsin (masalan 90 123 45 67).');
+  if (toliq.length > 120) throw new S.Xato('To\'liq F.I.Sh. juda uzun.');
+
+  let natija;
+  try {
+    natija = await qulfBilan('07', async () => {
+      const R = await G.oraliqOqi(env.aksBazaId, T07, 'A2:S', env.googleKey);   // Google'dan YANGI
+      const i = R.findIndex(r => idN(r[US.id]) === id);
+      if (i < 0) throw new S.Xato('Xodim jadvalda topilmadi (ID ' + id + ').');
+      const t2 = R.findIndex((r, j) => j !== i && idN(r[US.id]) !== '' && telRaqam(r[UQ.tel]) === tel);
+      if (t2 >= 0) throw new S.Xato('Bu telefon raqami boshqa xodimda: ' + s(R[t2][US.fish]).trim());
+      const r = R[i], fish = s(r[US.fish]).trim(), qator = i + 2;
+      const eski = { toliq: s(r[UQ.toliq]).trim(), lavozim: s(r[US.lavozim]).trim(), tel: telRaqam(r[UQ.tel]) };
+      const yoz = [];
+      if (eski.toliq !== toliq) yoz.push({ varaq: T07, qator, ustun: 3, qiymat: toliq });
+      if (eski.lavozim !== lavozim) yoz.push({ varaq: T07, qator, ustun: 4, qiymat: lavozim });
+      if (eski.tel !== tel) yoz.push({ varaq: T07, qator, ustun: 6, qiymat: tel });
+      if (!yoz.length) throw new S.Xato('O\'zgarish yo\'q.');
+      await G.xomYoz(env.aksBazaId, yoz, env.googleKey);   // RAW — telefon raqam bo'lib ketmasin
+      return { fish, qator, eski, ozgardi: yoz.map(z => z.ustun === 3 ? 'to\'liq F.I.Sh.' : z.ustun === 4 ? 'lavozim' : 'telefon') };
+    });
+  } catch (e) {
+    if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — hech narsa o\'zgarmadi.');
+    throw e;
+  }
+  const yoz = { vaqt: vaqt(), kim: u.fish, xodim: natija.fish, id, qoshildi: natija.ozgardi, olindi: [], tahrir: true };
+  try { await redis.lpush('huquq_jurnal', JSON.stringify(yoz)); await redis.ltrim('huquq_jurnal', 0, 499); } catch (e) { console.error('huquq_jurnal:', e.message); }
+  console.log('✏️ xodim tahriri:', JSON.stringify(yoz));
+  await Promise.race([tetik.varaqlarYangila([T07]).catch(e => console.error('ko\'zgu (07):', e.message)), new Promise(r => setTimeout(r, 15000))]);
+  return { ok: true, fish: natija.fish, natija: natija.fish + ': ' + natija.ozgardi.join(', ') + ' yangilandi.', jurnal: await jurnal() };
+}
+
+module.exports = { huqRoyxat, huqSaqla, xodimQosh, xodimTahrir };
 module.exports._ichki = { jadval08d, huquqlarRoyxat, xodimlarOqi, BILAMAN, ajrat, idN };
