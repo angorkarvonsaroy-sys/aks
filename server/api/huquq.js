@@ -134,5 +134,61 @@ async function huqSaqla([kodSes, d0]) {
   return { ok: true, fish: natija.fish, huquq: natija.huquq, qoshildi: natija.qoshildi, olindi: natija.olindi, jurnal: await jurnal() };
 }
 
-module.exports = { huqRoyxat, huqSaqla };
+// ------------------------------------------------------------------ ➕ YANGI XODIM (direktor so'rovi 26.10.2026)
+// Avval direktor 07_Xodimlar ga qo'lda qator yozardi. Endi: Sozlamalar → Huquqlar → «➕ Yangi xodim».
+// Server qator qo'shadi: A ID (keyingi raqam), B F.I.Sh., C to'liq kirill F.I.Sh., D lavozim, F telefon, K «Ishlayapti», S huquqlar.
+// L (kirish kodi) ATAYLAB BO'SH qoldiriladi — xodim botga raqamini yuborganda bot o'zi yasab beradi (lib/tg_kirish.js kodBirinchi).
+// «admin» huquqi bu yerdan ham berilmaydi (faqat jadvalda). Takror F.I.Sh. yoki takror telefon — qabul qilinmaydi.
+const UQ = { toliq: 2, tel: 5 };   // C to'liq F.I.Sh., F telefon
+const telRaqam = t => { let d = s(t).replace(/\D/g, ''); if (d.length === 12 && d.indexOf('998') === 0) d = d.slice(3); return d; };
+const nomTeng = (a2, b2) => s(a2).toLowerCase().replace(/[`'’ʻʼ]/g, '').replace(/\s+/g, ' ').trim() === s(b2).toLowerCase().replace(/[`'’ʻʼ]/g, '').replace(/\s+/g, ' ').trim();
+
+async function xodimQosh([kodSes, d0]) {
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!u.admin) throw new S.Xato('Bu bo\'lim faqat direktor uchun.');
+  const d = d0 || {};
+  const fish = s(d.fish).replace(/\s+/g, ' ').trim();
+  const toliq = s(d.toliq).replace(/\s+/g, ' ').trim();
+  const lavozim = s(d.lavozim).replace(/\s+/g, ' ').trim();
+  const tel = telRaqam(d.tel);
+  const huquq = [...new Set(ajrat(s(d.huquq).toLowerCase()))];
+  if (fish.split(' ').filter(Boolean).length < 2) throw new S.Xato('F.I.Sh. ni to\'liq yozing (kamida ism va familiya).');
+  if (fish.length < 5 || fish.length > 80) throw new S.Xato('F.I.Sh. 5–80 belgi bo\'lsin.');
+  if (!lavozim) throw new S.Xato('Lavozimini yozing.');
+  if (tel.length !== 9) throw new S.Xato('Telefon raqami 9 ta raqamdan iborat bo\'lsin (masalan 90 123 45 67).');
+  if (huquq.includes('admin')) throw new S.Xato('«admin» huquqi bu yerdan berilmaydi — faqat jadvalda.');
+  if (huquq.some(k => !KALIT.test(k))) throw new S.Xato('Noto\'g\'ri huquq nomi.');
+  if (!huquq.length) throw new S.Xato('Kamida bitta huquq belgilang — aks holda xodim tizimga kira olmaydi.');
+  const ruxsatli = new Set((await huquqlarRoyxat(await xodimlarOqi())).map(h => h.k));
+  const begona = huquq.filter(k => !ruxsatli.has(k));
+  if (begona.length) throw new S.Xato('Noma\'lum huquq: ' + begona.join(', '));
+
+  let natija;
+  try {
+    natija = await qulfBilan('07', async () => {
+      const R = await G.oraliqOqi(env.aksBazaId, T07, 'A2:S', env.googleKey);   // Google'dan YANGI
+      let m = -1; R.forEach((r, i) => { if (idN(r[US.id]) !== '') m = i; });
+      const Y = R.slice(0, m + 1);
+      if (Y.some(r => nomTeng(r[US.fish], fish))) throw new S.Xato('Bu F.I.Sh. ro\'yxatda bor: ' + fish);
+      const t2 = Y.find(r => telRaqam(r[UQ.tel]) === tel);
+      if (t2) throw new S.Xato('Bu telefon raqami boshqa xodimda: ' + s(t2[US.fish]).trim());
+      const id = Y.reduce((a3, r) => Math.max(a3, Number(idN(r[US.id])) || 0), 0) + 1;
+      const qator = [String(id), fish, toliq, lavozim, '', tel, '', '', '', '', 'Ishlayapti', '', '', '', '', '', '', '', huquq.join(', ')];
+      const q = await G.qatorQoshR(env.aksBazaId, T07, m + 3, qator, env.googleKey);
+      return { id, qator: q };
+    });
+  } catch (e) {
+    if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — xodim qo\'shilmadi.');
+    throw e;
+  }
+  const yoz = { vaqt: vaqt(), kim: u.fish, xodim: fish, id: String(natija.id), qoshildi: huquq, olindi: [], yangi: true };
+  try { await redis.lpush('huquq_jurnal', JSON.stringify(yoz)); await redis.ltrim('huquq_jurnal', 0, 499); } catch (e) { console.error('huquq_jurnal:', e.message); }
+  console.log('➕ yangi xodim:', JSON.stringify(yoz));
+  await Promise.race([tetik.varaqlarYangila([T07]).catch(e => console.error('ko\'zgu (07):', e.message)), new Promise(r => setTimeout(r, 15000))]);
+  return { ok: true, id: String(natija.id), fish, lavozim, tel,
+    natija: fish + ' ro\'yxatga qo\'shildi (ID ' + natija.id + '). Endi u @aks_karvon_bot ga kirib «📱 Raqamni yuborish» tugmasini bossin — bot parolini o\'zi beradi.',
+    jurnal: await jurnal() };
+}
+
+module.exports = { huqRoyxat, huqSaqla, xodimQosh };
 module.exports._ichki = { jadval08d, huquqlarRoyxat, xodimlarOqi, BILAMAN, ajrat, idN };
