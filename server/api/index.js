@@ -25,6 +25,7 @@ function jurnal(fn, qayerda, ms, ok, xato) {
 fastify.get('/', async (req, reply) => {
   const kod = String(req.query.k || '').trim();
   reply.type('text/html; charset=utf-8');
+  reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');   // 25.10: brauzer sahifaning eski nusxasini saqlab qolmasin (iPhone'da «Kirish taqiqlangan» eski nusxasi chiqaverardi)
   if (!kod) return ui.KIRISH;                       // o'rnatilgan ilova ikonasi: saqlangan kod bilan qayta ochiladi
   const user = await S.xodimKod(kod);
   if (!user) return ui.TAQIQ;
