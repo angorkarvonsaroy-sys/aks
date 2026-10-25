@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — yozuv bayroqlari: aks-bayroq | yoq <nom> | ochir <nom>
+cd /opt/aks/app && exec sudo -u aks -H node bin/bayroq.js "$@"

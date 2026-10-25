@@ -426,5 +426,115 @@ async function qadamBekorKirit(args) {
   const m = await require('./qadam').qadamMijoz([kodSes, dd.no]); m.saqlandi = r; return m;
 }
 
-module.exports = { bekorKirit, bekorQaytaYasa, bekorBuyruqSkan, bekorXabarnomaSkan, qadamBekorKirit };
+// ------------------------------------------------------------------ DIREKTOR QARORI: tasdiq / rad etish / qaytarish (Bekor.gs v25.8.5)
+// Bu ikki amal SHARTNOMA HOLATINI va DO'KON EGASINI o'zgartiradi, shuning uchun ALOHIDA bayroq: yozuv_yondi:bekor_tasdiq.
+// Bayroq yoqilmaguncha avvalgidek eski tizimga tushadi (aks-yozuv-sinov bilan sinab ko'rilgach yoqiladi).
+// 01_Dokonlar kataklari Google'dan YANGI o'qiladi: FORMULA bo'lsa — tegilmaydi va ogohlantiriladi (eski kod kabi);
+// qator mos kelmasa (qator surilgan bo'lsa) — hech narsa yozilmaydi. Hamma yozuv bitta so'rovda ketadi.
+const harfU = n => { let r = ''; while (n > 0) { const m = (n - 1) % 26; r = String.fromCharCode(65 + m) + r; n = Math.floor((n - 1) / 26); } return r; };
+async function tasdiqServerda() { try { return (await redis.get('yozuv_yondi:bekor_tasdiq')) === '1'; } catch (e) { return false; } }
+async function dokonYangi(qator) {
+  const a1 = 'A' + qator + ':Z' + qator;
+  const [V0, F0] = await Promise.all([
+    G.oraliqOqi(env.aksBazaId, '01_Dokonlar', a1, env.googleKey),
+    G.oraliqOqi(env.aksBazaId, '01_Dokonlar', a1, env.googleKey, 'FORMULA')]);
+  return { V: xom(V0[0] || [], 26), F: xom(F0[0] || [], 26) };
+}
+const formulami = v => s(v).charAt(0) === '=';
+const BEKOR_VARAQLAR = [BEK, '01_Dokonlar', '03_Sotuv_shartnomalar', '04_Ijara_shartnomalar'];
+
+async function bekorTasdiq(args) {
+  const [kodSes, id, ha0, izoh0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  const ha = !!ha0, izoh = s(izoh0).trim();
+  if (!(await tasdiqServerda())) return eskiTizim('bekorTasdiq', u, [id, ha0, izoh0]);
+  const r = await QY.qulf('bekor', async () => {
+    const z = (await bekorJurnalYangi()).find(q => s(q.id) === s(id));
+    if (!z) throw new S.Xato('So\'rov topilmadi (ID ' + id + ').');
+    if (BEKOR_YOPIQ.indexOf(z.holati) >= 0) throw new S.Xato('So\'rov allaqachon yopilgan: ' + z.holati + '.');
+    const vaqt = hozir();
+    if (!ha) {
+      if (izoh.length < 5) throw new S.Xato('Rad etish sababini yozing (kamida 5 belgi).');
+      await G.yoz(env.aksBazaId, [
+        { varaq: BEK, katak: 'G' + z.qator, qiymat: [['Rad etildi']] },
+        { varaq: BEK, katak: 'AA' + z.qator + ':AB' + z.qator, qiymat: [[u.fish, vaqt]] },
+        { varaq: BEK, katak: 'AD' + z.qator, qiymat: [[(z.izoh ? z.izoh + ' | ' : '') + 'Rad etildi: ' + izoh + ' (' + u.fish + ', ' + vaqt + ')']] }], env.googleKey);
+      return { ok: true, natija: z.no + ' bo\'yicha so\'rov rad etildi.' };
+    }
+    const yoq = [];
+    if (!z.bSkan) yoq.push('imzolangan buyruq skani');
+    if (!z.xSkan) yoq.push('yetkazilgan xabarnoma skani');
+    if (yoq.length) throw new S.Xato('Tasdiqlash uchun yetishmayapti: ' + yoq.join(', ') + '. Xodim ikkala skanini yuklagach tugma yashil bo\'ladi.');
+    const x = await bekorShartnoma(z.no);
+    if (!x) throw new S.Xato('Shartnoma topilmadi: ' + z.no);
+    const ogoh = [], D = [], eski = { dokon: x.dokon };
+    if (x.tur === 'sotuv') D.push({ varaq: '03_Sotuv_shartnomalar', katak: 'N' + x.qator, qiymat: [['Bekor qilindi']] });
+    else D.push({ varaq: '04_Ijara_shartnomalar', katak: 'C' + x.qator, qiymat: [['Bekor qilindi']] });
+    if (x.dk) {
+      const { V, F } = await dokonYangi(x.dk.qator);
+      if (s(V[0]) !== s(x.dokon)) throw new S.Xato('01_Dokonlar qatori mos kelmadi (' + x.dokon + ') — sahifani yangilang va qayta urinib ko\'ring.');
+      const sotuvNo = s(V[17]), egasi = s(V[18]), ijaraNo = s(V[21]), ijarachi = s(V[22]), holat = s(V[25]);
+      const yoz = (ustun, qiymat, nomi) => {
+        if (formulami(F[ustun - 1])) { ogoh.push('01_Dokonlar ' + nomi + ' ustunida FORMULA bor — qo\'lda tekshiring, tizim tegmadi.'); return; }
+        D.push({ varaq: '01_Dokonlar', katak: harfU(ustun) + x.dk.qator, qiymat: [[qiymat]] });
+      };
+      if (x.tur === 'sotuv') {
+        eski.sotuvNo = sotuvNo; eski.egasi = egasi; eski.holat = holat;
+        yoz(18, '', 'Sotuv_shartnoma_№'); yoz(19, 'SOTILMAGAN', 'Egasi'); yoz(26, ijaraNo ? 'Bo\'sh+ijara' : 'Bo\'sh', 'Holat');
+        if (ijaraNo) ogoh.push('Do\'konda faol ijara bor (' + ijaraNo + ', ' + ijarachi + ') — 04 ga tegilmadi, ijarani alohida ko\'rib chiqing.');
+      } else {
+        eski.ijaraNo = ijaraNo; eski.ijarachi = ijarachi; eski.holat = holat;
+        yoz(22, '', 'Ijara_№'); yoz(23, '', 'Ijarachi'); yoz(26, egasi !== 'SOTILMAGAN' ? 'Sotilgan' : 'Bo\'sh', 'Holat');
+      }
+    } else ogoh.push('Do\'kon 01_Dokonlar da topilmadi (' + x.dokon + ') — qo\'lda tekshiring.');
+    D.push({ varaq: BEK, katak: 'G' + z.qator, qiymat: [['Bekor qilindi']] });
+    D.push({ varaq: BEK, katak: 'AA' + z.qator + ':AB' + z.qator, qiymat: [[u.fish, vaqt]] });
+    D.push({ varaq: BEK, katak: 'AC' + z.qator, qiymat: [[JSON.stringify(eski)]] });
+    if (izoh) D.push({ varaq: BEK, katak: 'AD' + z.qator, qiymat: [[(z.izoh ? z.izoh + ' | ' : '') + 'Tasdiq izohi: ' + izoh]] });
+    await G.yoz(env.aksBazaId, D, env.googleKey);
+    return { ok: true, natija: z.no + ' bekor qilindi, do\'kon ' + x.dokon + ' bo\'shatildi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '') };
+  });
+  await kut(tetik.varaqlarYangila(BEKOR_VARAQLAR).catch(e => console.error('ko\'zgu (bekor tasdiq):', e.message)), 20000);
+  return r;
+}
+
+async function bekorQaytarish(args) {
+  const [kodSes, id, izoh0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!(await tasdiqServerda())) return eskiTizim('bekorQaytarish', u, [id, izoh0]);
+  const r = await QY.qulf('bekor', async () => {
+    const z = (await bekorJurnalYangi()).find(q => s(q.id) === s(id));
+    if (!z) throw new S.Xato('So\'rov topilmadi (ID ' + id + ').');
+    if (z.holati !== 'Bekor qilindi') throw new S.Xato('Qaytarish faqat «Bekor qilindi» holatidan mumkin (hozir: ' + z.holati + ').');
+    let eski = {}; try { eski = JSON.parse(z.eski || '{}'); } catch (e) { }
+    const x = await bekorShartnoma(z.no);
+    if (!x) throw new S.Xato('Shartnoma topilmadi: ' + z.no);
+    const ogoh = [], D = [];
+    if (x.dk) {
+      const { V, F } = await dokonYangi(x.dk.qator);
+      if (s(V[0]) !== s(x.dokon)) throw new S.Xato('01_Dokonlar qatori mos kelmadi (' + x.dokon + ') — sahifani yangilang va qayta urinib ko\'ring.');
+      const sotuvNo = s(V[17]), ijaraNo = s(V[21]);
+      if (x.tur === 'sotuv' && sotuvNo && sotuvNo !== z.no) throw new S.Xato('Do\'kon ' + x.dokon + ' bu orada boshqa shartnomaga sotilgan (' + sotuvNo + ') — qaytarib bo\'lmaydi.');
+      if (x.tur === 'ijara' && ijaraNo && ijaraNo !== z.no) throw new S.Xato('Do\'kon ' + x.dokon + ' bu orada boshqa ijaraga berilgan (' + ijaraNo + ') — qaytarib bo\'lmaydi.');
+      const yoz = (ustun, qiymat, nomi) => {
+        if (qiymat === undefined) return;
+        if (formulami(F[ustun - 1])) { ogoh.push('01_Dokonlar ' + nomi + ' ustunida FORMULA bor — qo\'lda tekshiring.'); return; }
+        D.push({ varaq: '01_Dokonlar', katak: harfU(ustun) + x.dk.qator, qiymat: [[qiymat]] });
+      };
+      if (x.tur === 'sotuv') { yoz(18, eski.sotuvNo, 'Sotuv_shartnoma_№'); yoz(19, eski.egasi, 'Egasi'); yoz(26, eski.holat, 'Holat'); }
+      else { yoz(22, eski.ijaraNo, 'Ijara_№'); yoz(23, eski.ijarachi, 'Ijarachi'); yoz(26, eski.holat, 'Holat'); }
+    }
+    if (x.tur === 'sotuv') D.push({ varaq: '03_Sotuv_shartnomalar', katak: 'N' + x.qator, qiymat: [['Aktiv']] });
+    else D.push({ varaq: '04_Ijara_shartnomalar', katak: 'C' + x.qator, qiymat: [['Aktiv']] });
+    const vaqt = hozir();
+    D.push({ varaq: BEK, katak: 'G' + z.qator, qiymat: [['Qaytarildi']] });
+    D.push({ varaq: BEK, katak: 'AD' + z.qator, qiymat: [[(z.izoh ? z.izoh + ' | ' : '') + 'Qaytarildi: ' + (s(izoh0).trim() || 'direktor qarori') + ' (' + u.fish + ', ' + vaqt + ')']] });
+    await G.yoz(env.aksBazaId, D, env.googleKey);
+    return { ok: true, natija: z.no + ' shartnomasi «Aktiv» holatiga qaytarildi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '') };
+  });
+  await kut(tetik.varaqlarYangila(BEKOR_VARAQLAR).catch(e => console.error('ko\'zgu (bekor qaytar):', e.message)), 20000);
+  return r;
+}
+
+module.exports = { bekorKirit, bekorQaytaYasa, bekorBuyruqSkan, bekorXabarnomaSkan, qadamBekorKirit, bekorTasdiq, bekorQaytarish };
 module.exports._ichki = { bekorShartnoma, bekorXatlar, bekorTekshir, bekorJurnalYangi, bekorKeyingi, hujjatYasa, qatorYoz, driveGa, koprik19, koprik110, boshla, saqla, koprikVerTozala: () => { kv = { ver: '', t: 0 }; } };
