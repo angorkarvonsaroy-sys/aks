@@ -18,6 +18,7 @@ const G = require('./google');
 const J = require('./jurnallar');
 const env = require('./env');
 const tetik = require('./kozgu_tetik');
+const V = require('./varaq');
 
 const s = v => String(v == null ? '' : v);
 const PIN_TG_BOT = 'aks_karvon_bot';
@@ -49,6 +50,23 @@ async function xodim07Yoz(x, ustun, qiymat) {
   Promise.race([tetik.varaqlarYangila([T07]), new Promise(r => setTimeout(r, 20000))]).catch(e => console.error('ko\'zgu (07):', e.message));
   return qt;
 }
+// 07_Xodimlar ga QATOR bo'yicha yozish — kirish kodi hali bo'sh xodim uchun (yuqoridagi xodim07Yoz L ustuniga tayanadi).
+// Qator ko'zgudan keladi, shuning uchun Google'dagi B (F.I.Sh.) bilan tekshiriladi; mos kelmasa — ism bo'yicha qidiriladi.
+async function xodim07QatorYoz(qator, fish, yozuvlar) {
+  let qt = qator;
+  const b = s(((await G.oraliqOqi(env.aksBazaId, T07, 'B' + qt, env.googleKey))[0] || [])[0]).trim();
+  if (b !== fish) {
+    const B = await G.ustunOqi(env.aksBazaId, T07, 'B', env.googleKey);
+    const i = B.findIndex((v, j) => j > 0 && s(v).trim() === fish);
+    if (i < 0) throw new S.Xato('Xodim jadvalda topilmadi.');
+    qt = i + 1;
+  }
+  try { await G.xomYoz(env.aksBazaId, yozuvlar.map(z => ({ varaq: T07, qator: qt, ustun: z.ustun, qiymat: s(z.qiymat) })), env.googleKey); }
+  catch (e) { if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — direktorga ayting.'); throw e; }
+  Promise.race([tetik.varaqlarYangila([T07]), new Promise(r => setTimeout(r, 20000))]).catch(e => console.error('ko\'zgu (07):', e.message));
+  return qt;
+}
+
 async function kirishJurnali(x, usul) {
   try { await q(`INSERT INTO kirishlar (kompaniya_id, xodim_id, fish, usul) VALUES (1, $1, $2, $3)`, [x.id, x.fish, usul]); } catch (e) { console.error('kirishlar:', e.message); }
   try { const KY = require('../api/kirish_yoz'); if (await KY.yoqilgan()) await KY.kirishYoz(x.fish, usul); else if (require('../api/koprik').bor()) { /* eski 07b — eski pinOrnat orqali yozilardi; endi faqat server (kirish07b yoqilgan bo'lsa) */ } }
@@ -115,6 +133,15 @@ async function pinKodTel(tel) {   // telefon → xodimning kirish kodi (faqat «
   const t = telNorm(tel); if (t.length !== 9) return '';
   const top = []; for (const z of await TT.xodimlar()) if (telNorm(z.tel) === t && z.kod && await S.xodimKod(z.kod)) top.push(z.kod);
   return top.length === 1 ? top[0] : '';
+}
+
+// telefon → 07_Xodimlar dagi qator (kirish kodi bo'lmasa ham). Bir xil raqam ikki xodimda bo'lsa — hech narsa qaytarmaydi.
+async function telXodim(tel) {
+  const t = telNorm(tel); if (t.length !== 9) return null;
+  const L = (await V.qatorlar(T07)).map(({ n, x: r }) => ({ qator: n, id: s(r[0]).trim(), fish: s(r[1]).trim(), holat: s(r[10]).trim(),
+    kod: s(r[11]).trim(), huquq: s(r[18]).trim(), tel: s(r[5]).replace(/\D/g, ''), tg: s(r[20]).trim() }))
+    .filter(z => z.fish && telNorm(z.tel) === t);
+  return L.length === 1 ? L[0] : null;
 }
 
 async function ishlov(z, ctx) {
@@ -187,6 +214,36 @@ async function kodYubor(ctx, m, chat) {
   return { tur: '/kod', kim: x.fish, natija: 'yangi kod yuborildi' };
 }
 
+// ---------------------------------------------------------------- 🆕 YANGI XODIMNING BIRINCHI KODI (direktor ko'rsatmasi 25.10.2026)
+// Direktor 07_Xodimlar ga faqat ism, lavozim, telefon, «Ishlayapti» yozadi va ilovadan huquq beradi — kirish kodini QO'LDA YOZMAYDI.
+// Xodim botga raqamini yuborgach, bot uni tanib, birinchi kodini o'zi yasab L ustuniga, Telegram ID sini U ustuniga yozadi.
+async function kodBirinchi(ctx, m, chat, y, ol) {
+  const ism = y.fish.split(/\s+/)[1] || y.fish;
+  if (!y.id) {   // A ustuni (Xodim_ID) bo'sh — tizim bunday qatorni umuman ko'rmaydi
+    await yubor(ctx, chat, '⏳ <b>' + TT.esc(y.fish) + '</b>, ro\'yxatingiz to\'liq emas. Direktorga ayting — birozdan keyin qayta urinib ko\'ring.', ol);
+    await direktorga(ctx, '⚠️ <b>' + TT.esc(y.fish) + '</b> botga ulanmoqchi, lekin 07_Xodimlar <b>A' + y.qator + '</b> (Xodim ID) bo\'sh. ID yozilmaguncha tizim uni ko\'rmaydi.');
+    return { tur: 'kontakt', kim: y.fish, natija: 'Xodim ID bo\'sh' };
+  }
+  if (!y.huquq) {
+    await yubor(ctx, chat, '⏳ <b>' + TT.esc(y.fish) + '</b>, siz ro\'yxatdasiz, lekin direktor hali huquqlaringizni bermagan.\n\n'
+      + 'Direktorga ayting — huquq berilgach, shu yerga <b>/kod</b> deb yozsangiz kirish kodingiz keladi.', ol);
+    await direktorga(ctx, '⚠️ <b>' + TT.esc(y.fish) + '</b> botga ulanmoqchi, lekin huquqlari berilmagan.\n👉 Ilovada: Sozlamalar → Huquqlar.');
+    return { tur: 'kontakt', kim: y.fish, natija: 'huquq berilmagan' };
+  }
+  const yangi = await kodYangi();
+  if (ctx.quruq) { ctx.log.push({ yozuv: T07 + ' L' + y.qator + ' + U' + y.qator + ' (' + y.fish + ') ← birinchi kirish kodi va Telegram ID' }); return { tur: 'kontakt', kim: y.fish, natija: '(quruq) birinchi kod' }; }
+  try { await TT.yozuv(ctx, T07 + ' L' + y.qator + ' + U' + y.qator + ' (' + y.fish + ') ← birinchi kirish kodi va Telegram ID',
+    () => xodim07QatorYoz(y.qator, y.fish, [{ ustun: PIN_L, qiymat: yangi }, { ustun: PIN_U, qiymat: chat }])); }
+  catch (e) { await yubor(ctx, chat, '⚠ Kodni jadvalga yozib bo\'lmadi: ' + TT.esc(e.message) + '\nDirektorga ayting.', ol); return { tur: 'kontakt', kim: y.fish, natija: '⚠ ' + e.message }; }
+  await redis.set('tg_ulandi:' + yangi, chat, 'EX', 1800).catch(() => {});
+  await yubor(ctx, chat, '✅ Xush kelibsiz, <b>' + TT.esc(ism) + '</b>! Raqamingiz tasdiqlandi.\n\n'
+    + '🔑 Kirish kodingiz:\n\n<code>' + yangi + '</code>\n\n'
+    + '👉 Tizimga kirish — shu havolani bosing:\n' + AKS_SAYT + '/?k=' + yangi + '\n\n'
+    + 'Birinchi kirishda o\'zingizga 6 xonali PIN o\'rnatasiz. Kodni hech kimga bermang.', ol);
+  await direktorga(ctx, '🆕 <b>' + TT.esc(y.fish) + '</b> tizimga ulandi — birinchi kirish kodi berildi (07_Xodimlar L' + y.qator + ').');
+  return { tur: 'kontakt', kim: y.fish, natija: 'birinchi kod berildi' };
+}
+
 // Pin.gs tgXabar_: /start <kod> va kontakt
 async function pinXabar(ctx, m, chat, matn) {
   if (matn.indexOf('/start') === 0) {
@@ -205,6 +262,8 @@ async function pinXabar(ctx, m, chat, matn) {
     if (!kod) {
       kod = await pinKodTel(m.contact.phone_number);
       if (!kod) {
+        const y = await telXodim(m.contact.phone_number);   // 25.10: kodi hali bo'sh YANGI xodim — birinchi kodni bot beradi
+        if (y && y.holat === 'Ishlayapti' && !y.kod) return kodBirinchi(ctx, m, chat, y, ol);
         const tt = telKorin(m.contact.phone_number);
         await yubor(ctx, chat, '❌ Telegram raqamingiz (<b>' + tt + '</b>) AKS TIZIM xodimlari ro\'yxatida yo\'q.\n\n'
           + 'Tizimga kirish uchun Telegram\'ingiz ochilgan raqam direktor tomonidan ro\'yxatga kiritilgan bo\'lishi kerak.\n'
@@ -305,4 +364,4 @@ async function tqTugma(ctx, cb, d) {
 async function jurnal(y) { try { await redis.lpush('tg_kirish_jurnal', JSON.stringify(Object.assign({ vaqt: TT.hozirDmyHm() }, y))); await redis.ltrim('tg_kirish_jurnal', 0, 99); } catch (e) { } }
 async function jurnalOqi(n = 20) { try { return (await redis.lrange('tg_kirish_jurnal', 0, n - 1)).map(x => JSON.parse(x)); } catch (e) { return []; } }
 
-module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, kodYubor, kodYasa, PIN_TG_BOT };
+module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, kodYubor, kodBirinchi, kodYasa, PIN_TG_BOT };
