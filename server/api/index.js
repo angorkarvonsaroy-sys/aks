@@ -45,6 +45,18 @@ const ochiqFayl = {};
 for (const f of Object.keys(OCHIQ)) { try { ochiqFayl[f] = require('fs').readFileSync(__dirname + '/../public/' + f); } catch (e) {} }
 fastify.get('/:fayl', async (req, reply) => {
   const f = req.params.fayl;
+  // 25.10: bosh ekrandagi yorliq (iPhone «Добавить на главный экран») kodni O'ZI bilan olib yursin.
+  // Avval manifestdagi start_url «/» edi — yorliq kodsiz ochilardi va brauzer xotirasiga (localStorage) tayanardi;
+  // iPhone'da o'rnatilgan ilovaning xotirasi Safari'nikidan alohida bo'lgani uchun «Kirish taqiqlangan» chiqib qolardi.
+  if (f === 'manifest.json') {
+    const kod = String(req.query.k || '').trim();
+    if (kod && /^[A-Za-z0-9_-]{8,64}$/.test(kod)) {
+      const m = JSON.parse(ochiqFayl[f].toString('utf8'));
+      m.id = '/?k=' + kod; m.start_url = '/?k=' + kod;
+      reply.type(OCHIQ[f]).header('Cache-Control', 'no-store');
+      return JSON.stringify(m);
+    }
+  }
   if (!ochiqFayl[f]) { reply.code(404).type('text/plain; charset=utf-8'); return 'AKS TIZIM: topilmadi'; }
   reply.type(OCHIQ[f]).header('Cache-Control', f === 'sw.js' ? 'no-cache' : 'public, max-age=86400');
   return ochiqFayl[f];

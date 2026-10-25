@@ -47,7 +47,7 @@ const SHIM = `<script>
 // O'rnatilgan ilova «/» dan ochiladi — kod brauzer xotirasida (aks_k) turadi. 25.10: kod FAQAT shu yerda, ya'ni ilova sahifasi muvaffaqiyatli ochilganda saqlanadi;
 // ishga tushirgich (KIRISH) saqlamaydi va «Kirish taqiqlangan» sahifasi uni o'chiradi — noto'g'ri kod xotirada qolib, ilova shu sahifada qulflanib qolmasin.
 const PWA_BOSH = `
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json" id="aksMan">
 <meta name="theme-color" content="#0B3D2E">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -55,7 +55,8 @@ const PWA_BOSH = `
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <script>
-(function(){ try{ var k=new URLSearchParams(location.search).get('k'); if(k) localStorage.setItem('aks_k',k); }catch(e){}
+(function(){ try{ var k=new URLSearchParams(location.search).get('k'); if(k){ localStorage.setItem('aks_k',k);
+    var mn=document.getElementById('aksMan'); if(mn) mn.href='/manifest.json?k='+encodeURIComponent(k); } }catch(e){}   // 25.10: yorliq kod bilan o'rnatilsin
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); })();
 </script>`;
 
