@@ -5,7 +5,8 @@
 // Yozish faqat «aks-yozuv-sinov taminot» nusxa varaqda tekshirgach yoqiladi (Redis: yozuv_yondi:taminot) va Koprik v1.5 bo'lsa.
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
 //   taminotFirmaQosh — yangi yuridik ta'minotchi → 09c_Taminotchilar_yuridik oxiriga (Holati «Faol»)
-// taminotTilxat, taminotDalolatnoma — hali eski tizimda (Drive fayllari).
+//   taminotTilxat    — naqd pul tilxati (PDF; jadvalga ham, Drive'ga ham yozmaydi)
+// taminotDalolatnoma — hali eski tizimda (Drive'ga fayl qo'yadi).
 'use strict';
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
@@ -15,6 +16,8 @@ const G = require('../lib/google');
 const env = require('../lib/env');
 const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
+const PDF = require('../lib/pdf');
+const SH = require('../lib/sotuv_hujjat');   // sozBilan, OYLAR — hujjat matnlari uchun
 const { redis } = require('../lib/db');
 const T = require('./taminot')._ichki;
 
@@ -250,5 +253,66 @@ async function taminotFirmaQosh(args) {
   return r;
 }
 
-module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh };
+// ------------------------------------------------------------------ 🧾 taminotTilxat(kod, taminotchi, summa) — naqd pul tilxati (PDF)
+// Taminot.gs v26.11 bilan bir xil: faqat direktor, raqam «ТХ-<yil>/NNNN» (09b G ustunidagi eng katta raqamdan keyingisi),
+// ism — 07_Xodimlar C ustunidagi to'liq kirill F.I.Sh. (bo'lmasa B), matn, imzo joylari va HTML uslubi aynan.
+// Jadvalga ham, Drive'ga ham HECH NARSA YOZILMAYDI — faqat PDF qaytariladi (eski tizimda ham shunday edi).
+// PDF: Google HTML→PDF o'rniga server Chromium'i (lib/pdf.js), A4; chekkalar HTML ning o'zida (body margin).
+const TAM_MCHJ = '«ANGOR KARVON SAROY» МЧЖ', TAM_DIREKTOR = 'ҲАЙДАРОВ КАМОЛИДДИН';
+const tamEsc = v => s(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function tamHtmlBosh() {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' +
+    'body{font-family:"Liberation Serif","Times New Roman",serif;font-size:14px;line-height:1.55;color:#000;margin:36px 44px}' +
+    'h1{text-align:center;font-size:16px;margin:0 0 2px}.sub{text-align:center;font-size:13px;margin-bottom:14px}' +
+    '.sana{display:flex;justify-content:space-between;margin:12px 0}' +
+    'p{text-align:justify;text-indent:28px;margin:8px 0}' +
+    'table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}td,th{border:1px solid #000;padding:5px 7px}th{background:#efefef}' +
+    '.r{text-align:right}.c{text-align:center}' +
+    '.imzo{display:flex;justify-content:space-between;margin-top:34px;gap:26px}.imzo>div{width:48%;font-size:12.5px;line-height:1.6}' +
+    '.k{font-size:11px}</style></head><body>';
+}
+const sanaSoz = dmy => '«' + dmy.slice(0, 2) + '» ' + SH.OYLAR[Number(dmy.slice(3, 5)) - 1] + ' ' + dmy.slice(6) + ' йил';
+// tamJismoniy_ + tamToliq_: «taminot» huquqi bor, ishlayotgan xodim — C (to'liq F.I.Sh.), bo'lmasa B
+async function tamToliqIsm(fish) {
+  const X = await G.oraliqOqi(env.aksBazaId, '07_Xodimlar', 'A2:S', env.googleKey);
+  const R = X.map(r0 => { const r = []; for (let k = 0; k < 19; k++) r.push(s(r0[k])); return r; });
+  const j = R.find(r => r[1].trim() && r[10].trim() === 'Ishlayapti'
+    && r[18].toLowerCase().split(',').map(z => z.trim()).indexOf('taminot') >= 0 && r[1].trim() === fish);
+  if (j && j[2].trim()) return j[2].trim().toUpperCase();
+  const r2 = R.find(r => r[1].trim() === fish);
+  return s((r2 && r2[2]) || fish).toUpperCase();
+}
+async function tilxatRaqam() {
+  const X = await G.oraliqOqi(env.aksBazaId, TAM_TV, 'A2:G', env.googleKey);
+  let m = -1; X.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
+  const yil = String(new Date(Date.now() + 5 * 3600 * 1000).getUTCFullYear());
+  const nmax = X.slice(0, m + 1).reduce((a2, r) => { const z = /(\d{4})$/.exec(s(r[6])); return Math.max(a2, z ? Number(z[1]) : 0); }, 0);
+  return 'ТХ-' + yil + '/' + ('0000' + (nmax + 1)).slice(-4);
+}
+
+async function taminotTilxat(args) {
+  const [kodSes, taminotchi0, summa0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  const taminotchi = s(taminotchi0).trim();
+  const summa = Math.round(Number(s(summa0).replace(/[^\d.]/g, '')) || 0);
+  if (!taminotchi || summa <= 0) throw new S.Xato('Ta\'minotchi va summani kiriting.');
+  if (!(await serverda(u.kod)) || !(await PDF.bor())) return eskiTizim('taminotTilxat', u, [taminotchi0, summa0]);
+  let raqam, ism;
+  try { [raqam, ism] = await Promise.all([tilxatRaqam(), tamToliqIsm(taminotchi)]); }
+  catch (e) { console.error('tilxat (o\'qish):', e.message); return eskiTizim('taminotTilxat', u, [taminotchi0, summa0]); }
+  const sana = hozirDmyHm().slice(0, 10);
+  const html = tamHtmlBosh() +
+    '<h1>ТИЛХАТ</h1><div class="sub">№ ' + raqam + '</div>' +
+    '<div class="sana"><span>Ангор тумани</span><span>' + sanaSoz(sana) + '</span></div>' +
+    '<p>Мен, <b>' + tamEsc(ism) + '</b>, ' + TAM_MCHJ + ' дан етказиб берган маҳсулотларим ҳисобидан нақд пул кўринишида <b>' + tamPul(summa) + '</b> (' + SH.sozBilan(summa) + ') сўм 00 тийин олдим.</p>' +
+    '<p>Олинган сумма бўйича даъвом йўқ.</p>' +
+    '<div class="imzo"><div>Пулни олдим:<br><br>_______________ ' + tamEsc(ism) + '<br><span class="k">(имзо)</span></div>' +
+    '<div>Пулни берди:<br>' + TAM_MCHJ + '<br><br>_______________ ' + TAM_DIREKTOR.split(' ')[0] + ' К.<br><span class="k">(имзо)</span></div></div></body></html>';
+  let pdf;
+  try { pdf = await PDF.yasa(html, '', { format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } }); }
+  catch (e) { console.error('tilxat (PDF):', e.message); return eskiTizim('taminotTilxat', u, [taminotchi0, summa0]); }
+  return { ok: true, raqam, b64: pdf.toString('base64'), nom: 'Tilxat_' + raqam.replace('/', '-') + '.pdf', mime: 'application/pdf' };
+}
+
+module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh, taminotTilxat };
 module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15 };
