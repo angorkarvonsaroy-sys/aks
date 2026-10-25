@@ -42,7 +42,7 @@ async function biletYasa(kodSes) {   // sifatUrl_: bilet — direktor sessiyasi 
   return bilet;
 }
 async function sifatUrl(kodSes, qoshimcha) {
-  const i = s(kodSes).indexOf('|'); if (i < 8) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const i = s(kodSes).indexOf('|'); if (i < 8) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   return '/?k=' + encodeURIComponent(s(kodSes).slice(0, i)) + qoshimcha + '&b=' + await biletYasa(kodSes);
 }
 
@@ -82,7 +82,7 @@ async function xodimSessiya(dirTok, x) {   // direktor sessiyasiga bog'langan ya
 }
 async function sifatida(args) {
   const [kodSes, xodimId, fn0, a0] = args;
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (!u.admin) throw new S.Xato('Ko\'rish rejimi faqat direktorga.');
   const fn = s(fn0).replace(/[^A-Za-z0-9_]/g, ''), a = Array.isArray(a0) ? a0 : [];
   if (!(await yoqilgan())) return koprik.chaqir('sifatida', u.kod, [xodimId, fn, a]);

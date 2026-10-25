@@ -119,7 +119,7 @@ async function devonIjroHolat([kodSes, id]) {
 }
 // devonChiqimOl — tahrirlash uchun to'liq ma'lumot (Devon.gs v1.4)
 async function devonChiqimOl([kodSes, id]) {
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   const R = await devonRows();
   const x = R.find(z => String(z.id) === String(id) && z.turi === 'Chiqim');
   if (!x) throw new S.Xato('Xat topilmadi.');

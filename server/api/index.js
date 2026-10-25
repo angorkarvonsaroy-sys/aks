@@ -92,7 +92,7 @@ fastify.post('/api/rpc', async (req, reply) => {
       qayerda = 'koprik';
       // eski tizimga faqat tirik sessiya bilan; kod «kod|tok» ko'rinishida keladi
       const u = await S.foydalanuvchi(args[0]);
-      if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+      if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
       if (kesh.oqishmi(fn)) {
         const n = await kesh.oqi(u.kod, fn, args.slice(1));      // o'qish: keshdan (tayyor) yoki ko'prikdan
         r = n.r; qayerda = n.qayerda;

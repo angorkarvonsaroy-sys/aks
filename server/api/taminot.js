@@ -184,7 +184,7 @@ async function kbTekshir(no, ozId) {
   if (boshqa) throw new S.Xato(no + ' bo\'yicha kelishuv so\'rovi allaqachon ochiq (' + boshqa.holati + ', ' + boshqa.kim + ').');
 }
 async function kbHolat([kodSes, no]) {
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   const h = u.huquq || []; const adm = h.indexOf('admin') >= 0;
   if (!(adm || h.indexOf('ijara_kelishuv') >= 0)) return { huquq: false };
   no = String(no || '').trim();

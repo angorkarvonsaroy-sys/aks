@@ -52,7 +52,7 @@ async function qulfBilan(ish) {   // LockService.getScriptLock() o'rni
   try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
 }
 async function kbU(kodSes) {   // kbU_
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (!KBH.kbHuquq(u)) throw xato('Ijarani kelishuv bilan bekor qilishga ruxsatingiz yo\'q (huquq: «' + KBH.KB_HUQUQ + '»). Direktorga murojaat qiling.');
   return u;
 }

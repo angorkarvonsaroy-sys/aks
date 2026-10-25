@@ -115,7 +115,7 @@ async function qtTolovlar(no, M) {
   return T.sort((a, b) => a.sana < b.sana ? -1 : a.sana > b.sana ? 1 : 0);
 }
 async function qtKirish(kodSes, x) {   // qtKirish_: direktor — hammasi; xodim — faqat o'ziga biriktirilgan loyiha
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (u.admin) return u;
   if (s(x.ijrochi).trim() !== s(u.fish).trim()) throw new S.Xato('Bu loyiha sizga biriktirilmagan.');
   return u;
@@ -183,7 +183,7 @@ async function qaytaKor(args) {
 // ================================================================== 3) LOYIHANI OCHISH (direktor yoki ijrochi)
 async function qaytaOchiq(args) {
   const [kodSes, id] = args;
-  if (!(await bayroq())) { const u0 = await S.foydalanuvchi(kodSes); if (!u0) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.'); return eskiTizim('qaytaOchiq', u0, args.slice(1)); }
+  if (!(await bayroq())) { const u0 = await S.foydalanuvchi(kodSes); if (!u0) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.'); return eskiTizim('qaytaOchiq', u0, args.slice(1)); }
   const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) throw new S.Xato('Loyiha topilmadi (№' + id + ').');
   const u = await qtKirish(kodSes, x);
   const H = await qtHolat(x, u.admin);

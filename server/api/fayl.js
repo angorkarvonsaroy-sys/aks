@@ -22,7 +22,7 @@ const eski = (fn, kod, args) => koprik.chaqir(fn, kod, args);
 // ------------------------------------------------------------------ 📮 devonFayl
 const devonFaylNom = v => String(v || '').replace(/[\\\/:*?"<>|«»№#]/g, '-').replace(/\s+/g, '_').slice(0, 40);
 async function devonFayl([kodSes, id, k]) {
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   const D = require('./direktor')._ichki;
   const R = await D.devonRows();
   const x = R.find(z => String(z.id) === String(id));
@@ -73,7 +73,7 @@ async function bekorFayl([kodSes, id, hujjat, format]) {
 
 // ------------------------------------------------------------------ 🤝 kbFayl
 async function kbFayl([kodSes, id, k]) {
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (!(u.huquq.indexOf('admin') >= 0 || u.huquq.indexOf('ijara_kelishuv') >= 0)) throw new S.Xato('Ijarani kelishuv bilan bekor qilishga ruxsatingiz yo\'q (huquq: «ijara_kelishuv»). Direktorga murojaat qiling.');
   const V = require('../lib/varaq');
   const s = (await V.qatorlar('06m_Kelishuv_bekor')).map(({ r }) => ({ id: r[0] || '', no: String(r[2] || '').trim(), fish: r[3] || '', pdf: r[13] || '', doc: r[14] || '', skan: r[15] || '' })).find(z => z.id && String(z.id) === String(id));

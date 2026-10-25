@@ -344,7 +344,7 @@ async function chiqimYuborYadro(u, id, Y, bayt, kotib, opt = {}) {
 }
 async function devonChiqimYubor(args) {
   const [kodSes, id, d0] = args; const d = d0 || {};
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — parolingizni qayta kiriting.');
   const kotib = u.admin || u.huquq.indexOf('devon') >= 0;
   const Y = devonYubOl(d, '', d.b64);
   const bayt = devonPdf(d.b64);
@@ -491,7 +491,7 @@ async function ijroTopshirYadro(u, d, opt = {}) {
 }
 async function devonIjroTopshir(args) {
   const [kodSes, d0] = args; const d = d0 || {};
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (!(await serverda2(u.kod))) return eskiTizim('devonIjroTopshir', u, [d0]);
   const r = await qulfBilan(() => ijroTopshirYadro(u, d)).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!r) return eskiTizim('devonIjroTopshir', u, [d0]);
@@ -618,7 +618,7 @@ async function matnKataklar(varaq, qator, qiymatlar) {
 }
 async function devonChiqimYoz(args) {
   const [kodSes, d0] = args; const d = d0 || {};
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — parolingizni qayta kiriting.');
   const kotib = u.admin || u.huquq.indexOf('devon') >= 0;
   const T = chiqimYozTekshir(d);
   const { raqam, sana, oluvchi, mazmun, xat, format } = T;

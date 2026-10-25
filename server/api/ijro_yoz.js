@@ -147,7 +147,7 @@ async function tekJavobYoz(varaq, qator, hol, izoh) {
 // ------------------------------------------------------------------ ijroTekshirJavob(kod, topId, natija, izoh)
 async function ijroTekshirJavob(args) {
   const [kodSes, topId, natija, izoh0] = args;
-  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw new S.Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (u.sifat) throw new S.Xato('👁 Ko\'rish rejimida javob berilmaydi.');
   if (!(await serverda(u.kod))) return eskiTizim('ijroTekshirJavob', u, [topId, natija, izoh0]);
   const adm = u.admin, bugun = V.bugun();
@@ -185,5 +185,44 @@ async function ijroTekshirJavob(args) {
   return { ok: true, holat: hol, natija: hol + (qayta ? ' — ertaga qayta chiqadi' : '') };
 }
 
-module.exports = { ijroTekshirJavob };
+// ------------------------------------------------------------------ ijroUzrli(kod, id, sabab) — direktor qoidabuzarlikni uzrli qiladi (06q K:M)
+// Ijro.gs v1.4 ijroUzrli bilan bir xil: faqat direktor, sabab kamida 5 belgi, allaqachon uzrli bo'lsa — xato.
+async function ijroUzrli(args) {
+  const [kodSes, id, sabab0] = args;
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (u.sifat) throw new S.Xato('👁 Ko\'rish rejimida bajarilmaydi.');
+  const sabab = s(sabab0).replace(/\s+/g, ' ').trim();
+  if (sabab.length < 5) throw new S.Xato('Uzr sababini yozing.');
+  if (!(await serverda(u.kod))) return eskiTizim('ijroUzrli', u, [id, sabab0]);
+  const q = (await ijroQatorYangi(IJRO_VARAQ, IJRO_S)).find(z => s(z.ID) === s(id));
+  if (!q) throw new S.Xato('Yozuv topilmadi.');
+  if (q.Holati === 'Uzrli') throw new S.Xato('Allaqachon uzrli.');
+  try { await G.yoz(env.aksBazaId, [{ varaq: IJRO_VARAQ, katak: 'K' + q.qator + ':M' + q.qator, qiymat: [['Uzrli', sabab, u.fish]] }], env.googleKey); }
+  catch (e) { const z = yozilmadi(e); if (z.yozilmadi) return eskiTizim('ijroUzrli', u, [id, sabab0]); throw z; }
+  await yangila([IJRO_VARAQ]);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ ijroTushuntir(kod, id, matn) — xodim tushuntirish yozadi (06q N:O)
+// Ijro.gs v1.4 ijroTushuntir bilan bir xil: o'z yozuvi (direktor — hammasi), matn kamida 5 belgi, bir marta.
+async function ijroTushuntir(args) {
+  const [kodSes, id, matn0] = args;
+  const u = await S.ruxsat(kodSes);
+  if (u.sifat) throw new S.Xato('👁 Ko\'rish rejimida bajarilmaydi.');
+  const matn = s(matn0).replace(/\s+/g, ' ').trim();
+  if (matn.length < 5) throw new S.Xato('Tushuntirishni yozing.');
+  if (!(await serverda(u.kod))) return eskiTizim('ijroTushuntir', u, [id, matn0]);
+  const q = (await ijroQatorYangi(IJRO_VARAQ, IJRO_S)).find(z => s(z.ID) === s(id));
+  if (!q) throw new S.Xato('Yozuv topilmadi.');
+  if (!u.admin && !xodimTeng(q.Xodim, u.fish)) throw new S.Xato('Bu yozuv sizniki emas.');
+  if (s(q.Tushuntirish).trim()) throw new S.Xato('Tushuntirish allaqachon yozilgan.');
+  try {
+    await G.yoz(env.aksBazaId, [{ varaq: IJRO_VARAQ, katak: 'N' + q.qator, qiymat: [[matn]] }], env.googleKey);
+    await G.sanaYoz(env.aksBazaId, [{ varaq: IJRO_VARAQ, qator: q.qator, ustun: 15, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
+  } catch (e) { const z = yozilmadi(e); if (z.yozilmadi) return eskiTizim('ijroTushuntir', u, [id, matn0]); throw z; }
+  await yangila([IJRO_VARAQ]);
+  return { ok: true };
+}
+
+module.exports = { ijroTekshirJavob, ijroUzrli, ijroTushuntir };
 module.exports._ichki = { ijroYoz, ijroZina, ijroDarhol, tekYarat, tekJavobYoz, ijroQatorYangi, ijroOySon, qdXodimlar, IJRO_S, IJRO_TS, IJRO_TUR, IJRO_VARAQ, IJRO_TEK };

@@ -49,7 +49,7 @@ async function foydalanuvchi(kodSes) {
 
 async function ruxsat(kodSes, kerak) {
   const u = await foydalanuvchi(kodSes);
-  if (!u) throw new Xato('Sessiya tugagan — PIN ni qayta kiriting.');
+  if (!u) throw new Xato('Sessiya tugagan — parolingizni qayta kiriting.');
   if (kerak && !(u.admin || u.huquq.includes(kerak))) throw new Xato('Bu bo\'limga ruxsatingiz yo\'q.');
   return u;
 }
