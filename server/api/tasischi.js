@@ -334,11 +334,24 @@ async function tafsilot() {
   return { sotilganlar, tolovlar };
 }
 
+// Ilova uchun: ro'yxatlar talab bo'yicha yuklanadi (hammasini birdan yubormaslik uchun).
+// tur: 'sotuv' — sotilgan do'konlar (shartnoma sanasi bo'yicha, yangisidan); yoki to'lov shakli guruhi.
+async function tasischiTafsilot([kodSes, tur]) {
+  const u = await S.ruxsat(kodSes);
+  if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
+  const g = String(tur || '').trim();
+  const { sotilganlar, tolovlar } = await tafsilot();
+  if (g === 'sotuv') return { tur: g, soni: sotilganlar.length, jami: sotilganlar.reduce((a, x) => a + x.qiymat, 0), royxat: sotilganlar };
+  const L = tolovlar.filter(x => x.guruh === g);
+  const CHEK = 3000;
+  return { tur: g, soni: L.length, jami: L.reduce((a, x) => a + x.summa, 0), kesildi: L.length > CHEK, royxat: L.slice(-CHEK).reverse() };
+}
+
 async function tasischiHisobot([kodSes]) {
   const u = await S.ruxsat(kodSes);
   if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
   return await hisobla();
 }
 
-module.exports = { tasischiHisobot, tasischiPdf };
+module.exports = { tasischiHisobot, tasischiPdf, tasischiTafsilot };
 module.exports._ichki = { hisobla, pdfHtml, hozirDmyHm, tafsilot };
