@@ -75,6 +75,10 @@ const L = (a, b) => console.log('  ' + String(a).padEnd(46) + String(b).padStart
   L('Бир шартнома — бир неча дўкон', h.nazorat.kopDokonli.length + ' та');
   h.nazorat.kopDokonli.slice(0, 10).forEach(k => console.log('      ' + k.no + ' → ' + k.dokonlar.join(', ')));
   L('Бекор/нотаниш шартнома тўловлари', h.nazorat.begonaTolov + ' та · ' + pul(h.nazorat.begonaSumma));
+  L('Сотилган, лекин шартнома қиймати 0', h.nazorat.qiymatsiz.length + ' та' + (h.nazorat.qiymatsiz.length ? ': ' + h.nazorat.qiymatsiz.slice(0, 10).join(', ') : ''));
+  L('Сотилмаган, лекин база нархи 0', h.nazorat.bazasiz.length + ' та' + (h.nazorat.bazasiz.length ? ': ' + h.nazorat.bazasiz.slice(0, 10).join(', ') : ''));
+  L('Майдони 0 бўлган дўкон', h.nazorat.maydonsiz.length + ' та' + (h.nazorat.maydonsiz.length ? ': ' + h.nazorat.maydonsiz.slice(0, 10).join(', ') : ''));
+  L('01 «умумий» ≠ база×майдон (сотилмаган)', h.nazorat.umumiyFarq + ' та');
   console.log('  Қурилиш ҳолати устунидаги қийматлар:');
   Object.keys(h.nazorat.qurTurlari).forEach(k => L('    ' + k, h.nazorat.qurTurlari[k] + ' та'));
   console.log('');

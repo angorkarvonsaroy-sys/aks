@@ -103,6 +103,12 @@ async function hisobla() {
   const qurTurlari = {};
   D.forEach(d => { const k = d.qurilish || '(bo\'sh)'; qurTurlari[k] = (qurTurlari[k] || 0) + 1; });
 
+  // shubhali qatorlar: sotilgan lekin shartnoma qiymati 0; sotilmagan lekin baza narxi 0; 01 dagi «umumiy» ustuni baza×maydon ga mos kelmasligi
+  const qiymatsiz = D.filter(d => d.sotilgan && !(d.qiymat > 0)).map(d => d.id + ' (' + d.sotuvNo + ')');
+  const bazasiz = D.filter(d => !d.sotilgan && !(d.baza > 0)).map(d => d.id);
+  const maydonsiz = D.filter(d => !(d.maydon > 0)).map(d => d.id);
+  const umumiyFarq = D.filter(d => !d.sotilgan && Math.abs(d.umumiy - d.baza * d.maydon) > 1000).length;
+
   // 03 dagi «to'langan» yig'indisi bilan 05 dagi to'lovlar yig'indisi — mos kelishi tekshiriladi
   const shTolangan = Math.round(Object.values(SH).reduce((a, x) => a + x.tolangan, 0));
   const shQiymat = Math.round(Object.values(SH).reduce((a, x) => a + x.qiymat, 0));
@@ -117,6 +123,7 @@ async function hisobla() {
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
     nazorat: { kopDokonli, dokonsiz, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
+      qiymatsiz, bazasiz, maydonsiz, umumiyFarq,
       tolovFarq: Math.round(tolovJami) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
   };
 }
