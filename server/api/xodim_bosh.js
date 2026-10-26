@@ -7,7 +7,7 @@ const U = require('../lib/undiruv_yordam');
 const { xodimTeng } = require('../lib/xodim');
 
 const XB_SKAN_KUN = 3, XB_XAT_KUN = 3, XB_PASPORT_KUN = 30, XB_BEPUL_KUN = 14, XB_IJRO_KUN = 2;
-const XB_OXIRGI = 6, XB_QILDIM = 14, XB_DIQQAT = 6, XB_KEYINGI = 5;
+const XB_OXIRGI = 6, XB_QILDIM = 14, XB_DIQQAT = 6, XB_KEYINGI = 5, XB_YU = 10;
 const XB_KUNLAR = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
 const XB_OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const HUJJAT_NAZORAT_BOSHI = '2026-09-29', HUJJAT_NAZORAT_KUN = 3;
@@ -57,7 +57,7 @@ async function xodimBosh([kodSes]) {
   const blok = async (nom, f, bosh) => { try { return await f(); } catch (e) { xato.push(nom + ': ' + e.message); return bosh; } };
   const oqi = async (nom, ust) => aOxiri(await V.qatorlar(nom)).map(z => xom(z.x, ust));
 
-  const OX = [], QL = [], jami = { tolov: 0, tashrif: 0, shartnoma: 0, xat: 0, hujjat: 0, topshiriq: 0, devon: 0, chora: 0, taminot: 0 };
+  const OX = [], QL = [], jami = { tolov: 0, tashrif: 0, shartnoma: 0, xat: 0, hujjat: 0, topshiriq: 0, devon: 0, chora: 0, taminot: 0, yurist: 0 };
   const yoz = (vq, ik, nom, iz, och, kalit, matn, tur) => {
     if (!vq.srt) return;
     OX.push({ srt: vq.srt, ik, nom, iz: iz + ' · ' + xbQachon(vq, bugun, kecha), och, kalit });
@@ -177,19 +177,35 @@ async function xodimBosh([kodSes]) {
     return c; }, { kutmoqda: 0 });
 
   // ---------- 11. yurist (06b)
-  const yu = await blok('yurist', async () => { const c = { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0 }; if (!bor('yurist')) return c;
+  const yu = await blok('yurist', async () => { const c = { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0, royxat: [] }; if (!bor('yurist')) return c;
     (await oqi('06b_Yuridik_ishlar', 21)).forEach(r => { if (!r[0]) return; if (st(r[14]) !== 'Faol') return; c.faol++; if (Number(r[19]) >= 7) c.mib++; });
     // 24.10: yurist ekrani guruhlari — «qabul qilish kerak», «mening navbatim» (kechikkani), «sud/MIB kutilmoqda»
     try {
       const YQ = require('./yurist').Q, JJ = require('../lib/jurnallar'), UU = require('../lib/undiruv_yordam');
       const Sh = {}; (await UU.undShartnomalar()).forEach(x => Sh[x.no] = x);
       const K = await YQ.yuKesh(), I = await JJ.yuIshlar();
+      const B = [];
       I.filter(i => YQ.YU_FAOL.indexOf(i.holati) >= 0 && (!i.yurist || xodimTeng(i.yurist, u.fish) || adm)).forEach(i => {
         const k = YQ.yuKorinish(i, Sh[i.no], bugun, K);
-        if (k.qabulKerak) c.qabul++; else if (k.yuMas) { c.mening++; if (k.kechikdi > 0) c.kech++; } else c.kutish++;
+        if (k.qabulKerak) { c.qabul++; B.push(k); }
+        else if (k.yuMas) { c.mening++; if (k.kechikdi > 0) c.kech++; B.push(k); }
+        else c.kutish++;   // sud / MIB kutilmoqda — yuristning aybi emas, «Bugungi ishlarim» ga kirmaydi
+      });
+      // 26.10: «Bugungi ishlarim» uchun — avval qabul qilish kerak bo'lganlar, keyin ko'p kechikkanlar
+      B.sort((a, b2) => (b2.qabulKerak ? 1 : 0) - (a.qabulKerak ? 1 : 0) || b2.kechikdi - a.kechikdi || (st(a.chegara) < st(b2.chegara) ? -1 : 1));
+      c.royxat = B.slice(0, XB_YU).map(k => ({ id: k.id, no: k.no, fish: k.fishQ, dokon: k.dokon, jami: k.jami,
+        bosqich: k.bosqichNomi, keyingi: k.keyingi, kechikdi: k.kechikdi, chegara: k.chegara, eslatma: k.eslatma, qabul: !!k.qabulKerak }));
+    } catch (e) { }
+    // 26.10: yurist amallari — «Oxirgi ishlaganlarim» va «Bugun qildim» (06f_Yurist_tarix: Vaqt, Ish_ID, Shartnoma, Voqea, Kim, Izoh, Hujjat).
+    // Avval bu ikki quti faqat 📌 Topshiriqlar dan to'lardi — yurist amallari hech qayerda ko'rinmasdi.
+    try {
+      (await oqi('06f_Yurist_tarix', 7)).filter(r => r[0] && xodimTeng(r[4], u.fish)).slice(-60).forEach(r => {
+        const vq = xbVaqt(r[0]), voqea = st(r[3]).trim() || 'Yuridik ish', no = st(r[2]).trim();
+        yoz(vq, '⚖', voqea, no || ('ish ' + st(r[1])), { t: 'bolim', v: 'yurist' }, 'yu' + st(r[1]) + '|' + vq.srt,
+          '⚖ ' + voqea + (no ? ' — ' + no : ''), 'yurist');
       });
     } catch (e) { }
-    return c; }, { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0 });
+    return c; }, { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0, royxat: [] });
   if (bor('yurist') && !adm) {
     if (yu.qabul) dq('#B42318', '<b>⚖ ' + yu.qabul + ' ta ish qabul qilinmagan</b> — 1 ish kuni ichida hujjatlarni tekshirib qabul qiling yoki kamchilik bilan qaytaring', { t: 'bolim', v: 'yurist' }, 0);
     if (yu.kech) dq('#B42318', '<b>⚖ ' + yu.kech + ' ta ishda mening navbatim kechikdi</b> — sud bosqichini yuriting', { t: 'bolim', v: 'yurist' }, 1);
@@ -238,7 +254,7 @@ async function xodimBosh([kodSes]) {
 
   const d = new Date(bugun + 'T12:00:00Z');
   return { ok: true, fish: u.fish, ism: xbIsm(u.fish), bugun, sana: XB_KUNLAR[d.getUTCDay()] + ', ' + d.getUTCDate() + '-' + XB_OYLAR[d.getUTCMonth()] + ' ' + d.getUTCFullYear(),
-    huquq: H, top, kpi, diqqat: diqqat.slice(0, XB_DIQQAT).map(x => ({ rang: x.rang, matn: x.matn, och: x.och })),
+    huquq: H, top, yuIsh: (yu && yu.royxat) || [], kpi, diqqat: diqqat.slice(0, XB_DIQQAT).map(x => ({ rang: x.rang, matn: x.matn, och: x.och })),
     oxirgi: ox, qildim: { royxat: QL.slice(-XB_QILDIM), jami }, xato,
     qadam: qd ? { bajarildi: qd.bajarildi, maqsad: qd.maqsad, navbat: qd.navbat, qizil: qd.qizil } : null };
 }
