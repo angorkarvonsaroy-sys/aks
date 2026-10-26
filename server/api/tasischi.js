@@ -183,7 +183,7 @@ async function hisobla() {
     tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd),
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
       buferSoni: BUFER.length, buferSumma: Math.round(buferSumma),
-      yozilmagan: jami.tushum - Math.round(tolovJami) - Math.round(buferSumma) },
+      yozilmagan: jami.tushum - Math.round(tolovJami) },   // bufer tolovJami ichida — ikkinchi marta ayirilmaydi
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, boshqaSoni: BOSHQA.length, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
     nazorat: { kopDokonli, dokonsiz, dokonsizT, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
