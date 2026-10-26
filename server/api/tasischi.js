@@ -14,11 +14,12 @@ const DOKON_OXIRI = 641;                      // 01_Dokonlar: 2–641 qator = 64
 const TUGAL = 'Тугалланган';                  // qurilish holati (01_Dokonlar H ustuni)
 
 // To'lov shakli → hisobot guruhi. 05_Tolovlar E ustuni: Naqt / Bank / Plastik / Barter (kirill variantlari ham bor).
+// 27.10 (direktor): hisobotda «plastik karta» alohida bo'lim emas — naqd to'lovga qo'shiladi.
 function shaklGuruh(x) {
   const t = s(x).trim();
   if (/barter|ўзаро|o'zaro|zaro hisob/i.test(t)) return 'barter';
   if (/naq|нақ|наличн/i.test(t)) return 'naqd';
-  if (/plastik|пластик|karta|карт|uzcard|humo/i.test(t)) return 'plastik';
+  if (/plastik|пластик|karta|карт|uzcard|humo/i.test(t)) return 'naqd';   // direktor qarori 27.10: plastik karta — naqd to'lovga qo'shiladi
   if (/bank|банк|hisob|ҳисоб|перечис|o'tkazma/i.test(t)) return 'bank';
   return t ? 'boshqa' : 'korsatilmagan';
 }
@@ -83,7 +84,7 @@ async function hisobla() {
   // ---------- 4) To'lov shakllari (05_Tolovlar) — faqat do'konga BOG'LANGAN faol shartnomalar bo'yicha.
   // Sabab: «Jami qilingan to'lov» 03 dagi «to'langan» ustunidan do'konlarga taqsimlanadi, unga bog'lanmagan shartnoma kirmaydi —
   // shakllar ham o'sha doiradan olinmasa, shakllar yig'indisi jami to'lovdan katta chiqib qoladi.
-  const T = { bank: 0, naqd: 0, plastik: 0, barter: 0, boshqa: 0, korsatilmagan: 0 };
+  const T = { bank: 0, naqd: 0, barter: 0, boshqa: 0, korsatilmagan: 0 };
   let tolovJami = 0, tolovBarcha = 0, tolovBoglanmagan = 0, begonaTolov = 0, begonaSumma = 0;
   const BG = {};
   R5.forEach(({ x }) => {
@@ -137,7 +138,7 @@ async function hisobla() {
   return {
     sana: V.bugun(),
     jami, tugal, qurilayotgan, hujBor, hujYoq,
-    tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd), plastik: Math.round(T.plastik),
+    tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd),
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
       yozilmagan: jami.tushum - Math.round(tolovJami) },
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
@@ -201,7 +202,6 @@ function pdfHtml(h, kim, vaqt) {
 
   const q1 = [['Жами қилинган тўлов', pul(j.tushum), ''],
     ['&nbsp;&nbsp;— ҳисоб рақамга (банк)', pul(T.bank), foiz(T.bank, T.jami) + '%'],
-    ['&nbsp;&nbsp;— пластик карта', pul(T.plastik), foiz(T.plastik, T.jami) + '%'],
     ['&nbsp;&nbsp;— нақд тўлов', pul(T.naqd), foiz(T.naqd, T.jami) + '%'],
     ['&nbsp;&nbsp;— бартер (товар/хизмат)', pul(T.barter), foiz(T.barter, T.jami) + '%']]
     .concat(T.boshqa ? [['&nbsp;&nbsp;— бошқа шакл', pul(T.boshqa), foiz(T.boshqa, T.jami) + '%']] : [])
@@ -278,7 +278,8 @@ function pdfHtml(h, kim, vaqt) {
     '<div style="font-size:6.8pt;color:#555555;margin-top:5px;line-height:1.35">' +
       'Нархлаш: сотилган дўкон — шартнома қиймати, сотилмаган дўкон — прайс-лист база нархи × реал майдон. ' +
       '«Сотилган» — сотув шартномаси тузилган ва бекор қилинмаган дўкон. ' +
-      '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
+      '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Пластик карта орқали қилинган тўловлар нақд тўловга қўшилган. ' +
+      'Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
 
     '<div style="margin-top:14px;font-size:8.6pt">Директор &nbsp;&nbsp;______________________&nbsp;&nbsp; ' + PDF_DIREKTOR + '</div>' +
     '<table class="ft" style="margin-top:8px"><tr><td>Шакллантирилди: ' + esc(vaqt) + ' · Юклаб олди: ' + esc(kim) + ' · AKS TIZIM</td>' +

@@ -112,8 +112,7 @@ function diqqatChop(h) {
   L('Шартнома бўйича нархлари', pul(j.sotQiymat));
   L('Жами қилинган тўлов', pul(j.tushum));
   L('  — ҳисоб рақамга (банк)', pul(h.tolov.bank));
-  L('  — пластик карта', pul(h.tolov.plastik));
-  L('  — нақд тўлов', pul(h.tolov.naqd));
+  L('  — нақд тўлов (пластик карта билан)', pul(h.tolov.naqd));
   L('  — бартер (товар/хизмат)', pul(h.tolov.barter));
   if (h.tolov.boshqa) L('  — бошқа шакл', pul(h.tolov.boshqa));
   if (h.tolov.korsatilmagan) L('  — шакли кўрсатилмаган', pul(h.tolov.korsatilmagan));
