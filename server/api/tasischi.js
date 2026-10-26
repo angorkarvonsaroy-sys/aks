@@ -128,10 +128,154 @@ async function hisobla() {
   };
 }
 
+// ------------------------------------------------------------------ PDF (ta'sischiga beriladigan varaq)
+const PDF = require('../lib/pdf');
+const PDF_LOGO = require('fs').readFileSync(require('path').join(__dirname, '../lib/hisobot_logo.b64'), 'utf8').trim();
+const PDF_DIREKTOR = 'К.Х.Нақиев';
+const PDF_MUALLIF = 'Камолиддин Нақиев';
+const pul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[ ,]/g, ' ');
+const mlrd = n => (Math.round(Number(n) / 1e8) / 10).toFixed(1).replace('.', ',') + ' млрд';
+const m2 = n => (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',');
+const foiz = (a, b) => b ? Math.round(a / b * 100) : 0;
+const esc = v => s(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function hozirDmyHm() {
+  const d = new Date(Date.now() + 5 * 3600 * 1000);
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+}
+
+// gorizontal chiziq: [{qism, rang, nom}] — foizga qarab bo'linadi
+function chiziq(boluvlar) {
+  const jami = boluvlar.reduce((a, b) => a + b.qism, 0) || 1;
+  return '<table style="width:100%;border-collapse:collapse;margin:3px 0 1px"><tr>' +
+    boluvlar.map(b => '<td style="width:' + (b.qism / jami * 100) + '%;background:' + b.rang + ';background-color:' + b.rang +
+      ';height:13px;color:#ffffff;font-size:7pt;text-align:center;padding:0;white-space:nowrap">' +
+      (b.qism / jami > 0.11 ? foiz(b.qism, jami) + '%' : '') + '</td>').join('') + '</tr></table>' +
+    '<div style="font-size:7pt;color:#555555">' + boluvlar.map(b => '<span style="display:inline-block;width:8px;height:8px;background:' + b.rang +
+      ';background-color:' + b.rang + '"></span> ' + b.nom).join(' &nbsp; ') + '</div>';
+}
+
+function pdfHtml(h, kim, vaqt) {
+  const j = h.jami, T = h.tolov;
+  const css = '<style>@page{size:A4;margin:9mm 10mm}*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#1b2b24;font-size:8pt;margin:0}table{border-collapse:collapse;width:100%}' +
+    '.t td,.t th{border:1px solid #9fb3aa;padding:2.6px 4px;font-size:7.6pt;text-align:right;white-space:nowrap}' +
+    '.t th{background:#0b3d2e;background-color:#0b3d2e;color:#ffffff;text-align:center;font-weight:normal;font-size:7.2pt}' +
+    '.t td.l,.t th.l{text-align:left;white-space:normal}.t tr.tot td{background:#f6efd9;background-color:#f6efd9;font-weight:bold}' +
+    '.t tr.sub td{color:#555555}.qiz{color:#a32020;font-weight:bold}' +
+    '.sr{font-size:9.5pt;font-weight:bold;color:#0b3d2e;margin:7px 0 3px;border-bottom:1px solid #0b3d2e;padding-bottom:1px}' +
+    '.ft td{font-size:6.6pt;color:#777777;border-top:1px solid #9fb3aa;padding-top:3px}</style>';
+
+  const kpi = [['Жами дўкон', j.soni + ' та', m2(j.maydon) + ' m²'],
+    ['Сотилган', j.sotSoni + ' та (' + foiz(j.sotSoni, j.soni) + '%)', m2(j.sotMaydon) + ' m²'],
+    ['Жами тушум', mlrd(j.tushum), pul(j.tushum)],
+    ['Кутилаётган савдо', mlrd(h.kutilayotgan), pul(h.kutilayotgan)]];
+
+  const xulosa = j.soni + ' та дўкондан <b>' + j.sotSoni + ' таси сотилган (' + foiz(j.sotSoni, j.soni) + '%)</b>. ' +
+    'Жами <b>' + mlrd(j.tushum) + ' сўм</b> тушум олинган. Сотилганлардан <b>' + mlrd(j.qarz) + ' сўм</b> қарз қолган, ' +
+    'шундан <span class="qiz">' + mlrd(j.muddati) + ' сўм муддати ўтган</span>. ' +
+    'Сотилмаган ' + j.bosSoni + ' та дўкон қиймати <b>' + mlrd(j.bosQiymat) + ' сўм</b> — ' +
+    'булар билан бирга кутилаётган умумий савдо <b>' + mlrd(h.kutilayotgan) + ' сўм</b>.';
+
+  const q1 = [['Жами қилинган тўлов', pul(j.tushum), ''],
+    ['&nbsp;&nbsp;— ҳисоб рақамга (банк)', pul(T.bank), foiz(T.bank, T.jami) + '%'],
+    ['&nbsp;&nbsp;— пластик карта', pul(T.plastik), foiz(T.plastik, T.jami) + '%'],
+    ['&nbsp;&nbsp;— нақд тўлов', pul(T.naqd), foiz(T.naqd, T.jami) + '%'],
+    ['&nbsp;&nbsp;— бартер (товар/хизмат)', pul(T.barter), foiz(T.barter, T.jami) + '%']]
+    .concat(T.boshqa ? [['&nbsp;&nbsp;— бошқа шакл', pul(T.boshqa), foiz(T.boshqa, T.jami) + '%']] : [])
+    .concat(T.korsatilmagan ? [['&nbsp;&nbsp;— шакли кўрсатилмаган', pul(T.korsatilmagan), foiz(T.korsatilmagan, T.jami) + '%']] : []);
+
+  const qator3 = o => '<tr' + (o.nom === 'Жами' ? ' class="tot"' : '') + '><td class="l">' + o.nom + '</td><td>' + o.soni + '</td><td>' + m2(o.maydon) +
+    '</td><td>' + pul(o.summa) + '</td><td>' + o.sotSoni + '</td><td>' + m2(o.sotMaydon) + '</td><td>' + pul(o.sotQiymat) +
+    '</td><td>' + pul(o.tushum) + '</td><td>' + pul(o.qarz) + '</td></tr>';
+  const qator4 = o => '<tr' + (o.nom === 'Жами' ? ' class="tot"' : '') + '><td class="l">' + o.nom + '</td><td>' + o.soni + '</td><td>' + m2(o.maydon) +
+    '</td><td>' + pul(o.summa) + '</td><td>' + pul(o.tushum) + '</td><td>' + pul(o.summa - o.tushum) + '</td></tr>';
+  const hujJami = { nom: 'Жами', soni: j.soni, maydon: j.maydon, summa: j.summa, tushum: j.tushum };
+
+  return '<html><head><meta charset="utf-8">' + css + '</head><body>' +
+    '<table><tr><td style="width:46px"><img src="' + PDF_LOGO + '" width="40" height="40"></td>' +
+    '<td><div style="font-size:11.5pt;font-weight:bold;color:#0b3d2e">«АНГОР КАРВОН САРОЙ» МЧЖ</div>' +
+    '<div style="font-size:7.6pt;color:#555555">Сурхондарё вилояти, Ангор тумани · Янги қурилган савдо мажмуаси</div></td>' +
+    '<td style="text-align:right;font-size:7.6pt;color:#555555">1-илова</td></tr></table>' +
+    '<div style="border-bottom:2px solid #0b3d2e;margin:3px 0 7px"></div>' +
+    '<div style="text-align:center;font-size:12pt;font-weight:bold;color:#0b3d2e">ТАҲЛИЛИЙ МАЪЛУМОТ</div>' +
+    '<div style="text-align:center;font-size:8.6pt;color:#333333;margin:1px 0 7px">Савдо мажмуаси дўконлари тўғрисида · <b>' +
+      h.sana.split('-').reverse().join('.') + ' ҳолатида</b></div>' +
+
+    '<table style="margin-bottom:6px"><tr>' + kpi.map(c =>
+      '<td style="border:1px solid #9fb3aa;padding:4px 6px;width:25%"><div style="font-size:7pt;color:#555555">' + c[0] + '</div>' +
+      '<div style="font-size:12pt;font-weight:bold;color:#0b3d2e">' + c[1] + '</div>' +
+      '<div style="font-size:7pt;color:#777777">' + c[2] + '</div></td>').join('<td style="width:5px"></td>') + '</tr></table>' +
+
+    '<div style="border:1px solid #0b3d2e;background:#eef4f1;background-color:#eef4f1;padding:5px 7px;font-size:8.4pt;line-height:1.45;margin-bottom:6px">' +
+      '<b style="color:#0b3d2e">ХУЛОСА.</b> ' + xulosa + '</div>' +
+
+    '<table style="margin-bottom:5px"><tr><td style="width:49%;vertical-align:top">' +
+      '<div style="font-size:7.6pt;font-weight:bold;color:#0b3d2e">Дўконлар сотуви</div>' +
+      chiziq([{ qism: j.sotSoni, rang: '#0b3d2e', nom: 'Сотилган ' + j.sotSoni + ' та' }, { qism: j.bosSoni, rang: '#c8d6cf', nom: 'Бўш ' + j.bosSoni + ' та' }]) +
+    '</td><td style="width:2%"></td><td style="width:49%;vertical-align:top">' +
+      '<div style="font-size:7.6pt;font-weight:bold;color:#0b3d2e">Қурилиш ҳолати</div>' +
+      chiziq([{ qism: h.tugal.soni, rang: '#2f7d5c', nom: 'Тугалланган ' + h.tugal.soni + ' та' }, { qism: h.qurilayotgan.soni, rang: '#d9b26a', nom: 'Якунланмаган ' + h.qurilayotgan.soni + ' та' }]) +
+    '</td></tr></table>' +
+
+    '<div class="sr">1. Сотилган дўконлар</div>' +
+    '<table><tr><td style="width:49%;vertical-align:top"><table class="t">' +
+      '<tr><th class="l">Кўрсаткич</th><th>Сўм</th><th>Улуши</th></tr>' +
+      '<tr><td class="l">Сотилган дўконлар сони</td><td>' + j.sotSoni + ' та</td><td>' + foiz(j.sotSoni, j.soni) + '%</td></tr>' +
+      '<tr><td class="l">Майдони, m²</td><td>' + m2(j.sotMaydon) + '</td><td>' + foiz(j.sotMaydon, j.maydon) + '%</td></tr>' +
+      '<tr class="tot"><td class="l">Шартнома бўйича қиймати</td><td>' + pul(j.sotQiymat) + '</td><td></td></tr>' +
+      q1.map((r, i) => '<tr' + (i ? ' class="sub"' : '') + '><td class="l">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') +
+    '</table></td><td style="width:2%"></td><td style="width:49%;vertical-align:top"><table class="t">' +
+      '<tr><th class="l">Қарздорлик</th><th>Сўм</th><th>Улуши</th></tr>' +
+      '<tr class="tot"><td class="l">Жами қарздорлик</td><td>' + pul(j.qarz) + '</td><td>' + foiz(j.qarz, j.sotQiymat) + '%</td></tr>' +
+      '<tr><td class="l qiz">&nbsp;&nbsp;— муддати ўтган</td><td class="qiz">' + pul(j.muddati) + '</td><td class="qiz">' + foiz(j.muddati, j.qarz) + '%</td></tr>' +
+      '<tr><td class="l">&nbsp;&nbsp;— муддати келмаган</td><td>' + pul(j.qarz - j.muddati) + '</td><td>' + foiz(j.qarz - j.muddati, j.qarz) + '%</td></tr>' +
+      '<tr><td class="l" colspan="3" style="padding:0"></td></tr>' +
+      '<tr><td class="l" colspan="3" style="text-align:left;padding:4px 5px;background:#fbf3f3;background-color:#fbf3f3">' +
+        'Муддати ўтган қарздорлик — жами қарзнинг <b class="qiz">' + foiz(j.muddati, j.qarz) + '%</b> и (' + mlrd(j.muddati) + ' сўм). Ундирув бўлими назоратида.</td></tr>' +
+      '<tr><td class="l" colspan="3" style="padding:0"></td></tr>' +
+      '<tr><th class="l">2. Бўш (сотилмаган) дўконлар</th><th>Миқдори</th><th>Улуши</th></tr>' +
+      '<tr><td class="l">Сотилмаган дўконлар</td><td>' + j.bosSoni + ' та</td><td>' + foiz(j.bosSoni, j.soni) + '%</td></tr>' +
+      '<tr><td class="l">Майдони, m²</td><td>' + m2(j.bosMaydon) + '</td><td>' + foiz(j.bosMaydon, j.maydon) + '%</td></tr>' +
+      '<tr class="tot"><td class="l">Қиймати (прайс-лист нархида), сўм</td><td>' + pul(j.bosQiymat) + '</td><td></td></tr>' +
+      '<tr class="sub"><td class="l">&nbsp;&nbsp;— қурилиши тугалланган (' + h.tugal.bosSoni + ' та)</td><td>' + pul(h.tugal.bosQiymat) + '</td><td>' + foiz(h.tugal.bosQiymat, j.bosQiymat) + '%</td></tr>' +
+      '<tr class="sub"><td class="l">&nbsp;&nbsp;— қурилиши якунланмаган (' + h.qurilayotgan.bosSoni + ' та)</td><td>' + pul(h.qurilayotgan.bosQiymat) + '</td><td>' + foiz(h.qurilayotgan.bosQiymat, j.bosQiymat) + '%</td></tr>' +
+    '</table></td></tr></table>' +
+
+    '<div class="sr">3. Қурилиш ҳолати бўйича</div>' +
+    '<table class="t"><tr><th class="l">Дўконлар</th><th>Сони</th><th>Майдони, m²</th><th>Сумма, сўм</th><th>Сотилган</th><th>Сотилган майдони</th>' +
+      '<th>Сотилганлар қиймати</th><th>Тушум</th><th>Қарздорлиги</th></tr>' +
+      qator3(h.tugal) + qator3(h.qurilayotgan) + qator3(j) + '</table>' +
+
+    '<div class="sr">4. Ҳужжатлаштирилган дўконлар</div>' +
+    '<table class="t"><tr><th class="l">Дўконлар</th><th>Сони</th><th>Майдони, m²</th><th>Сумма, сўм</th><th>Жами тўлов</th><th>Жами қолдиқ ва қарздорлик</th></tr>' +
+      qator4(h.hujBor) + qator4(h.hujYoq) + qator4(hujJami) + '</table>' +
+
+    '<div style="font-size:6.8pt;color:#555555;margin-top:5px;line-height:1.35">' +
+      'Нархлаш: сотилган дўкон — шартнома қиймати, сотилмаган дўкон — прайс-лист база нархи × реал майдон. ' +
+      '«Сотилган» — сотув шартномаси тузилган ва бекор қилинмаган дўкон. ' +
+      '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
+
+    '<div style="margin-top:14px;font-size:8.6pt">Директор &nbsp;&nbsp;______________________&nbsp;&nbsp; ' + PDF_DIREKTOR + '</div>' +
+    '<table class="ft" style="margin-top:8px"><tr><td>Шакллантирилди: ' + esc(vaqt) + ' · Юклаб олди: ' + esc(kim) + ' · AKS TIZIM</td>' +
+    '<td style="text-align:right">Тизим муаллифи ва яратувчиси: ' + PDF_MUALLIF + '</td></tr></table>' +
+    '</body></html>';
+}
+
+async function tasischiPdf([kodSes]) {
+  const u = await S.ruxsat(kodSes);
+  if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
+  if (!(await PDF.bor())) throw new S.Xato('PDF dasturi hozir ishlamayapti. Birozdan keyin urinib ko\'ring.');
+  const h = await hisobla();
+  const pdf = await PDF.yasa(pdfHtml(h, u.fish, hozirDmyHm()), '');
+  return { nom: 'Tahliliy_malumot_' + h.sana.split('-').reverse().join('.') + '.pdf', b64: pdf.toString('base64'), sana: h.sana };
+}
+
 async function tasischiHisobot([kodSes]) {
   const u = await S.ruxsat(kodSes);
   if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
   return await hisobla();
 }
 
-module.exports = { tasischiHisobot, hisobla };
+module.exports = { tasischiHisobot, tasischiPdf };
+module.exports._ichki = { hisobla, pdfHtml, hozirDmyHm };
