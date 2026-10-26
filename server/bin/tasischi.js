@@ -75,9 +75,17 @@ function diqqatChop(h) {
 
   if (n.begonaRoyxat && n.begonaRoyxat.length) {
     console.log('3) БЕКОР ҚИЛИНГАН / НОТАНИШ ШАРТНОМАЛАРГА ЁЗИЛГАН ТЎЛОВЛАР — ' + n.begonaTolov + ' та · ' + pul(n.begonaSumma) + ' сўм');
-    n.begonaRoyxat.forEach(x => console.log('      ' + String(x.no).padEnd(14) + String(x.soni + ' та').padStart(6) + '   ' + pul(x.summa).padStart(18)));
+    n.begonaRoyxat.forEach(x => console.log('      ' + String(x.no).padEnd(12) + String(x.soni + ' та').padStart(6) + '   ' + pul(x.summa).padStart(18) + '   ' + (x.holati || '')));
     console.log('');
   } else console.log('3) Бекор қилинган шартнома тўлови йўқ ✅\n');
+
+  if (n.boshqa && n.boshqa.length) {
+    console.log('3b) ҲИСОБГА ОЛИНМАГАН (бекор эмас) ШАРТНОМАЛАР — ' + n.boshqa.length + ' та');
+    console.log('    Актив / Шартнома олмаган / Кредит асосида / Якунланган эмас — шунинг учун дўкони БЎШ деб саналди.\n');
+    n.boshqa.forEach((x, i) => console.log('    ' + String(i + 1).padStart(2) + ') ' + String(x.no).padEnd(9) + qisqa(x.holati, 20) +
+      qisqa(x.dokonId || x.dokon || '—', 10) + qisqa(x.fish || '—', 38) + pul(x.tolangan).padStart(16) + ' тўланган · ' + pul(x.qarz) + ' қарз'));
+    console.log('    Шулардан ' + n.boshqaDokonli + ' тасининг дўкони 01_Dokonlar да боғланган — ўша дўконлар бўш ҳисобланди.\n');
+  }
 
   const q = [];
   if (n.qiymatsiz && n.qiymatsiz.length) q.push('Сотилган, лекин шартнома қиймати 0: ' + n.qiymatsiz.join(', '));
@@ -150,6 +158,7 @@ function diqqatChop(h) {
   console.log('\n----- ТЕКШИРУВ -----');
   L('Фаол сотув шартномалари', h.shartnoma.soni + ' та');
   L('Бекор қилинганлар', h.shartnoma.bekorSoni + ' та');
+  L('Бошқа ҳолат (саналмаган)', h.shartnoma.boshqaSoni + ' та');
   L('03 даги шартнома қиймати йиғиндиси', pul(h.shartnoma.qiymat));
   L('03 даги «тўланган» йиғиндиси', pul(h.shartnoma.tolangan));
   L('03 даги қарз / муддати ўтган', pul(h.shartnoma.qarz) + ' / ' + pul(h.shartnoma.muddati));

@@ -11,6 +11,10 @@ const s = v => String(v == null ? '' : v);
 const son = V.son;
 const r2 = n => Math.round(n * 100) / 100;
 const DOKON_OXIRI = 641;                      // 01_Dokonlar: 2–641 qator = 640 do'kon
+// Direktor qarori 27.10.2026: do'kon «sotilgan» deb FAQAT shu to'rt holatda sanaladi (Registrator_Shartnoma AS ustunidagidek).
+// Passiv, Kutilmoqda, Noqonuniy hududda va Bekor qilindi — sanalmaydi, ularning do'koni bo'sh hisoblanadi.
+const SOTILGAN_HOLAT = ['aktiv', 'shartnoma olmagan', 'kredit asosida', 'yakunlangan'];
+const sotilganHolat = v => SOTILGAN_HOLAT.indexOf(s(v).trim().toLowerCase()) >= 0;
 const TUGAL = 'Тугалланган';                  // qurilish holati (01_Dokonlar H ustuni)
 
 // To'lov shakli → hisobot guruhi. 05_Tolovlar E ustuni: Naqt / Bank / Plastik / Barter (kirill variantlari ham bor).
@@ -30,12 +34,20 @@ async function hisobla() {
   R2.forEach(({ x }) => { if (x[0] != null && x[0] !== '') MJ[s(x[0])] = s(x[2]).trim(); });
 
   // ---------- 1) Sotuv shartnomalari: faqat faol (bekor qilinmaganlari)
-  const SH = {};                                // shartnoma raqami → ma'lumot
+  const SH = {};                                // shartnoma raqami → ma'lumot (faqat sanaladigan holatdagilar)
+  const HOLAT = {}, BOSHQA = [];                // HOLAT: har shartnomaning holati; BOSHQA: sanalmagan (bekor emas) shartnomalar
   let bekorSoni = 0;
   R3.forEach(({ x }) => {
     const no = s(x[0]).trim();
     if (!/^27\/\d+$/.test(no)) return;
-    if (/bekor/i.test(s(x[13]))) { bekorSoni++; return; }
+    const hol = s(x[13]).trim();
+    HOLAT[no] = hol;
+    if (!sotilganHolat(hol)) {
+      if (/bekor/i.test(hol)) bekorSoni++;
+      else BOSHQA.push({ no, holati: hol, dokon: s(x[5]).trim(), fish: s(x[20]).trim() || MJ[s(x[4])] || '',
+        qiymat: Math.round(son(x[25])), tolangan: Math.round(son(x[27])), qarz: Math.round(son(x[30])) });
+      return;
+    }
     SH[no] = { no, holati: s(x[13]).trim(), notarial: s(x[15]).trim(), qiymat: son(x[25]), tolangan: son(x[27]),
       qarz: son(x[30]), muddati: son(x[31]), sana: V.iso(x[2]), dokon: s(x[5]).trim(),
       fish: s(x[20]).trim() || MJ[s(x[4])] || '', dokonlar: [] };
@@ -68,9 +80,9 @@ async function hisobla() {
     });
   });
   // shartnomasi do'konga bog'lanmagan (01_Dokonlar R ustunida ko'rinmayotgan) faol shartnomalar
-  const D01 = {}; D.forEach(d => { D01[d.id] = d; });
+  const DID = {}; D.forEach(d => { DID[d.id] = d; });
   const dokonsizT = Object.values(SH).filter(sh => !sh.dokonlar.length).map(sh => {
-    const d = D01[sh.dokon] || null;                      // 03 da yozilgan do'kon 01 da bormi
+    const d = DID[sh.dokon] || null;                      // 03 da yozilgan do'kon 01 da bormi
     return { no: sh.no, fish: sh.fish, dokon: sh.dokon, holati: sh.holati, sana: sh.sana,
       qiymat: Math.round(sh.qiymat), tolangan: Math.round(sh.tolangan), qarz: Math.round(sh.qarz),
       bor: !!d, dokonSotuvNo: d ? d.sotuvNo : '', dokonEgasi: d ? d.egasi : '',
@@ -90,7 +102,12 @@ async function hisobla() {
   R5.forEach(({ x }) => {
     if (x[0] == null || x[0] === '') return;
     const no = s(x[2]).trim(), summa = son(x[3]);
-    if (!SH[no]) { if (summa) { begonaTolov++; begonaSumma += summa; (BG[no || '(raqamsiz)'] = BG[no || '(raqamsiz)'] || { no: no || '(raqamsiz)', soni: 0, summa: 0 }).soni++; BG[no || '(raqamsiz)'].summa += summa; } return; }   // bekor qilingan / noma'lum shartnoma to'lovi
+    if (!SH[no]) {   // sanalmaydigan holatdagi (bekor, passiv, kutilmoqda…) yoki noma'lum shartnoma to'lovi
+      if (summa) { begonaTolov++; begonaSumma += summa;
+        const k = no || '(raqamsiz)';
+        (BG[k] = BG[k] || { no: k, holati: HOLAT[no] || 'noma\'lum shartnoma', soni: 0, summa: 0 }).soni++; BG[k].summa += summa; }
+      return;
+    }
     tolovBarcha += summa;
     if (!SH[no].dokonlar.length) { tolovBoglanmagan += summa; return; }   // do'konga bog'lanmagan shartnoma — tushumga ham kirmaydi
     T[shaklGuruh(x[4])] += summa; tolovJami += summa;
@@ -123,6 +140,11 @@ async function hisobla() {
   const qurTurlari = {};
   D.forEach(d => { const k = d.qurilish || '(bo\'sh)'; qurTurlari[k] = (qurTurlari[k] || 0) + 1; });
 
+  // sanalmagan (bekor emas) shartnomalar: do'koni 01_Dokonlar da bog'langanlari endi «bo'sh» deb sanaladi
+  const D01 = {}; D.forEach(d => { if (d.sotuvNo) D01[d.sotuvNo] = d; });
+  BOSHQA.forEach(b => { const d = D01[b.no]; b.dokonBor = !!d; b.dokonId = d ? d.id : ''; });
+  const boshqaDokonli = BOSHQA.filter(b => b.dokonBor);
+
   // shubhali qatorlar: sotilgan lekin shartnoma qiymati 0; sotilmagan lekin baza narxi 0; 01 dagi «umumiy» ustuni baza×maydon ga mos kelmasligi
   const qiymatsiz = D.filter(d => d.sotilgan && !(d.qiymat > 0)).map(d => d.id + ' (' + d.sotuvNo + ')');
   const bazasiz = D.filter(d => !d.sotilgan && !(d.baza > 0)).map(d => d.id);
@@ -141,12 +163,12 @@ async function hisobla() {
     tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd),
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
       yozilmagan: jami.tushum - Math.round(tolovJami) },
-    shartnoma: { soni: Object.keys(SH).length, bekorSoni, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
+    shartnoma: { soni: Object.keys(SH).length, bekorSoni, boshqaSoni: BOSHQA.length, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
     nazorat: { kopDokonli, dokonsiz, dokonsizT, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
       tolovBarcha: Math.round(tolovBarcha), tolovBoglanmagan: Math.round(tolovBoglanmagan),
       begonaRoyxat: Object.values(BG).sort((a, b) => b.summa - a.summa).map(x => Object.assign({}, x, { summa: Math.round(x.summa) })),
-      qiymatsiz, bazasiz, maydonsiz, umumiyFarq,
+      qiymatsiz, bazasiz, maydonsiz, umumiyFarq, boshqa: BOSHQA, boshqaDokonli: boshqaDokonli.length,
       tolovFarq: Math.round(tolovBarcha) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
   };
 }
@@ -277,7 +299,7 @@ function pdfHtml(h, kim, vaqt) {
 
     '<div style="font-size:6.8pt;color:#555555;margin-top:5px;line-height:1.35">' +
       'Нархлаш: сотилган дўкон — шартнома қиймати, сотилмаган дўкон — прайс-лист база нархи × реал майдон. ' +
-      '«Сотилган» — сотув шартномаси тузилган ва бекор қилинмаган дўкон. ' +
+      '«Сотилган» — шартнома ҳолати Актив, Шартнома олмаган, Кредит асосида ёки Якунланган бўлган дўкон. ' +
       '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Пластик карта орқали қилинган тўловлар нақд тўловга қўшилган. ' +
       'Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
 
@@ -305,7 +327,7 @@ async function tafsilot() {
   const SH = {};
   R3.forEach(({ x }) => {
     const no = s(x[0]).trim(); if (!/^27\/\d+$/.test(no)) return;
-    const bekor = /bekor/i.test(s(x[13]));
+    const bekor = !sotilganHolat(x[13]);   // «bekor» = hisobotda sanalmaydigan holat (bekor, passiv, kutilmoqda, noqonuniy hudud)
     SH[no] = { no, bekor, holati: s(x[13]).trim(), sana: V.iso(x[2]), dokon: s(x[5]).trim(),
       fish: s(x[20]).trim() || MJ[s(x[4])] || '', qiymat: son(x[25]), tolangan: son(x[27]), qarz: son(x[30]), muddati: son(x[31]), dokonlar: 0 };
   });
