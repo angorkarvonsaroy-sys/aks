@@ -29,7 +29,7 @@ function shaklGuruh(x) {
 }
 
 async function hisobla() {
-  const [R1, R3, R5, R2] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('05_Tolovlar'), V.qatorlar('02_Mijozlar')]);
+  const [R1, R3, R5, R2, R5b] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('05_Tolovlar'), V.qatorlar('02_Mijozlar'), V.qatorlar('05b_Bufer_tolovlar')]);
   const MJ = {};
   R2.forEach(({ x }) => { if (x[0] != null && x[0] !== '') MJ[s(x[0])] = s(x[2]).trim(); });
 
@@ -113,6 +113,22 @@ async function hisobla() {
     T[shaklGuruh(x[4])] += summa; tolovJami += summa;
   });
 
+  // ---------- 4b) Bufer to'lovlar (05b): pul kelgan, lekin kirim orderi hali rasmiylashtirilmagan.
+  // 03 dagi «Jami to'langan» ustuni BUFERNI HAM hisobga oladi, 05_Tolovlar esa olmaydi — to'g'ri tenglama:
+  // Σ 03.tolangan = Σ 05.summa + Σ 05b(«Буферда»). Buni hisobga olmasa «yo'qolgan pul» bo'lib ko'rinadi.
+  let buferSumma = 0;
+  const BUFER = [];
+  R5b.forEach(({ x }) => {
+    if (x[0] == null || x[0] === '') return;
+    if (s(x[6]).trim() !== 'Буферда') return;
+    const no = s(x[2]).trim(); if (!SH[no]) return;      // sanalmaydigan shartnomanikini olmaymiz
+    const summa = son(x[3]);
+    buferSumma += summa;
+    BUFER.push({ no, summa: Math.round(summa), sana: V.iso(x[1]), shakl: s(x[4]).trim(), izoh: s(x[5]).trim(),
+      muddatHolat: s(x[11]).trim(), fish: s(x[10]).trim() || SH[no].fish || '' });
+  });
+  BUFER.sort((a, b) => b.summa - a.summa);
+
   // ---------- 5) Yig'indilar
   const yig = (ro, nom) => {
     const o = { nom, soni: ro.length, maydon: 0, summa: 0, sotSoni: 0, sotMaydon: 0, sotQiymat: 0, tushum: 0, qarz: 0, muddati: 0 };
@@ -162,11 +178,12 @@ async function hisobla() {
     jami, tugal, qurilayotgan, hujBor, hujYoq,
     tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd),
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
-      yozilmagan: jami.tushum - Math.round(tolovJami) },
+      bufer: Math.round(buferSumma), buferSoni: BUFER.length,
+      yozilmagan: jami.tushum - Math.round(tolovJami) - Math.round(buferSumma) },
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, boshqaSoni: BOSHQA.length, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
     nazorat: { kopDokonli, dokonsiz, dokonsizT, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
-      tolovBarcha: Math.round(tolovBarcha), tolovBoglanmagan: Math.round(tolovBoglanmagan),
+      tolovBarcha: Math.round(tolovBarcha), tolovBoglanmagan: Math.round(tolovBoglanmagan), bufer: BUFER,
       begonaRoyxat: Object.values(BG).sort((a, b) => b.summa - a.summa).map(x => Object.assign({}, x, { summa: Math.round(x.summa) })),
       qiymatsiz, bazasiz, maydonsiz, umumiyFarq, boshqa: BOSHQA, boshqaDokonli: boshqaDokonli.length,
       tolovFarq: Math.round(tolovBarcha) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
@@ -228,6 +245,7 @@ function pdfHtml(h, kim, vaqt) {
     ['&nbsp;&nbsp;— бартер (товар/хизмат)', pul(T.barter), foiz(T.barter, T.jami) + '%']]
     .concat(T.boshqa ? [['&nbsp;&nbsp;— бошқа шакл', pul(T.boshqa), foiz(T.boshqa, T.jami) + '%']] : [])
     .concat(T.korsatilmagan ? [['&nbsp;&nbsp;— шакли кўрсатилмаган', pul(T.korsatilmagan), foiz(T.korsatilmagan, T.jami) + '%']] : [])
+    .concat(T.bufer ? [['&nbsp;&nbsp;— буферда (кирим ордери йўқ)', pul(T.bufer), foiz(T.bufer, T.jami) + '%']] : [])
     .concat(T.yozilmagan ? [[T.yozilmagan > 0 ? '&nbsp;&nbsp;— тўлов жадвалига ёзилмаган' : '&nbsp;&nbsp;— тўлов жадвалида ортиқча',
       (T.yozilmagan > 0 ? '' : '−') + pul(Math.abs(T.yozilmagan)), foiz(Math.abs(T.yozilmagan), T.jami) + '%']] : []);
 
@@ -301,6 +319,7 @@ function pdfHtml(h, kim, vaqt) {
       'Нархлаш: сотилган дўкон — шартнома қиймати, сотилмаган дўкон — прайс-лист база нархи × реал майдон. ' +
       '«Сотилган» — шартнома ҳолати Актив, Шартнома олмаган, Кредит асосида ёки Якунланган бўлган дўкон. ' +
       '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Пластик карта орқали қилинган тўловлар нақд тўловга қўшилган. ' +
+      '«Буферда» — пул келган, лекин кирим ордери ҳали расмийлаштирилмаган тўловлар. ' +
       'Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
 
     '<div style="margin-top:14px;font-size:8.6pt">Директор &nbsp;&nbsp;______________________&nbsp;&nbsp; ' + PDF_DIREKTOR + '</div>' +

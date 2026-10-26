@@ -87,6 +87,17 @@ function diqqatChop(h) {
     console.log('    Шулардан ' + n.boshqaDokonli + ' тасининг дўкони 01_Dokonlar да боғланган — ўша дўконлар бўш ҳисобланди.\n');
   }
 
+  if (n.bufer && n.bufer.length) {
+    console.log('3c) БУФЕРДАГИ ТЎЛОВЛАР — ' + n.bufer.length + ' та · ' + pul(n.bufer.reduce((a, x) => a + x.summa, 0)) + ' сўм');
+    console.log('    Пул келган, лекин кирим ордери ёзилмаган. 03 даги «тўланган» уларни ҳисобга олади, 05_Tolovlar йўқ.\n');
+    n.bufer.forEach((x, i) => console.log('    ' + String(i + 1).padStart(2) + ') ' + String(x.no).padEnd(9) +
+      pul(x.summa).padStart(14) + '  ' + qisqa(x.shakl || '—', 8) + qisqa(x.sana ? x.sana.split('-').reverse().join('.') : 'САНА ЙЎҚ', 12) +
+      qisqa(x.fish || '—', 36) + (x.muddatHolat || '')));
+    const izoh = n.bufer.filter(x => x.izoh);
+    if (izoh.length) { console.log('\n    Изоҳлар:'); izoh.forEach(x => console.log('      ' + x.no + ': ' + x.izoh)); }
+    console.log('');
+  }
+
   const q = [];
   if (n.qiymatsiz && n.qiymatsiz.length) q.push('Сотилган, лекин шартнома қиймати 0: ' + n.qiymatsiz.join(', '));
   if (n.bazasiz && n.bazasiz.length) q.push('Сотилмаган, лекин база нархи 0: ' + n.bazasiz.join(', '));
@@ -124,6 +135,7 @@ function diqqatChop(h) {
   L('  — бартер (товар/хизмат)', pul(h.tolov.barter));
   if (h.tolov.boshqa) L('  — бошқа шакл', pul(h.tolov.boshqa));
   if (h.tolov.korsatilmagan) L('  — шакли кўрсатилмаган', pul(h.tolov.korsatilmagan));
+  if (h.tolov.bufer) L('  — буферда (кирим ордери йўқ)', pul(h.tolov.bufer) + '  (' + h.tolov.buferSoni + ' та)');
   if (h.tolov.yozilmagan) L(h.tolov.yozilmagan > 0 ? '  — тўлов жадвалига ёзилмаган' : '  — тўлов жадвалида ортиқча', (h.tolov.yozilmagan > 0 ? '' : '−') + pul(Math.abs(h.tolov.yozilmagan)));
   L('  (шундан 05_Tolovlar да)', pul(h.tolov.b05));
   L('Жами қарздорлик', pul(j.qarz));
