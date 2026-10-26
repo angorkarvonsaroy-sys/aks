@@ -74,7 +74,8 @@ function diqqatChop(h) {
   L('  — бартер (товар/хизмат)', pul(h.tolov.barter));
   if (h.tolov.boshqa) L('  — бошқа шакл', pul(h.tolov.boshqa));
   if (h.tolov.korsatilmagan) L('  — шакли кўрсатилмаган', pul(h.tolov.korsatilmagan));
-  L('  05_Tolovlar йиғиндиси', pul(h.tolov.jami));
+  if (h.tolov.yozilmagan) L(h.tolov.yozilmagan > 0 ? '  — тўлов жадвалига ёзилмаган' : '  — тўлов жадвалида ортиқча', (h.tolov.yozilmagan > 0 ? '' : '−') + pul(Math.abs(h.tolov.yozilmagan)));
+  L('  (шундан 05_Tolovlar да)', pul(h.tolov.b05));
   L('Жами қарздорлик', pul(j.qarz));
   L('  — муддати ўтган', pul(j.muddati));
   L('  — муддати келмаган', pul(j.qarz - j.muddati));
@@ -110,6 +111,8 @@ function diqqatChop(h) {
   L('03 даги шартнома қиймати йиғиндиси', pul(h.shartnoma.qiymat));
   L('03 даги «тўланган» йиғиндиси', pul(h.shartnoma.tolangan));
   L('03 даги қарз / муддати ўтган', pul(h.shartnoma.qarz) + ' / ' + pul(h.shartnoma.muddati));
+  L('05 даги барча тўлов (фаол шартн.)', pul(h.nazorat.tolovBarcha));
+  L('  шундан дўконга боғланмаганга', pul(h.nazorat.tolovBoglanmagan));
   L('05 ↔ 03 тўлов фарқи', pul(h.nazorat.tolovFarq));
   console.log('  Қурилиш ҳолати устунидаги қийматлар:');
   Object.keys(h.nazorat.qurTurlari).forEach(k => L('    ' + k, h.nazorat.qurTurlari[k] + ' та'));

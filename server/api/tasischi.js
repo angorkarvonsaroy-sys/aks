@@ -80,14 +80,18 @@ async function hisobla() {
   });
   const dokonsiz = dokonsizT.map(x => x.no + ' — ' + (x.fish || 'ismi yo\'q') + (x.dokon ? ' (' + x.dokon + ')' : '') + ': ' + x.sabab);
 
-  // ---------- 4) To'lov shakllari (05_Tolovlar) — faqat faol shartnomalar bo'yicha
+  // ---------- 4) To'lov shakllari (05_Tolovlar) — faqat do'konga BOG'LANGAN faol shartnomalar bo'yicha.
+  // Sabab: «Jami qilingan to'lov» 03 dagi «to'langan» ustunidan do'konlarga taqsimlanadi, unga bog'lanmagan shartnoma kirmaydi —
+  // shakllar ham o'sha doiradan olinmasa, shakllar yig'indisi jami to'lovdan katta chiqib qoladi.
   const T = { bank: 0, naqd: 0, plastik: 0, barter: 0, boshqa: 0, korsatilmagan: 0 };
-  let tolovJami = 0, begonaTolov = 0, begonaSumma = 0;
+  let tolovJami = 0, tolovBarcha = 0, tolovBoglanmagan = 0, begonaTolov = 0, begonaSumma = 0;
   const BG = {};
   R5.forEach(({ x }) => {
     if (x[0] == null || x[0] === '') return;
     const no = s(x[2]).trim(), summa = son(x[3]);
     if (!SH[no]) { if (summa) { begonaTolov++; begonaSumma += summa; (BG[no || '(raqamsiz)'] = BG[no || '(raqamsiz)'] || { no: no || '(raqamsiz)', soni: 0, summa: 0 }).soni++; BG[no || '(raqamsiz)'].summa += summa; } return; }   // bekor qilingan / noma'lum shartnoma to'lovi
+    tolovBarcha += summa;
+    if (!SH[no].dokonlar.length) { tolovBoglanmagan += summa; return; }   // do'konga bog'lanmagan shartnoma — tushumga ham kirmaydi
     T[shaklGuruh(x[4])] += summa; tolovJami += summa;
   });
 
@@ -133,14 +137,16 @@ async function hisobla() {
   return {
     sana: V.bugun(),
     jami, tugal, qurilayotgan, hujBor, hujYoq,
-    tolov: { jami: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd), plastik: Math.round(T.plastik),
-      barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan) },
+    tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd), plastik: Math.round(T.plastik),
+      barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
+      yozilmagan: jami.tushum - Math.round(tolovJami) },
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
     nazorat: { kopDokonli, dokonsiz, dokonsizT, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
+      tolovBarcha: Math.round(tolovBarcha), tolovBoglanmagan: Math.round(tolovBoglanmagan),
       begonaRoyxat: Object.values(BG).sort((a, b) => b.summa - a.summa).map(x => Object.assign({}, x, { summa: Math.round(x.summa) })),
       qiymatsiz, bazasiz, maydonsiz, umumiyFarq,
-      tolovFarq: Math.round(tolovJami) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
+      tolovFarq: Math.round(tolovBarcha) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
   };
 }
 
@@ -199,7 +205,9 @@ function pdfHtml(h, kim, vaqt) {
     ['&nbsp;&nbsp;— нақд тўлов', pul(T.naqd), foiz(T.naqd, T.jami) + '%'],
     ['&nbsp;&nbsp;— бартер (товар/хизмат)', pul(T.barter), foiz(T.barter, T.jami) + '%']]
     .concat(T.boshqa ? [['&nbsp;&nbsp;— бошқа шакл', pul(T.boshqa), foiz(T.boshqa, T.jami) + '%']] : [])
-    .concat(T.korsatilmagan ? [['&nbsp;&nbsp;— шакли кўрсатилмаган', pul(T.korsatilmagan), foiz(T.korsatilmagan, T.jami) + '%']] : []);
+    .concat(T.korsatilmagan ? [['&nbsp;&nbsp;— шакли кўрсатилмаган', pul(T.korsatilmagan), foiz(T.korsatilmagan, T.jami) + '%']] : [])
+    .concat(T.yozilmagan ? [[T.yozilmagan > 0 ? '&nbsp;&nbsp;— тўлов жадвалига ёзилмаган' : '&nbsp;&nbsp;— тўлов жадвалида ортиқча',
+      (T.yozilmagan > 0 ? '' : '−') + pul(Math.abs(T.yozilmagan)), foiz(Math.abs(T.yozilmagan), T.jami) + '%']] : []);
 
   const qator3 = o => '<tr' + (o.nom === 'Жами' ? ' class="tot"' : '') + '><td class="l">' + o.nom + '</td><td>' + o.soni + '</td><td>' + m2(o.maydon) +
     '</td><td>' + pul(o.summa) + '</td><td>' + o.sotSoni + '</td><td>' + m2(o.sotMaydon) + '</td><td>' + pul(o.sotQiymat) +
