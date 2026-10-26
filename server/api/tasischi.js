@@ -124,6 +124,10 @@ async function hisobla() {
     const no = s(x[2]).trim(); if (!SH[no]) return;      // sanalmaydigan shartnomanikini olmaymiz
     const summa = son(x[3]);
     buferSumma += summa;
+    // Direktor qarori 27.10.2026: bufer ta'sischi hisobotida ALOHIDA qator bo'lmaydi — puli o'z shakliga
+    // (naqd / barter / bank) qo'shiladi, shunda ustun yig'indisi «Jami to'lov» ga aniq teng chiqadi.
+    // Buferligi faqat direktor ko'radigan ДИҚҚАТ ro'yxatida qoladi.
+    T[shaklGuruh(x[4])] += summa; tolovJami += summa;
     BUFER.push({ no, summa: Math.round(summa), sana: V.iso(x[1]), shakl: s(x[4]).trim(), izoh: s(x[5]).trim(),
       muddatHolat: s(x[11]).trim(), fish: s(x[10]).trim() || SH[no].fish || '' });
   });
@@ -178,7 +182,7 @@ async function hisobla() {
     jami, tugal, qurilayotgan, hujBor, hujYoq,
     tolov: { jami: jami.tushum, b05: Math.round(tolovJami), bank: Math.round(T.bank), naqd: Math.round(T.naqd),
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan),
-      bufer: Math.round(buferSumma), buferSoni: BUFER.length,
+      buferSoni: BUFER.length, buferSumma: Math.round(buferSumma),
       yozilmagan: jami.tushum - Math.round(tolovJami) - Math.round(buferSumma) },
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, boshqaSoni: BOSHQA.length, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
@@ -245,7 +249,6 @@ function pdfHtml(h, kim, vaqt) {
     ['&nbsp;&nbsp;— бартер (товар/хизмат)', pul(T.barter), foiz(T.barter, T.jami) + '%']]
     .concat(T.boshqa ? [['&nbsp;&nbsp;— бошқа шакл', pul(T.boshqa), foiz(T.boshqa, T.jami) + '%']] : [])
     .concat(T.korsatilmagan ? [['&nbsp;&nbsp;— шакли кўрсатилмаган', pul(T.korsatilmagan), foiz(T.korsatilmagan, T.jami) + '%']] : [])
-    .concat(T.bufer ? [['&nbsp;&nbsp;— буферда (кирим ордери йўқ)', pul(T.bufer), foiz(T.bufer, T.jami) + '%']] : [])
     .concat(T.yozilmagan ? [[T.yozilmagan > 0 ? '&nbsp;&nbsp;— тўлов жадвалига ёзилмаган' : '&nbsp;&nbsp;— тўлов жадвалида ортиқча',
       (T.yozilmagan > 0 ? '' : '−') + pul(Math.abs(T.yozilmagan)), foiz(Math.abs(T.yozilmagan), T.jami) + '%']] : []);
 
@@ -319,7 +322,6 @@ function pdfHtml(h, kim, vaqt) {
       'Нархлаш: сотилган дўкон — шартнома қиймати, сотилмаган дўкон — прайс-лист база нархи × реал майдон. ' +
       '«Сотилган» — шартнома ҳолати Актив, Шартнома олмаган, Кредит асосида ёки Якунланган бўлган дўкон. ' +
       '«Ҳужжатлаштирилган» — нотариал расмийлаштирилган шартнома. Пластик карта орқали қилинган тўловлар нақд тўловга қўшилган. ' +
-      '«Буферда» — пул келган, лекин кирим ордери ҳали расмийлаштирилмаган тўловлар. ' +
       'Маълумот AKS ТИЗИМ базасидан автоматик олинди.</div>' +
 
     '<div style="margin-top:14px;font-size:8.6pt">Директор &nbsp;&nbsp;______________________&nbsp;&nbsp; ' + PDF_DIREKTOR + '</div>' +

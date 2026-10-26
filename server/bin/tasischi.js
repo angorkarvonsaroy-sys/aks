@@ -135,7 +135,7 @@ function diqqatChop(h) {
   L('  — бартер (товар/хизмат)', pul(h.tolov.barter));
   if (h.tolov.boshqa) L('  — бошқа шакл', pul(h.tolov.boshqa));
   if (h.tolov.korsatilmagan) L('  — шакли кўрсатилмаган', pul(h.tolov.korsatilmagan));
-  if (h.tolov.bufer) L('  — буферда (кирим ордери йўқ)', pul(h.tolov.bufer) + '  (' + h.tolov.buferSoni + ' та)');
+  if (h.tolov.buferSumma) L('     (шундан буферда — ҳисоботда кўринмайди)', pul(h.tolov.buferSumma) + '  (' + h.tolov.buferSoni + ' та)');
   if (h.tolov.yozilmagan) L(h.tolov.yozilmagan > 0 ? '  — тўлов жадвалига ёзилмаган' : '  — тўлов жадвалида ортиқча', (h.tolov.yozilmagan > 0 ? '' : '−') + pul(Math.abs(h.tolov.yozilmagan)));
   L('  (шундан 05_Tolovlar да)', pul(h.tolov.b05));
   L('Жами қарздорлик', pul(j.qarz));
