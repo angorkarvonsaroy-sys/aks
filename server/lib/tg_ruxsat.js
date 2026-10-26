@@ -52,7 +52,9 @@ async function bajar(u, id, ha, izoh) {
   const tur = turi(t.kalit); if (!tur) throw new Error('Bu ruxsat so\'rovi emas.');
   if (t.holati !== 'Jarayonda') throw new Error('Bu so\'rovga allaqachon javob berilgan (' + (t.dalil || t.holati) + ').');
   const S = require('../api/sessiya'), tok = await S.sessiyaOch(u.kod);
-  try { return await require('../api/qadam_yoz')[TUR[tur].fn]([tok, id, !!ha, izoh || '']); }
+  // 26.10 TUZATILDI: amal «kod|tok» kutadi (S.foydalanuvchi '|' bo'yicha ajratadi). Avval faqat «tok» yuborilardi —
+  // server xodimni tanimay «Sessiya tugagan» deb javob berardi va tugma umuman ishlamasdi.
+  try { return await require('../api/qadam_yoz')[TUR[tur].fn]([u.kod + '|' + tok, id, !!ha, izoh || '']); }
   finally { try { await redis.del('ses:' + tok); } catch (e) { } }
 }
 

@@ -17,7 +17,8 @@ const klavKam = id => ({ inline_keyboard: KAMCHILIK.map((z, i) => [{ text: '↩ 
 // ishni botdan qabul qilish — ilovadagi amalning o'zi (yurist nomidan qisqa sessiya)
 async function bajar(u, id, kamchilik, izoh) {
   const S = require('../api/sessiya'), tok = await S.sessiyaOch(u.kod);
-  try { return await require('../api/yurist_yoz').yuristQabul([tok, id, !!kamchilik, izoh || '']); }
+  // 26.10 TUZATILDI: amal «kod|tok» kutadi — avval faqat «tok» yuborilardi va tugma «Sessiya tugagan» berardi.
+  try { return await require('../api/yurist_yoz').yuristQabul([u.kod + '|' + tok, id, !!kamchilik, izoh || '']); }
   finally { try { await redis.del('ses:' + tok); } catch (e) { } }
 }
 // xabarni yangilash: tugmalar o'chadi, natija qo'shiladi
