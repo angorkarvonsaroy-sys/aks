@@ -24,7 +24,9 @@ function shaklGuruh(x) {
 }
 
 async function hisobla() {
-  const [R1, R3, R5] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('05_Tolovlar')]);
+  const [R1, R3, R5, R2] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('05_Tolovlar'), V.qatorlar('02_Mijozlar')]);
+  const MJ = {};
+  R2.forEach(({ x }) => { if (x[0] != null && x[0] !== '') MJ[s(x[0])] = s(x[2]).trim(); });
 
   // ---------- 1) Sotuv shartnomalari: faqat faol (bekor qilinmaganlari)
   const SH = {};                                // shartnoma raqami → ma'lumot
@@ -34,7 +36,8 @@ async function hisobla() {
     if (!/^27\/\d+$/.test(no)) return;
     if (/bekor/i.test(s(x[13]))) { bekorSoni++; return; }
     SH[no] = { no, holati: s(x[13]).trim(), notarial: s(x[15]).trim(), qiymat: son(x[25]), tolangan: son(x[27]),
-      qarz: son(x[30]), muddati: son(x[31]), dokonlar: [] };
+      qarz: son(x[30]), muddati: son(x[31]), sana: V.iso(x[2]), dokon: s(x[5]).trim(),
+      fish: s(x[20]).trim() || MJ[s(x[4])] || '', dokonlar: [] };
   });
 
   // ---------- 2) Do'konlar
@@ -63,16 +66,28 @@ async function hisobla() {
       d.qiymat = sh.qiymat * ul; d.tolangan = sh.tolangan * ul; d.qarz = sh.qarz * ul; d.muddati = sh.muddati * ul;
     });
   });
-  // shartnomasi do'konga bog'lanmagan (01_Dokonlar da ko'rinmayotgan) faol shartnomalar
-  const dokonsiz = Object.values(SH).filter(sh => !sh.dokonlar.length).map(sh => sh.no);
+  // shartnomasi do'konga bog'lanmagan (01_Dokonlar R ustunida ko'rinmayotgan) faol shartnomalar
+  const D01 = {}; D.forEach(d => { D01[d.id] = d; });
+  const dokonsizT = Object.values(SH).filter(sh => !sh.dokonlar.length).map(sh => {
+    const d = D01[sh.dokon] || null;                      // 03 da yozilgan do'kon 01 da bormi
+    return { no: sh.no, fish: sh.fish, dokon: sh.dokon, holati: sh.holati, sana: sh.sana,
+      qiymat: Math.round(sh.qiymat), tolangan: Math.round(sh.tolangan), qarz: Math.round(sh.qarz),
+      bor: !!d, dokonSotuvNo: d ? d.sotuvNo : '', dokonEgasi: d ? d.egasi : '',
+      sabab: !sh.dokon ? '03 da do\'kon raqami yozilmagan'
+        : !d ? '01_Dokonlar da «' + sh.dokon + '» nomli do\'kon yo\'q'
+        : !d.sotuvNo ? '01_Dokonlar da «' + sh.dokon + '» bor, lekin shartnoma raqami ustuni BO\'SH'
+        : '01_Dokonlar da «' + sh.dokon + '» ga boshqa shartnoma yozilgan: ' + d.sotuvNo };
+  });
+  const dokonsiz = dokonsizT.map(x => x.no + ' — ' + (x.fish || 'ismi yo\'q') + (x.dokon ? ' (' + x.dokon + ')' : '') + ': ' + x.sabab);
 
   // ---------- 4) To'lov shakllari (05_Tolovlar) — faqat faol shartnomalar bo'yicha
   const T = { bank: 0, naqd: 0, plastik: 0, barter: 0, boshqa: 0, korsatilmagan: 0 };
   let tolovJami = 0, begonaTolov = 0, begonaSumma = 0;
+  const BG = {};
   R5.forEach(({ x }) => {
     if (x[0] == null || x[0] === '') return;
     const no = s(x[2]).trim(), summa = son(x[3]);
-    if (!SH[no]) { if (summa) { begonaTolov++; begonaSumma += summa; } return; }   // bekor qilingan / noma'lum shartnoma to'lovi
+    if (!SH[no]) { if (summa) { begonaTolov++; begonaSumma += summa; (BG[no || '(raqamsiz)'] = BG[no || '(raqamsiz)'] || { no: no || '(raqamsiz)', soni: 0, summa: 0 }).soni++; BG[no || '(raqamsiz)'].summa += summa; } return; }   // bekor qilingan / noma'lum shartnoma to'lovi
     T[shaklGuruh(x[4])] += summa; tolovJami += summa;
   });
 
@@ -122,7 +137,8 @@ async function hisobla() {
       barter: Math.round(T.barter), boshqa: Math.round(T.boshqa), korsatilmagan: Math.round(T.korsatilmagan) },
     shartnoma: { soni: Object.keys(SH).length, bekorSoni, qiymat: shQiymat, tolangan: shTolangan, qarz: shQarz, muddati: shMuddati },
     kutilayotgan: jami.bosQiymat + jami.qarz,
-    nazorat: { kopDokonli, dokonsiz, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
+    nazorat: { kopDokonli, dokonsiz, dokonsizT, begonaTolov, begonaSumma: Math.round(begonaSumma), qurTurlari,
+      begonaRoyxat: Object.values(BG).sort((a, b) => b.summa - a.summa).map(x => Object.assign({}, x, { summa: Math.round(x.summa) })),
       qiymatsiz, bazasiz, maydonsiz, umumiyFarq,
       tolovFarq: Math.round(tolovJami) - shTolangan, qiymatFarq: jami.sotQiymat - shQiymat }
   };

@@ -10,8 +10,48 @@ const pul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[ 
 const m2 = n => (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',');
 const L = (a, b) => console.log('  ' + String(a).padEnd(46) + String(b).padStart(22));
 
+const FAQAT_DIQQAT = /^(diqqat|d|nazorat)$/i.test(String(process.argv[2] || ''));
+
+function diqqatChop(h) {
+  const n = h.nazorat;
+  console.log('\n===== ДИҚҚАТ — тузатиш керак бўлган маълумотлар =====\n');
+  if (n.dokonsizT && n.dokonsizT.length) {
+    console.log('1) ДЎКОНГА БОҒЛАНМАГАН ФАОЛ ШАРТНОМАЛАР — ' + n.dokonsizT.length + ' та');
+    console.log('   (қиймати, тўлови ва қарзи ҳисоботга УМУМАН кирмаяпти)\n');
+    n.dokonsizT.forEach((x, i) => {
+      console.log('   ' + (i + 1) + ') ' + x.no + '  ' + (x.fish || '— исми ёзилмаган —'));
+      console.log('      Шартнома санаси: ' + (x.sana ? x.sana.split('-').reverse().join('.') : '—') + '   Ҳолати: ' + (x.holati || '—'));
+      console.log('      03 даги дўкон: ' + (x.dokon || '— бўш —'));
+      console.log('      Шартнома қиймати: ' + pul(x.qiymat) + '   Тўланган: ' + pul(x.tolangan) + '   Қарз: ' + pul(x.qarz));
+      console.log('      САБАБИ: ' + x.sabab);
+      console.log('');
+    });
+    const jq = n.dokonsizT.reduce((a, x) => a + x.qiymat, 0), jt = n.dokonsizT.reduce((a, x) => a + x.tolangan, 0), jz = n.dokonsizT.reduce((a, x) => a + x.qarz, 0);
+    console.log('   ЖАМИ ҳисобга кирмаган: қиймат ' + pul(jq) + ' · тўлов ' + pul(jt) + ' · қарз ' + pul(jz) + '\n');
+  } else console.log('1) Дўконга боғланмаган фаол шартнома йўқ ✅\n');
+
+  console.log('2) 05_Tolovlar ↔ 03 «тўланган» фарқи: ' + pul(n.tolovFarq) + ' сўм' + (n.tolovFarq ? '' : ' ✅') + '\n');
+
+  if (n.begonaRoyxat && n.begonaRoyxat.length) {
+    console.log('3) БЕКОР ҚИЛИНГАН / НОТАНИШ ШАРТНОМАЛАРГА ЁЗИЛГАН ТЎЛОВЛАР — ' + n.begonaTolov + ' та · ' + pul(n.begonaSumma) + ' сўм');
+    n.begonaRoyxat.forEach(x => console.log('      ' + String(x.no).padEnd(14) + String(x.soni + ' та').padStart(6) + '   ' + pul(x.summa).padStart(18)));
+    console.log('');
+  } else console.log('3) Бекор қилинган шартнома тўлови йўқ ✅\n');
+
+  const q = [];
+  if (n.qiymatsiz && n.qiymatsiz.length) q.push('Сотилган, лекин шартнома қиймати 0: ' + n.qiymatsiz.join(', '));
+  if (n.bazasiz && n.bazasiz.length) q.push('Сотилмаган, лекин база нархи 0: ' + n.bazasiz.join(', '));
+  if (n.maydonsiz && n.maydonsiz.length) q.push('Майдони 0 бўлган дўкон: ' + n.maydonsiz.join(', '));
+  if (n.umumiyFarq) q.push('01 «умумий» ≠ база×майдон (сотилмаган): ' + n.umumiyFarq + ' та — ҳисоботда база×майдон олинди');
+  if (n.kopDokonli && n.kopDokonli.length) q.push('Битта шартномага бир неча дўкон: ' + n.kopDokonli.map(x => x.no + ' → ' + x.dokonlar.join('/')).join('; '));
+  console.log('4) Бошқа текширувлар: ' + (q.length ? '' : 'ҳаммаси жойида ✅'));
+  q.forEach(x => console.log('      · ' + x));
+  console.log('');
+}
+
 (async () => {
-  const h = await T.hisobla();
+  const h = await T._ichki.hisobla();
+  if (FAQAT_DIQQAT) { diqqatChop(h); await pool.end(); redis.disconnect(); process.exit(0); }
   const j = h.jami;
   console.log('\n===== ТАҲЛИЛИЙ МАЪЛУМОТ — ' + h.sana.split('-').reverse().join('.') + ' ҳолатида =====\n');
   console.log('УМУМИЙ:');
@@ -71,16 +111,8 @@ const L = (a, b) => console.log('  ' + String(a).padEnd(46) + String(b).padStart
   L('03 даги «тўланган» йиғиндиси', pul(h.shartnoma.tolangan));
   L('03 даги қарз / муддати ўтган', pul(h.shartnoma.qarz) + ' / ' + pul(h.shartnoma.muddati));
   L('05 ↔ 03 тўлов фарқи', pul(h.nazorat.tolovFarq));
-  L('Дўконга боғланмаган фаол шартнома', h.nazorat.dokonsiz.length + ' та' + (h.nazorat.dokonsiz.length ? ': ' + h.nazorat.dokonsiz.slice(0, 12).join(', ') : ''));
-  L('Бир шартнома — бир неча дўкон', h.nazorat.kopDokonli.length + ' та');
-  h.nazorat.kopDokonli.slice(0, 10).forEach(k => console.log('      ' + k.no + ' → ' + k.dokonlar.join(', ')));
-  L('Бекор/нотаниш шартнома тўловлари', h.nazorat.begonaTolov + ' та · ' + pul(h.nazorat.begonaSumma));
-  L('Сотилган, лекин шартнома қиймати 0', h.nazorat.qiymatsiz.length + ' та' + (h.nazorat.qiymatsiz.length ? ': ' + h.nazorat.qiymatsiz.slice(0, 10).join(', ') : ''));
-  L('Сотилмаган, лекин база нархи 0', h.nazorat.bazasiz.length + ' та' + (h.nazorat.bazasiz.length ? ': ' + h.nazorat.bazasiz.slice(0, 10).join(', ') : ''));
-  L('Майдони 0 бўлган дўкон', h.nazorat.maydonsiz.length + ' та' + (h.nazorat.maydonsiz.length ? ': ' + h.nazorat.maydonsiz.slice(0, 10).join(', ') : ''));
-  L('01 «умумий» ≠ база×майдон (сотилмаган)', h.nazorat.umumiyFarq + ' та');
   console.log('  Қурилиш ҳолати устунидаги қийматлар:');
   Object.keys(h.nazorat.qurTurlari).forEach(k => L('    ' + k, h.nazorat.qurTurlari[k] + ' та'));
-  console.log('');
+  diqqatChop(h);
   await pool.end(); redis.disconnect(); process.exit(0);
 })().catch(e => { console.error('XATO: ' + e.message); process.exit(1); });
