@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 📊 Ta'sischi hisoboti raqamlarini terminalda ko'rish. Ishlatish: aks-tasischi
+cd /opt/aks/app && exec sudo -u aks -H node bin/tasischi.js "$@"

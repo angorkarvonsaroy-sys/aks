@@ -194,6 +194,9 @@ Object.assign(A, require('./tasdiq_qaror'));
 // 🤖 topHozir (Topshiriq.gs topAvto) — qoidalar bo'yicha topshiriqlar va avtomatik yopish serverda (yozuv_yondi:top_avto bo'lsa), aks holda eski tizim
 Object.assign(A, require('./top_avto'));
 
+// 📊 Ta'sischi hisoboti (ТАҲЛИЛИЙ МАЪЛУМОТ, 1-илова) — qo'lda yuritilgan Svodniy_hisobotlar jadvalining o'rni. Faqat o'qiydi.
+Object.assign(A, require('./tasischi'));
+
 // amal bo'lmagan eksportlar (Q, _ichki, ro'yxatlar) RPC ga chiqmasin
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 
