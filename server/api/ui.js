@@ -82,13 +82,14 @@ label.kor input{vertical-align:-2px;margin-right:6px;width:16px;height:16px}
 <div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div>
 <div id="x" class="m">Yuklanmoqda…</div>
 <div id="f" style="display:none">
-<div class="m">Parolingizni kiriting</div><br>
+<div class="m" id="t1">Parolingizni kiriting</div><br>
 <input id="kod" type="password" inputmode="text" placeholder="Parol" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br>
-<label class="kor"><input type="checkbox" id="kor" onchange="korQoy()"> Parolni ko'rsatish</label><br>
+<label class="kor"><input type="checkbox" id="kor" onchange="korQoy()"> <span id="t2">Parolni ko'rsatish</span></label><br>
 <button id="kir">Kirish</button><br><br>
-<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Parolimni unutdim</a>
+<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Parolimni unutdim</a><br><br>
+<a class="u" id="alf" href="#" style="opacity:.75">Кирилл алифбосига</a>
 </div></div>
-<div class="a">Tizim muallifi va yaratuvchisi: <b>${MUALLIF}</b></div>
+<div class="a" id="muallif">Tizim muallifi va yaratuvchisi: <b>${MUALLIF}</b></div>
 <script>
 var XATO=${xato ? JSON.stringify(xato) : "''"};
 var k=''; try{ k=localStorage.getItem('aks_k')||''; }catch(e){}
@@ -104,6 +105,33 @@ else {
   document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); });
   try{ document.getElementById('kod').focus(); }catch(e){}
 }
+// 27.10: alifbo — ilovadagi tanlov bilan bir xil kalit (localStorage aks_alifbo). Kirish oynasida jumlalar sanoqli,
+// shuning uchun to'liq o'girgich emas, tayyor matnlar ishlatiladi. Tanlov shu brauzerda saqlanadi.
+var KR={ t1:'Паролингизни киритинг', t2:'Паролни кўрсатиш', kir:'Кириш', unut:'Паролимни унутдим',
+  alf:'Lotin alifbosiga', kod:'Парол', yuk:'Юкланмоқда…', muallif:'Тизим муаллифи ва яратувчиси: ', nom:'Камолиддин Нақиев' };
+var LT={ t1:'Parolingizni kiriting', t2:"Parolni ko'rsatish", kir:'Kirish', unut:'Parolimni unutdim',
+  alf:'Кирилл алифбосига', kod:'Parol', yuk:'Yuklanmoqda…', muallif:'Tizim muallifi va yaratuvchisi: ', nom:${JSON.stringify(MUALLIF)} };
+var XKR={ 'Parol to\u2019g\u2019ri kelmadi. Qaytadan kiriting yoki \u00abParolimni unutdim\u00bb ni bosing.':
+    'Парол тўғри келмади. Қайтадан киритинг ёки «Паролимни унутдим» ни босинг.',
+  'Juda ko\u2019p noto\u2019g\u2019ri urinish. 15 daqiqadan keyin qayta urinib ko\u2019ring.':
+    'Жуда кўп нотўғри уриниш. 15 дақиқадан кейин қайта уриниб кўринг.' };
+function alKr(){ try{ return localStorage.getItem('aks_alifbo')==='kr'; }catch(e){ return false; } }
+function alQoy(){
+  var S=alKr()?KR:LT, g=function(i){ return document.getElementById(i); };
+  if(g('t1')) g('t1').textContent=S.t1;
+  if(g('t2')) g('t2').textContent=S.t2;
+  if(g('kir')) g('kir').textContent=S.kir;
+  if(g('unut')) g('unut').textContent=S.unut;
+  if(g('alf')) g('alf').textContent=S.alf;
+  if(g('kod')) g('kod').setAttribute('placeholder',S.kod);
+  if(g('muallif')) g('muallif').innerHTML=S.muallif+'<b>'+S.nom+'</b>';
+  var xd=g('x'); if(xd && XATO){ var t=XATO.replace(/'/g,'\u2019'); xd.textContent=(alKr()&&XKR[t])?XKR[t]:XATO; }
+}
+var alf=document.getElementById('alf');
+if(alf) alf.onclick=function(e){ e.preventDefault();
+  try{ localStorage.setItem('aks_alifbo', alKr()?'lo':'kr'); }catch(x){}
+  alQoy(); return false; };
+alQoy();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
 </script></body></html>`;
 }
