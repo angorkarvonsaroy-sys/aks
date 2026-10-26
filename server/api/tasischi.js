@@ -295,6 +295,45 @@ async function tasischiPdf([kodSes]) {
   return { nom: 'Tahliliy_malumot_' + h.sana.split('-').reverse().join('.') + '.pdf', b64: pdf.toString('base64'), sana: h.sana };
 }
 
+// ------------------------------------------------------------------ tafsilot (terminal uchun: kim, qachon, qancha)
+// Sotilgan do'konlar ro'yxati (shartnoma sanasi bo'yicha) va to'lovlar ro'yxati (shakli bo'yicha). Faqat o'qiydi.
+async function tafsilot() {
+  const [R1, R3, R5, R2] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('03_Sotuv_shartnomalar'), V.qatorlar('05_Tolovlar'), V.qatorlar('02_Mijozlar')]);
+  const MJ = {};
+  R2.forEach(({ x }) => { if (x[0] != null && x[0] !== '') MJ[s(x[0])] = s(x[2]).trim(); });
+  const SH = {};
+  R3.forEach(({ x }) => {
+    const no = s(x[0]).trim(); if (!/^27\/\d+$/.test(no)) return;
+    const bekor = /bekor/i.test(s(x[13]));
+    SH[no] = { no, bekor, holati: s(x[13]).trim(), sana: V.iso(x[2]), dokon: s(x[5]).trim(),
+      fish: s(x[20]).trim() || MJ[s(x[4])] || '', qiymat: son(x[25]), tolangan: son(x[27]), qarz: son(x[30]), muddati: son(x[31]), dokonlar: 0 };
+  });
+  const sotilganlar = [];
+  R1.forEach(({ n, x }) => {
+    if (n < 2 || n > DOKON_OXIRI) return;
+    const id = s(x[0]).trim(); if (!id) return;
+    const sh = SH[s(x[17]).trim()];
+    if (!sh || sh.bekor) return;
+    sh.dokonlar++;
+    sotilganlar.push({ dokon: id, maydon: son(x[5]), baza: son(x[6]), qurilish: s(x[7]).trim(), tugal: s(x[7]).trim() === TUGAL,
+      no: sh.no, sana: sh.sana, fish: sh.fish, holati: sh.holati,
+      qiymat: Math.round(sh.qiymat), tolangan: Math.round(sh.tolangan), qarz: Math.round(sh.qarz),
+      bazaQiymat: Math.round(son(x[6]) * son(x[5])) });
+  });
+  sotilganlar.sort((a, b) => (b.sana || '').localeCompare(a.sana || '') || b.no.localeCompare(a.no));
+  const tolovlar = [];
+  R5.forEach(({ x }) => {
+    if (x[0] == null || x[0] === '') return;
+    const no = s(x[2]).trim(), sh = SH[no];
+    tolovlar.push({ sana: V.iso(x[1]), no, summa: Math.round(son(x[3])), shakl: s(x[4]).trim(), guruh: shaklGuruh(x[4]),
+      hujjat: s(x[5]).trim(), kim: s(x[9]).trim(), izoh: s(x[11]).trim(),
+      fish: (sh && sh.fish) || MJ[s(x[12])] || '', dokon: (sh && sh.dokon) || '',
+      holati: sh ? (sh.bekor ? 'BEKOR' : sh.holati) : 'shartnoma topilmadi' });
+  });
+  tolovlar.sort((a, b) => (a.sana || '').localeCompare(b.sana || ''));
+  return { sotilganlar, tolovlar };
+}
+
 async function tasischiHisobot([kodSes]) {
   const u = await S.ruxsat(kodSes);
   if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
@@ -302,4 +341,4 @@ async function tasischiHisobot([kodSes]) {
 }
 
 module.exports = { tasischiHisobot, tasischiPdf };
-module.exports._ichki = { hisobla, pdfHtml, hozirDmyHm };
+module.exports._ichki = { hisobla, pdfHtml, hozirDmyHm, tafsilot };

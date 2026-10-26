@@ -10,7 +10,48 @@ const pul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[ 
 const m2 = n => (Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',');
 const L = (a, b) => console.log('  ' + String(a).padEnd(46) + String(b).padStart(22));
 
-const FAQAT_DIQQAT = /^(diqqat|d|nazorat)$/i.test(String(process.argv[2] || ''));
+const BUYRUQ = String(process.argv[2] || '').toLowerCase();
+const FAQAT_DIQQAT = /^(diqqat|d|nazorat)$/.test(BUYRUQ);
+const qisqa = (v, n) => { v = String(v == null ? '' : v); return v.length > n ? v.slice(0, n - 1) + '…' : v.padEnd(n); };
+
+// aks-tasischi oxirgi [N] — oxirgi sotilgan do'konlar (shartnoma sanasi bo'yicha), yig'ma sanoq bilan
+async function oxirgiChop(N) {
+  const { sotilganlar } = await T._ichki.tafsilot();
+  console.log('\n===== ОХИРГИ СОТИЛГАН ДЎКОНЛАР (шартнома санаси бўйича) =====');
+  console.log('Жами фаол сотилган дўкон: ' + sotilganlar.length + ' та\n');
+  console.log('  №   Сана        Шартнома  Дўкон      Қурилиши  ' + 'Мижоз'.padEnd(32) + 'Шартнома қиймати   Тўланган');
+  console.log('  ' + '-'.repeat(126));
+  let tg = 0, yk = 0;
+  sotilganlar.slice(0, N).forEach((x, i) => {
+    if (x.tugal) tg++; else yk++;
+    console.log('  ' + String(i + 1).padStart(3) + ' ' + (x.sana ? x.sana.split('-').reverse().join('.') : '—').padEnd(12) +
+      x.no.padEnd(10) + qisqa(x.dokon, 11) + (x.tugal ? 'тугал   ' : 'ЯКУНЛАНМ') + '  ' + qisqa(x.fish, 32) +
+      pul(x.qiymat).padStart(16) + pul(x.tolangan).padStart(16) +
+      '    [тугал ' + tg + ' / якунланм ' + yk + ']');
+  });
+  console.log('\n  Изоҳ: ўнг томондаги [тугал X / якунланм Y] — юқоридан шу қаторгача бўлган йиғма сон.');
+  console.log('  Сизнинг жадвалингизда сотилган: тугалланган 130, якунланмаган 61. Тизимда: 134 ва 70.');
+  console.log('  Демак фарқ — йиғма сон [тугал 4 / якунланм 9] бўлган қаторгача (13 та).\n');
+}
+
+// aks-tasischi shakl <nom> — to'lov shakli bo'yicha to'lovlar ro'yxati
+async function shaklChop(nom) {
+  const { tolovlar } = await T._ichki.tafsilot();
+  const g = /plastik|пластик|karta/.test(nom) ? 'plastik' : /barter|ўзаро|zaro/.test(nom) ? 'barter'
+    : /naq|нақ/.test(nom) ? 'naqd' : /bank|банк|hisob/.test(nom) ? 'bank' : /boshqa/.test(nom) ? 'boshqa'
+    : /bosh|yoq|korsat/.test(nom) ? 'korsatilmagan' : nom;
+  const L = tolovlar.filter(x => x.guruh === g);
+  console.log('\n===== ТЎЛОВ ШАКЛИ: ' + g.toUpperCase() + ' — ' + L.length + ' та · ' + pul(L.reduce((a, x) => a + x.summa, 0)) + ' сўм =====\n');
+  if (!L.length) { console.log('  Бу шаклда тўлов йўқ.\n'); return; }
+  console.log('  Сана        Шартнома  Дўкон      ' + 'Мижоз'.padEnd(30) + '      Сумма  Киритди        Ҳолати');
+  console.log('  ' + '-'.repeat(124));
+  L.forEach(x => console.log('  ' + (x.sana ? x.sana.split('-').reverse().join('.') : '—').padEnd(12) + x.no.padEnd(10) +
+    qisqa(x.dokon, 11) + qisqa(x.fish, 30) + pul(x.summa).padStart(14) + '  ' + qisqa(x.kim, 14) + ' ' + x.holati));
+  const izoh = L.filter(x => x.izoh);
+  if (izoh.length) { console.log('\n  Изоҳлар:'); izoh.forEach(x => console.log('    ' + x.no + ' (' + (x.sana || '—') + '): ' + x.izoh)); }
+  console.log('');
+}
+
 
 function diqqatChop(h) {
   const n = h.nazorat;
@@ -50,6 +91,8 @@ function diqqatChop(h) {
 }
 
 (async () => {
+  if (/^(oxirgi|yangi|sotilgan)$/.test(BUYRUQ)) { await oxirgiChop(Number(process.argv[3]) > 0 ? Number(process.argv[3]) : 25); await pool.end(); redis.disconnect(); process.exit(0); }
+  if (/^(shakl|tolov|plastik|barter|naqd|bank)$/.test(BUYRUQ)) { await shaklChop(/^shakl|tolov$/.test(BUYRUQ) ? String(process.argv[3] || 'plastik').toLowerCase() : BUYRUQ); await pool.end(); redis.disconnect(); process.exit(0); }
   const h = await T._ichki.hisobla();
   if (FAQAT_DIQQAT) { diqqatChop(h); await pool.end(); redis.disconnect(); process.exit(0); }
   const j = h.jami;
