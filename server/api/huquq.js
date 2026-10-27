@@ -24,6 +24,7 @@ const BILAMAN = [
   ['skan', "Skanlarni ko'rish (👁)"],
   ['reyestr', 'Ijara va sotuv reyestri (PDF / Excel)'],
   ['hisobot', 'Hisobot'],
+  ['tasischi', "Ta'sischi hisoboti (1-ilova) — ko'rish va PDF"],
   ['xarita', "Do'konlar xaritasi"],
   ['xarita_moliya', "Xaritada pul ma'lumotlari (qarz, to'lov)"],
   ['undiruv', "Undiruvchi — o'ziga biriktirilgan qarzdorlar, «Bugungi ish»"],

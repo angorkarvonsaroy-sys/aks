@@ -331,8 +331,7 @@ function pdfHtml(h, kim, vaqt) {
 }
 
 async function tasischiPdf([kodSes]) {
-  const u = await S.ruxsat(kodSes);
-  if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
+  const u = await tasRuxsat(kodSes);
   if (!(await PDF.bor())) throw new S.Xato('PDF dasturi hozir ishlamayapti. Birozdan keyin urinib ko\'ring.');
   const h = await hisobla();
   const pdf = await PDF.yasa(pdfHtml(h, u.fish, hozirDmyHm()), '');
@@ -380,9 +379,18 @@ async function tafsilot() {
 
 // Ilova uchun: ro'yxatlar talab bo'yicha yuklanadi (hammasini birdan yubormaslik uchun).
 // tur: 'sotuv' — sotilgan do'konlar (shartnoma sanasi bo'yicha, yangisidan); yoki to'lov shakli guruhi.
-async function tasischiTafsilot([kodSes, tur]) {
+// Kim ko'radi: direktor (admin) yoki «tasischi» huquqi berilgan xodim.
+// MUHIM (direktor qarori 27.10.2026): direktordan boshqa hech kim buferdagi to'lovlarni va hisobga olinmagan
+// (Passiv / Kutilmoqda / Noqonuniy hududda) shartnomalarni KO'RMAYDI — nazorat bloki javobdan butunlay olib tashlanadi.
+async function tasRuxsat(kodSes) {
   const u = await S.ruxsat(kodSes);
-  if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
+  const h = (u.huquq || []).map(z => String(z).trim());
+  if (!(u.admin || h.indexOf('tasischi') >= 0)) throw new S.Xato('Ta\'sischi hisoboti sizga ochilmagan. Direktorga murojaat qiling.');
+  return u;
+}
+
+async function tasischiTafsilot([kodSes, tur]) {
+  const u = await tasRuxsat(kodSes);
   const g = String(tur || '').trim();
   const { sotilganlar, tolovlar } = await tafsilot();
   if (g === 'sotuv') return { tur: g, soni: sotilganlar.length, jami: sotilganlar.reduce((a, x) => a + x.qiymat, 0), royxat: sotilganlar };
@@ -392,9 +400,13 @@ async function tasischiTafsilot([kodSes, tur]) {
 }
 
 async function tasischiHisobot([kodSes]) {
-  const u = await S.ruxsat(kodSes);
-  if (!u.admin) throw new S.Xato('Bu hisobot faqat direktor uchun.');
-  return await hisobla();
+  const u = await tasRuxsat(kodSes);
+  const h = await hisobla();
+  if (u.admin) return h;
+  delete h.nazorat;                                  // bufer, hisobga olinmagan shartnomalar, shubhali qatorlar — faqat direktorga
+  delete h.shartnoma.boshqaSoni;
+  delete h.tolov.buferSoni; delete h.tolov.buferSumma; delete h.tolov.b05; delete h.tolov.yozilmagan;
+  return h;
 }
 
 module.exports = { tasischiHisobot, tasischiPdf, tasischiTafsilot };
