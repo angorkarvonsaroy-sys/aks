@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# AKS — serverdagi istalgan sayt haqida qisqa hisobot (faqat o'qiydi). Ishlatish: aks-sayt abrorxatib.uz
+# 01.11.2026 direktor so'rovi: «abrorxatib qanday ishlayapti, qanday himoyalangan va zaxiralanadi, kompyuter qotmayaptimi».
+# Sayt kodi bu omborda emas — shuning uchun hammasi serverning o'zidan aniqlanadi: nginx → port → jarayon → papka → baza → zaxira.
+# Parollar/kalitlar CHIQARILMAYDI: .env dan faqat baza NOMI olinadi.
+set -uo pipefail
+export TZ=Asia/Tashkent LC_ALL=C.UTF-8
+D="${1:-abrorxatib.uz}"; D_RE=$(printf '%s' "$D" | sed 's/\./\\./g')
+gb()  { awk -v b="${1:-0}" 'BEGIN{ if (b>=1073741824) printf "%.1f GB", b/1073741824; else if (b>=1048576) printf "%.0f MB", b/1048576; else printf "%.0f KB", b/1024 }'; }
+son() { case "${1:-}" in ''|*[!0-9]*) echo 0 ;; *) echo "$1" ;; esac; }
+# portni tinglayotgan jarayon: avval ss, bo'lmasa /proc orqali
+pid_port() { local p="$1" hex ino f
+  if command -v ss >/dev/null; then ss -ltnpH "sport = :$p" 2>/dev/null | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; return; fi
+  hex=$(printf ':%04X' "$p")
+  ino=$(awk -v h="$hex" 'substr($2, length($2)-4) == h && $4 == "0A" { print $10; exit }' /proc/net/tcp /proc/net/tcp6 2>/dev/null)
+  [ -n "$ino" ] || return 0
+  for f in /proc/[0-9]*/fd; do ls -l "$f" 2>/dev/null | grep -q "socket:\[$ino\]" && { f=${f#/proc/}; echo "${f%/fd}"; return; }; done; }
+muddat() { local s; s=$(son "$1"); if [ "$s" -ge 86400 ]; then echo "$(( s / 86400 )) kun $(( s % 86400 / 3600 )) soat"; elif [ "$s" -ge 3600 ]; then echo "$(( s / 3600 )) soat"; else echo "$(( s / 60 )) daqiqa"; fi; }
+
+echo "══════════════ SAYT: $D · $(date '+%d.%m.%Y %H:%M') ══════════════"
+
+# ---------- 1. Sayt javob beryaptimi (server ichidan, internetga chiqmasdan)
+R=$(curl -s -o /dev/null -m 15 -w '%{http_code} %{time_total}' --resolve "$D:443:127.0.0.1" "https://$D/" 2>/dev/null || echo "000 0")
+KOD=${R%% *}; VAQT=${R##* }
+RH=$(curl -s -o /dev/null -m 10 -w '%{http_code} %{redirect_url}' --resolve "$D:80:127.0.0.1" "http://$D/" 2>/dev/null || echo "000")
+case "$KOD" in 2*|3*) JB="✅" ;; *) JB="⛔" ;; esac
+case "$RH" in 30*https*) RB="http → https ga o'tadi ✅" ;; *) RB="⚠ http → https ga o'tmaydi ($RH)" ;; esac
+echo "🌐 Javob     : https://$D → $KOD, $(awk -v t="$VAQT" 'BEGIN{printf "%.2f", t}') soniyada $JB · $RB"
+
+CE=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername "$D" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+if [ -n "$CE" ]; then CK=$(( ( $(date -d "$CE" +%s) - $(date +%s) ) / 86400 ))
+  { systemctl is-active certbot.timer; systemctl is-active snap.certbot.renew.timer; } 2>/dev/null | grep -qx active && AY="o'zi yangilanadi ✅" || AY="⚠ avto-yangilash topilmadi"
+  echo "🔒 HTTPS     : guvohnoma $(date -d "$CE" '+%d.%m.%Y') gacha ($CK kun)$( [ "$CK" -lt 15 ] && echo " ⛔") · $AY"
+else echo "🔒 HTTPS     : ⛔ guvohnomani o'qib bo'lmadi"; fi
+
+# ---------- 2. Nginx: sayt qayerga yo'naltirilgan
+NF=$(grep -rlE "server_name[^;]*([[:space:]]|^)$D_RE([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
+BLK=""
+if [ -n "$NF" ]; then
+  BLK=$(awk -v d="$D" '
+    depth==0 && /^[ \t]*server[ \t]*\{/ { inb=1; buf=""; hit=0 }
+    inb { buf = buf "\n" $0; if ($0 ~ /server_name/ && index($0, d)) hit=1 }
+    { o=gsub(/\{/,"{"); c=gsub(/\}/,"}"); depth += o - c }
+    inb && depth==0 { if (hit) print buf; inb=0 }' "$NF")
+fi
+PP=$(printf '%s\n' "$BLK" | grep -oE 'proxy_pass[[:space:]]+[^;]+' | awk '{print $2}' | sort -u | head -2 | tr '\n' ' ')
+RT=$(printf '%s\n' "$BLK" | grep -oE '^[[:space:]]*root[[:space:]]+[^;]+' | awk '{print $2}' | sort -u | head -1)
+echo "🚪 Nginx     : ${NF:-⛔ sozlama topilmadi}$( [ -n "$PP" ] && echo " → dastur: $PP")$( [ -n "$RT" ] && echo " → papka: $RT")"
+
+# ---------- 3. Saytni ishlatayotgan dastur
+PORT=$(printf '%s' "$PP" | grep -oE ':[0-9]+' | head -1 | tr -d ':')
+PID=""; CWD=""; DBN=""
+if [ -n "$PORT" ]; then PID=$(pid_port "$PORT"); fi
+if [ -n "$PID" ]; then
+  PU=$(ps -o user= -p "$PID" | tr -d ' '); PE=$(ps -o etimes= -p "$PID" | tr -d ' ')
+  PR=$(ps -o rss= -p "$PID" | tr -d ' '); PC=$(ps -o %cpu= -p "$PID" | tr -d ' ')
+  CWD=$(readlink "/proc/$PID/cwd" 2>/dev/null)
+  PN=$(tr '\0' '\n' < "/proc/$PID/environ" 2>/dev/null | sed -n 's/^name=//p' | head -1)
+  PRG=$(ps -o comm= -p "$PID" | tr -d ' ')
+  echo "⚙ Dastur    : $PRG$( [ -n "$PN" ] && echo " (pm2: «$PN»)") · egasi $PU · $(muddat "$PE")dan beri uzluksiz · xotira $(gb $(( $(son "$PR") * 1024 ))) · protsessor ${PC}%"
+  echo "   Papka     : ${CWD:-—} ($(gb "$(du -s -B1 --exclude=node_modules "$CWD" 2>/dev/null | cut -f1)"), node_modules'siz)"
+  # baza nomi — faqat NOMI (parol chiqarilmaydi)
+  for f in "$CWD/.env" "$CWD/../.env"; do [ -f "$f" ] || continue
+    DBN=$(grep -E '^(DATABASE_URL|DB_URL|PG_URL|POSTGRES_URL)=' "$f" | head -1 | sed -E 's/.*\/([A-Za-z0-9_]+)([?"'"'"' ].*)?$/\1/' | grep -E '^[A-Za-z0-9_]{1,40}$')
+    [ -z "$DBN" ] && DBN=$(grep -E '^(DB_NAME|PGDATABASE|DB_DATABASE|POSTGRES_DB)=' "$f" | head -1 | cut -d= -f2 | tr -d '"'"'"' ' | grep -E '^[A-Za-z0-9_]{1,40}$')
+    [ -n "$DBN" ] && break; done
+elif [ -n "$PORT" ]; then echo "⚙ Dastur    : ⛔ $PORT-portda hech qanday dastur ishlamayapti — sayt ishlamaydi"
+elif [ -n "$RT" ]; then CWD="$RT"; echo "⚙ Dastur    : oddiy (statik) sayt — fayllar $RT ($(gb "$(du -s -B1 "$RT" 2>/dev/null | cut -f1)"))"
+fi
+
+# ---------- 4. Ma'lumotlar qayerda
+PGL=$(sudo -u postgres psql -XtA -F' ' -c "SELECT datname, pg_database_size(datname) FROM pg_database WHERE NOT datistemplate AND datname <> 'postgres' ORDER BY 2 DESC" 2>/dev/null)
+PGT=$(printf '%s\n' "$PGL" | awk 'NF==2{ printf "%s%s", (n++?", ":""), $1 }')
+echo "🗄 Ma'lumot  : saytning bazasi: ${DBN:-aniqlanmadi} · serverdagi PostgreSQL bazalari: ${PGT:-—}"
+if [ -n "$CWD" ]; then
+  find "$CWD" -maxdepth 4 -path '*/node_modules' -prune -o -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \) -printf '%s %TY-%Tm-%Td %p\n' 2>/dev/null | sort -rn | head -3 |
+    while read -r sz dt p; do echo "   Fayl-baza : $p ($(gb "$sz"), oxirgi yozuv $(date -d "$dt" '+%d.%m.%Y'))"; done
+fi
+for x in mysql mariadb mongod; do [ "$(systemctl is-active $x 2>/dev/null)" = active ] && echo "   Yana      : $x ishlayapti"; done
+
+# ---------- 5. Zaxira
+KAL="backup|zaxira|dump|rclone|rsync|shajara|abror$( [ -n "$DBN" ] && echo "|$DBN")$( [ -n "$CWD" ] && echo "|$(printf '%s' "$CWD" | sed 's/[.[\*^$/]/\\&/g')")"
+JOB=$( { crontab -l 2>/dev/null; cat /var/spool/cron/crontabs/* /etc/cron.d/* /etc/crontab 2>/dev/null; } | grep -vE '^[[:space:]]*(#|$)' | grep -iE "$KAL" | sort -u )
+TIM=$(systemctl list-timers --all --no-legend 2>/dev/null | grep -ioE '[a-z0-9_.@-]+\.timer' | grep -iE 'backup|zaxira|dump|shajara|abror' | sort -u | tr '\n' ' ')
+echo "💾 Zaxira    : rejalashtirilgan ishlar:"
+if [ -n "$JOB$TIM" ]; then printf '%s\n' "$JOB" | sed '/^$/d; s/^/               · /' | cut -c1-150; [ -n "$TIM" ] && echo "               · taymerlar: $TIM"
+else echo "               ⛔ hech qanday zaxira ishi topilmadi"; fi
+BF=$(find / -xdev \( -path /proc -o -path /sys -o -path /usr -o -path /snap -o -path /var/lib/postgresql -o -path '*/node_modules' \) -prune -o -type f \
+      \( -iname '*shajara*' -o -iname '*abror*' $( [ -n "$DBN" ] && echo "-o -iname *${DBN}*" ) \) \
+      \( -name '*.gz' -o -name '*.sql' -o -name '*.dump' -o -name '*.bak' -o -name '*.tar' -o -name '*.zip' -o -name '*.db' -o -name '*.json' \) \
+      -printf '%T@ %s %p\n' 2>/dev/null | sort -rn | head -3)
+if [ -n "$BF" ]; then printf '%s\n' "$BF" | while read -r t sz p; do echo "   Zaxira fayl: $(date -d "@${t%.*}" '+%d.%m.%Y %H:%M') · $(gb "$sz") · $p"; done
+else echo "   Zaxira fayl: ⛔ shu sayt nomidagi zaxira fayli serverda topilmadi"; fi
+command -v rclone >/dev/null && echo "   Server tashqarisiga: rclone o'rnatilgan ✅" || echo "   Server tashqarisiga: ⚠ nusxa yuboradigan vosita (rclone) yo'q"
+
+# ---------- 6. Himoya (butun server uchun)
+UF=$(ufw status 2>/dev/null | head -1 | awk '{print $2}'); UP=$(ufw status 2>/dev/null | awk '/ALLOW/ && $1 !~ /\(v6\)/ {print $1}' | sort -u | tr '\n' ' ')
+F2=$(systemctl is-active fail2ban 2>/dev/null); FB=$(fail2ban-client status sshd 2>/dev/null | grep -oE 'Currently banned:[[:space:]]+[0-9]+' | grep -oE '[0-9]+$')
+SSHC=$(sshd -T 2>/dev/null); SP=$(printf '%s\n' "$SSHC" | awk '$1=="port"{print $2; exit}'); SR=$(printf '%s\n' "$SSHC" | awk '$1=="permitrootlogin"{print $2; exit}'); SPA=$(printf '%s\n' "$SSHC" | awk '$1=="passwordauthentication"{print $2; exit}')
+UPD=$(/usr/lib/update-notifier/apt-check 2>&1 | grep -oE '^[0-9]+;[0-9]+$'); UPS=${UPD#*;}
+echo "🛡 Himoya    : devor (ufw) $( [ "$UF" = active ] && echo "✅ ochiq eshiklar: $UP" || echo "⛔ o'chiq") · fail2ban $( [ "$F2" = active ] && echo "✅ (hozir bloklangan: $(son "$FB"))" || echo "⛔")"
+echo "               SSH port ${SP:-?} · root kirishi: ${SR:-?} · parol bilan kirish: ${SPA:-?} · xavfsizlik yangilanishlari kutilmoqda: $(son "${UPS:-}")$( [ "$(son "${UPS:-}")" -gt 0 ] && echo " ⚠")"
+
+# ---------- 7. Server qotmayaptimi
+read -r MT MA < <(free -b | awk '/^Mem/{print $2, $7}'); MP=$(( MT > 0 ? (MT - MA) * 100 / MT : 0 ))
+read -r ST SU < <(free -b | awk '/^Swap/{print $2, $3}')
+read -r _ _ L15 _ < /proc/loadavg; CP=$(awk -v l="$L15" -v n="$(nproc)" 'BEGIN{printf "%.0f", l/n*100}')
+OOM=$(journalctl -k --since '7 days ago' 2>/dev/null | grep -ciE 'out of memory|oom-kill')
+DP=$(df --output=pcent / | tail -1 | tr -d ' %')
+if [ "$MP" -ge 90 ] || [ "$CP" -ge 90 ] || [ "$(son "$OOM")" -gt 0 ]; then QB="⛔"; elif [ "$MP" -ge 75 ] || [ "$CP" -ge 70 ]; then QB="⚠"; else QB="✅ qotmayapti"; fi
+echo "🧠 Server    : protsessor $CP% · xotira $MP% · swap $(gb "$SU")/$(gb "$ST") · disk $DP% · 7 kunda xotira tugashi $(son "$OOM") marta  $QB"
+echo "   Ko'p xotira olganlar: $(ps -eo rss=,comm= --sort=-rss | head -4 | awk '{ printf "%s%s %.0f MB", (n++?" · ":""), $2, $1/1024 }')"
+echo "════════════════════════════════════════════════════════════════════"
