@@ -29,12 +29,14 @@ echo "🌐 Javob     : https://$D → $KOD, $(awk -v t="$VAQT" 'BEGIN{printf "%.
 
 CE=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername "$D" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
 if [ -n "$CE" ]; then CK=$(( ( $(date -d "$CE" +%s) - $(date +%s) ) / 86400 ))
-  { systemctl is-active certbot.timer; systemctl is-active snap.certbot.renew.timer; } 2>/dev/null | grep -qx active && AY="o'zi yangilanadi ✅" || AY="⚠ avto-yangilash topilmadi"
+  if { systemctl is-active certbot.timer; systemctl is-active snap.certbot.renew.timer; } 2>/dev/null | grep -qx active \
+     || { crontab -l 2>/dev/null; cat /etc/cron.d/* /etc/crontab 2>/dev/null; } | grep -v '^[[:space:]]*#' | grep -qi certbot; then AY="o'zi yangilanadi ✅"
+  else AY="⚠ avto-yangilash topilmadi — muddati tugasa sayt «xavfli» deb ochilmaydi"; fi
   echo "🔒 HTTPS     : guvohnoma $(date -d "$CE" '+%d.%m.%Y') gacha ($CK kun)$( [ "$CK" -lt 15 ] && echo " ⛔") · $AY"
 else echo "🔒 HTTPS     : ⛔ guvohnomani o'qib bo'lmadi"; fi
 
 # ---------- 2. Nginx: sayt qayerga yo'naltirilgan
-NF=$(grep -rlE "server_name[^;]*([[:space:]]|^)$D_RE([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
+NF=$(grep -RlE "server_name[^;]*([[:space:]]|^)$D_RE([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -1)
 BLK=""
 if [ -n "$NF" ]; then
   BLK=$(awk -v d="$D" '
@@ -83,6 +85,25 @@ KAL="backup|zaxira|dump|rclone|rsync|shajara|abror$( [ -n "$DBN" ] && echo "|$DB
 JOB=$( { crontab -l 2>/dev/null; cat /var/spool/cron/crontabs/* /etc/cron.d/* /etc/crontab 2>/dev/null; } | grep -vE '^[[:space:]]*(#|$)' | grep -iE "$KAL" | sort -u )
 TIM=$(systemctl list-timers --all --no-legend 2>/dev/null | grep -ioE '[a-z0-9_.@-]+\.timer' | grep -iE 'backup|zaxira|dump|shajara|abror' | sort -u | tr '\n' ' ')
 echo "💾 Zaxira    : rejalashtirilgan ishlar:"
+for t in $(systemctl list-timers --all --no-legend 2>/dev/null | grep -ioE '[a-z0-9_.@-]+\.timer' | grep -iE 'backup|zaxira|dump' | grep -v '^dpkg' | sort -u); do
+  sv=${t%.timer}.service
+  LT=$(systemctl show "$t" -p LastTriggerUSec --value 2>/dev/null); NT=$(systemctl show "$t" -p NextElapseUSecRealtime --value 2>/dev/null)
+  RS=$(systemctl show "$sv" -p Result --value 2>/dev/null); EX=$(systemctl show "$sv" -p ExecStart --value 2>/dev/null | grep -oE 'path=[^ ;]+' | head -1 | cut -d= -f2)
+  TASH=""; JOY=""
+  if [ -n "$EX" ] && [ -f "$EX" ]; then
+    grep -qE '(^|[^#]*)rclone[[:space:]]' "$EX" && TASH=" · serverdan TASHQARIGA yuboradi (rclone ✅)"
+    JOY=$(grep -oE '/(var/backups|root|opt|srv|home)/[A-Za-z0-9_./-]+' "$EX" | grep -viE '\.(sh|js|env)$' | head -1)
+  fi
+  LTD=$( [ -n "$LT" ] && [ "$LT" != "n/a" ] && date -d "$LT" '+%d.%m %H:%M' 2>/dev/null || echo "hali ishlamagan")
+  NTD=$( [ -n "$NT" ] && [ "$NT" != "n/a" ] && date -d "$NT" '+%d.%m %H:%M' 2>/dev/null || echo "—")
+  echo "               · $t: oxirgi $LTD → $( [ "$RS" = success ] && echo "✅ muvaffaqiyatli" || echo "⛔ $RS") · keyingi $NTD"
+  [ -z "$TASH" ] && TASH=" · ⚠ tashqariga yuborish ko'rinmadi"
+  echo "                 skript ${EX:-—}${JOY:+ · fayllar $JOY}$TASH"
+  if [ -n "$JOY" ] && [ -d "$JOY" ]; then
+    LF=$(find "$JOY" -maxdepth 2 -type f -printf '%T@ %s %p\n' 2>/dev/null | sort -rn | head -1)
+    [ -n "$LF" ] && { read -r lt lsz lp <<<"$LF"; echo "                 eng oxirgi zaxira: $(date -d "@${lt%.*}" '+%d.%m.%Y %H:%M') · $(gb "$lsz") · $(find "$JOY" -maxdepth 2 -type f | wc -l) ta fayl"; }
+  fi
+done
 if [ -n "$JOB$TIM" ]; then printf '%s\n' "$JOB" | sed '/^$/d; s/^/               · /' | cut -c1-150; [ -n "$TIM" ] && echo "               · taymerlar: $TIM"
 else echo "               ⛔ hech qanday zaxira ishi topilmadi"; fi
 BF=$(find / -xdev \( -path /proc -o -path /sys -o -path /usr -o -path /snap -o -path /var/lib/postgresql -o -path '*/node_modules' \) -prune -o -type f \
