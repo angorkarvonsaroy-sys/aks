@@ -103,6 +103,24 @@ for t in $(systemctl list-timers --all --no-legend 2>/dev/null | grep -ioE '[a-z
     LF=$(find "$JOY" -maxdepth 2 -type f -printf '%T@ %s %p\n' 2>/dev/null | sort -rn | head -1)
     [ -n "$LF" ] && { read -r lt lsz lp <<<"$LF"; echo "                 eng oxirgi zaxira: $(date -d "@${lt%.*}" '+%d.%m.%Y %H:%M') · $(gb "$lsz") · $(find "$JOY" -maxdepth 2 -type f | wc -l) ta fayl"; }
   fi
+  # 01.11: tashqi nusxa QAYERGA boradi — rclone manzili, hisob (email) va u yerdagi oxirgi fayllar. Kalit/token chiqarilmaydi.
+  if [ -n "$EX" ] && [ -f "$EX" ] && grep -qE '(^|[^#]*)rclone[[:space:]]' "$EX" && command -v rclone >/dev/null; then
+    RU=$(systemctl show "$sv" -p User --value 2>/dev/null); RU=${RU:-root}
+    RCONF=$( { systemctl show "$sv" -p Environment --value 2>/dev/null | grep -oE 'RCLONE_CONFIG=[^ ]+' | cut -d= -f2; grep -oE -- '--config[= ][^ "]+' "$EX" | sed -E 's/--config[= ]//'; } | head -1 )
+    RC() { if [ "$RU" = root ]; then env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 25 rclone "$@"; else sudo -u "$RU" -H env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 25 rclone "$@"; fi; }
+    RL=$(RC listremotes --long 2>/dev/null)
+    [ -z "$RL" ] && echo "                 ☁ rclone sozlamasi topilmadi (foydalanuvchi $RU) — tashqi nusxa ⛔ ishlamayotgan bo'lishi mumkin"
+    printf '%s\n' "$RL" | while read -r rn rt; do [ -n "$rn" ] || continue
+      grep -q -- "$rn" "$EX" || continue                         # shu skript ishlatadigan manzil
+      YO=$(grep -oE -- "${rn}[A-Za-z0-9_./ -]*" "$EX" | head -1 | sed -E 's/[[:space:]].*$//; s/\$.*$//')
+      EM=$(RC config userinfo "$rn" 2>/dev/null | grep -iE '^[[:space:]]*(email|login|username|user)[[:space:]]*:' | head -1 | sed -E 's/^[^:]*:[[:space:]]*//')
+      echo "                 ☁ tashqi nusxa: ${YO:-$rn} (turi: ${rt:-?}) · hisob: ${EM:-aniqlanmadi}"
+      LS=$(RC lsl "${YO:-$rn}" --max-depth 1 2>/dev/null | sort -k2,3 -k4)
+      if [ -n "$LS" ]; then
+        echo "                   u yerda $(printf '%s\n' "$LS" | wc -l) ta fayl · eng oxirgisi: $(printf '%s\n' "$LS" | tail -1 | awk '{ printf "%s %s · %.1f MB · %s", $2, substr($3,1,5), $1/1048576, $4 }')"
+      else echo "                   ⛔ u yerdagi fayllarni o'qib bo'lmadi (yoki papka bo'sh)"; fi
+    done
+  fi
 done
 if [ -n "$JOB$TIM" ]; then printf '%s\n' "$JOB" | sed '/^$/d; s/^/               · /' | cut -c1-150; [ -n "$TIM" ] && echo "               · taymerlar: $TIM"
 else echo "               ⛔ hech qanday zaxira ishi topilmadi"; fi
