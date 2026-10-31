@@ -30,6 +30,7 @@ const YH_VOQEA = [["Direktor to'g'ridan-to'g'ri yuristga o'tkazdi", 'Дирек�
   ["Undiruvchi yuristga o'tkazishni so'radi", 'Ундирувчи юристга ўтказишни сўради'],
   ["Undirib bo'lmadi — yopish so'raldi", 'Ундириб бўлмади — ёпиш сўралди'],
   ['Yopildi — shartnoma bekor qilindi', 'Ёпилди — шартнома бекор қилинди'],
+  ['Direktor yopdi — mijoz qayta tuzishga keldi', 'Директор ёпди — мижоз қайта тузишга келди'],
   ["Kelishuv — muddatlar to'xtatildi", 'Келишув — муддатлар тўхтатилди'],
   ['Kelishuv buzildi — ish davom etadi', 'Келишув бузилди — иш давом этади'],
   ["Qarz to'liq to'landi — ish o'zi yopildi", 'Қарз тўлиқ тўланди — иш ўзи ёпилди'],
@@ -53,7 +54,7 @@ const yhShakl = v => YH_SHAKL[s(v).trim()] || s(v);
 function yhHolat(h) {
   return { 'Faol': 'Фаол', 'Kelishuv': 'Келишув', "Yopish so'ralgan": 'Ёпиш сўралган', 'Tasdiq kutilmoqda': 'Тасдиқ кутилмоқда',
     'Yopildi — undirildi': 'Ёпилди — ундирилди', 'Yopildi — shartnoma bekor': 'Ёпилди — шартнома бекор қилинди',
-    'Yopildi — undirib bo\'lmadi': 'Ёпилди — ундириб бўлмади' }[s(h)] || s(h || '—');
+    'Yopildi — undirib bo\'lmadi': 'Ёпилди — ундириб бўлмади', 'Yopildi — qayta tuzildi': 'Ёпилди — қайта тузилди' }[s(h)] || s(h || '—');
 }
 function yhVoqea(v) {
   v = s(v); const t = YH_VOQEA.find(p => v.indexOf(p[0]) === 0);

@@ -129,7 +129,7 @@ async function qtTahlil(no, rows, M) {
   const ogoh = [];
   if (/bekor|yakun|kutil/i.test(holat)) ogoh.push('Shartnoma holati «' + holat + '» — qayta tuzib bo\'lmaydi.');
   { const I = (await J.yuIshlar()).filter(i => i.no === no && (YU_FAOL.indexOf(i.holati) >= 0 || i.holati === 'Tasdiq kutilmoqda'));
-    if (I.length) ogoh.push('Shartnoma yuristda (holati: ' + I[0].holati + ') — avval yurist ishini yoping.'); }
+    if (I.length) ogoh.push('Shartnoma yuristda (holati: ' + I[0].holati + ') — avval yurist ishini yoping: ⚖ Yurist → shu ish kartasi → «🔁 Yopish — mijoz qayta tuzishga keldi» (faqat direktor).'); }   // 31.10: yo'l ko'rsatiladi
   { const B = (await J.bekorJurnal()).filter(z => z.no === no && BEKOR_YOPIQ.indexOf(z.holati) < 0); if (B.length) ogoh.push('Bu shartnoma bo\'yicha ochiq bekor qilish so\'rovi bor — avval uni yoping.'); }
   const faol = (rows || []).find(x => x.eski === no && QT_FAOL.indexOf(x.holati) >= 0);
   if (faol) ogoh.push('Bu shartnoma uchun ochiq loyiha bor (№' + faol.id + ', ' + faol.holati + ').');

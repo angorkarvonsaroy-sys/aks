@@ -1,5 +1,5 @@
 // AKS TIZIM — ⚖ Yurist bo'limining YOZADIGAN amallari serverda (Yurist.gs v25.9 bilan bir xil qoidalar, bir xil kataklar):
-//   yuristQabul · yuristMajlis · yuristHolat · yuristKeyingi · yuristRad · yuristTasdiq
+//   yuristQabul · yuristMajlis · yuristHolat (kelishuv/bekor/undirib/qayta) · yuristKeyingi · yuristRad · yuristTasdiq
 // Server Google jadvalga O'ZI yozadi (robot «Редактор»), keyin faqat o'zgargan varaqlarni ko'zguga qayta o'qiydi — 1–2 soniya.
 // Skan fayli Google Drive'ga eski tizim orqali yuklanadi (Koprik.gs v1.2 → koprikHujjatYukla), chunki fayllar Drive'da, egasi — direktor hisobi.
 // Telegram xabari ham eski tizim orqali (koprikTg). Qaysidir imkon bo'lmasa (robotda yozish huquqi yo'q / Koprik eski) —
@@ -162,6 +162,14 @@ async function yuristHolat(args) {
         await ishYoz(i, [[15, "Yopish so'ralgan"], [31, sabab]]);
         await tarixYoz(i, 'Undirib bo\'lmadi — yopish so\'raldi', u.fish, sabab, '');
         natija = { ok: true, holati: "Yopish so'ralgan" };
+      } else if (amal === 'qayta') {
+        // 31.10 direktor qarori: mijoz qaytib keldi, shartnoma QAYTA TUZILADI — yurist ishi shu yerda yopiladi (faqat direktor).
+        // Avval bunday chiqish yo'li yo'q edi: «undirib bo'lmadi» deb yopishga to'g'ri kelardi va hisobotda muvaffaqiyatsiz sanalardi.
+        // Yopilgach qayta tuzish oynasi (qayta.js qtTahlil) ochiladi — u faqat YU_FAOL / «Tasdiq kutilmoqda» holatlarini to'sadi.
+        if (!u.admin) throw new S.Xato('Bu amal faqat direktorga.');
+        await ishYoz(i, [[15, 'Yopildi — qayta tuzildi'], [31, sabab]]);   // AD (tasdiqladi) tegilmaydi — kim/qachon yopgani 06f tarixda
+        await tarixYoz(i, 'Direktor yopdi — mijoz qayta tuzishga keldi', u.fish, sabab, '');
+        natija = { ok: true, holati: 'Yopildi — qayta tuzildi' };
       } else throw new S.Xato('Noma\'lum amal.');
     }
     await yangila();
