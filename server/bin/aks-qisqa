@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# AKS TIZIM — direktor uchun QISQA holat: bir ekran, oddiy tilda. Ishlatish: aks-qisqa
+# 31.10.2026 direktor so'rovi: «serverda qancha joyim bor, ishlar qanaqa ketyapti». To'liq texnik holat — aks-holat.
+# Hech narsani o'zgartirmaydi — faqat o'qiydi. Serverspace balansi bu yerdan ko'rinmaydi (u Serverspace panelida).
+set -uo pipefail
+export TZ=Asia/Tashkent LC_ALL=C.UTF-8
+q()   { sudo -u postgres psql -X -q -tA -F'|' -d aks_tizim -c "$1" 2>/dev/null; }
+rd()  { redis-cli --raw "$@" 2>/dev/null; }
+hj()  { du -s -B1 "$@" 2>/dev/null | awk '{s+=$1} END{print s+0}'; }          # papka(lar) diskda egallagan joy, bayt
+gb()  { awk -v b="${1:-0}" 'BEGIN{ if (b>=1073741824) printf "%.1f GB", b/1073741824; else if (b>=1048576) printf "%.0f MB", b/1048576; else printf "%.0f KB", b/1024 }'; }
+bel() { [ "${1:-}" = active ] && echo "✅" || echo "⛔"; }
+sv()  { systemctl is-active "$1" 2>/dev/null; }
+son() { case "${1:-}" in ''|*[!0-9]*) echo 0 ;; *) echo "$1" ;; esac; }
+
+echo "══════════════ AKS SERVER · $(date '+%d.%m.%Y %H:%M') ══════════════"
+
+# ---------- 1. Disk
+read -r SZ US AV PC < <(df -B1 --output=size,used,avail,pcent / | tail -1); PC=$(son "${PC%\%}")
+if   [ "$PC" -ge 85 ]; then DBL="⛔ to'lib qolyapti"; elif [ "$PC" -ge 70 ]; then DBL="⚠ kuzatish kerak"; else DBL="✅"; fi
+echo "💽 Disk      : $(gb "$SZ") dan $(gb "$US") band ($PC%) — bo'sh $(gb "$AV")  $DBL"
+AKS_UY=$(getent passwd aks | cut -d: -f6)
+H_BAZA=$(hj /var/lib/postgresql)
+H_HUJ=$(hj /opt/aks/hujjat)
+H_ZAX=$(hj /var/backups/aks); N_ZAX=$(ls /var/backups/aks/*.sql.gz 2>/dev/null | wc -l)
+H_PM2=$(hj "${AKS_UY:-/yoq}/.pm2/logs"); H_LOG=$(( $(hj /var/log) + H_PM2 ))
+H_DAS=$(hj /opt/aks/app /opt/aks/repo /opt/aks/pw)
+H_QOL=$(( US - H_BAZA - H_HUJ - H_ZAX - H_LOG - H_DAS )); [ "$H_QOL" -lt 0 ] && H_QOL=0
+echo "   Ichida    : Ubuntu va boshqalar $(gb $H_QOL) · dastur $(gb $H_DAS) · baza $(gb $H_BAZA)"
+echo "               skan/hujjatlar $(gb $H_HUJ) · zaxiralar $(gb $H_ZAX) ($N_ZAX ta) · loglar $(gb $H_LOG)$( [ "$H_PM2" -gt 1073741824 ] && echo "  ⚠ ilova logi katta")"
+W=$(find /opt/aks/hujjat -type f -mtime -7 -printf '%s\n' 2>/dev/null | awk '{s+=$1} END{print s+0}')
+if [ "$W" -lt 1048576 ]; then
+  echo "   O'sish    : so'nggi 7 kunda yangi hujjat deyarli qo'shilmadi"
+else
+  OY=$(awk -v a="$AV" -v w="$W" 'BEGIN{ printf "%.0f", a/(w*52.18)*12 }')   # bo'sh joy necha oyga yetadi
+  if [ "$OY" -ge 600 ]; then YT="50 yildan ko'proqqa"; elif [ "$OY" -ge 24 ]; then YT="taxminan $(( OY / 12 )) yilga"; else YT="taxminan $OY oyga"; fi
+  echo "   O'sish    : so'nggi 7 kunda +$(gb "$W") hujjat → shu sur'atda bo'sh joy $YT yetadi$( [ "$OY" -lt 6 ] && echo "  ⚠")"
+fi
+
+# ---------- 2. Xotira va protsessor
+read -r MT MA < <(free -b | awk '/^Mem/{print $2, $7}'); read -r ST SU < <(free -b | awk '/^Swap/{print $2, $3}')
+MU=$(( MT - MA )); MP=$(( MT > 0 ? MU * 100 / MT : 0 ))
+read -r _ _ L15 _ < /proc/loadavg; CP=$(awk -v l="$L15" -v n="$(nproc)" 'BEGIN{printf "%.0f", l/n*100}')
+if [ "$MP" -ge 90 ] || [ "$CP" -ge 90 ]; then XBL="⛔"; elif [ "$MP" -ge 75 ] || [ "$CP" -ge 70 ]; then XBL="⚠"; else XBL="✅"; fi
+echo "🧠 Xotira    : $(gb "$MT") dan $(gb "$MU") band ($MP%) · swap $(gb "$SU") / $(gb "$ST") · protsessor $CP% (15 daq o'rtacha)  $XBL"
+
+# ---------- 3. Ishlayaptimi
+BOOT=$(uptime -s 2>/dev/null); BS=$(date -d "$BOOT" +%s 2>/dev/null || date +%s); SEK=$(( $(date +%s) - BS ))
+echo "⏱ Server    : $(( SEK / 86400 )) kun $(( SEK % 86400 / 3600 )) soatdan beri o'chmay ishlayapti (oxirgi yonish $(date -d "@$BS" '+%d.%m %H:%M'))"
+API=$(curl -fsS -m 5 http://127.0.0.1:3000/api/holat 2>/dev/null || true)
+echo "$API" | grep -q '"ok":true' && IL="✅" || IL="⛔ JAVOB YO'Q"
+echo "⚙ Xizmatlar : ilova $IL · baza $(bel "$(sv postgresql)") · redis $(bel "$(sv redis-server)") · nginx $(bel "$(sv nginx)") · avto-yangilash $(bel "$(sv aks-yangila.timer)") · ko'zgu $(bel "$(sv aks-kozgu.timer)")"
+KV=$(git -C /opt/aks/repo log -1 --format='%h (%ad)' --date=format:'%d.%m %H:%M' 2>/dev/null || echo '—')
+IV=$(sed -n 1,6p /opt/aks/private/Index.html 2>/dev/null | grep -o 'v[0-9][0-9]*\.[0-9][0-9]* ([0-9]' | head -1 | cut -d' ' -f1)
+echo "   Versiya   : server kodi $KV · ilova sahifasi ${IV:-—}"
+
+# ---------- 4. Google bilan sinxron (ko'zgu, har 5 daqiqa)
+IFS='|' read -r KV2 KH KD KX <<<"$(q "SELECT to_char(boshlandi AT TIME ZONE 'Asia/Tashkent','DD.MM HH24:MI'), holat, (extract(epoch from now()-boshlandi)/60)::int, coalesce(left(regexp_replace(xato,'[[:space:]]+',' ','g'),70),'') FROM kozgu.yurishlar ORDER BY boshlandi DESC LIMIT 1")"
+IFS='|' read -r KE KJ <<<"$(q "SELECT count(*) FILTER (WHERE holat='xato'), count(*) FROM kozgu.yurishlar WHERE boshlandi > now()-interval '24 hours'")"
+KD=$(son "$KD")
+if [ -z "${KH:-}" ]; then KBL="⛔ ma'lumot yo'q"
+elif [ "$KH" = xato ]; then KBL="⛔ xato: $KX"
+elif [ "$KD" -gt 15 ]; then KBL="⚠ $( [ "$KD" -ge 120 ] && echo "$(( KD / 60 )) soatdan" || echo "$KD daqiqadan") beri yangilanmagan"
+else KBL="✅"; fi
+echo "🔄 Google    : oxirgi sinxron ${KV2:-—} $KBL · 24 soatda $(son "${KJ:-}") marta, xato $(son "${KE:-}")"
+
+# ---------- 5. Kecha-bugun ish (24 soat)
+IFS='|' read -r KN KK <<<"$(q "SELECT count(*), count(DISTINCT fish) FROM kirishlar WHERE vaqt > now()-interval '24 hours'")"
+TX="(cannot read|undefined|not a function|is not defined|econn|etimedout|timed? ?out|fetch failed|socket|syntaxerror|unexpected token|quota|rate.?limit|enotfound|javob bermadi|ulanib bo|tushunarsiz|urinishdan keyin|serverga ko.chirilmagan|internal)"
+IFS='|' read -r RJ RX RT TGJ TGX <<<"$(q "SELECT count(*) FILTER (WHERE qayerda IN ('server','koprik')), count(*) FILTER (WHERE qayerda IN ('server','koprik') AND NOT ok), count(*) FILTER (WHERE qayerda IN ('server','koprik') AND NOT ok AND xato ~* '$TX'), count(*) FILTER (WHERE qayerda='tg'), count(*) FILTER (WHERE qayerda='tg' AND NOT ok) FROM rpc_jurnal WHERE vaqt > now()-interval '24 hours'")"
+RT=$(son "${RT:-}")
+echo "👥 24 soatda : $(son "${KK:-}") kishi kirdi ($(son "${KN:-}") marta) · $(son "${RJ:-}") ta amal · rad/xato javob $(son "${RX:-}") (shundan texnik $RT)$( [ "$RT" -gt 0 ] && echo " ⚠" || echo " ✅")"
+if [ "$RT" -gt 0 ]; then
+  q "SELECT fn||': '||left(regexp_replace(xato,'[[:space:]]+',' ','g'),80)||' ('||count(*)||')' FROM rpc_jurnal WHERE vaqt > now()-interval '24 hours' AND qayerda IN ('server','koprik') AND NOT ok AND xato ~* '$TX' GROUP BY fn, left(regexp_replace(xato,'[[:space:]]+',' ','g'),80) ORDER BY count(*) DESC LIMIT 2" | sed 's/^/               · /'
+fi
+VJ=0; VX=""
+for k in $(rd --scan --pattern 'vaqt:*:oxirgi'); do
+  n=${k#vaqt:}; n=${n%:oxirgi}
+  [ "$(rd get "vaqt_yondi:$n")" = 1 ] || continue
+  VJ=$((VJ + 1)); rd get "$k" | grep -q '"ok":false' && VX="$VX $n"
+done
+if [ "$VJ" -eq 0 ]; then echo "⏰ Avtomatik : ⚠ rejali ishlar haqida ma'lumot topilmadi (aks-vaqt)"
+else echo "⏰ Avtomatik : $VJ ta rejali ish (ertalabki/kechki xabarlar, zaxira…) — $( [ -z "$VX" ] && echo "hammasi oxirgi marta muvaffaqiyatli ✅" || echo "⛔ oxirgi marta xato:$VX")"; fi
+echo "📨 Telegram  : 24 soatda $(son "${TGJ:-}") ta so'rov, xato $(son "${TGX:-}")$( [ "$(son "${TGX:-}")" -gt 0 ] && echo " ⚠" || echo " ✅")"
+
+# ---------- 6. Zaxira
+ZF=$(ls -t /var/backups/aks/*.sql.gz 2>/dev/null | head -1)
+if [ -n "$ZF" ]; then
+  ZM=$(stat -c %Y "$ZF"); ZS=$(( ( $(date +%s) - ZM ) / 3600 ))
+  [ "$ZS" -le 26 ] && ZB="✅" || ZB="⛔ $ZS soat oldin!"
+  ZT="server bazasi $(date -d "@$ZM" '+%d.%m %H:%M') ($(gb "$(stat -c %s "$ZF")")) $ZB"
+else ZT="server bazasi ⛔ zaxira fayli yo'q"; fi
+if [ "$(rd get vaqt_yondi:zaxira_kunlik)" = 1 ]; then
+  DZ=$(rd get vaqt:zaxira_kunlik:oxirgi)
+  DV=$(echo "$DZ" | sed -nE 's/.*"vaqt":"([^"]*)".*/\1/p')
+  echo "$DZ" | grep -q '"ok":true' && DZT="AKS_BAZA → Drive ${DV:-—} ✅" || DZT="AKS_BAZA → Drive ${DV:-—} ⛔"
+else DZT="AKS_BAZA → Drive (eski tizim triggerida)"; fi
+echo "💾 Zaxira    : $ZT · $DZT"
+
+# ---------- 7. Muddatlar
+CE=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/aks-tizim.uz/cert.pem 2>/dev/null | cut -d= -f2)
+[ -z "$CE" ] && CE=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername aks-tizim.uz 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+if [ -n "$CE" ]; then
+  CK=$(( ( $(date -d "$CE" +%s) - $(date +%s) ) / 86400 ))
+  { systemctl is-active certbot.timer; systemctl is-active snap.certbot.renew.timer; } 2>/dev/null | grep -qx active && RT2="o'zi yangilanadi ✅" || RT2="⚠ avto-yangilash topilmadi"
+  echo "🔒 HTTPS     : guvohnoma $(date -d "$CE" '+%d.%m.%Y') gacha ($CK kun)$( [ "$CK" -lt 15 ] && echo " ⛔") · $RT2"
+else echo "🔒 HTTPS     : ⚠ guvohnoma sanasini o'qib bo'lmadi"; fi
+[ -f /var/run/reboot-required ] && echo "ℹ Ubuntu     : yangilanishlar o'rnatilgan — server qayta yoqilishini kutmoqda (shoshilinch emas)"
+echo "═══════════════════════════════════════════════════════════════════"
