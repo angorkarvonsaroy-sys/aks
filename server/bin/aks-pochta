@@ -4,6 +4,13 @@
 # GMAIL_USER va GMAIL_APP_PASS qilib yozadi va o'sha manzilga sinov xati yuboradi. Serverni qayta yoqish shart emas.
 set -euo pipefail
 ENV=/opt/aks/.env
+# aks-pochta sinov — parol so'ramaydi: Gmail'ga yo'l ochiqmi (465, 587) va saqlangan sozlama bilan sinov xati
+if [ "${1:-}" = "sinov" ]; then
+  U=$(sed -n 's/^[[:space:]]*GMAIL_USER[[:space:]]*=[[:space:]]*//p' "$ENV" | tail -1); U=${U:-angorkarvonsaroy@gmail.com}
+  for p in 465 587; do
+    if timeout 7 bash -c "exec 3<>/dev/tcp/$(getent ahostsv4 smtp.gmail.com | awk 'NR==1{print $1}')/$p" 2>/dev/null; then echo "✅ Gmail $p-port: ochiq"; else echo "⛔ Gmail $p-port: yopiq (ulanib bo'lmadi)"; fi
+  done
+else
 U=${1:-angorkarvonsaroy@gmail.com}
 echo "Pochta: $U"
 read -rsp "Google ilova parolini qo'ying (Ctrl+V yoki sichqonchaning o'ng tugmasi) va Enter bosing — ekranda ko'rinmaydi: " P; echo
@@ -13,6 +20,7 @@ T=$(mktemp); grep -vE '^[[:space:]]*(GMAIL_USER|GMAIL_APP_PASS)[[:space:]]*=' "$
 printf 'GMAIL_USER=%s\nGMAIL_APP_PASS=%s\n' "$U" "$P" >> "$T"
 cat "$T" > "$ENV"; rm -f "$T"; unset P
 echo "✅ Saqlandi. Sinov xati yuborilmoqda…"
+fi
 cd /opt/aks/app && node -e "
 require('./lib/pochta').yubor(process.argv[1], 'AKS TIZIM — sinov xati', 'Pochta ulandi. Endi xodimlarning tasdiqlash kodlari va vaqtinchalik parollari shu manzildan yuboriladi.\nBu sinov xati — javob yozish shart emas.')
   .then(() => console.log('✅ Sinov xati yuborildi: ' + process.argv[1] + ' — pochtani oching.'))

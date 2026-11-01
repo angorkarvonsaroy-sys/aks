@@ -29,26 +29,43 @@ function yashir(e) {
   return (a.length <= 2 ? a[0] + '*' : a[0] + '*'.repeat(Math.min(a.length - 2, 7)) + a[a.length - 1]) + t.slice(i);
 }
 
+// 01.11: serverdan Gmail'ga ulanish «Connection timeout» berdi. Ikki ehtimol: (1) smtp.gmail.com ning IPv6 manziliga ulanmoqchi
+// bo'ladi, serverda IPv6 yo'li yo'q; (2) provayder 465-portni yopgan. Shuning uchun: faqat IPv4 manzil, avval 465 (SSL),
+// bo'lmasa 587 (STARTTLS). Qaysi biri ishlasa — o'shanisi eslab qolinadi.
+const dns = require('dns').promises;
 let tr = null, trK = '';
+async function yollar(c) {
+  let ip = 'smtp.gmail.com';
+  try { const a = await dns.resolve4('smtp.gmail.com'); if (a && a.length) ip = a[0]; } catch (e) { }
+  const nm = require('nodemailer'), umumiy = { auth: { user: c.user, pass: c.pass }, tls: { servername: 'smtp.gmail.com' },
+    connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000 };
+  return [
+    { nom: ip + ':465', t: nm.createTransport(Object.assign({ host: ip, port: 465, secure: true }, umumiy)) },
+    { nom: ip + ':587', t: nm.createTransport(Object.assign({ host: ip, port: 587, secure: false, requireTLS: true }, umumiy)) },
+  ];
+}
+async function jonat(c, xat) {
+  const k = c.user + '|' + c.pass;
+  if (tr && trK === k) { try { return await tr.t.sendMail(xat); } catch (e) { tr = null; } }
+  let oxirgi = null;
+  for (const y of await yollar(c)) {
+    try { const r = await y.t.sendMail(xat); tr = y; trK = k; return r; }
+    catch (e) { oxirgi = e; console.error('pochta ' + y.nom + ':', e.message); if (/auth|535|534|Username and Password/i.test(e.message)) break; }
+  }
+  throw oxirgi || new Error('Pochta yuborilmadi');
+}
 // matn — oddiy matn (qatorlar \n). kod — bo'lsa, xatda katta qilib ajratib ko'rsatiladi.
 async function yubor(kimga, mavzu, matn, kod) {
   const c = sozlama();
   if (!c.user || !c.pass) throw new Error('Pochta sozlanmagan (GMAIL_USER / GMAIL_APP_PASS)');
   if (!togri(kimga)) throw new Error('E-pochta manzili noto\'g\'ri');
-  const k = c.user + '|' + c.pass;
-  if (!tr || trK !== k) {
-    const nm = require('nodemailer');
-    tr = nm.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: c.user, pass: c.pass },
-      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000 });
-    trK = k;
-  }
   let html = esc(matn).replace(/\n/g, '<br>');
   if (kod) html = html.split(esc(kod)).join('<span style="display:inline-block;font-size:24px;font-weight:bold;letter-spacing:3px;background:#F2F4F7;border-radius:8px;padding:6px 14px;color:#0B3D2E">' + esc(kod) + '</span>');
   html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#101828;max-width:520px">'
     + '<div style="font-weight:bold;color:#0B3D2E;font-size:17px;margin-bottom:10px">AKS TIZIM · Angor Karvon Saroy</div>' + html
     + '<div style="color:#98A2B3;font-size:12px;margin-top:18px">Bu xat avtomatik yuborildi — javob yozish shart emas.</div></div>';
-  await tr.sendMail({ from: '"AKS TIZIM" <' + c.user + '>', to: String(kimga).trim(), subject: mavzu, text: matn, html });
+  await jonat(c, { from: '"AKS TIZIM" <' + c.user + '>', to: String(kimga).trim(), subject: mavzu, text: matn, html });
   return true;
 }
 
-module.exports = { bor, yubor, togri, yashir, _ichki: { sozlama } };
+module.exports = { bor, yubor, togri, yashir, _ichki: { sozlama, yollar } };
