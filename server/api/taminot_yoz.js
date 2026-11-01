@@ -240,7 +240,10 @@ async function taminotFirmaQosh(args) {
     const { R, oxirgi } = await firmaXom();                       // qulf ostida yana bir marta — shu orada qo'shilgan bo'lsa
     if (firmaBor(R, nomi)) throw new S.Xato('Bu firma ro\'yxatda bor: ' + nomi);
     const id = R.reduce((m, z) => Math.max(m, Number(z.r[0]) || 0), 0) + 1;
-    const qator = [id, nomi, toza(d.direktor), toza(d.stir), toza(d.hr), toza(d.bank), toza(d.mfo), toza(d.manzil), toza(d.tel), 'Faol'];
+    // 02.11.2026: STIR, h/r, MFO, telefon — boshida «'» (USER_ENTERED da matn bo'lib qoladi). Avval son bo'lib saqlanardi: 20 xonali h/r aniqligini,
+    // MFO boshidagi 0 ni yo'qotardi (eski tizimda ham shunday edi). 09c hali bo'sh — eski yozuvlarni tuzatish shart emas.
+    const raqamMatn = v => { v = toza(v); return v ? "'" + v : ''; };
+    const qator = [id, nomi, toza(d.direktor), raqamMatn(d.stir), raqamMatn(d.hr), toza(d.bank), raqamMatn(d.mfo), toza(d.manzil), raqamMatn(d.tel), 'Faol'];
     let q;
     try { q = await G.qatorQoshR(env.aksBazaId, TAM_FV, oxirgi + 1, qator, env.googleKey); }
     catch (e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; throw e; }

@@ -44,7 +44,8 @@ const VAQT_YOZADI = { top_avto: '10_Topshiriqlar', und_ertalab: '07c_Ertalab_svo
 
 // ---------- 3. eski tizim chaqiruvlari tasnifi
 const KOPRIK_YOZADI = { koprikTopTasdiqTg: '10 V (Telegram havolasi)', koprikXatTasdiqTg: '06e Y (Telegram havolasi)', koprikHujjatYukla: '06d — yangi qator',
-  koprikSkanNaz: '06d P/Q', topHozir: '10 — topAvto eski tizimda', qaytaHujjatlar: '06k Z, AE', pinKir: '07b_Kirish_jurnali' };
+  koprikSkanNaz: '06d P/Q', topHozir: '10 — topAvto eski tizimda', qaytaHujjatlar: '06k Z, AE (server fonda chaqiradi)', pinKir: '07b_Kirish_jurnali',
+  shartnomaPdf: '03 S — PDF havolasi (server fonda chaqiradi, Drive nusxasi uchun)', ijaraPdf: '04 V — PDF havolasi (server fonda chaqiradi, Drive nusxasi uchun)' };
 const ZARARSIZ = new Set(('koprikVersiya koprikTgYubor koprikTgChat koprikTgGuruh koprikTg koprikZaxira koprikXatSaqla koprikKbSaqla koprikDevonSaqla koprikDevonTg ' +
   'koprikBekorSaqla koprikHujjatBekorFayl koprikDriveSaqla koprikIsbotSaqla koprikQtPapkaSavat koprikNusxaTozala koprikFaylTikla koprikTamIsbot koprikQdSnap koprikZanjir ' +
   'qadamVersiya').split(/\s+/));
@@ -107,13 +108,17 @@ const C09 = [['D', 3, 'STIR', 9], ['E', 4, 'Hisob raqam (h/r)', 20], ['G', 6, 'M
   else {
     console.log('  ' + chap('Amal', 26) + chap('Qayerda', 8) + ong('Soni', 6) + ong('OK', 6) + '  ' + chap('Oxirgi', 17) + 'Tasnif');
     for (const r of L) {
-      const belgi = r.t === 'YOZADI' ? '⚠' : r.t === 'YOZISHI MUMKIN' ? '⚠' : ' ';
+      const faol = Date.now() - new Date(r.oxirgi).getTime() < 7 * 86400000;
+      const belgi = (r.t === 'YOZADI' || r.t === 'YOZISHI MUMKIN') ? (faol ? '⚠' : '·') : ' ';
       console.log(belgi + ' ' + chap(r.fn, 26) + chap(r.qayerda, 8) + ong(r.n, 6) + ong(r.ok, 6) + '  ' + chap(new Date(r.oxirgi).toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 16), 17) +
         r.t + ' — ' + r.izoh);
     }
   }
-  const yozadi = L.filter(r => r.qayerda !== 'tg' && (r.t === 'YOZADI' || r.t === 'YOZISHI MUMKIN') && r.ok > 0);
-  xulosa.push(yozadi.length ? '⚠ 14 kunda eski tizim orqali jadvalga yozuv: ' + yozadi.map(r => r.fn + ' (' + r.ok + ')').join(', ') : '✅ 14 kunda eski tizim orqali jadvalga yozuv yo\'q');
+  console.log('  ⚠ — oxirgi 7 kunda ham bo\'lgan; · — 7 kundan beri yo\'q (to\'xtagan).');
+  const yoz7 = new Map();
+  L.filter(r => r.qayerda === 'eski' && (r.t === 'YOZADI' || r.t === 'YOZISHI MUMKIN') && r.ok > 0 && Date.now() - new Date(r.oxirgi).getTime() < 7 * 86400000)
+    .forEach(r => yoz7.set(r.fn, r.ok));
+  xulosa.push(yoz7.size ? '⚠ Oxirgi 7 kunda eski tizim orqali jadvalga yozuv: ' + [...yoz7].map(([f, n]) => f + ' (' + n + ')').join(', ') + ' — reja 5-bo\'lim' : '✅ Oxirgi 7 kunda eski tizim orqali jadvalga yozuv yo\'q');
 
   // 4 ──────────────────────────────────────────────────────────────
   sarlavha('4. 09c_Taminotchilar_yuridik — raqamli ustunlar qanday saqlangan');
