@@ -452,7 +452,7 @@ async function bekorTasdiq(args) {
     const z = (await bekorJurnalYangi()).find(q => s(q.id) === s(id));
     if (!z) throw new S.Xato('So\'rov topilmadi (ID ' + id + ').');
     if (BEKOR_YOPIQ.indexOf(z.holati) >= 0) throw new S.Xato('So\'rov allaqachon yopilgan: ' + z.holati + '.');
-    const vaqt = hozir();
+    const vaqt = hozir().dmyHm;   // 02.11.2026 tuzatildi: avval obyekt ({dmyHm, dmyHms}) edi — AB ga obyekt ketib, Google so'rovni rad etardi; izohda «[object Object]»
     if (!ha) {
       if (izoh.length < 5) throw new S.Xato('Rad etish sababini yozing (kamida 5 belgi).');
       await G.yoz(env.aksBazaId, [
@@ -526,7 +526,7 @@ async function bekorQaytarish(args) {
     }
     if (x.tur === 'sotuv') D.push({ varaq: '03_Sotuv_shartnomalar', katak: 'N' + x.qator, qiymat: [['Aktiv']] });
     else D.push({ varaq: '04_Ijara_shartnomalar', katak: 'C' + x.qator, qiymat: [['Aktiv']] });
-    const vaqt = hozir();
+    const vaqt = hozir().dmyHm;   // 02.11.2026 tuzatildi (avval obyekt — izohda «[object Object]» chiqardi)
     D.push({ varaq: BEK, katak: 'G' + z.qator, qiymat: [['Qaytarildi']] });
     D.push({ varaq: BEK, katak: 'AD' + z.qator, qiymat: [[(z.izoh ? z.izoh + ' | ' : '') + 'Qaytarildi: ' + (s(izoh0).trim() || 'direktor qarori') + ' (' + u.fish + ', ' + vaqt + ')']] });
     await G.yoz(env.aksBazaId, D, env.googleKey);
