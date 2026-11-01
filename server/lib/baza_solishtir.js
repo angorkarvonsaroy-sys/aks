@@ -6,7 +6,9 @@ const { SOLISHTIR } = require('./baza_hisob');
 
 const KUN = 86400000, EPOXA = Date.UTC(1899, 11, 30);
 const bosh = v => v === '' || v === null || v === undefined;
-const son = v => (typeof v === 'number' ? v : (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : null));
+// date ustuni (pg → JS Date, mahalliy yarim tun) → Google seriya raqami, shunda sana ham son bo'lib solishtiriladi
+const seriya = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - EPOXA) / KUN;
+const son = v => (v instanceof Date ? seriya(v) : typeof v === 'number' ? v : (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : null));
 
 async function bugunVaraqdan(db, k) {
   const r = (await db.query(`SELECT data->25 AS z FROM kozgu.qatorlar WHERE kompaniya_id = $1 AND varaq = '08_Lugatlar' AND qator_no = 2`, [k])).rows[0];
