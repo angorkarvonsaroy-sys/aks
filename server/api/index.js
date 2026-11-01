@@ -14,6 +14,7 @@ const koprik = require('./koprik');
 const kesh = require('./kesh');
 const tetik = require('../lib/kozgu_tetik');
 const ui = require('./ui');
+const IK = require('../lib/ikki_yozuv');   // 3-bosqich: ikki tomonlama yozish (bayroq o'chiq bo'lsa hech narsa qilmaydi)
 
 const VERSIYA = (() => { try { return require('fs').readFileSync(__dirname + '/../.versiya', 'utf8').trim().slice(0, 7); } catch (e) { return 'dev'; } })();
 
@@ -92,7 +93,7 @@ fastify.post('/api/rpc', async (req, reply) => {
   try {
     let r, qayerda;
     if (typeof A[fn] === 'function') {
-      qayerda = 'server'; r = await A[fn](args);
+      qayerda = 'server'; r = await IK.bilan(fn, () => A[fn](args));   // IK — kim yozdi (ikki tomonlama yozish jurnali uchun)
       if (A.YOZUV.has(fn)) { const kod = String(args[0] || '').split('|')[0]; if (kod) kesh.yozuvdanKeyin(kod).catch(() => {}); }   // serverdagi yozuv — xodimning tayyor javoblari eskirdi
     }
     else {

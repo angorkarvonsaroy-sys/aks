@@ -25,7 +25,69 @@ function xabarMatn(R) {
   return L.join('\n');
 }
 
+// ---------- 3-bosqich (2b): ikki tomonlama yozish YONIQ bo'lsa — «baza» doimiy (server yozib boradi), qayta qurilmaydi. Har kecha:
+// ko'zgu Google'dan yangilanadi → «baza_tekshir» quriladi → har katak solishtiriladi (lib/ikki_solishtir.js) → farqlar tuzatiladi →
+// 2a (server hisobi ↔ Google hisobi) doimiy «baza» ustida. Server yozgan qatorda farq / jurnalda xato / 2a farq bo'lsa — direktorga xabar.
+function ikkiXabar(R, jx, R2a) {
+  const L = ['🗄 <b>Ikki tomonlama yozish — kunlik tekshiruv</b>', ''];
+  if (R.jami.ikki) {
+    L.push('⚠ Server yozgan qatorlarda «baza» Google\'dan <b>' + R.jami.ikki + '</b> qatorda farq qildi:');
+    for (const h of R.jadvallar.filter(z => z.ikki).slice(0, 6)) {
+      L.push('• <b>' + esc(h.varaq) + '</b> — ' + h.ikki + ' qator: ' + esc(Object.entries(h.ustunlar).slice(0, 4).map(([u, n]) => u + ' ' + n).join(', ')));
+      h.misollar.filter(m => m.tur === 'ikki').slice(0, 2).forEach(m => L.push('   qator ' + m.qator + (m.amal ? ' [' + esc(m.amal) + ']' : '') + ': ' +
+        esc(m.ustunlar.map(u => typeof u === 'string' ? u : u.ustun + ' — baza ' + pul(u.a) + ' · Google ' + pul(u.b)).join(' | ').slice(0, 300))));
+    }
+  }
+  if (jx.xato) L.push('⚠ Jurnalda <b>' + jx.xato + '</b> ta yozuv server bazasiga yozilmagan (xato).');
+  if (R2a && R2a.farq) L.push('⚠ 2a: server hisobi Google hisobidan ' + R2a.farq + ' katakda farq qildi (aks-baza solishtir --toldirmasdan).');
+  L.push('', 'Tashqi o\'zgarish (server tegmagan qatorlar — Google\'da qo\'lda yoki eski tizim): ' + R.jami.tashqi + ' qator.',
+    '«baza» Google holatiga keltirildi (' + R.jami.tuzatildi + ' qator). Ilovaga ta\'siri yo\'q (ilova hali Google jadvaldan o\'qiydi).',
+    'Batafsil: <code>aks-baza ikki</code>, <code>aks-baza ikki jurnal --xato</code> — Claude\'ga ko\'rsating.');
+  return L.join('\n');
+}
+async function ikkiTekshir(opt = {}) {
+  const IS = require('./ikki_solishtir');
+  const db = await pool.connect();
+  let yid = null;
+  try {
+    yid = (await db.query(`INSERT INTO baza_yuklashlar (holat) VALUES ('ishlayapti') RETURNING id`)).rows[0].id;
+    const o = (await db.query(`SELECT hisobot->'ikki'->>'dan' dan FROM baza_yuklashlar WHERE holat = 'ok' AND hisobot ? 'ikki' ORDER BY id DESC LIMIT 1`)).rows[0];
+    const oldin = o && o.dan ? new Date(o.dan) : new Date(Date.now() - 26 * 3600000), dan = new Date(Date.now() - 60000);
+    await require('./kozgu_tetik').yangila();
+    let n;
+    try { n = await B.toldir(db, { sxema: 'baza_tekshir' }); }
+    catch (e) {
+      await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'xato', xato_matn = $2 WHERE id = $1`, [yid, String(e.message).slice(0, 2000)]);
+      const m = '🗄 <b>Kunlik tekshiruv to\'xtadi</b> (ikki tomonlama yozish)\n' + esc(e.message) + '\n\n«baza» o\'z joyida, server yozishda davom etadi. Ilovaga ta\'siri yo\'q. Claude\'ga ko\'rsating.';
+      if (opt.quruq) return { quruq: true, xabarlar: [{ kimga: 'direktor', matn: m }] };
+      await require('./telegram').direktor(m);
+      return { ok: false, toxtadi: e.message.slice(0, 200), yuborildi: 1 };
+    }
+    const R = await IS.solishtir(db, { dan, oldin, tuzat: !opt.quruq });
+    const R2 = await BS.solishtir(db);
+    const farq2a = R2.ustunlar.reduce((a, u) => a + u.farq, 0);
+    const jx = {}; (await db.query(`SELECT holat, count(*)::int n FROM baza_ikki_jurnal WHERE vaqt >= $1 GROUP BY 1`, [oldin])).rows.forEach(r => { jx[r.holat] = r.n; });
+    if (!opt.quruq) await db.query(`DELETE FROM baza_ikki_jurnal WHERE vaqt < now() - interval '45 days'`);
+    const ikki = { dan, oldin, jami: R.jami, jurnal: jx, jadvallar: R.jadvallar.filter(h => h.farq || h.chiqarildi).map(h => ({ jadval: h.jadval, farq: h.farq, ikki: h.ikki, tashqi: h.tashqi,
+      chiqarildi: h.chiqarildi, ustunlar: h.ustunlar, misollar: h.misollar.slice(0, 3) })) };
+    await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'ok', ms = $2, hisobot = $3 WHERE id = $1`,
+      [yid, n.ms, JSON.stringify(Object.assign({}, n, { [opt.quruq ? 'ikki_quruq' : 'ikki']: ikki, solishtir: { farq: farq2a, bugun: R2.bugun } }))]);   // quruq — keyingi oynaga ta'sir qilmasin
+    const natija = { ikki: R.jami.ikki, tashqi: R.jami.tashqi, tuzatildi: R.jami.tuzatildi, jurnalXato: jx.xato || 0, farq2a };
+    if (!R.jami.ikki && !jx.xato && !farq2a) return natija;
+    const m = ikkiXabar(R, jx, { farq: farq2a });
+    if (opt.quruq) return Object.assign(natija, { quruq: true, xabarlar: [{ kimga: 'direktor', matn: m }] });
+    await require('./telegram').direktor(m);
+    return Object.assign(natija, { yuborildi: 1 });
+  } catch (e) {
+    if (yid) await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'xato', xato_matn = $2 WHERE id = $1`, [yid, String(e.message).slice(0, 2000)]).catch(() => {});
+    throw e;
+  } finally { db.release(); }
+}
+
 async function bazaSolishtir(kod, opt = {}) {
+  let ikkiYon = false;
+  try { ikkiYon = await require('./ikki_yozuv').yoqilganmi(); } catch (e) { }
+  if (ikkiYon) return ikkiTekshir(opt);
   const db = await pool.connect();
   let yid = null;
   try {
@@ -51,4 +113,4 @@ async function bazaSolishtir(kod, opt = {}) {
   } finally { db.release(); }
 }
 
-module.exports = { bazaSolishtir, xabarMatn };
+module.exports = { bazaSolishtir, xabarMatn, ikkiXabar, ikkiTekshir };

@@ -32,7 +32,7 @@ async function birAylanish() {
   for (const z of R || []) {
     await redis.set('tg_offset', String(z.update_id + 1));
     const t0 = Date.now(); let n;
-    try { n = await K.ishlov(z); }
+    try { n = await require('./ikki_yozuv').bilan('tg', () => K.ishlov(z)); }
     catch (e) { n = { tur: 'xato', natija: e.message }; console.error(new Date().toISOString(), 'tg kirish:', e.message);
       q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1,$2,$3,$4,$5)', ['tg_kirish', 'tg', Date.now() - t0, false, e.message.slice(0, 300)]).catch(() => {}); }
     await K.jurnal(Object.assign({ ms: Date.now() - t0 }, n || {}));

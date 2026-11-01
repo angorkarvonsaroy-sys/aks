@@ -81,13 +81,43 @@ function jadvalDDL(sx, j) {
 }
 const izohMatn = s => "'" + String(s).replace(/'/g, "''") + "'";
 
+// ---------- 08_Lugatlar → lugat (kategoriya, tartib, qiymat) · zona (blok, usd_m2) · sozlama (kalit, qiymat). Q — 08_Lugatlar qatorlari [{n, x}],
+// qosh(varaq) — LUGAT.qoshimcha varag'ining qatorlari. 02.11: toldir'dan ajratildi — ikki tomonlama yozish (lib/ikki_yozuv.js) ham shuni ishlatadi.
+const LUGAT_DDL = SX => [
+  `CREATE TABLE ${SX}.lugat (kompaniya_id int NOT NULL, kategoriya text NOT NULL, tartib int NOT NULL, qiymat text NOT NULL, PRIMARY KEY (kompaniya_id, kategoriya, tartib))`,
+  `CREATE TABLE ${SX}.zona (kompaniya_id int NOT NULL, blok text NOT NULL, usd_m2 numeric, PRIMARY KEY (kompaniya_id, blok))`,
+  `CREATE TABLE ${SX}.sozlama (kompaniya_id int NOT NULL, kalit text NOT NULL, qiymat text, PRIMARY KEY (kompaniya_id, kalit))`];
+function lugatQur(k, Q, qosh) {
+  const sar = (Q.find(z => z.n === 1) || { x: [] }).x;
+  const lug = [], zona = [], soz = [], xatolar = [];
+  for (const h of LUGAT.royxat) {
+    const kat = String(sar[ustunN(h)] || h).trim();
+    Q.filter(z => z.n >= 2 && !bosh(z.x[ustunN(h)])).forEach((z, i) => lug.push({ kompaniya_id: k, kategoriya: kat, tartib: i + 1, qiymat: aylantir(z.x[ustunN(h)], 'matn').v }));
+  }
+  for (const qo of LUGAT.qoshimcha)
+    (qosh(qo.varaq) || []).filter(z => z.n >= 2 && !bosh(z.x[ustunN(qo.ustun)])).forEach((z, i) => lug.push({ kompaniya_id: k, kategoriya: qo.kategoriya, tartib: i + 1, qiymat: aylantir(z.x[ustunN(qo.ustun)], 'matn').v }));
+  const [zb, zu] = LUGAT.zona.map(ustunN);
+  Q.filter(z => z.n >= 2 && !bosh(z.x[zb])).forEach(z => { const u = aylantir(z.x[zu], 'son');
+    if (u.xato) xatolar.push([k, 'zona', LUGAT.varaq, z.n, LUGAT.zona[1], String(z.x[zu]), u.xato]);
+    zona.push({ kompaniya_id: k, blok: aylantir(z.x[zb], 'matn').v, usd_m2: u.xato ? null : u.v }); });
+  const zs = ustunN(LUGAT.sozlama), Z = Q.filter(z => !bosh(z.x[zs])).map(z => ({ n: z.n, v: z.x[zs] }));
+  for (let i = 0; i < Z.length; i++) {   // nom qatori, keyingi qatorda qiymat
+    if (typeof Z[i].v !== 'string' || !Z[i + 1] || Z[i + 1].n !== Z[i].n + 1) continue;
+    if (!LUGAT.tashla.includes(Z[i].v.trim())) soz.push({ kompaniya_id: k, kalit: Z[i].v.trim(), qiymat: aylantir(Z[i + 1].v, 'matn').v });
+    i++;
+  }
+  return { lugat: lug, zona, sozlama: soz, xatolar };
+}
+
 // ---------- to'ldirish
 // db — pg Client (yoki pool emas: bitta ulanish, tranzaksiya kerak). natija: { jadvallar: [{jadval, varaq, qator, bosh, xato, takror}], xatolar: N, ms }
+// opt.sxema — qaysi sxemaga quriladi (standart «baza»). 02.11: ikki tomonlama yozish yoqilganda «baza» doimiy — kunlik tekshiruv «baza_tekshir» ga quradi.
 async function toldir(db, opt = {}) {
-  const t0 = Date.now(), SX = 'baza_yangi';
+  const t0 = Date.now(), MAQSAD = opt.sxema || 'baza', SX = MAQSAD + '_yangi';
+  if (!/^[a-z_]+$/.test(MAQSAD)) throw new Error('sxema nomi noto\'g\'ri: ' + MAQSAD);
   const kompaniyalar = opt.kompaniyalar || (await db.query('SELECT id FROM kompaniyalar WHERE faol ORDER BY id')).rows.map(r => r.id);
   const varaqlar = [...new Set(JADVALLAR.map(j => j.varaq).concat(LUGAT.varaq, LUGAT.qoshimcha.map(x => x.varaq)))];
-  const natija = { jadvallar: [], xatolar: 0, ms: 0, kompaniyalar };
+  const natija = { jadvallar: [], xatolar: 0, ms: 0, kompaniyalar, sxema: MAQSAD };
   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
   try {
     await db.query(`DROP SCHEMA IF EXISTS ${SX} CASCADE`);
@@ -139,32 +169,13 @@ async function toldir(db, opt = {}) {
       if (j.kalit) { const kn = j.ustunlar.find(([h]) => h === j.kalit)[1]; await db.query(`CREATE INDEX ON ${SX}.${q(j.jadval)} (kompaniya_id, ${q(kn)})`); }
       natija.jadvallar.push(hisobot);
     }
-    // 08_Lugatlar → lugat (kategoriya, tartib, qiymat) · zona (blok, usd_m2) · sozlama (kalit, qiymat)
-    await db.query(`CREATE TABLE ${SX}.lugat (kompaniya_id int NOT NULL, kategoriya text NOT NULL, tartib int NOT NULL, qiymat text NOT NULL, PRIMARY KEY (kompaniya_id, kategoriya, tartib))`);
-    await db.query(`CREATE TABLE ${SX}.zona (kompaniya_id int NOT NULL, blok text NOT NULL, usd_m2 numeric, PRIMARY KEY (kompaniya_id, blok))`);
-    await db.query(`CREATE TABLE ${SX}.sozlama (kompaniya_id int NOT NULL, kalit text NOT NULL, qiymat text, PRIMARY KEY (kompaniya_id, kalit))`);
+    for (const s of LUGAT_DDL(SX)) await db.query(s);
     const L = { lugat: 0, zona: 0, sozlama: 0 };
     for (const k of kompaniyalar) {
-      const Q = V[k + '|' + LUGAT.varaq] || [], sar = (Q.find(z => z.n === 1) || { x: [] }).x;
-      const lug = [], zona = [], soz = [];
-      for (const h of LUGAT.royxat) {
-        const kat = String(sar[ustunN(h)] || h).trim();
-        Q.filter(z => z.n >= 2 && !bosh(z.x[ustunN(h)])).forEach((z, i) => lug.push({ kompaniya_id: k, kategoriya: kat, tartib: i + 1, qiymat: aylantir(z.x[ustunN(h)], 'matn').v }));
-      }
-      for (const qo of LUGAT.qoshimcha)
-        (V[k + '|' + qo.varaq] || []).filter(z => z.n >= 2 && !bosh(z.x[ustunN(qo.ustun)])).forEach((z, i) => lug.push({ kompaniya_id: k, kategoriya: qo.kategoriya, tartib: i + 1, qiymat: aylantir(z.x[ustunN(qo.ustun)], 'matn').v }));
-      const [zb, zu] = LUGAT.zona.map(ustunN);
-      Q.filter(z => z.n >= 2 && !bosh(z.x[zb])).forEach(z => { const u = aylantir(z.x[zu], 'son');
-        if (u.xato) xatolar.push([k, 'zona', LUGAT.varaq, z.n, LUGAT.zona[1], String(z.x[zu]), u.xato]);
-        zona.push({ kompaniya_id: k, blok: aylantir(z.x[zb], 'matn').v, usd_m2: u.xato ? null : u.v }); });
-      const zs = ustunN(LUGAT.sozlama), Z = Q.filter(z => !bosh(z.x[zs])).map(z => ({ n: z.n, v: z.x[zs] }));
-      for (let i = 0; i < Z.length; i++) {   // nom qatori, keyingi qatorda qiymat
-        if (typeof Z[i].v !== 'string' || !Z[i + 1] || Z[i + 1].n !== Z[i].n + 1) continue;
-        if (!LUGAT.tashla.includes(Z[i].v.trim())) soz.push({ kompaniya_id: k, kalit: Z[i].v.trim(), qiymat: aylantir(Z[i + 1].v, 'matn').v });
-        i++;
-      }
-      for (const [t, M] of [['lugat', lug], ['zona', zona], ['sozlama', soz]])
-        if (M.length) { await db.query(`INSERT INTO ${SX}.${t} SELECT * FROM jsonb_populate_recordset(NULL::${SX}.${t}, $1::jsonb)`, [JSON.stringify(M)]); L[t] += M.length; }
+      const M = lugatQur(k, V[k + '|' + LUGAT.varaq] || [], v => V[k + '|' + v]);
+      xatolar.push(...M.xatolar);
+      for (const t of ['lugat', 'zona', 'sozlama'])
+        if (M[t].length) { await db.query(`INSERT INTO ${SX}.${t} SELECT * FROM jsonb_populate_recordset(NULL::${SX}.${t}, $1::jsonb)`, [JSON.stringify(M[t])]); L[t] += M[t].length; }
     }
     // 2-bosqich: Google formulalari o'rnini bosadigan view'lar (lib/baza_hisob.js) — jadvallar bilan birga
     for (const s of require('./baza_hisob').sql(SX)) await db.query(s);
@@ -174,9 +185,9 @@ async function toldir(db, opt = {}) {
         [JSON.stringify(xatolar.slice(i, i + 1000).map(([kompaniya_id, jadval, varaq, qator, ustun, qiymat, sabab]) => ({ kompaniya_id, jadval, varaq, qator, ustun, qiymat, sabab })))]);
     natija.xatolar = xatolar.length;
     // almashtirish — bitta tranzaksiyada
-    await db.query('DROP SCHEMA IF EXISTS baza CASCADE');
-    await db.query(`ALTER SCHEMA ${SX} RENAME TO baza`);
-    await db.query(`COMMENT ON SCHEMA baza IS ${izohMatn('AKS_BAZA dan qurilgan jadvallar (1-bosqich). Oxirgi to\'ldirish: ' + new Date().toISOString())}`);
+    await db.query(`DROP SCHEMA IF EXISTS ${MAQSAD} CASCADE`);
+    await db.query(`ALTER SCHEMA ${SX} RENAME TO ${MAQSAD}`);
+    await db.query(`COMMENT ON SCHEMA ${MAQSAD} IS ${izohMatn('AKS_BAZA dan qurilgan jadvallar (1-bosqich). Oxirgi to\'ldirish: ' + new Date().toISOString())}`);
     await db.query('COMMIT');
   } catch (e) {
     await db.query('ROLLBACK').catch(() => {});
@@ -186,4 +197,4 @@ async function toldir(db, opt = {}) {
   return natija;
 }
 
-module.exports = { toldir, aylantir, jadvalDDL, SQL_TUR, _ichki: { seriyaSana, seriyaVaqt, matnSana, matnVaqt } };
+module.exports = { toldir, aylantir, jadvalDDL, lugatQur, LUGAT_DDL, SQL_TUR, _ichki: { seriyaSana, seriyaVaqt, matnSana, matnVaqt, ustunN, bosh } };

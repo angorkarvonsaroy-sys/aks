@@ -5,12 +5,23 @@
 //   aks-baza xatolar [jadval] — aylantirib bo'lmagan kataklar (NULL qilingan): varaq, qator, ustun, qiymat, sabab
 //   aks-baza solishtir       — (2-bosqich) yangidan quradi va HAR QATOR: Google hisoblagan qiymat ↔ server hisobi (lib/baza_hisob.js); --toldirmasdan
 //   aks-baza xom             — (3-bosqichga tayyorgarlik) ko'ringan matndan o'qiydigan 33 joy: hozirgi natija ↔ xom qiymatdan (lib/xom_sinov.js)
-// Google jadvalga, ko'zguga va ilovaga TEGMAYDI. Ilova hali bu jadvallardan o'qimaydi.
+//   aks-baza tikla           — (3-bosqich) ko'zguni Google'dan yangilab «baza» ni qaytadan quradi; ikki tomonlama yozish yoniq bo'lsa —
+//                              shu orada server yozgan o'zgarishlar jurnaldan qayta qo'llanadi
+//   aks-baza ikki            — (3-bosqich) ikki tomonlama yozish holati: bayroq, jurnal (24 soat), oxirgi kunlik tekshiruv
+//   aks-baza ikki yoq | ochir — bayroqni yoqish (keyin avtomatik tikla) / o'chirish
+//   aks-baza ikki solishtir [--tuzat] — hozir: ko'zgu → «baza_tekshir» va «baza» bilan har katak (--tuzat — farqlarni tuzatadi, faqat yoniq bo'lsa)
+//   aks-baza ikki jurnal [jadval|varaq] [--xato] — oxirgi yozuvlar
+//   aks-baza ikki sinov      — qatlamning o'z-o'zini sinovi: ko'zgudagi hamma qator qatlam orqali vaqtinchalik sxemaga (Google'ga va «baza» ga tegmaydi)
+// Google jadvalga va ilovaga TEGMAYDI (tikla / ikki — faqat ko'zguni Google'dan o'qib yangilaydi). Ilova hali bu jadvallardan o'qimaydi.
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { Client } = require('pg');
 const env = require('../lib/env');
 const B = require('../lib/baza');
+const IK = require('../lib/ikki_yozuv');
+const IS = require('../lib/ikki_solishtir');
+const uxla = ms => new Promise(r => setTimeout(r, ms));
+const vaqtM = d => d ? new Date(d).toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 16) : '—';
 
 const s = v => String(v == null ? '' : v);
 const ong = (v, n) => s(v).padStart(n), chap = (v, n) => s(v).padEnd(n);
@@ -36,12 +47,125 @@ function jadval(T, xatolar) {
   console.log('\nXato — katakni aylantirib bo\'lmadi (NULL qilindi): aks-baza xatolar · Takror ID — ID ustunida bir xil qiymat bir necha qatorda.');
 }
 
+// ---------- 3-bosqich: ikki tomonlama yozish
+async function jurnalBor(db) { return (await db.query(`SELECT to_regclass('public.baza_ikki_jurnal') t`)).rows[0].t !== null; }
+async function oldingiDan(db) {   // oldingi kunlik tekshiruv ko'zgusi o'qilgan payt — «ikki»/«tashqi» ajratish oynasi shundan boshlanadi
+  const r = (await db.query(`SELECT hisobot->'ikki'->>'dan' dan FROM baza_yuklashlar WHERE holat = 'ok' AND hisobot ? 'ikki' ORDER BY id DESC LIMIT 1`)).rows[0];
+  return r && r.dan ? new Date(r.dan) : new Date(Date.now() - 26 * 3600000);
+}
+async function kozguYangila() {
+  console.log('Ko\'zgu Google\'dan yangilanmoqda (1–2 daqiqa)…');
+  await require('../lib/kozgu_tetik').yangila();
+}
+async function tikla(db) {
+  const yon = await IK.yoqilganmi(), dan = new Date(Date.now() - 60000);
+  await kozguYangila();
+  const r0 = await db.query(`INSERT INTO baza_yuklashlar (holat) VALUES ('ishlayapti') RETURNING id`);
+  console.log('Ko\'zgudan «baza» qurilmoqda…');
+  const n = await B.toldir(db, { sxema: 'baza' });
+  await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'ok', ms = $2, hisobot = $3 WHERE id = $1`, [r0.rows[0].id, n.ms, JSON.stringify(n)]);
+  console.log('✅ «baza» qurildi: ' + n.jadvallar.reduce((a, t) => a + t.qator, 0) + ' qator, ' + n.xatolar + ' aylantirilmagan katak, ' + (n.ms / 1000).toFixed(1) + ' s');
+  if (yon && await jurnalBor(db)) {
+    const K = new Map((await db.query('SELECT id, sheet_id FROM kompaniyalar')).rows.map(r => [r.id, r.sheet_id]));
+    const q = await IK.qaytaQolla(db, dan, { sheetId: k => K.get(k), kalitFayl: env.googleKey });
+    console.log('Ko\'zgu o\'qilayotganda server yozgan o\'zgarishlar qayta qo\'llandi: ' + q.yozuv + ' yozuv, ' + q.katak + ' katak' +
+      (q.lugat ? ', lugat qayta qurildi' : '') + (q.surish ? ' · ⚠ ' + q.surish + ' ta qator surish qayta qo\'llanmadi (kechasi tekshiriladi)' : ''));
+  }
+}
+function farqJadval(R) {
+  console.log(chap('Jadval', 26) + chap('Varaq', 28) + ong('Qator', 7) + ong('Farq', 6) + ong('Server', 8) + ong('Tashqi', 8) + ong('Hozir', 7));
+  console.log('-'.repeat(90));
+  for (const h of R.jadvallar) if (h.farq || h.chiqarildi)
+    console.log(chap(h.jadval, 26) + chap(h.varaq, 28) + ong(son(h.qator), 7) + ong(h.farq || '', 6) + ong(h.ikki ? h.ikki + ' ⚠' : '', 8) + ong(h.tashqi || '', 8) + ong(h.chiqarildi || '', 7));
+  console.log('-'.repeat(90));
+  console.log(chap('JAMI: ' + R.jadvallar.length + ' jadval, ' + son(R.jami.katak) + ' katak', 61) + ong(R.jami.farq, 6) + ong(R.jami.ikki, 8) + ong(R.jami.tashqi, 8) + ong(R.jami.chiqarildi, 7));
+  for (const h of R.jadvallar.filter(z => z.farq)) {
+    console.log('\n' + h.jadval + ' (' + h.varaq + '): ' + Object.entries(h.ustunlar).map(([u, n]) => u + ' ' + n).join(', '));
+    h.misollar.forEach(m => console.log('  ' + (m.tur === 'ikki' ? '⚠ server' : '  tashqi') + ' qator ' + ong(m.qator, 5) + (m.amal ? ' [' + m.amal + ']' : '') + ': ' +
+      m.ustunlar.map(u => typeof u === 'string' ? u : u.ustun + ' — baza: ' + JSON.stringify(u.a) + ' · Google: ' + JSON.stringify(u.b)).join(' | ')));
+  }
+  console.log('\nServer — farq server yozgan qatorda (ikki tomonlama yozish xatosi bo\'lishi mumkin). Tashqi — server tegmagan qator (Google\'da qo\'lda yoki eski tizim yozgan).' +
+    '\nHozir — oxirgi daqiqalarda yozilgan, ko\'zgu hali ko\'rmagan bo\'lishi mumkin — hisobga olinmadi.');
+}
+async function ikki(db, arg) {
+  const kichik = arg[0] || 'holat', bor = await jurnalBor(db);
+  if (!bor && kichik !== 'sinov') { console.log('⚠ baza_ikki_jurnal jadvali yo\'q — 008 migratsiya hali qo\'llanmagan (aks-yangila).'); process.exitCode = 1; return; }
+  if (kichik === 'yoq') {
+    if (await IK.yoqilganmi()) { console.log('Allaqachon YONIQ. Holat: aks-baza ikki'); return; }
+    await IK.bayroq(true);
+    console.log('✅ Bayroq yoqildi (ikki_yozuv_yondi). Server 15 soniya ichida sezadi — kutilmoqda…');
+    await uxla(16000);
+    await tikla(db);
+    console.log('\nEndi server Google\'ga yozgan har o\'zgarishni «baza» ga ham yozadi. Har kecha 03:00 da tekshiriladi. O\'chirish: aks-baza ikki ochir');
+  } else if (kichik === 'ochir') {
+    await IK.bayroq(false);
+    console.log('✅ Bayroq o\'chirildi. 15 soniyadan keyin server «baza» ga yozmaydi. Kechasi «baza» yana ko\'zgudan quriladi (avvalgidek). Ilovaga ta\'siri yo\'q.');
+  } else if (kichik === 'solishtir') {
+    const tuzat = arg.includes('--tuzat'), yon = await IK.yoqilganmi();
+    if (tuzat && !yon) { console.log('--tuzat faqat ikki tomonlama yozish yoniq bo\'lsa (o\'chiq bo\'lsa «baza» kechasi baribir qaytadan quriladi).'); return; }
+    const dan = new Date(Date.now() - 60000), oldin = await oldingiDan(db);
+    await kozguYangila();
+    console.log('Ko\'zgudan «baza_tekshir» qurilmoqda…');
+    await B.toldir(db, { sxema: 'baza_tekshir' });
+    const R = await IS.solishtir(db, { dan, oldin, tuzat });
+    console.log('\n«baza» ↔ «baza_tekshir» (ko\'zgudan, hozirgi Google holati) · bayroq ' + (yon ? 'YONIQ' : 'o\'chiq') + ' · server yozuvlari ' + vaqtM(oldin) + ' dan beri\n');
+    farqJadval(R);
+    console.log('\n' + (R.jami.ikki ? '⚠ Server yozgan qatorlarda ' + R.jami.ikki + ' ta farq — Claude\'ga ko\'rsating.' : '✅ Server yozgan qatorlarda farq yo\'q.') +
+      (R.jami.tashqi ? ' Tashqi: ' + R.jami.tashqi + ' qator.' : '') + (tuzat ? ' Tuzatildi: ' + R.jami.tuzatildi + ' qator.' : '') + (yon ? '' : '\n(Bayroq o\'chiq — hamma farq «tashqi»: «baza» oxirgi marta kechasi qurilgandan beri Google\'dagi o\'zgarishlar.)'));
+    if (R.jami.ikki) process.exitCode = 2;
+  } else if (kichik === 'jurnal') {
+    const xato = arg.includes('--xato'), f = arg.slice(1).find(a => !a.startsWith('--'));
+    const sh = [], p = [];
+    if (xato) sh.push(`holat IN ('xato', 'ogoh')`);
+    if (f) { p.push(f); sh.push(`(jadval = $${p.length} OR varaq = $${p.length})`); }
+    const R = await db.query(`SELECT vaqt, amal, varaq, jadval, qatorlar, ustunlar, soni, holat, xato, ms FROM baza_ikki_jurnal ${sh.length ? 'WHERE ' + sh.join(' AND ') : ''} ORDER BY id DESC LIMIT 40`, p);
+    if (!R.rows.length) { console.log('Jurnal bo\'sh' + (sh.length ? ' (shu shart bo\'yicha)' : '') + '.'); return; }
+    for (const r of R.rows.reverse())
+      console.log(vaqtM(r.vaqt) + '  ' + chap(r.holat, 8) + chap(s(r.amal).slice(0, 22), 23) + chap(s(r.varaq).slice(0, 26), 27) + 'q ' + chap(s((r.qatorlar || []).slice(0, 4).join(',')) + ((r.qatorlar || []).length > 4 ? '…' : ''), 18) +
+        chap(s((r.ustunlar || []).slice(0, 8).join(',')), 18) + ong(r.ms == null ? '' : r.ms + 'ms', 7) + (r.xato ? '  ' + s(r.xato).slice(0, 160) : ''));
+  } else if (kichik === 'sinov') {
+    console.log('Sinov: ko\'zgudagi hamma qator ikki tomonlama yozish qatlami orqali vaqtinchalik «baza_sinov» ga (Google\'ga va «baza» ga tegmaydi)…');
+    const N = await require('../lib/ikki_sinov').sinov(db);
+    const f = R => R.jami.farq + R.jadvallar.filter(h => h.toliqEmas).length;
+    console.log('\n1) To\'liq qatorlar: ' + son(N.qator) + ' qator, ' + son(N.katak) + ' katak → farq: ' + (f(N.birinchi) ? f(N.birinchi) + ' ⚠' : '0 ✅'));
+    if (f(N.birinchi)) farqJadval(N.birinchi);
+    console.log('2) Qisman yozuvlar (' + N.qisman + ' qator: tozalash + ustunma-ustun) va qator surish (' + N.surish.map(x => x.jadval + ' ' + x.bosh + '-qator: ' + (x.farq ? x.farq + ' farq ⚠' : '0 ✅')).join(', ') + ')');
+    console.log('   keyin hammasi yana → farq: ' + (f(N.ikkinchi) ? f(N.ikkinchi) + ' ⚠' : '0 ✅') + (N.xatolar ? ' · xatolar jadvali: ' + N.xatolar + ' farq ⚠' : ''));
+    if (f(N.ikkinchi)) farqJadval(N.ikkinchi);
+    const ok = !f(N.birinchi) && !f(N.ikkinchi) && !N.surish.some(x => x.farq) && !N.xatolar;
+    console.log('\n' + (ok ? '✅ SINOV O\'TDI' : '⚠ SINOV O\'TMADI — Claude\'ga ko\'rsating') + ' (' + (N.ms / 1000).toFixed(1) + ' s)');
+    if (!ok) process.exitCode = 2;
+  } else {
+    const yon = await IK.yoqilganmi();
+    console.log('Ikki tomonlama yozish (3-bosqich): ' + (yon ? '🟢 YONIQ' : '⚪ o\'chiq') + '  (Redis ' + IK.BAYROQ + ')');
+    const J = (await db.query(`SELECT holat, count(*)::int n, coalesce(sum(soni), 0)::int katak FROM baza_ikki_jurnal WHERE vaqt > now() - interval '24 hours' GROUP BY 1 ORDER BY 1`)).rows;
+    console.log('Jurnal, 24 soat: ' + (J.length ? J.map(r => r.holat + ' ' + r.n + ' (' + r.katak + ' katak)').join(' · ') : 'bo\'sh'));
+    const T = (await db.query(`SELECT coalesce(jadval, varaq) j, count(*)::int n FROM baza_ikki_jurnal WHERE vaqt > now() - interval '24 hours' GROUP BY 1 ORDER BY 2 DESC LIMIT 8`)).rows;
+    if (T.length) console.log('Ko\'p yozilgan: ' + T.map(r => r.j + ' ' + r.n).join(', '));
+    const Y = (await db.query(`SELECT boshlandi, holat, hisobot->'ikki' i FROM baza_yuklashlar WHERE hisobot ? 'ikki' ORDER BY id DESC LIMIT 1`)).rows[0];
+    if (Y) console.log('Oxirgi kunlik tekshiruv: ' + vaqtM(Y.boshlandi) + ' — server yozgan qatorlarda farq ' + Y.i.jami.ikki + ', tashqi ' + Y.i.jami.tashqi + ', tuzatildi ' + Y.i.jami.tuzatildi);
+    else console.log('Kunlik tekshiruv (2b) hali bo\'lmagan' + (yon ? ' — bugun 03:00 da.' : ' (bayroq yoqilgach har kecha 03:00).'));
+    const tk = (await db.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = 'baza_tekshir'`)).rows.length;
+    console.log('«baza_tekshir»: ' + (tk ? 'bor' : 'yo\'q') + ' · Buyruqlar: aks-baza ikki sinov | solishtir | jurnal | yoq | ochir');
+  }
+}
+
 (async () => {
   const buyruq = process.argv[2] || 'holat';
   const db = new Client(env.db);
   await db.connect();
   try {
-    if (buyruq === 'toldir') {
+    if (buyruq === 'toldir' && await IK.yoqilganmi()) {
+      console.log('Ikki tomonlama yozish YONIQ — «baza» doimiy, qayta qurilmaydi. Tekshirish uchun «baza_tekshir» quriladi…');
+      const n = await B.toldir(db, { sxema: 'baza_tekshir' });
+      console.log('✅ «baza_tekshir» tayyor: ' + (n.ms / 1000).toFixed(1) + ' s');
+      jadval(n.jadvallar, n.xatolar);
+      console.log('\nSolishtirish: aks-baza ikki solishtir · «baza» ni qaytadan qurish: aks-baza tikla');
+    } else if (buyruq === 'tikla') {
+      await tikla(db);
+    } else if (buyruq === 'ikki') {
+      await ikki(db, process.argv.slice(3));
+    } else if (buyruq === 'toldir') {
       const r0 = await db.query(`INSERT INTO baza_yuklashlar (holat) VALUES ('ishlayapti') RETURNING id`);
       console.log('Ko\'zgudan «baza» jadvallari qurilmoqda…');
       try {
@@ -56,7 +180,9 @@ function jadval(T, xatolar) {
       }
     } else if (buyruq === 'solishtir') {
       // avval yangidan quriladi (ko'zgu bilan bir xil holat), keyin har qator Google qiymati bilan solishtiriladi
-      if (!process.argv.includes('--toldirmasdan')) {
+      const yon = await IK.yoqilganmi();
+      if (yon) console.log('Ikki tomonlama yozish YONIQ — «baza» qayta qurilmaydi, hozirgi holati solishtiriladi.');
+      if (!yon && !process.argv.includes('--toldirmasdan')) {
         const r0 = await db.query(`INSERT INTO baza_yuklashlar (holat) VALUES ('ishlayapti') RETURNING id`);
         const n = await B.toldir(db);
         await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'ok', ms = $2, hisobot = $3 WHERE id = $1`, [r0.rows[0].id, n.ms, JSON.stringify(n)]);
@@ -101,4 +227,5 @@ function jadval(T, xatolar) {
       if (jf) process.exitCode = 2;
     } else await holat(db);
   } finally { await db.end(); }
+  process.exit(process.exitCode || 0);   // lib/db (Redis) ochilgan bo'lishi mumkin — kutib qolmasin
 })().catch(e => { console.error('XATO:', e.message); process.exit(1); });

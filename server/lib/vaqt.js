@@ -145,7 +145,7 @@ async function bajar(ish) {
   if (!(await redis.set(qulf, '1', 'NX', 'PX', 25 * 60000))) return { nom: ish.nom, ok: false, xato: 'hozir bajarilmoqda (qulf)', ms: 0 };
   try {
     const kod = await adminKod();
-    const n = await ish.ish(kod);
+    const n = await require('./ikki_yozuv').bilan('vaqt:' + ish.nom, () => ish.ish(kod));
     const y = await jurnalYoz(ish, t0, true, n, null);
     console.log(new Date().toISOString(), '⏰', ish.nom, 'bajarildi', JSON.stringify(n), (y.ms / 1000).toFixed(1) + ' s');
     return y;
