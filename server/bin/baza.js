@@ -4,6 +4,7 @@
 //   aks-baza toldir          — ko'zgudan qaytadan qurish (eski «baza» faqat hammasi muvaffaqiyatli bo'lsa almashadi)
 //   aks-baza xatolar [jadval] — aylantirib bo'lmagan kataklar (NULL qilingan): varaq, qator, ustun, qiymat, sabab
 //   aks-baza solishtir       — (2-bosqich) yangidan quradi va HAR QATOR: Google hisoblagan qiymat ↔ server hisobi (lib/baza_hisob.js); --toldirmasdan
+//   aks-baza xom             — (3-bosqichga tayyorgarlik) ko'ringan matndan o'qiydigan 33 joy: hozirgi natija ↔ xom qiymatdan (lib/xom_sinov.js)
 // Google jadvalga, ko'zguga va ilovaga TEGMAYDI. Ilova hali bu jadvallardan o'qimaydi.
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -83,6 +84,21 @@ function jadval(T, xatolar) {
       if (!S.rows.length) { console.log('Xato yo\'q.'); return; }
       console.log('Guruhlab:'); S.rows.forEach(r => console.log('  ' + chap(r.jadval, 26) + chap(r.ustun, 4) + chap(r.sabab, 24) + ong(r.n, 5) + ' ta'));
       console.log('\nBirinchi ' + R.rows.length + ' ta:'); R.rows.forEach(r => console.log('  ' + chap(r.varaq, 28) + ong(r.qator, 6) + ' ' + chap(r.ustun, 3) + ' «' + s(r.qiymat).slice(0, 40) + '» — ' + r.sabab));
+    } else if (buyruq === 'xom') {
+      // 3-bosqichga tayyorgarlik: ko'ringan matndan o'qiydigan 33 joy — hozirgi natija ↔ xom qiymatdan chiqadigan natija (lib/xom_sinov.js)
+      const N = await require('../lib/xom_sinov').xomSinov(db);
+      console.log('Ko\'ringan matn (hozirgi kod) ↔ xom qiymat — har qator\n');
+      console.log(chap('Joy', 44) + chap('Varaq', 24) + chap('Ustun', 6) + ong('Qator', 7) + ong('FARQ', 7));
+      console.log('-'.repeat(88));
+      let jf = 0;
+      for (const u of N) { jf += u.farq; console.log(chap(u.joy, 44) + chap(u.varaq, 24) + chap(u.harf, 6) + ong(u.jami, 7) + ong(u.farq ? u.farq + ' ⚠' : '0', 7)); }
+      console.log('-'.repeat(88));
+      for (const u of N.filter(z => z.farq)) {
+        console.log('\n' + u.varaq + ' ' + u.harf + ' — ' + u.joy + ' — ' + u.farq + ' farq:');
+        u.misollar.forEach(m => console.log('  qator ' + ong(m.qator, 5) + '  ' + chap(m.no, 10) + ' hozir: ' + chap(JSON.stringify(m.eski), 22) + ' xomdan: ' + chap(JSON.stringify(m.yangi), 22) + ' xom: ' + JSON.stringify(m.xom)));
+      }
+      console.log('\n' + (jf ? '⚠ JAMI FARQ: ' + jf + ' katak — Claude\'ga ko\'rsating.' : '✅ HAMMASI BIR XIL — ' + N.length + ' joy, ' + N.reduce((a, u) => a + u.jami, 0) + ' katak, 0 farq.'));
+      if (jf) process.exitCode = 2;
     } else await holat(db);
   } finally { await db.end(); }
 })().catch(e => { console.error('XATO:', e.message); process.exit(1); });
