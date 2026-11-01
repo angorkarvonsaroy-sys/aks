@@ -94,7 +94,7 @@ for f in Index Xarita; do
       if [ -f "$DST" ]; then cp -p "$DST" "$DST.oldingi"; fi
       cat "$TMP" > "$DST"; chown aks:aks "$DST"; chmod 640 "$DST"
       echo "  $f.html: yangilandi (md5 $(md5sum < "$DST" | cut -c1-32))"
-    fi
+    else echo "  $f.html: ochildi, serverdagisi bilan bir xil (md5 $(md5sum < "$DST" | cut -c1-32))"; fi
   else echo "  !!! $f.html.age ochilmadi (kalit mos emasmi?)"; fi
   rm -f "$TMP"
 done
