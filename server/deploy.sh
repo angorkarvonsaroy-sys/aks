@@ -52,6 +52,7 @@ install -m 755 "$APP/bin/aks-vaqt"     /usr/local/bin/aks-vaqt
 install -m 755 "$APP/bin/aks-ijro-qaror" /usr/local/bin/aks-ijro-qaror
 install -m 755 "$APP/bin/aks-raqam-tikla" /usr/local/bin/aks-raqam-tikla
 install -m 755 "$APP/bin/aks-manzil-tikla" /usr/local/bin/aks-manzil-tikla
+install -m 755 "$APP/bin/aks-baza" /usr/local/bin/aks-baza
 install -m 755 "$APP/bin/aks-koprik" /usr/local/bin/aks-koprik
 install -m 755 "$APP/bin/aks-tg" /usr/local/bin/aks-tg
 install -m 755 "$APP/bin/aks-tg-kirish" /usr/local/bin/aks-tg-kirish

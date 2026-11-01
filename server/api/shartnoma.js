@@ -36,7 +36,12 @@ async function shartnomaBoshlang([kodSes]) {
   let mx4 = 99; for (const z of aOxiri(R4)) { const mm = /^IJ-27\/(\d+)$/.exec(String(z.x[0] || '')); if (mm) mx4 = Math.max(mx4, Number(mm[1])); }
   const hud = oraliq(RH, 2, 210).map(z => xom(z.x, 2)).filter(r => r[0] && r[1]).map(r => [String(r[0]), String(r[1])]);
   let mx = 0; for (const z of aOxiri(R3)) { const mm = /^27\/(\d+)$/.exec(String(z.x[0] || '')); if (mm) mx = Math.max(mx, Number(mm[1])); }
-  const undiruvchilar = R7.map(z => String(z.x[14] || '')).filter(Boolean);
+  // 01.11.2026: undiruvchilar ro'yxati 07 O formulasidan emas — ilovadagi huquqdan: ishlayapti va «undiruv» huquqi bor, yana direktor (ID 1,
+  // eski formuladagidek). Ilovadan qo'shilgan yangi xodimda O formulasi yo'q edi — u bu ro'yxatga tushmasdi. Monitoring ham huquqqa qaraydi.
+  // 01.11 dagi ma'lumotda natija eskisi bilan bir xil (3 kishi, shu tartibda).
+  const huqRoy = v => String(v == null ? '' : v).toLowerCase().split(',').map(h => h.trim()).filter(Boolean);
+  const undiruvchilar = R7.filter(z => String(z.x[10] || '').trim() === 'Ishlayapti' && (huqRoy(z.x[18]).includes('undiruv') || String(z.x[0]).replace(/\.0$/, '') === '1'))
+    .map(z => String(z.x[1] || '').trim()).filter(Boolean);
   // holati bo'yicha yashirin shartnomalar: do'kon band ko'rinadi, lekin egasi / shartnoma raqami — «*».
   // 23.10.2026 (direktor qarori, Zaynab holati): MIJOZ ro'yxatdan OLINMAYDI — avval «faqat yashirin shartnomali mijoz ro'yxatda yo'q» edi (18.10 2-bosqich), lekin
   // bekor qilingan shartnomali mijozga yangi shartnoma tuzish kerak bo'lganda xodim uni ro'yxatda ko'rmay «yangi mijoz» qilardi, mijozSaqlash esa «bu pasport
