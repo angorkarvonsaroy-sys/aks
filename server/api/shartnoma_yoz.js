@@ -1,5 +1,5 @@
 // AKS TIZIM — 📝 SHARTNOMA TUZISHNING YOZADIGAN amallari serverda (Kod.gs v9.8 bilan bir xil tekshiruvlar, xato matnlari va kataklar):
-//   mijozSaqlash      — yangi mijoz → 02_Mijozlar (G, L, E, F matn; J, K, V sana; Z va AE formulalari yuqoridagi qatordan)
+//   mijozSaqlash      — yangi mijoz → 02_Mijozlar (G, L, E, F matn; J, K, V sana; Z — N..S dan yig'ilgan to'liq manzil; AE formulasi yuqoridagi qatordan)
 //   shartnomaSaqlash  — sotuv shartnomasi → 03 (A matn, C sana, I foiz, U:AN formulalar, AO:AP «Kiritildi/Kiritdi»), to'lov jadvali → 03b
 //                       (B matn, D sana, F «Kumulyativ» — oxirgi sog' formuladan, kumF_), raqam: 27/N (06k loyihasidagi va 03b dagi band raqamlar o'tkaziladi)
 //   ijaraSaqlash      — ijara shartnomasi → 04 (A, E matn; B, J, K sana; X:AK formulalar; AL «Kiritildi»)
@@ -24,12 +24,16 @@ const SHARTNOMA_TURLARI = ['Тайёр дўкон (Муддатли тўлов �
   'Тайёр дўкон (100% тўлов шартномаси)', 'Қурилаётган дўкон (100% тўлов шартномаси)'];
 const QT_FAOL = ['Loyiha', 'Qaytarildi', 'Tekshiruvda', 'Yozilmoqda'];
 // Varaqlarning yozuv shakli: matn ustunlari, sana/son formatlari, yuqoridagi qatordan ko'chiriladigan formula oraliqlari (1-asosli)
-const F02 = { matn: [7, 12, 5, 6], sana: { 10: 'dd.MM.yyyy', 11: 'dd.MM.yyyy', 22: 'dd.MM.yyyy' }, son: {}, formula: [[26, 26], [31, 31]] };
+// 01.11.2026: Z (26) formula EMAS — endi qatorning o'zida N..S dan yig'ib yoziladi (lib/manzil.js). Avval yuqoridan nusxalanib,
+// oldingi mijozning manzili ko'chib qolardi (02.10–30.10 dagi 17 mijoz — aks-manzil-tikla bilan tuzatildi).
+const F02 = { matn: [7, 12, 5, 6], sana: { 10: 'dd.MM.yyyy', 11: 'dd.MM.yyyy', 22: 'dd.MM.yyyy' }, son: {}, formula: [[31, 31]] };
 const F03 = { matn: [1, 41, 42], sana: { 3: 'dd.MM.yyyy' }, son: { 9: '0%' }, formula: [[21, 40]] };
 const F03b = { matn: [2], sana: { 4: 'dd.MM.yyyy' }, son: {}, formula: [] };
 const F04 = { matn: [1, 5, 38], sana: { 2: 'dd.MM.yyyy', 10: 'dd.MM.yyyy', 11: 'dd.MM.yyyy' }, son: {}, formula: [[24, 37]] };
 const s = v => String(v == null ? '' : v);
 const S_ = x => s(x).trim();
+const MZ = require('../lib/manzil');
+const manzilMatn = v => /^[=+\-@]/.test(v) ? "'" + v : v;   // USER_ENTERED: «=…» formula bo'lib qolmasin
 function hozir(f) { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
   const dmy = p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); return f === 'dmy' ? dmy : dmy + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
@@ -122,7 +126,8 @@ async function mijozTekshir(u, d) {
 }
 function mijozQator(id, u, d, t) {
   return [id, 'Jismoniy', t.fish, '', K.telFmt(t.tel), t.tel2 ? K.telFmt(t.tel2) : '', t.pas, S_(d.iibv), S_(d.iibt), t.ps, t.pm, t.jsh, '',
-    S_(d.mv), S_(d.mt), S_(d.mfy), S_(d.kocha), S_(d.uy), S_(d.xon), '', '', hozir('dmy'), u.fish, S_(d.izoh), ''];
+    S_(d.mv), S_(d.mt), S_(d.mfy), S_(d.kocha), S_(d.uy), S_(d.xon), '', '', hozir('dmy'), u.fish, S_(d.izoh), '',
+    manzilMatn(MZ.toliqManzil(S_(d.mv), S_(d.mt), S_(d.mfy), S_(d.kocha), S_(d.uy), S_(d.xon)))];
 }
 async function mijozYoz(varaq, u, d, t) {   // yozuv yadrosi (sinov ham shuni ishlatadi)
   const h = await aUstun(varaq);

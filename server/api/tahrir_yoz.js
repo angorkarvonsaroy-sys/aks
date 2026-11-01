@@ -28,6 +28,8 @@ const MY = require('./mayda_yoz');
 const MIJ_V = '02_Mijozlar', S3_V = '03_Sotuv_shartnomalar', S4_V = '04_Ijara_shartnomalar', TJ_V = '03b_Tolov_jadvali', JUR_V = '06j_Tahrir_jurnali', SOR_V = QY.SOR_V, TOP_V = TP.TOP_V;
 const MON_SOROV_TUR = { xat_bekor: 'Xatni bekor qilish', tahrir: 'Shartnoma tahriri' };
 const QD_MAYDON = { jshshir: 'JSHSHIR', ota: 'Otasining ismi', tel: 'Telefon raqami' };
+const MZ = require('../lib/manzil');
+const MANZIL_K = ['mv', 'mt', 'mfy', 'kocha', 'uy', 'xon'];
 // 02_Mijozlar: maydon → [ustun (1 dan), nomi]
 const TAHRIR_02 = { fish: [3, 'F.I.Sh.'], tel: [5, 'Telefon'], tel2: [6, "Qo'shimcha telefon"], pasport: [7, 'Pasport'], jshshir: [12, 'JSHSHIR'],
   mv: [14, 'Viloyat'], mt: [15, 'Tuman'], mfy: [16, 'MFY'], kocha: [17, "Ko'cha"], uy: [18, 'Uy'], xon: [19, 'Xonadon'] };
@@ -143,6 +145,11 @@ async function tahrirQollash(kim, no, d, usul, o = {}) {
         if (typeof fx === 'string' && fx[0] === '=') { await matnKataklar(m2, kat); throw new S.Xato('02_Mijozlar «' + TAHRIR_02[k][1] + '» katagida formula bor — tegilmadi, direktorga ayting.'); }
         kat.push({ qator: m.qator, ustun: TAHRIR_02[k][0], v: yangi[k] });
         log.push([vaqt, c.no, c.tur === 'ijara' ? 'Ijara' : 'Sotuv', c.mid, TAHRIR_02[k][1], S1(joriy[k]) || '—', yangi[k] || '—', kim, usul]);
+      }
+      // 01.11.2026: manzil qismi o'zgarsa — Z «Toliq_manzil» ham yangidan yig'iladi (lib/manzil.js; jurnalga alohida yozilmaydi — qismlari yozilgan)
+      if (ozgar.some(k => MANZIL_K.indexOf(k) >= 0)) {
+        const b = {}; MANZIL_K.forEach(k => { b[k] = yangi[k] !== undefined ? yangi[k] : S1(joriy[k]); });
+        kat.push({ qator: m.qator, ustun: 26, v: MZ.toliqManzil(b.mv, b.mt, b.mfy, b.kocha, b.uy, b.xon) });
       }
     }
     let fKatak = false;
