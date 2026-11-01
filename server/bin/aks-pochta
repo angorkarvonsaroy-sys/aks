@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# AKS TIZIM — ✉ Gmail pochtasini ulash (bir martalik; direktor qarori 01.11.2026). Ishlatish: aks-pochta [gmail-manzil]
+# Google'dagi 16 harfli «ilova paroli»ni so'raydi (yozilgani ekranda ko'rinmaydi, chatga yozilmaydi), /opt/aks/.env ga
+# GMAIL_USER va GMAIL_APP_PASS qilib yozadi va o'sha manzilga sinov xati yuboradi. Serverni qayta yoqish shart emas.
+set -euo pipefail
+ENV=/opt/aks/.env
+U=${1:-angorkarvonsaroy@gmail.com}
+echo "Pochta: $U"
+read -rsp "Google ilova parolini qo'ying (Ctrl+V yoki sichqonchaning o'ng tugmasi) va Enter bosing — ekranda ko'rinmaydi: " P; echo
+P=$(printf '%s' "$P" | tr -d ' \r\t\n')
+if [ ${#P} -ne 16 ]; then echo "⛔ Ilova paroli 16 ta harf bo'lishi kerak, ${#P} ta keldi. Hech narsa saqlanmadi — qaytadan urinib ko'ring."; exit 1; fi
+T=$(mktemp); grep -vE '^[[:space:]]*(GMAIL_USER|GMAIL_APP_PASS)[[:space:]]*=' "$ENV" > "$T" || true
+printf 'GMAIL_USER=%s\nGMAIL_APP_PASS=%s\n' "$U" "$P" >> "$T"
+cat "$T" > "$ENV"; rm -f "$T"; unset P
+echo "✅ Saqlandi. Sinov xati yuborilmoqda…"
+cd /opt/aks/app && node -e "
+require('./lib/pochta').yubor(process.argv[1], 'AKS TIZIM — sinov xati', 'Pochta ulandi. Endi xodimlarning tasdiqlash kodlari va vaqtinchalik parollari shu manzildan yuboriladi.\nBu sinov xati — javob yozish shart emas.')
+  .then(() => console.log('✅ Sinov xati yuborildi: ' + process.argv[1] + ' — pochtani oching.'))
+  .catch(e => { console.log('⛔ Xat ketmadi: ' + e.message); process.exit(1); });" "$U"

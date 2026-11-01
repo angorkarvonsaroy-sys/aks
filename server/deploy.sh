@@ -62,6 +62,7 @@ install -m 755 "$APP/bin/aks-tasischi" /usr/local/bin/aks-tasischi
 install -m 755 "$APP/bin/aks-qisqa" /usr/local/bin/aks-qisqa
 install -m 755 "$APP/bin/aks-sayt" /usr/local/bin/aks-sayt
 install -m 755 "$APP/bin/aks-index-kalit" /usr/local/bin/aks-index-kalit
+install -m 755 "$APP/bin/aks-pochta" /usr/local/bin/aks-pochta
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer
