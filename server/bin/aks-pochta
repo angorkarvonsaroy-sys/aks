@@ -23,5 +23,5 @@ echo "✅ Saqlandi. Sinov xati yuborilmoqda…"
 fi
 cd /opt/aks/app && node -e "
 require('./lib/pochta').yubor(process.argv[1], 'AKS TIZIM — sinov xati', 'Pochta ulandi. Endi xodimlarning tasdiqlash kodlari va vaqtinchalik parollari shu manzildan yuboriladi.\nBu sinov xati — javob yozish shart emas.')
-  .then(() => console.log('✅ Sinov xati yuborildi: ' + process.argv[1] + ' — pochtani oching.'))
+  .then(() => { console.log('✅ Sinov xati yuborildi: ' + process.argv[1] + ' — pochtani oching.'); process.exit(0); })
   .catch(e => { console.log('⛔ Xat ketmadi: ' + e.message); process.exit(1); });" "$U"
