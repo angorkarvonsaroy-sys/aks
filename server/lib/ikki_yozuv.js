@@ -377,5 +377,61 @@ async function qaytaQolla(db, dan, opt = {}) {
   return n;
 }
 
-module.exports = { kompaniya, yoqilganmi, bayroq, bilan, amalNomi, qolla, qollaDb, qaytaQolla, lugatOqi, ECHO, ECHO_URL, BAYROQ, XARITA, LUGAT_VARAQ,
+// ---------- 3.2 tayyorgarligi: ESKI TIZIM (Koprik) yozgan ustunlarni ko'zgudan «baza» ga tortib olish (02.11.2026).
+// Bu yozuvlar lib/google.js dan o'tmaydi (Apps Script o'zi yozadi). api/koprik.js chaqiruv muvaffaqiyatli tugagach — fonda: shu varaqlar
+// ko'zgusi yangilanadi va ko'rsatilgan ustunlarda «baza» dan farq qilgan qatorlar qatlamning o'zi orqali qo'llanadi (jurnalda amal «koprik:<fn>»).
+// Bazada umuman yo'q qator (masalan koprikHujjatYukla qo'shgan) — butun qator olinadi. Harf '*' — barcha ustunlar.
+const KOPRIK_TORT = {
+  shartnomaPdf: [['03_Sotuv_shartnomalar', 'S']],          // skan / PDF havolasi (server fonda chaqiradi)
+  ijaraPdf: [['04_Ijara_shartnomalar', 'V']],
+  qaytaHujjatlar: [['06k_Qayta_tuzish', 'Z AE']],          // hujjat papkasi, jurnal
+  koprikTopTasdiqTg: [['10_Topshiriqlar', 'V']],           // Telegram havolasi (fayl robotga ko'rinmasa — Koprik)
+  koprikXatTasdiqTg: [['06e_Xatlar', 'Y']],
+  koprikSkanNaz: [['06d_Hujjatlar', 'P Q']],
+  koprikHujjatYukla: [['06d_Hujjatlar', '*']],             // yangi qator
+  topHozir: [['10_Topshiriqlar', '*']],                    // topAvto eski tizimda (zaxira yo'li)
+  pinKir: [['07b_Kirish_jurnali', '*']],
+};
+async function kozgudanTort(k, varaq, harflar, opt = {}) {
+  const X = XARITA.get(varaq);
+  if (!X) return { varaq, qator: 0 };
+  const j = X.j, T = (opt.sxema || 'baza') + '.' + qq(j.jadval);
+  const U = harflar === '*' ? j.ustunlar : j.ustunlar.filter(u => s(harflar).split(/\s+/).includes(u[0]));
+  const db = opt.db || require('./db').pool;
+  const R = (await db.query(`SELECT qator_no n, data x FROM kozgu.qatorlar WHERE kompaniya_id = $1 AND varaq = $2 AND qator_no >= 2 ORDER BY qator_no`, [k, varaq])).rows
+    .map(r => ({ n: r.n, x: Array.isArray(r.x) ? r.x : [] }));
+  const xom = (x, h) => { const v = x[u0(h)]; return v === undefined || v === null ? '' : v; };
+  const kut = R.map(z => { const o = { kompaniya_id: k, qator: z.n }; for (const [h, nom, tur] of U) { const r = B.aylantir(xom(z.x, h), tur); o[nom] = r.xato ? null : r.v; } return o; });
+  const shart = U.map(u => `b.${qq(u[1])} IS DISTINCT FROM x.${qq(u[1])}`).join(' OR ');
+  const F = (await db.query(`SELECT x.qator, b.qator IS NULL yoq FROM jsonb_populate_recordset(NULL::${T}, $1::jsonb) x
+      LEFT JOIN ${T} b ON b.kompaniya_id = x.kompaniya_id AND b.qator = x.qator WHERE b.qator IS NULL OR ${shart}`, [JSON.stringify(kut)])).rows;
+  const Rn = new Map(R.map(z => [z.n, z])), C = [];
+  for (const f of F) {
+    const z = Rn.get(f.qator);
+    if (f.yoq) {   // bazada qator yo'q: ko'zguda bo'sh bo'lmasa — butun qator (1-bosqich qoidasi qatlamda)
+      if (j.ustunlar.every(([h]) => bosh(z.x[u0(h)]))) continue;
+      j.ustunlar.forEach(([h]) => C.push({ varaq, qator: z.n, u: u0(h), xom: xom(z.x, h) }));
+    } else U.forEach(([h]) => C.push({ varaq, qator: z.n, u: u0(h), xom: xom(z.x, h) }));
+  }
+  if (C.length) await qollaDb(k, [{ tur: 'kataklar', kataklar: C }], { amal: opt.amal, sxema: opt.sxema, db: opt.db, jurnalsiz: opt.jurnalsiz, t0: Date.now() });
+  return { varaq, qator: new Set(C.map(c => c.qator)).size };
+}
+// api/koprik.js chaqiradi (kutmasdan). Bayroq o'chiq bo'lsa — hech narsa.
+async function koprikdanKeyin(fn) {
+  const T = KOPRIK_TORT[fn];
+  if (!T) return null;
+  const h = await holatOl();
+  if (!h.yon) return null;
+  const k = h.kom.get(require('./env').aksBazaId);
+  if (!k) return null;
+  const t0 = Date.now(), amal = 'koprik:' + fn;
+  try {
+    await require('./kozgu_tetik').varaqlarYangila([...new Set(T.map(t => t[0]))]);
+    const N = [];
+    for (const [varaq, harflar] of T) N.push(await kozgudanTort(k, varaq, harflar, { amal }));
+    return N;
+  } catch (e) { await xatoYoz(k, amal, T.map(([varaq]) => ({ tur: 'ogoh', varaq })), e, t0); return null; }
+}
+
+module.exports = { KOPRIK_TORT, kozgudanTort, koprikdanKeyin, kompaniya, yoqilganmi, bayroq, bilan, amalNomi, qolla, qollaDb, qaytaQolla, lugatOqi, ECHO, ECHO_URL, BAYROQ, XARITA, LUGAT_VARAQ,
   _ichki: { qadamlarga, qiymatKataklar, katakQiymat, qiymatMaydon, boshKatak, harf, u0, keshTozala: () => { K.t = 0; } } };

@@ -67,7 +67,7 @@ async function chaqir(fn, kod, args, opt) {
     let oxirgi;
     const UR = (opt && opt.urinish) || URINISH;
     for (let i = 1; i <= UR; i++) {
-      try { const r = await birUrinish(tana, opt); jurnal(fn, Date.now() - t0, true); return r; }
+      try { const r = await birUrinish(tana, opt); jurnal(fn, Date.now() - t0, true); ikkiKeyin(fn); return r; }
       catch (e) {
         if (!(e instanceof Vaqtinchalik)) { jurnal(fn, Date.now() - t0, false, e.message); throw e; }
         oxirgi = e;
@@ -78,6 +78,9 @@ async function chaqir(fn, kod, args, opt) {
     throw new Error(oxirgi.message + (UR > 1 ? ' (' + UR + ' urinishdan keyin)' : ''));
   } finally { joyBer(); }
 }
+
+// 3-bosqich: eski tizim jadvalga yozgan ustunlar «baza» ga ham (lib/ikki_yozuv.js KOPRIK_TORT; bayroq ikki_yozuv_yondi o'chiq bo'lsa — hech narsa). Kutilmaydi.
+function ikkiKeyin(fn) { try { const IK = require('../lib/ikki_yozuv'); if (IK.KOPRIK_TORT[fn]) IK.koprikdanKeyin(fn).catch(e => console.error('ikki yozuv (koprik ' + fn + '):', e.message)); } catch (e) { } }
 
 function holat() { return { band, navbatda: kutayotganlar.length, navbat: NAVBAT }; }
 
