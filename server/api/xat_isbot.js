@@ -73,7 +73,11 @@ async function xatKataklar(varaq, h, q) {
   } catch (e) { throw yozilmadi(e); }
 }
 // undXatYozuv_: 06_Undiruv_jurnali oxiriga «Ёзма огоҳлантириш» (B — sana, K — sana-vaqt). Xato e'tiborsiz (eski kabi).
+// 02.11.2026 (ikki tomonlama yozish rejasi 6-№4): undiruv_yoz.js undYoz bilan BITTA qulf («und») ostida — bir vaqtda yozilsa ID (max + 1) takrorlanmasin.
 async function undXatYoz(varaq, h, usul, sana, fish, x) {
+  return require('../lib/qulf').qulfBilan('und', () => undXatYozIch(varaq, h, usul, sana, fish, x));
+}
+async function undXatYozIch(varaq, h, usul, sana, fish, x) {
   const ids = await G.ustunOqi(env.aksBazaId, varaq, 'A', env.googleKey);
   let max = 0; ids.slice(1).forEach(v => { const n = Number(v); if (n > max) max = n; });
   const row = ids.length + 1, vaqt = hozir().iso;

@@ -24,11 +24,8 @@ const t = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
 function hozirIso() { const d = new Date(Date.now() + 5 * 3600 * 1000); return d.toISOString().slice(0, 19).replace('T', ' '); }
 const harf = n => { let r = ''; while (n > 0) { const m = (n - 1) % 26; r = String.fromCharCode(65 + m) + r; n = Math.floor((n - 1) / 26); } return r; };
 
-async function qulfBilan(nom, ish) {
-  const kalit = 'qulf:' + nom, belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();
-  while (!(await redis.set(kalit, belgi, 'PX', 30000, 'NX'))) { if (Date.now() - t0 > 30000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
-  try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
-}
+// 02.11.2026: qulf lib/qulf.js ga ko'chdi — «und» qulfini xat_isbot.js (undXatYoz) ham ishlatadi (ikki tomonlama yozish rejasi 6-№4)
+const qulfBilan = (nom, ish) => require('../lib/qulf').qulfBilan(nom, ish, S.Xato);
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 // Qatorni to'liq yozish: matnlar bitta so'rovda (USER_ENTERED), sanalar alohida (sana/vaqt sifatida). Y = {ustun: qiymat}, sanalar = {ustun: {iso, naqsh}}
 async function qatorYoz(varaq, qator, Y, sanalar) {
