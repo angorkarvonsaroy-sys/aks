@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# AKS TIZIM — faol xodimlar va ularning kirishga tayyorligi (faqat o'qiydi). 01.11.2026 direktor so'rovi:
+# «Huquqlarda hamma xodimning telefoni borligini tekshir» — yangi kirish TELEFON + PAROL, telefoni yo'q xodim kira olmaydi.
+# Ko'rsatadi: telefon, Telegram, Gmail, o'z paroli bormi, kirish kaliti yangimi. Parol va kodlar KO'RSATILMAYDI.
+set -uo pipefail
+sudo -u postgres psql -X -q -d aks_tizim -P pager=off -P footer=off <<'SQL'
+\echo '══════════ FAOL XODIMLAR — KIRISHGA TAYYORLIK ══════════'
+SELECT row_number() OVER (ORDER BY x.qator_no) AS "№",
+       left(x.fish, 30) AS "F.I.Sh.",
+       CASE WHEN length(right(x.tel_raqam, 9)) = 9 THEN '+998 ' || substr(right(x.tel_raqam,9),1,2) || ' ' || substr(right(x.tel_raqam,9),3,3) || ' ' || substr(right(x.tel_raqam,9),6,2) || ' ' || substr(right(x.tel_raqam,9),8,2)
+            ELSE '⛔ YO''Q' END AS "Telefon",
+       CASE WHEN x.telegram_id <> '' THEN '✅' ELSE '—' END AS "Telegram",
+       CASE WHEN coalesce(k.gmail, '') <> '' THEN '✅' ELSE '—' END AS "Gmail",
+       CASE WHEN k.parol_iz IS NOT NULL THEN '✅ bor'
+            WHEN x.kirish_kodi = '' THEN 'hali kirmagan'
+            ELSE 'bir marta kiradi' END AS "Paroli"
+FROM v_xodimlar x
+LEFT JOIN xodim_kirish k ON k.kompaniya_id = 1 AND k.xodim_id = x.xodim_id
+WHERE x.holat = 'Ishlayapti' AND coalesce(array_length(x.huquqlar, 1), 0) > 0
+ORDER BY x.qator_no;
+\echo
+SELECT 'Jami faol: ' || count(*)
+    || ' · telefoni yo''q: ' || count(*) FILTER (WHERE length(right(x.tel_raqam, 9)) <> 9)
+    || ' · Telegram yo''q: ' || count(*) FILTER (WHERE x.telegram_id = '')
+    || ' · Gmail kiritgan: ' || count(*) FILTER (WHERE coalesce(k.gmail, '') <> '')
+    || ' · yangi tartibda kirgan: ' || count(*) FILTER (WHERE k.parol_iz IS NOT NULL) AS "Xulosa"
+FROM v_xodimlar x LEFT JOIN xodim_kirish k ON k.kompaniya_id = 1 AND k.xodim_id = x.xodim_id
+WHERE x.holat = 'Ishlayapti' AND coalesce(array_length(x.huquqlar, 1), 0) > 0;
+SQL
