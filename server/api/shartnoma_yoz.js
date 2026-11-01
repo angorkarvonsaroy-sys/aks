@@ -71,7 +71,7 @@ async function formatla(varaq, r, nq, F, qoshimcha) {
     .concat(Object.keys(F.son).map(u => fmt(+u, { type: /%/.test(F.son[u]) ? 'PERCENT' : 'NUMBER', pattern: F.son[u] })));
   if (r > 2) F.formula.forEach(([a, b]) => req.push({ copyPaste: { source: { sheetId: g, startRowIndex: r - 2, endRowIndex: r - 1, startColumnIndex: a - 1, endColumnIndex: b },
     destination: oraliq(a, b), pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } }));
-  (qoshimcha || []).forEach(x => req.push(x(g)));
+  (qoshimcha || []).forEach(x => req.push(x(g, r)));   // 02.11.2026: qo'shimcha so'rovlar (03b F formulasi) HAQIQIY birinchi qator r bilan quriladi
   if (req.length) await G.soralar(env.aksBazaId, req, env.googleKey);
 }
 // ustunA_oxiri_ va A ustuni (xom) — Google'dan YANGI
@@ -199,8 +199,8 @@ async function shartnomaYoz(v3, v3b, u, d, mid, dr, h) {   // yozuv yadrosi (sin
   let r3b;
   try {
     const src = await kumManba(v3b, jl + 1);
-    r3b = await qatorlarYoz(v3b, jl + 1, vals, F03b, [g => ({ copyPaste: { source: { sheetId: g, startRowIndex: src - 1, endRowIndex: src, startColumnIndex: 5, endColumnIndex: 6 },
-      destination: { sheetId: g, startRowIndex: jl, endRowIndex: jl + vals.length, startColumnIndex: 5, endColumnIndex: 6 }, pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } })]);
+    r3b = await qatorlarYoz(v3b, jl + 1, vals, F03b, [(g, r) => ({ copyPaste: { source: { sheetId: g, startRowIndex: src - 1, endRowIndex: src, startColumnIndex: 5, endColumnIndex: 6 },
+      destination: { sheetId: g, startRowIndex: r - 1, endRowIndex: r - 1 + vals.length, startColumnIndex: 5, endColumnIndex: 6 }, pasteType: 'PASTE_FORMULA', pasteOrientation: 'NORMAL' } })]);
   } catch (e) {   // 03 qatori yozilgan — xodim qayta saqlab, ikkinchi shartnoma ochib yubormasin
     console.error(new Date().toISOString(), 'shartnoma ' + no + ': 03b yozilmadi:', e.message);
     await ogoh({ varaq: v3b, qator: no, xato: 'shartnoma 03 ga yozildi (qator ' + r3 + '), to\'lov jadvali yozilmadi: ' + e.message.slice(0, 200) });

@@ -509,7 +509,7 @@ async function tasdiqYadro(VQ, u, x, M, davom) {
     const vals = [[++jid, x.yangi, 0, sana, x.tolangan, x.tolangan, "Boshlang'ich", 'Qayta tuzish: ' + u.fish]]
       .concat(Jd.map(j => [++jid, x.yangi, j.t, qtDmy(j.sana), j.summa, j.summa, 'Oylik', 'Qayta tuzish: ' + u.fish]));
     const src = await SY.kumManba(VQ.s3b, jl + 1);
-    await SY.qatorlarYoz(VQ.s3b, jl + 1, vals, F03BQ, [g => kumKopya(g, src, jl + 1, vals.length)]);
+    await SY.qatorlarYoz(VQ.s3b, jl + 1, vals, F03BQ, [(g, r) => kumKopya(g, src, r, vals.length)]);   // 02.11.2026: F formulasi haqiqiy qatorlarga (avval kutilgan jl+1 ga)
   } else {   // davom: yangi raqam qatorlarida F formulasi borligini tekshirish
     const Fo = await G.oraliqOqi(env.aksBazaId, VQ.s3b, 'F2:F' + jl, env.googleKey, 'FORMULA');
     const req = [];

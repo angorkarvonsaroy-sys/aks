@@ -106,10 +106,11 @@ async function undYoz(args) {
     const id = max + 1, row = ids.length + 1;
     const iz = [String(d.izoh || '').trim(), tashIz, koch ? '📅 Qayta muddat (oldingi va\'da ko\'chirildi)' : ''].filter(Boolean).join(' · ');
     const vaqt = hozirIso();
-    await G.qatorQosh(env.aksBazaId, VAR, [id, bugun.split('-').reverse().join('.'), x.no, x.undiruvchi || u.fish, d.chora, mazmun, vs ? vs.split('-').reverse().join('.') : '', vsum || '', fayl, u.fish,
+    const jq = await G.qatorQosh(env.aksBazaId, VAR, [id, bugun.split('-').reverse().join('.'), x.no, x.undiruvchi || u.fish, d.chora, mazmun, vs ? vs.split('-').reverse().join('.') : '', vsum || '', fayl, u.fish,
       vaqt, iz, x.fish, x.dokon, x.jami, vs ? 'Вадада' : '', x.mid, d.natija], env.googleKey);
     const sn = { 2: { iso: bugun }, 11: { iso: vaqt, naqsh: 'dd.MM.yyyy HH:mm:ss' } }; if (vs) sn[7] = { iso: vs };
-    await G.sanaYoz(env.aksBazaId, Object.keys(sn).map(k => ({ varaq: VAR, qator: row, ustun: +k, iso: sn[k].iso, naqsh: sn[k].naqsh })), env.googleKey);
+    const rq = G.qatorRaqam(jq, row);   // 02.11.2026: sanalar haqiqiy qatorga (avval kutilgan «row» ga — xat_isbot qulfsiz qo'shsa, sana boshqa qatorga tushardi)
+    await G.sanaYoz(env.aksBazaId, Object.keys(sn).map(k => ({ varaq: VAR, qator: rq, ustun: +k, iso: sn[k].iso, naqsh: sn[k].naqsh })), env.googleKey);
     if (eskiVada.length) await G.yoz(env.aksBazaId, eskiVada.map(j => ({ varaq: VAR, katak: 'P' + j.qator, qiymat: [['Кўчирилди']] })), env.googleKey);
     await Promise.race([tetik.varaqlarYangila(fayl ? [VAR, '06d_Hujjatlar'] : [VAR]).catch(e => console.error('ko\'zgu (undYoz):', e.message)), new Promise(r => setTimeout(r, 15000))]);
     return { ok: true, id, no: x.no };
@@ -141,8 +142,9 @@ async function qadamKechiktir(args) {
   const bugunMatn = m.bugun.map(b => (b.vaqt ? b.vaqt + ' ' : '') + b.matn).join(' | ').slice(0, 1000);
   await qulfBilan('qadam', async () => {
     const ids = await G.ustunOqi(env.aksBazaId, QDV, 'A', env.googleKey); const row = ids.length + 1; const vaqt = hozirIso();
-    await G.qatorQosh(env.aksBazaId, QDV, [bugun.split('-').reverse().join('.'), u.fish, m.no, m.fish, 'Kechiktirildi', sabab.slice(0, 300), q.t, bugunMatn, vaqt], env.googleKey);
-    await G.sanaYoz(env.aksBazaId, [{ varaq: QDV, qator: row, ustun: 1, iso: bugun }, { varaq: QDV, qator: row, ustun: 9, iso: vaqt, naqsh: 'dd.MM.yyyy HH:mm:ss' }], env.googleKey);
+    const jq = await G.qatorQosh(env.aksBazaId, QDV, [bugun.split('-').reverse().join('.'), u.fish, m.no, m.fish, 'Kechiktirildi', sabab.slice(0, 300), q.t, bugunMatn, vaqt], env.googleKey);
+    const rq = G.qatorRaqam(jq, row);   // 02.11.2026: haqiqiy qator
+    await G.sanaYoz(env.aksBazaId, [{ varaq: QDV, qator: rq, ustun: 1, iso: bugun }, { varaq: QDV, qator: rq, ustun: 9, iso: vaqt, naqsh: 'dd.MM.yyyy HH:mm:ss' }], env.googleKey);
     await Promise.race([tetik.varaqlarYangila([QDV]).catch(() => {}), new Promise(r => setTimeout(r, 15000))]);
   });
   return Q.qadamMijoz([kodSes, d.no]);

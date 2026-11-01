@@ -94,8 +94,9 @@ async function yuklaYadro(u, d, sh) {
     const { id, qator } = await keyingiId();
     const vaqt = hozir();
     const izoh = String(d.izoh || '').trim();
-    await G.qatorQosh(env.aksBazaId, HUJ, [id, no, sh.tur === 'ijara' ? 'Ijara' : 'Sotuv', sh.fish, sh.dokon, turi, dmy, nom, 'SRV:' + rel, Math.round(bayt.length / 1024), Number(d.sahifa) || '', u.fish, vaqt, 'Faol', izoh], env.googleKey);
-    await G.sanaYoz(env.aksBazaId, [{ varaq: HUJ, qator, ustun: 7, iso: sana }], env.googleKey).catch(() => {});
+    const jq = await G.qatorQosh(env.aksBazaId, HUJ, [id, no, sh.tur === 'ijara' ? 'Ijara' : 'Sotuv', sh.fish, sh.dokon, turi, dmy, nom, 'SRV:' + rel, Math.round(bayt.length / 1024), Number(d.sahifa) || '', u.fish, vaqt, 'Faol', izoh], env.googleKey);
+    // 02.11.2026: sana — Google qo'shgan HAQIQIY qatorga (avval keyingiId dagi kutilgan qatorga yozilardi; shu orada boshqa qator qo'shilsa sana o'zganikiga tushardi)
+    await G.sanaYoz(env.aksBazaId, [{ varaq: HUJ, qator: G.qatorRaqam(jq, qator), ustun: 7, iso: sana }], env.googleKey).catch(() => {});
     await Promise.race([tetik.varaqlarYangila([HUJ]).catch(e => console.error('ko\'zgu (hujjat):', e.message)), new Promise(r => setTimeout(r, 15000))]);
     // fonda — Drive'ga (direktor hisobi, eski tizim orqali)
     driveGaKochir(u.kod, { id, no, fish: sh.fish, nom, rel, yol }).catch(e => console.error('Drive ko\'chirish:', e.message));

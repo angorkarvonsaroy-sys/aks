@@ -109,6 +109,7 @@ async function xomYoz(sheetId, kataklar, kalitFayl) {   // [{ varaq, qator, ustu
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, 'POST',
     { valueInputOption: 'RAW', data: kataklar.map(k => ({ range: q(k.varaq) + '!' + harfU(k.ustun) + k.qator, majorDimension: 'ROWS', values: [[k.qiymat]] })) }, kalitFayl);
 }
+// append javobidan haqiqiy birinchi qator (updates.updatedRange «'06d'!A812:O812»); topilmasa — n (kutilgan). 02.11: qatorQosh chaqiruvchilari uchun eksport qilindi.
 const qatorRaqam = (j, n) => { const m = /!\$?[A-Z]+\$?(\d+)/.exec((j && j.updates && j.updates.updatedRange) || ''); return m ? Number(m[1]) : n; };
 
 // Kataklarga yozish — USER_ENTERED: Apps Script setValue(matn) bilan bir xil talqin (sana «2026-10-17» → sana, «27/315» matn ustunida — matn).
@@ -244,4 +245,4 @@ async function driveEksport(faylId, mime, kalitFayl) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-module.exports = { sanaBolar, ajrat, xomYoz, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN, SCOPE_DRIVE };
+module.exports = { sanaBolar, ajrat, qatorRaqam, xomYoz, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN, SCOPE_DRIVE };
