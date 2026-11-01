@@ -30,7 +30,8 @@ echo "🌐 Javob     : https://$D → $KOD, $(awk -v t="$VAQT" 'BEGIN{printf "%.
 CE=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername "$D" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
 if [ -n "$CE" ]; then CK=$(( ( $(date -d "$CE" +%s) - $(date +%s) ) / 86400 ))
   if { systemctl is-active certbot.timer; systemctl is-active snap.certbot.renew.timer; } 2>/dev/null | grep -qx active \
-     || { crontab -l 2>/dev/null; cat /etc/cron.d/* /etc/crontab 2>/dev/null; } | grep -v '^[[:space:]]*#' | grep -qi certbot; then AY="o'zi yangilanadi ✅"
+     || { [ ! -d /run/systemd/system ] && { crontab -l 2>/dev/null; cat /etc/cron.d/* /etc/crontab 2>/dev/null; } | grep -v '^[[:space:]]*#' | grep -qi certbot; }; then AY="o'zi yangilanadi ✅"
+  # 02.11: /etc/cron.d/certbot qatori systemd bor serverda o'zi ishlamaydi (test ! -d /run/systemd/system) — hisobga olinmaydi, faqat taymer
   else AY="⚠ avto-yangilash topilmadi — muddati tugasa sayt «xavfli» deb ochilmaydi"; fi
   echo "🔒 HTTPS     : guvohnoma $(date -d "$CE" '+%d.%m.%Y') gacha ($CK kun)$( [ "$CK" -lt 15 ] && echo " ⛔") · $AY"
 else echo "🔒 HTTPS     : ⛔ guvohnomani o'qib bo'lmadi"; fi
