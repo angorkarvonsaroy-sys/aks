@@ -32,7 +32,9 @@ if [ ! -s "$OUT" ]; then
   age --encrypt --recipients-file "$PUB" --output "$OUT.tmp" "$F" || xato "shifrlab bo'lmadi"
   mv "$OUT.tmp" "$OUT" && chmod 644 "$OUT"
 fi
-RC copy "$OUT" "$REMOTE/" || xato "Drive'ga yuborib bo'lmadi ($REMOTE)"
+# 01.11: rclone boshqa foydalanuvchi ($RU) nomidan ishlaydi — /var/backups/aks u uchun yopiq («directory not found»).
+# Shuning uchun fayl root tomonidan stdin orqali beriladi (rclone rcat), papkaga ruxsat kerak emas.
+RC rcat "$REMOTE/$(basename "$OUT")" <"$OUT" || xato "Drive'ga yuborib bo'lmadi ($REMOTE)"
 RC delete --min-age 30d "$REMOTE" >/dev/null 2>&1 || true
 find "$T" -name '*.age' -mtime +14 -delete
 echo "✅ $(basename "$OUT") ($(du -h "$OUT" | cut -f1)) → $REMOTE · kalit: $PUB"
