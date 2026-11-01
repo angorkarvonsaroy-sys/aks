@@ -136,7 +136,7 @@ async function direktorga(ctx, matn) {   // tgYubor_: direktor(lar)ga; topilmasa
 }
 async function pinKodTel(tel) {   // telefon → xodimning kirish kodi (faqat «Ishlayapti», kodi bor); bir xil raqam ikki xodimda — ulamaydi
   const t = telNorm(tel); if (t.length !== 9) return '';
-  const top = []; for (const z of await TT.xodimlar()) if (telNorm(z.tel) === t && z.kod && await S.xodimKod(z.kod)) top.push(z.kod);
+  const top = []; for (const z of await TT.xodimlar()) if (telNorm(z.tel) === t && z.kod && await S.xodimKod(z.kod, true)) top.push(z.kod);
   return top.length === 1 ? top[0] : '';
 }
 
@@ -195,7 +195,7 @@ async function kodBand(k) {
   const r = await q(`SELECT 1 FROM v_xodimlar WHERE lower(regexp_replace(kirish_kodi, '[^A-Za-z0-9]', '', 'g')) = $1 LIMIT 1`, [S.kodNorm(k)]);
   return !!r.rows[0];
 }
-async function kodYangi() { for (let i = 0; i < 20; i++) { const k = kodYasa(14); if (!(await kodBand(k))) return k; } throw new S.Xato('Yangi kod yasalmadi — qayta urinib ko\'ring.'); }
+async function kodYangi(n) { for (let i = 0; i < 20; i++) { const k = kodYasa(n || 14); if (!(await kodBand(k))) return k; } throw new S.Xato('Yangi kod yasalmadi — qayta urinib ko\'ring.'); }
 
 // Jadvalga yozilgan yangi parol ko'zguga yetib kelishini kutadi (aks holda xodim darhol kira olmaydi).
 async function kodKut(kod, sek) {
@@ -219,7 +219,8 @@ async function kodYubor(ctx, m, chat) {
       { keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]], one_time_keyboard: true, resize_keyboard: true });
     return { tur: '/kod', natija: 'raqam so\'raldi' };
   }
-  const x = await S.xodimKod(u.kod);
+  // 01.11: kirish kodi hali bo'sh xodim ham botdan kod ola olsin (L tekshiruvi xodim07Yoz da — bo'sh bilan bo'sh)
+  const x = await S.xodimKod(u.kod, true) || (!u.kod ? { kod: '', qator: u.qator, fish: u.fish, ism: u.fish.split(/\s+/)[1] || u.fish, tel: u.tel } : null);
   if (!x) { await yubor(ctx, chat, '⚠ Xodim ro\'yxatda topilmadi. Direktorga murojaat qiling.'); return { tur: '/kod', kim: u.fish, natija: 'xodim topilmadi' }; }
   if (!ctx.quruq && await redis.get('kod_s:' + x.kod)) { await yubor(ctx, chat, '⏳ Yangi kod yaqinda yuborildi. 2 daqiqadan keyin qayta so\'rang.'); return { tur: '/kod', kim: x.fish, natija: 'tez-tez so\'rov' }; }
   const yangi = await kodYangi();
@@ -296,7 +297,7 @@ async function pinXabar(ctx, m, chat, matn) {
         return { tur: 'kontakt', kim: ism, nima: tt, natija: 'ro\'yxatda yo\'q' };
       }
     }
-    const x = await S.xodimKod(kod); if (!x) return { tur: 'kontakt', kim: ism, natija: 'kod eskirgan (xodim topilmadi)' };
+    const x = await S.xodimKod(kod, true); if (!x) return { tur: 'kontakt', kim: ism, natija: 'kod eskirgan (xodim topilmadi)' };
     if (telNorm(m.contact.phone_number) !== telNorm(x.tel)) {
       const tt = telKorin(m.contact.phone_number), rr = telYashir(x.tel);
       if (!ctx.quruq) await redis.set('tg_xato:' + x.kod, 'Telegram raqamingiz (' + tt + ') ro\'yxatdagi raqamingiz (' + rr + ') bilan bir xil emas. Direktorga ayting: «Mening Telegram raqamim ' + tt + '». U raqamingizni tizimga kiritgach, «Qayta urinish» ni bosing.', 'EX', 600);
@@ -388,4 +389,4 @@ async function tqTugma(ctx, cb, d) {
 async function jurnal(y) { try { await redis.lpush('tg_kirish_jurnal', JSON.stringify(Object.assign({ vaqt: TT.hozirDmyHm() }, y))); await redis.ltrim('tg_kirish_jurnal', 0, 99); } catch (e) { } }
 async function jurnalOqi(n = 20) { try { return (await redis.lrange('tg_kirish_jurnal', 0, n - 1)).map(x => JSON.parse(x)); } catch (e) { return []; } }
 
-module.exports = { yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, parolYubor, kodYubor, kodBirinchi, kodYasa, kodKut, parolXabar, PIN_TG_BOT };
+module.exports = { kodYangi, yoqilgan, ishlov, xabar, tugma, jurnal, jurnalOqi, tgUlanishBoshla, tgUlanishTekshir, pinKodYubor, pinOrnat, blokXabar, tgOl, telNorm, telKorin, pinZaif, pinKodTel, xodim07Yoz, xodim07QatorYoz, telXodim, parolYubor, kodYubor, kodBirinchi, kodYasa, kodKut, parolXabar, PIN_TG_BOT };

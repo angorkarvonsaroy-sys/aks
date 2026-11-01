@@ -14,8 +14,16 @@ class Xato extends Error { }
 // oxiriga bo'sh joy qo'shadi, yoki odam chiziqcha qo'yadi. Shuning uchun aniq mos kelmasa — belgilarsiz va katta-kichik
 // harf farqisiz qaraladi. Agar shunda IKKI xodimga mos kelsa — kirish berilmaydi. Qaytarilgan kod — jadvaldagi haqiqiy kod.
 const kodNorm = v => String(v == null ? '' : v).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+// 01.11.2026 (direktor qarori: kirish = TELEFON + PAROL, parolga shart yo'q): L ustunidagi kirish kodi endi xodim teradigan
+// narsa emas — tizim beradigan uzun tasodifiy kalit (bot va server shu alifbodan yasaydi). Xodim o'zi qo'ygan eski parol
+// L da qolgan bo'lsa (25.10–01.11 oralig'ida), u «?k=…» orqali TO'G'RIDAN-TO'G'RI kirish uchun endi yaramaydi: aks holda
+// istalgan odam qisqa parolni taxmin qilib kira olardi. Bunday xodim bir marta telefon + parol bilan kiradi — L yangilanadi.
+const KOD_ALIF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const kodToken = k => new RegExp('^[' + KOD_ALIF + ']{14,64}$').test(String(k == null ? '' : k).trim());
 const XOD_USTUN = `xodim_id, fish, lavozim, tel_raqam, holat, huquqlar, pin_iz, telegram_id, qator_no, kirish_kodi`;
-async function xodimKod(kod) {
+// ichki=true — kod foydalanuvchidan emas, tizimning o'zidan keldi (sessiya, bot) — kuchsiz eski kod ham tan olinadi.
+// ichki=false (sukut) — kod tashqaridan (havola, ilova): faqat tizim bergan kalit (kodToken) qabul qilinadi.
+async function xodimKod(kod, ichki) {
   kod = String(kod || '').trim();
   if (kod.length < 8) return null;
   let r = await q(`SELECT ${XOD_USTUN} FROM v_xodimlar WHERE kirish_kodi = $1 LIMIT 1`, [kod]);
@@ -28,6 +36,7 @@ async function xodimKod(kod) {
   }
   const x = r.rows[0];
   if (!x || x.holat !== 'Ishlayapti' || !x.huquqlar || !x.huquqlar.length) return null;
+  if (!ichki && !kodToken(x.kirish_kodi)) return null;
   return {
     kod: String(x.kirish_kodi || '').trim(), id: x.xodim_id, fish: x.fish, ism: x.fish.split(/\s+/)[1] || x.fish, lavozim: x.lavozim,
     tel: x.tel_raqam.length === 12 && x.tel_raqam.startsWith('998') ? x.tel_raqam.slice(3) : x.tel_raqam,
@@ -44,7 +53,7 @@ async function foydalanuvchi(kodSes) {
   const saqlangan = await redis.get('ses:' + tok);
   if (saqlangan !== kod) return null;
   await redis.expire('ses:' + tok, SESSIYA_SEK);
-  return xodimKod(kod);
+  return xodimKod(kod, true);
 }
 
 async function ruxsat(kodSes, kerak) {
@@ -86,4 +95,4 @@ async function xatoToza(kod) { await redis.del('pinx:' + kod, 'pinblok:' + kod);
 
 const telYashir = d => d.length === 9 ? d.slice(0, 2) + ' *** ** ' + d.slice(7) : '';
 
-module.exports = { Xato, kodNorm, xodimKod, foydalanuvchi, ruxsat, sessiyaOch, pinIz, pinTekshir, blokDaq, xatoYoz, xatoToza, telYashir, SESSIYA_SEK, XATO_MAX, BLOK_DAQ };
+module.exports = { Xato, kodNorm, kodToken, KOD_ALIF, xodimKod, foydalanuvchi, ruxsat, sessiyaOch, pinIz, pinTekshir, blokDaq, xatoYoz, xatoToza, telYashir, SESSIYA_SEK, XATO_MAX, BLOK_DAQ };

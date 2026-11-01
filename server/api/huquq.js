@@ -80,6 +80,13 @@ async function huqRoyxat([kodSes]) {
   if (!u.admin) throw new S.Xato('Bu bo\'lim faqat direktor uchun.');
   const xodimlar = await xodimlarOqi();
   xodimlar.forEach(x => { x.ozi = x.id === idN(u.id); });
+  // 01.11.2026: xodimning pochtasi va o'z paroli bormi (parolning o'zi hech qachon ko'rsatilmaydi)
+  try {
+    const { q } = require('../lib/db'), P = require('../lib/pochta');
+    const M = {}; (await q('SELECT xodim_id, gmail, gmail_kim, (parol_iz IS NOT NULL) AS parol FROM xodim_kirish WHERE kompaniya_id = 1')).rows.forEach(r => { M[r.xodim_id] = r; });
+    xodimlar.forEach(x => { const r = M[x.id] || {}; x.gmail = r.gmail || ''; x.gmailKim = r.gmail_kim || ''; x.parolBor = !!r.parol; });
+    return { xodimlar, huquqlar: await huquqlarRoyxat(xodimlar), jurnal: await jurnal(), pochta: P.bor() };
+  } catch (e) { console.error('huqRoyxat (xodim_kirish):', e.message); }
   return { xodimlar, huquqlar: await huquqlarRoyxat(xodimlar), jurnal: await jurnal() };
 }
 

@@ -3,6 +3,8 @@
 // oyna KIRISH KODINI so'rardi, odam esa PIN ni terardi — «topilmadi» chiqardi. Direktor qarori: BITTA parol bo'lsin,
 // uni xodim o'zi tanlasin, PIN butunlay olib tashlansin. Parol — 07_Xodimlar L ustunidagi kirish kodining o'zi.
 // kirishOch — parolning o'zi bilan sessiya ochadi (PIN so'ralmaydi). parolOrnat — xodim o'z parolini o'rnatadi.
+// 01.11.2026: kirish TELEFON + PAROL (api/kirish.js). L endi parol emas — tizim beradigan kirish kaliti (havoladagi ?k=…);
+// kirishOch shu kalit bilan sessiya ochadi, parolOrnat parol izini server bazasiga yozib, kalitni yangilaydi.
 'use strict';
 const S = require('./sessiya');
 const { q, redis } = require('../lib/db');
@@ -35,42 +37,40 @@ async function jurnal(x) {
   catch (e) { console.error('07b kirish (parol):', e.message); }
 }
 
-// ---------------------------------------------------------------- parolni tekshirish
-const ODDIY = ['12345678', '123456789', '1234567890', 'qwertyui', 'password', 'parol123', 'aksTIZIM', 'akstizim'];
-function parolXato(p, x) {
-  if (!/^[A-Za-z0-9_-]{8,32}$/.test(p)) return 'Parol 8–32 ta belgi bo\'lsin: harf, raqam, «-» va «_». Bo\'sh joy va boshqa belgi bo\'lmaydi.';
-  if (!/[A-Za-z]/.test(p) || !/[0-9]/.test(p)) return 'Parolda kamida bitta harf va bitta raqam bo\'lsin (masalan: Angor2026).';
-  const n = S.kodNorm(p);
-  if (ODDIY.some(z => S.kodNorm(z) === n)) return 'Bu parol juda oson. Boshqasini tanlang.';
-  if (/^(.)\1+$/.test(n)) return 'Bir xil belgilardan iborat parol bo\'lmaydi.';
-  if (x && x.tel && s(x.tel).length >= 7 && n.indexOf(S.kodNorm(x.tel)) >= 0) return 'Parol telefon raqamingiz bo\'lmasin.';
+// ---------------------------------------------------------------- parol (01.11.2026: SHARTSIZ)
+// Direktor qarori 01.11.2026: parolga hech qanday shart yo'q — «1» ham bo'ladi. Odamni endi telefon raqami taniydi (api/kirish.js),
+// shuning uchun ikki xodimda bir xil parol bo'lishi ham mumkin («band» tekshiruvi olib tashlandi — u boshqaning parolini fosh qilardi).
+function parolXato(p) {
+  const n = K().parolNorm(p);
+  if (!n) return 'Parolni yozing.';
+  if (n.length > 100) return 'Parol juda uzun (100 belgidan oshmasin).';
   return '';
 }
-// shu parol boshqa xodimda bormi (katta-kichik harf farqisiz — kirish shunday tekshiradi)
-async function parolBand(p, ozQator) {
-  const r = await q(`SELECT qator_no FROM v_xodimlar WHERE lower(regexp_replace(kirish_kodi, '[^A-Za-z0-9]', '', 'g')) = $1`, [S.kodNorm(p)]);
-  return r.rows.some(z => Number(z.qator_no) !== Number(ozQator));
-}
+async function parolBand() { return false; }   // eski chaqiruvlar uchun — endi tekshirilmaydi
+const K = () => require('./kirish');
 
 // ---------------------------------------------------------------- xodim o'z parolini o'rnatadi
+// Parolning izi server bazasiga (xodim_kirish) yoziladi. Kirish kaliti (L) har safar YANGILANADI — boshqa telefon/kompyuterlarda
+// saqlangan eski kirish o'sha zahoti ishlamay qoladi (xodim o'sha joyda yangi parol bilan qayta kiradi). Shu qurilmada ish davom etadi.
 A.parolOrnat = async ([kodSes, yangi, takror]) => {
   const u = await S.ruxsat(kodSes);
-  yangi = s(yangi).trim(); takror = s(takror).trim();
-  if (yangi !== takror) throw new S.Xato('Ikkala parol bir xil emas.');
-  const xato = parolXato(yangi, u); if (xato) throw new S.Xato(xato);
-  if (S.kodNorm(yangi) === S.kodNorm(u.kod)) throw new S.Xato('Bu parol hozirgisining o\'zi.');
-  if (await parolBand(yangi, u.qator)) throw new S.Xato('Bu parol band — boshqasini tanlang.');
+  if (K().parolNorm(yangi) !== K().parolNorm(takror)) throw new S.Xato('Ikkala parol bir xil emas.');
+  const xato = parolXato(yangi); if (xato) throw new S.Xato(xato);
+  if (!u.tel) throw new S.Xato('Tizimda telefon raqamingiz yo\'q — direktorga ayting (endi telefon raqami va parol bilan kiriladi).');
 
-  await TK.xodim07Yoz(u, PAROL_L, yangi);                   // 07_Xodimlar L — qator L ustuni bo'yicha tekshiriladi
-  const x = await TK.kodKut(yangi, 30);                      // ko'zgu yangilanishini kutamiz, aks holda yangi parol darhol ishlamaydi
-  if (!x) throw new S.Xato('Parol jadvalga yozildi, lekin tizim uni hali ko\'rmayapti. 1 daqiqadan keyin yangi parol bilan kiring.');
+  await K().izSaqla(u.id, K().parolNorm(yangi));
+  const kod = await K().kalitYangila({ kod: u.kod, qator: u.qator });
 
   try { await redis.del('ses:' + s(kodSes).slice(s(kodSes).indexOf('|') + 1)); } catch (e) { }   // eski sessiya yopiladi
-  try { await redis.del('parol_vaqt:' + u.kod); await redis.del('parol_vaqt:' + x.kod); } catch (e) { }   // endi doimiy parol
-  const tok = await S.sessiyaOch(x.kod);
+  try { await redis.del('parol_vaqt:' + u.kod, 'parol_vaqt:' + kod, 'parol_tmp:' + u.id); } catch (e) { }   // endi doimiy parol
+  const tok = await S.sessiyaOch(kod);
+  const x = (await S.xodimKod(kod)) || u;
   jurnal(x).catch(() => {});
   TK.parolXabar(x).catch(() => {});                          // xodimga Telegram'dan ogohlantirish
-  return { kod: x.kod, tok };
+  (async () => { const r = await K().qatorOl(u.id); if (r && r.gmail && require('../lib/pochta').bor())
+    await require('../lib/pochta').yubor(r.gmail, 'AKS TIZIM — parolingiz o\'zgartirildi', u.ism + ', AKS TIZIMdagi kirish parolingiz o\'zgartirildi.\nAgar buni siz qilmagan bo\'lsangiz — darhol direktorga ayting.'); })()
+    .catch(e => console.error('parol pochta:', e.message));
+  return { kod, tok };
 };
 
 module.exports = A;

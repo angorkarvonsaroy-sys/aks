@@ -60,84 +60,139 @@ const PWA_BOSH = `
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); })();
 </script>`;
 
-// «/» kodsiz ochilganda (o'rnatilgan ilova ikonasi): saqlangan kod bo'lsa — darhol shunga; bo'lmasa — kodni so'raydi.
-// 25.10 (direktor ko'rsatmasi): kod to'g'ri kelmasa ham AYNAN SHU sahifa qaytadi — qizil izoh bilan, kod maydoni joyida.
-// Oldin «Kirish taqiqlangan» degan boshi berk sahifa chiqardi va qayta kod kiritish imkoni yo'q edi.
-// «Kodimni unutdim» — Telegram botga o'tadi (/start kod), bot yangi kod yuboradi (lib/tg_kirish.js kodYubor).
-const TG_BOT = 'aks_karvon_bot';
+// «/» kodsiz ochilganda (o'rnatilgan ilova ikonasi): saqlangan kirish kaliti bo'lsa — darhol shunga; bo'lmasa — kirish oynasi.
+// 01.11.2026 (direktor qarori): KIRISH = TELEFON RAQAM + PAROL (api/kirish.js — POST /api/kirish). Parolga shart yo'q.
+// «Parolimni unutdim» → telefon raqami → vaqtinchalik parol Telegram va Gmail'ga (POST /api/unutdim).
+// Saqlangan kalit: kirilgach brauzer kalitni (aks_k) eslab qoladi — keyingi safar hech narsa so'ralmaydi.
+// 01.11: XATO sahifasi saqlangan kalitni BEHUDA O'CHIRMAYDI — avval havoladagi (eski) kalit emas, saqlangani sinab ko'riladi.
+// Avval bitta noto'g'ri havola (masalan o'rnatilgan ilova yorlig'idagi eski kalit) qurilmadagi to'g'ri kirishni o'chirib yuborardi.
 function kirishSahifa(xato) {
   return `<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>AKS TIZIM</title>
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0B3D2E"><link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/icon-192.png">
-<style>html,body{margin:0;height:100%;background:#0B3D2E;font-family:Arial,sans-serif;color:#fff}
-#e{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px}
-img{width:96px;height:96px;border-radius:22px}.n{font-size:22px;font-weight:bold;letter-spacing:.04em}.m{font-size:13px;color:#C9D8D1}
-.xa{font-size:14px;color:#FFD7D0;background:#7F1D1D;border-radius:10px;padding:10px 14px;max-width:320px;line-height:1.45}
-input{padding:13px;border-radius:10px;border:0;font-size:17px;width:280px;max-width:88vw;letter-spacing:.06em}
-button{padding:13px 26px;border-radius:10px;border:0;background:#D4AF5A;color:#0B3D2E;font-weight:bold;font-size:17px}
-a.u{color:#C9D8D1;font-size:13px;text-decoration:underline}
-label.kor{display:inline-block;margin:10px 0 14px;color:#C9D8D1;font-size:13px;cursor:pointer;user-select:none}
-label.kor input{vertical-align:-2px;margin-right:6px;width:16px;height:16px}
-.a{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:12px;color:#9FB8AD}</style></head><body>
-<div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div>
-<div id="x" class="m">Yuklanmoqda…</div>
-<div id="f" style="display:none">
-<div class="m" id="t1">Parolingizni kiriting</div><br>
-<input id="kod" type="password" inputmode="text" placeholder="Parol" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:center"><br>
-<label class="kor"><input type="checkbox" id="kor" onchange="korQoy()"> <span id="t2">Parolni ko'rsatish</span></label><br>
-<button id="kir">Kirish</button><br><br>
-<a class="u" id="unut" href="https://t.me/${TG_BOT}?start=kod">Parolimni unutdim</a><br><br>
-<a class="u" id="alf" href="#" style="opacity:.75">Кирилл алифбосига</a>
+<style>html,body{margin:0;min-height:100%;background:#0B3D2E;font-family:Arial,sans-serif;color:#fff}
+*{box-sizing:border-box}
+#e{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 16px 56px}
+img{width:84px;height:84px;border-radius:20px}.n{font-size:22px;font-weight:bold;letter-spacing:.04em;margin:10px 0 2px}.m{font-size:14px;color:#C9D8D1}
+.kt{width:100%;max-width:340px;margin-top:16px;text-align:left}
+.xa{font-size:14px;color:#FFD7D0;background:#7F1D1D;border-radius:10px;padding:10px 14px;line-height:1.45;margin-bottom:12px}
+.ok{font-size:14px;color:#D1FADF;background:#05603A;border-radius:10px;padding:10px 14px;line-height:1.45;margin-bottom:12px}
+label.l{display:block;font-size:13px;color:#C9D8D1;margin:12px 0 6px}
+.tel{display:flex;background:#fff;border-radius:10px;overflow:hidden}
+.tel span{padding:13px 4px 13px 12px;color:#475467;font-size:17px;white-space:nowrap}
+input.i{width:100%;padding:13px 12px;border:0;border-radius:10px;font-size:17px;color:#101828;background:#fff;outline:none}
+.tel input.i{border-radius:0;padding-left:6px}
+input.i:focus{box-shadow:0 0 0 3px #D4AF5A}.tel:focus-within{box-shadow:0 0 0 3px #D4AF5A}.tel input.i:focus{box-shadow:none}
+button.b{width:100%;margin-top:16px;padding:14px;border-radius:10px;border:0;background:#D4AF5A;color:#0B3D2E;font-weight:bold;font-size:17px;cursor:pointer}
+button.b:disabled{opacity:.6}
+.kor{display:inline-flex;align-items:center;gap:7px;margin-top:10px;color:#C9D8D1;font-size:13px;cursor:pointer;user-select:none}
+.kor input{width:16px;height:16px;margin:0}
+.hv{text-align:center;margin-top:16px}a.u{color:#C9D8D1;font-size:14px;text-decoration:underline;cursor:pointer}
+.iz{font-size:13px;color:#C9D8D1;line-height:1.45;margin-top:4px}
+.a{text-align:center;font-size:12px;color:#9FB8AD;padding:0 16px 16px;margin-top:-40px}</style></head><body>
+<div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div><div class="m" id="sar">Angor Karvon Saroy</div>
+<div class="kt">
+ <div id="x" style="display:none"></div>
+ <div id="yk" class="m" style="text-align:center">Yuklanmoqda…</div>
+ <div id="fk" style="display:none">
+  <label class="l" for="tel" id="t_tel">Telefon raqamingiz</label>
+  <div class="tel"><span>+998</span><input class="i" id="tel" type="tel" inputmode="numeric" autocomplete="username" placeholder="90 123 45 67" maxlength="16"></div>
+  <label class="l" for="par" id="t_par">Parol</label>
+  <input class="i" id="par" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <label class="kor"><input type="checkbox" id="kor"> <span id="t_kor">Parolni ko'rsatish</span></label>
+  <button class="b" id="kir">Kirish</button>
+  <div class="hv"><a class="u" id="unutH">Parolimni unutdim</a></div>
+ </div>
+ <div id="fu" style="display:none">
+  <div class="iz" id="t_uiz">Telefon raqamingizni yozing — vaqtinchalik parol Telegram va Gmail'ingizga yuboriladi.</div>
+  <label class="l" for="tel2" id="t_tel2">Telefon raqamingiz</label>
+  <div class="tel"><span>+998</span><input class="i" id="tel2" type="tel" inputmode="numeric" autocomplete="username" placeholder="90 123 45 67" maxlength="16"></div>
+  <button class="b" id="yub">Parol yuborish</button>
+  <div class="hv"><a class="u" id="ortH">← Kirishga qaytish</a></div>
+ </div>
+ <div class="hv"><a class="u" id="alf" style="opacity:.75;font-size:13px">Кирилл алифбосига</a></div>
 </div></div>
 <div class="a" id="muallif">Tizim muallifi va yaratuvchisi: <b>${MUALLIF}</b></div>
 <script>
 var XATO=${xato ? JSON.stringify(xato) : "''"};
-var k=''; try{ k=localStorage.getItem('aks_k')||''; }catch(e){}
-if(XATO || new URLSearchParams(location.search).has('chiqish')){ try{ localStorage.removeItem('aks_k'); }catch(e){} k=''; }
-if(k){ location.replace('/?k='+encodeURIComponent(k)); }
-else {
-  var xd=document.getElementById('x');
-  if(XATO){ xd.className='xa'; xd.textContent=XATO; } else { xd.style.display='none'; }
-  document.getElementById('f').style.display='block';
-  var kir=function(){ var v=document.getElementById('kod').value.replace(/\s+/g,''); if(!v) return; location.replace('/?k='+encodeURIComponent(v)); };
-  window.korQoy=function(){ document.getElementById('kod').type=document.getElementById('kor').checked?'text':'password'; };
-  document.getElementById('kir').onclick=kir;
-  document.getElementById('kod').addEventListener('keydown',function(e){ if(e.key==='Enter') kir(); });
-  try{ document.getElementById('kod').focus(); }catch(e){}
+var g=function(i){ return document.getElementById(i); };
+function lsO(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+function lsY(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
+var QP=new URLSearchParams(location.search), urlK=QP.get('k')||'', k=lsO('aks_k');
+if(QP.has('chiqish')){ lsY('aks_k',''); k=''; }
+var ket=false;
+if(k && (!XATO || k!==urlK)){ ket=true; location.replace('/?k='+encodeURIComponent(k)); }   // saqlangan kalit bilan
+else if(XATO && k===urlK){ lsY('aks_k',''); k=''; }                                          // saqlangani ham yaramadi
+// ---- alifbo (ilovadagi tanlov bilan bir xil kalit — aks_alifbo)
+function kr(){ return lsO('aks_alifbo')==='kr'; }
+var SAQLA=['AKS TIZIM','Telegram','Gmail','AKS'];
+function lk(t){ // lotin → kirill (xato/izoh matnlari uchun, sodda)
+  var Q=[]; t=t.replace(/[^\\s()]+@[^\\s()]+/g,function(m){ Q.push(m); return '\\u0003'+(Q.length-1)+'\\u0004'; });   // pochta manzili o'girilmaydi
+  SAQLA.forEach(function(w,i){ t=t.split(w).join('\\u0001'+i+'\\u0002'); });
+  var D=[["O'",'Ў'],["o'",'ў'],["G'",'Ғ'],["g'",'ғ'],['Sh','Ш'],['sh','ш'],['SH','Ш'],['Ch','Ч'],['ch','ч'],['CH','Ч'],['Yo','Ё'],['yo','ё'],['Yu','Ю'],['yu','ю'],['Ya','Я'],['ya','я'],['Ye','Е'],['ye','е']];
+  t=t.replace(/[ʻʼ‘’]/g,"'");
+  D.forEach(function(d){ t=t.split(d[0]).join(d[1]); });
+  t=t.replace(/(^|[^A-Za-zЀ-ӿ])([Ee])/g,function(m,a,b){ return a+(b==='E'?'Э':'э'); });
+  var M={a:'а',b:'б',d:'д',e:'е',f:'ф',g:'г',h:'ҳ',i:'и',j:'ж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'қ',r:'р',s:'с',t:'т',u:'у',v:'в',x:'х',y:'й',z:'з',c:'ц',w:'в'};
+  t=t.replace(/[A-Za-z]/g,function(c){ var l=c.toLowerCase(), r=M[l]||c; return c===l?r:r.toUpperCase(); });
+  return t.replace(/\\u0001(\\d+)\\u0002/g,function(m,i){ return SAQLA[+i]; }).replace(/\\u0003(\\d+)\\u0004/g,function(m,i){ return Q[+i]; });
 }
-// 27.10: alifbo — ilovadagi tanlov bilan bir xil kalit (localStorage aks_alifbo). Kirish oynasida jumlalar sanoqli,
-// shuning uchun to'liq o'girgich emas, tayyor matnlar ishlatiladi. Tanlov shu brauzerda saqlanadi.
-var KR={ t1:'Паролингизни киритинг', t2:'Паролни кўрсатиш', kir:'Кириш', unut:'Паролимни унутдим',
-  alf:'Lotin alifbosiga', kod:'Парол', yuk:'Юкланмоқда…', muallif:'Тизим муаллифи ва яратувчиси: ', nom:'Камолиддин Нақиев' };
-var LT={ t1:'Parolingizni kiriting', t2:"Parolni ko'rsatish", kir:'Kirish', unut:'Parolimni unutdim',
-  alf:'Кирилл алифбосига', kod:'Parol', yuk:'Yuklanmoqda…', muallif:'Tizim muallifi va yaratuvchisi: ', nom:${JSON.stringify(MUALLIF)} };
-var XKR={ 'Parol to\u2019g\u2019ri kelmadi. Qaytadan kiriting yoki \u00abParolimni unutdim\u00bb ni bosing.':
-    'Парол тўғри келмади. Қайтадан киритинг ёки «Паролимни унутдим» ни босинг.',
-  'Juda ko\u2019p noto\u2019g\u2019ri urinish. 15 daqiqadan keyin qayta urinib ko\u2019ring.':
-    'Жуда кўп нотўғри уриниш. 15 дақиқадан кейин қайта уриниб кўринг.' };
-function alKr(){ try{ return localStorage.getItem('aks_alifbo')==='kr'; }catch(e){ return false; } }
+var T={ t_tel:'Telefon raqamingiz', t_tel2:'Telefon raqamingiz', t_par:'Parol', t_kor:"Parolni ko'rsatish", kir:'Kirish', unutH:'Parolimni unutdim',
+  t_uiz:"Telefon raqamingizni yozing — vaqtinchalik parol Telegram va Gmail'ingizga yuboriladi.", yub:'Parol yuborish', ortH:'← Kirishga qaytish',
+  yk:'Yuklanmoqda…', muallif:'Tizim muallifi va yaratuvchisi: ' };
+function mt(t){ return kr()?lk(t):t; }
 function alQoy(){
-  var S=alKr()?KR:LT, g=function(i){ return document.getElementById(i); };
-  if(g('t1')) g('t1').textContent=S.t1;
-  if(g('t2')) g('t2').textContent=S.t2;
-  if(g('kir')) g('kir').textContent=S.kir;
-  if(g('unut')) g('unut').textContent=S.unut;
-  if(g('alf')) g('alf').textContent=S.alf;
-  if(g('kod')) g('kod').setAttribute('placeholder',S.kod);
-  if(g('muallif')) g('muallif').innerHTML=S.muallif+'<b>'+S.nom+'</b>';
-  var xd=g('x'); if(xd && XATO){ var t=XATO.replace(/'/g,'\u2019'); xd.textContent=(alKr()&&XKR[t])?XKR[t]:XATO; }
+  Object.keys(T).forEach(function(i){ var e=g(i); if(!e) return; if(i==='muallif') e.innerHTML=mt(T[i])+'<b>'+(kr()?'Камолиддин Нақиев':${JSON.stringify(MUALLIF)})+'</b>'; else e.textContent=mt(T[i]); });
+  g('par').setAttribute('placeholder',mt('Parol')); g('alf').textContent=kr()?'Lotin alifbosiga':'Кирилл алифбосига';
+  var x=g('x'); if(x.dataset.m) x.textContent=mt(x.dataset.m);
 }
-var alf=document.getElementById('alf');
-if(alf) alf.onclick=function(e){ e.preventDefault();
-  try{ localStorage.setItem('aks_alifbo', alKr()?'lo':'kr'); }catch(x){}
-  alQoy(); return false; };
+function xab(m,tur){ var x=g('x'); x.dataset.m=m||''; x.className=tur==='ok'?'ok':'xa'; x.textContent=mt(m||''); x.style.display=m?'block':'none'; }
+function rq(t){ return String(t||'').replace(/\\D/g,''); }
+function yol(url,d,cb){
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+   .then(function(r){ return r.json(); }).then(cb)
+   .catch(function(){ cb({ok:false,xato:"Server bilan aloqa yo'q. Internetni tekshirib, qayta urinib ko'ring."}); });
+}
+function kirish(){ var b=g('kir'); if(b.disabled) return; var tel=rq(g('tel').value), p=g('par').value;
+  if(tel.length===12&&tel.indexOf('998')===0) tel=tel.slice(3);
+  if(tel.length!==9){ xab("Telefon raqamingizni to'liq yozing — 9 ta raqam (masalan 90 123 45 67)."); g('tel').focus(); return; }
+  if(!p.trim()){ xab('Parolni yozing.'); g('par').focus(); return; }
+  b.disabled=true; b.textContent=mt('Tekshirilmoqda…'); xab('');
+  yol('/api/kirish',{tel:tel,parol:p},function(r){
+    if(r&&r.ok&&r.k){ lsY('aks_tel',tel); lsY('aks_k',r.k); location.replace('/?k='+encodeURIComponent(r.k)); return; }
+    b.disabled=false; b.textContent=mt('Kirish'); xab((r&&r.xato)||'Xato.'); g('par').select(); });
+}
+function yubor(){ var b=g('yub'); if(b.disabled) return; var tel=rq(g('tel2').value);
+  if(tel.length===12&&tel.indexOf('998')===0) tel=tel.slice(3);
+  if(tel.length!==9){ xab("Telefon raqamingizni to'liq yozing — 9 ta raqam (masalan 90 123 45 67)."); return; }
+  b.disabled=true; b.textContent=mt('Yuborilmoqda…'); xab('');
+  yol('/api/unutdim',{tel:tel},function(r){ b.disabled=false; b.textContent=mt('Parol yuborish');
+    if(r&&r.ok){ lsY('aks_tel',tel); g('tel').value=g('tel2').value; ekran('fk');
+      xab('Vaqtinchalik parol yuborildi: '+(r.kanallar||[]).join(', ')+'. Telefon raqamingiz va shu parol bilan kiring (24 soat amal qiladi).','ok'); g('par').value=''; g('par').focus(); }
+    else xab((r&&r.xato)||'Xato.'); });
+}
+function ekran(id){ g('fk').style.display=id==='fk'?'block':'none'; g('fu').style.display=id==='fu'?'block':'none'; }
 alQoy();
+if(!ket){
+  g('yk').style.display='none'; ekran('fk');
+  if(XATO) xab(XATO);
+  var st=lsO('aks_tel'); if(st){ g('tel').value=st; g('tel2').value=st; }
+  g('kir').onclick=kirish; g('yub').onclick=yubor;
+  g('par').addEventListener('keydown',function(e){ if(e.key==='Enter') kirish(); });
+  g('tel').addEventListener('keydown',function(e){ if(e.key==='Enter') g('par').focus(); });
+  g('tel2').addEventListener('keydown',function(e){ if(e.key==='Enter') yubor(); });
+  g('kor').onchange=function(){ g('par').type=g('kor').checked?'text':'password'; };
+  g('unutH').onclick=function(){ g('tel2').value=g('tel').value; xab(''); ekran('fu'); g('tel2').focus(); };
+  g('ortH').onclick=function(){ xab(''); ekran('fk'); };
+  try{ (st?g('par'):g('tel')).focus(); }catch(e){}
+}
+g('alf').onclick=function(e){ e.preventDefault(); lsY('aks_alifbo',kr()?'lo':'kr'); alQoy(); return false; };
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
 </script></body></html>`;
 }
 const KIRISH = kirishSahifa('');
 // kod topilmadi: boshi berk sahifa emas — o'sha kirish oynasi, qizil izoh bilan
-const TAQIQ = kirishSahifa('Parol to\'g\'ri kelmadi. Qaytadan kiriting yoki «Parolimni unutdim» ni bosing.');
+const TAQIQ = kirishSahifa('Saqlangan kirish eskirgan. Telefon raqamingiz va parolingiz bilan kiring.');
 // juda ko'p noto'g'ri urinish (api/index.js, IP bo'yicha)
 const KOP = kirishSahifa('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qayta urinib ko\'ring.');
 

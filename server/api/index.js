@@ -114,6 +114,22 @@ fastify.post('/api/rpc', async (req, reply) => {
 });
 
 // ---------- holat
+// ---------- 📱 kirish: telefon + parol (01.11.2026) va «Parolimni unutdim» — sessiyasiz, IP bo'yicha cheklangan (api/kirish.js)
+const KR = require('./kirish');
+for (const [yol, fn] of [['/api/kirish', 'kirishTel'], ['/api/unutdim', 'unutdim']]) {
+  fastify.post(yol, async (req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    const t0 = Date.now(), ip = String(req.ip || '').slice(0, 45);
+    try { const r = await KR[fn](req.body || {}, ip); jurnal(fn, 'server', Date.now() - t0, true); return r; }
+    catch (e) {
+      const xato = e instanceof S.Xato ? e.message : 'Serverda xato. Birozdan keyin qayta urinib ko\'ring.';
+      if (!(e instanceof S.Xato)) console.error(fn + ':', e);
+      jurnal(fn, 'server', Date.now() - t0, false, e.message);
+      return { ok: false, xato };
+    }
+  });
+}
+
 fastify.get('/api/holat', async () => {
   const out = { ok: true, versiya: VERSIYA, vaqt: new Date().toISOString(), koprik: koprik.bor(), ui: ui.indexBor() };
   try {
