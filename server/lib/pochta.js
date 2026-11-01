@@ -18,7 +18,16 @@ function sozlama() {
   };
   return { user: ol('GMAIL_USER').trim(), pass: ol('GMAIL_APP_PASS').replace(/\s+/g, '') };
 }
-const bor = () => { const c = sozlama(); return !!(c.user && c.pass); };
+// 01.11 (2): Serverspace 465/587 portlarini yopgan — xat birinchi navbatda KOPRIK orqali (Apps Script MailApp, direktor hisobi,
+// tekin, kuniga ~100 ta) ketadi; SMTP (GMAIL_USER/GMAIL_APP_PASS) — faqat zaxira yo'l (port ochilsa ishlaydi).
+const smtpBor = () => { const c = sozlama(); return !!(c.user && c.pass); };
+const koprikBor = () => { try { const e = require('./env'); return !!(e.bridgeUrl && e.bridgeSecret); } catch (x) { return false; } };
+const bor = () => koprikBor() || smtpBor();
+async function adminKod() {
+  const r = await require('./db').q(`SELECT kirish_kodi FROM v_xodimlar WHERE kompaniya_id = 1 AND holat = 'Ishlayapti' AND 'admin' = ANY(huquqlar) AND length(kirish_kodi) >= 8 ORDER BY qator_no LIMIT 1`);
+  if (!r.rows[0]) throw new Error('Direktor kirish kodi topilmadi');
+  return r.rows[0].kirish_kodi;
+}
 
 const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const togri = e => /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[A-Za-z]{2,}$/.test(String(e || '').trim());
@@ -56,16 +65,23 @@ async function jonat(c, xat) {
 }
 // matn — oddiy matn (qatorlar \n). kod — bo'lsa, xatda katta qilib ajratib ko'rsatiladi.
 async function yubor(kimga, mavzu, matn, kod) {
-  const c = sozlama();
-  if (!c.user || !c.pass) throw new Error('Pochta sozlanmagan (GMAIL_USER / GMAIL_APP_PASS)');
+  if (!bor()) throw new Error('Pochta sozlanmagan');
   if (!togri(kimga)) throw new Error('E-pochta manzili noto\'g\'ri');
   let html = esc(matn).replace(/\n/g, '<br>');
   if (kod) html = html.split(esc(kod)).join('<span style="display:inline-block;font-size:24px;font-weight:bold;letter-spacing:3px;background:#F2F4F7;border-radius:8px;padding:6px 14px;color:#0B3D2E">' + esc(kod) + '</span>');
   html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#101828;max-width:520px">'
     + '<div style="font-weight:bold;color:#0B3D2E;font-size:17px;margin-bottom:10px">AKS TIZIM · Angor Karvon Saroy</div>' + html
     + '<div style="color:#98A2B3;font-size:12px;margin-top:18px">Bu xat avtomatik yuborildi — javob yozish shart emas.</div></div>';
-  await jonat(c, { from: '"AKS TIZIM" <' + c.user + '>', to: String(kimga).trim(), subject: mavzu, text: matn, html });
-  return true;
+  let xatoK = null;
+  if (koprikBor()) {
+    try {
+      await require('../api/koprik').chaqir('koprikPochta', await adminKod(), [{ kimga: String(kimga).trim(), mavzu, matn, html }], { urinish: 1, muddat: 60000 });
+      return true;
+    } catch (e) { xatoK = e; console.error('pochta (Koprik):', e.message); }
+  }
+  const c = sozlama();
+  if (c.user && c.pass) { await jonat(c, { from: '"AKS TIZIM" <' + c.user + '>', to: String(kimga).trim(), subject: mavzu, text: matn, html }); return true; }
+  throw xatoK || new Error('Pochta sozlanmagan');
 }
 
-module.exports = { bor, yubor, togri, yashir, _ichki: { sozlama, yollar } };
+module.exports = { bor, yubor, togri, yashir, _ichki: { sozlama, yollar, koprikBor, smtpBor } };
