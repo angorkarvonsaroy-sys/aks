@@ -53,6 +53,7 @@ install -m 755 "$APP/bin/aks-ijro-qaror" /usr/local/bin/aks-ijro-qaror
 install -m 755 "$APP/bin/aks-raqam-tikla" /usr/local/bin/aks-raqam-tikla
 install -m 755 "$APP/bin/aks-manzil-tikla" /usr/local/bin/aks-manzil-tikla
 install -m 755 "$APP/bin/aks-baza" /usr/local/bin/aks-baza
+install -m 755 "$APP/bin/aks-zaxira-tashqi" /usr/local/bin/aks-zaxira-tashqi
 install -m 755 "$APP/bin/aks-koprik" /usr/local/bin/aks-koprik
 install -m 755 "$APP/bin/aks-tg" /usr/local/bin/aks-tg
 install -m 755 "$APP/bin/aks-tg-kirish" /usr/local/bin/aks-tg-kirish
@@ -68,7 +69,7 @@ install -m 755 "$APP/bin/aks-pochta" /usr/local/bin/aks-pochta
 install -m 755 "$APP/bin/aks-xodimlar" /usr/local/bin/aks-xodimlar
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer
+systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer aks-zaxira.timer
 
 # 4a. skanlar papkasi (serverdagi nusxa)
 mkdir -p /opt/aks/hujjat && chown aks:aks /opt/aks/hujjat && chmod 750 /opt/aks/hujjat

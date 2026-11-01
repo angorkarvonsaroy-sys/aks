@@ -1,0 +1,9 @@
+[Unit]
+Description=AKS TIZIM — har kuni 03:30 (aks-backup 03:00 dan keyin) zaxirani tashqariga yuborish
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

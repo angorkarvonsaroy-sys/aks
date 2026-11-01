@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 💾 server bazasi (aks_tizim) zaxirasini SHIFRLAB serverdan tashqariga — Google Drive «gdrive:aks-zaxira» (01.11.2026).
+# Usul — shajara bilan bir xil (/opt/shajara/app/deploy/zaxira.sh): age ochiq kalit bilan shifrlash, rclone bilan Drive'ga.
+#   aks-zaxira-tashqi          — eng oxirgi /var/backups/aks/aks_tizim_*.sql.gz ni shifrlab yuboradi (taymer: har kuni 03:30, aks-backup 03:00 dan keyin)
+#   aks-zaxira-tashqi tekshir  — Drive'dagi fayllar ro'yxati (hech narsa yubormaydi)
+# Ochiq kalit: ZAXIRA_OCHIQ_KALIT yoki /opt/aks/zaxira-ochiq-kalit.txt; u yo'q bo'lsa — shajara ochiq kaliti (/opt/shajara/zaxira-ochiq-kalit.txt).
+# OCHISH uchun maxfiy kalit serverda emas — direktorda turishi shart (aks holda server yo'qolsa nusxa ham ochilmaydi).
+# rclone — shajara-zaxira.service dagi foydalanuvchi va sozlama bilan (bir xil Drive ulanishi). Drive'da 30 kundan eskisi o'chiriladi.
+set -uo pipefail
+D=/var/backups/aks; T=$D/tashqi
+REMOTE=${ZAXIRA_TASHQI:-gdrive:aks-zaxira}
+PUB=${ZAXIRA_OCHIQ_KALIT:-/opt/aks/zaxira-ochiq-kalit.txt}; [ -s "$PUB" ] || PUB=/opt/shajara/zaxira-ochiq-kalit.txt
+SV=shajara-zaxira.service
+RU=$(systemctl show "$SV" -p User --value 2>/dev/null); RU=${RU:-root}
+RCONF=$(systemctl show "$SV" -p Environment --value 2>/dev/null | grep -oE 'RCLONE_CONFIG=[^ ]+' | cut -d= -f2 | head -1)
+RC() { if [ "$RU" = root ]; then env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 300 rclone "$@"; else sudo -u "$RU" -H env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 300 rclone "$@"; fi; }
+xato() { echo "⛔ $*"; exit 1; }
+
+command -v rclone >/dev/null || xato "rclone o'rnatilmagan"
+if [ "${1:-}" = tekshir ]; then
+  echo "Drive: $REMOTE (rclone foydalanuvchisi: $RU)"
+  RC lsl "$REMOTE" 2>&1 | sort -k2,3 | tail -10
+  exit 0
+fi
+command -v age >/dev/null || xato "age o'rnatilmagan"
+[ -s "$PUB" ] || xato "ochiq kalit topilmadi ($PUB)"
+F=$(ls -t "$D"/aks_tizim_*.sql.gz 2>/dev/null | head -1)
+[ -n "$F" ] || xato "zaxira fayli yo'q ($D) — aks-backup ishlamagan"
+mkdir -p "$T" && chmod 755 "$T"
+OUT="$T/$(basename "$F").age"
+if [ ! -s "$OUT" ]; then
+  age --encrypt --recipients-file "$PUB" --output "$OUT.tmp" "$F" || xato "shifrlab bo'lmadi"
+  mv "$OUT.tmp" "$OUT" && chmod 644 "$OUT"
+fi
+RC copy "$OUT" "$REMOTE/" || xato "Drive'ga yuborib bo'lmadi ($REMOTE)"
+RC delete --min-age 30d "$REMOTE" >/dev/null 2>&1 || true
+find "$T" -name '*.age' -mtime +14 -delete
+echo "✅ $(basename "$OUT") ($(du -h "$OUT" | cut -f1)) → $REMOTE · kalit: $PUB"
