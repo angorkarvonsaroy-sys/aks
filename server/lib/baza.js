@@ -166,6 +166,8 @@ async function toldir(db, opt = {}) {
       for (const [t, M] of [['lugat', lug], ['zona', zona], ['sozlama', soz]])
         if (M.length) { await db.query(`INSERT INTO ${SX}.${t} SELECT * FROM jsonb_populate_recordset(NULL::${SX}.${t}, $1::jsonb)`, [JSON.stringify(M)]); L[t] += M.length; }
     }
+    // 2-bosqich: Google formulalari o'rnini bosadigan view'lar (lib/baza_hisob.js) — jadvallar bilan birga
+    for (const s of require('./baza_hisob').sql(SX)) await db.query(s);
     for (const t of ['lugat', 'zona', 'sozlama']) natija.jadvallar.push({ jadval: t, varaq: t === 'lugat' ? LUGAT.varaq + ' + 08b D' : LUGAT.varaq, qator: L[t], bosh: 0, xato: 0, takror: 0, tashlandi: 0 });
     for (let i = 0; i < xatolar.length; i += 1000)
       await db.query(`INSERT INTO ${SX}.xatolar SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(kompaniya_id int, jadval text, varaq text, qator int, ustun text, qiymat text, sabab text)`,

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-# AKS TIZIM — 🗄 baza ko'chirishi (1-bosqich): aks-baza — holat · aks-baza toldir — ko'zgudan qurish · aks-baza xatolar [jadval]
+# AKS TIZIM — 🗄 baza ko'chirishi: aks-baza — holat · aks-baza toldir — ko'zgudan qurish · aks-baza xatolar [jadval] · aks-baza solishtir — Google hisobi bilan har qator
 cd /opt/aks/app && exec sudo -u aks -H node bin/baza.js "$@"

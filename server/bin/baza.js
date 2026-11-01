@@ -3,6 +3,7 @@
 //   aks-baza                 — holat: oxirgi to'ldirish, har jadvalda nechta qator, nechta xato
 //   aks-baza toldir          — ko'zgudan qaytadan qurish (eski «baza» faqat hammasi muvaffaqiyatli bo'lsa almashadi)
 //   aks-baza xatolar [jadval] — aylantirib bo'lmagan kataklar (NULL qilingan): varaq, qator, ustun, qiymat, sabab
+//   aks-baza solishtir       — (2-bosqich) yangidan quradi va HAR QATOR: Google hisoblagan qiymat ↔ server hisobi (lib/baza_hisob.js); --toldirmasdan
 // Google jadvalga, ko'zguga va ilovaga TEGMAYDI. Ilova hali bu jadvallardan o'qimaydi.
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -52,6 +53,29 @@ function jadval(T, xatolar) {
         console.log('⚠ To\'xtadi (eski «baza» o\'z joyida): ' + e.message);
         process.exitCode = 1;
       }
+    } else if (buyruq === 'solishtir') {
+      // avval yangidan quriladi (ko'zgu bilan bir xil holat), keyin har qator Google qiymati bilan solishtiriladi
+      if (!process.argv.includes('--toldirmasdan')) {
+        const r0 = await db.query(`INSERT INTO baza_yuklashlar (holat) VALUES ('ishlayapti') RETURNING id`);
+        const n = await B.toldir(db);
+        await db.query(`UPDATE baza_yuklashlar SET tugadi = now(), holat = 'ok', ms = $2, hisobot = $3 WHERE id = $1`, [r0.rows[0].id, n.ms, JSON.stringify(n)]);
+        console.log('«baza» yangidan qurildi: ' + n.jadvallar.reduce((a, t) => a + t.qator, 0) + ' qator, ' + n.xatolar + ' xato.');
+      }
+      const R = await require('../lib/baza_solishtir').solishtir(db);
+      console.log('Google hisobi ↔ server hisobi (BUGUN = ' + (R.bugun || '?') + ', varaqdagi 08_Lugatlar!Z2)\n');
+      console.log(chap('Varaq', 24) + chap('Ustun', 6) + chap('Server nomi', 22) + ong('Qator', 7) + ong('Teng', 7) + ong('FARQ', 7));
+      console.log('-'.repeat(73));
+      let jamiFarq = 0;
+      for (const u of R.ustunlar) { jamiFarq += u.farq;
+        console.log(chap(u.varaq, 24) + chap(u.harf, 6) + chap(u.ustun, 22) + ong(u.jami, 7) + ong(u.teng, 7) + ong(u.farq ? u.farq + ' ⚠' : '0', 7)); }
+      console.log('-'.repeat(73));
+      Object.entries(R.qatorYoq).forEach(([v, n]) => console.log('⚠ ' + v + ': ' + n + ' qator «baza» da yo\'q (faqat formula natijasi bor)'));
+      for (const u of R.ustunlar.filter(z => z.farq)) {
+        console.log('\n' + u.varaq + ' ' + u.harf + ' (' + u.ustun + ') — ' + u.farq + ' farq:');
+        u.misollar.forEach(m => console.log('  qator ' + ong(m.qator, 5) + '  ' + chap(m.no, 10) + ' Google: ' + chap(m.google, 16) + ' server: ' + m.server));
+      }
+      console.log('\n' + (jamiFarq ? '⚠ JAMI FARQ: ' + jamiFarq + ' katak — server hisobi hali Google bilan bir xil emas.' : '✅ HAMMASI BIR XIL — ' + R.ustunlar.reduce((a, u) => a + u.jami, 0) + ' katak, 0 farq.'));
+      if (jamiFarq) process.exitCode = 2;
     } else if (buyruq === 'xatolar') {
       const j = process.argv[3];
       const R = await db.query(`SELECT jadval, varaq, qator, ustun, qiymat, sabab FROM baza.xatolar ${j ? 'WHERE jadval = $1' : ''} ORDER BY jadval, qator, ustun LIMIT 200`, j ? [j] : []);
