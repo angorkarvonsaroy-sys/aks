@@ -1,7 +1,7 @@
 // AKS TIZIM — ijara shartnomasi hujjati (Kod.gs v9.7 ijaraPdf bilan bir xil matn): Google Doc shabloni NOMI bo'yicha
 // (Ijara_shartnoma_MChJ_shablon — do'kon SOTILMAGAN; Ijara_shartnoma_egasi_shablon — do'kon sotilgan, egasining tilxati asosida) →
 // <<belgi>> lar → PDF (lib/shablon_pdf.js). Kolontituldagi «Шартнома № <<SH_RAQAM>> — <sahifa>» ham to'ldiriladi. Bazaga hech narsa yozmaydi.
-//   r  — 04_Ijara_shartnomalar qatori (ko'rinish qiymatlari, 37 ustun);  mr — 02_Mijozlar qatori (ko'rinish);
+//   r  — 04_Ijara_shartnomalar qatori (ko'rinish qiymatlari, 37 ustun; r[28] AC — 02.11.2026 dan xom qiymatdan «dd.MM.yyyy», api/shartnoma_pdf.js);  mr — 02_Mijozlar qatori (ko'rinish);
 //   dr — 01_Dokonlar qatori (XOM qiymatlar — eski kod getValues bilan o'qigan: F maydon son, G baza son, R sotuv sh., S egasi)
 'use strict';
 const DS = require('./docs_shablon');

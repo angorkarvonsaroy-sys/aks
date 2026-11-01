@@ -73,7 +73,8 @@ async function topCtx(kod, bugun) {
     const q = Math.round((new Date(mud + 'T12:00:00Z') - d0) / 86400000); if (q <= 30 && q > -3650) { const sh = mijozShar[m][0]; pasport.push({ mid: m, fish: s(x[2]), muddat: dmy(mud), qolgan: q, no: sh.no, kim: sh.kim || (PN[sh.no] || {}).undiruvchi || '' }); } });
   // bufer
   const bufer = [];
-  aOxiri(R5).forEach(({ r }) => { if (r[0] && s(r[6]) === 'Буферда' && /MUDDATI O'TDI/i.test(s(r[11]))) bufer.push({ id: s(r[0]), sana: s(r[1]), no: s(r[2]), summa: Number(s(r[3]).replace(/\s/g, '').replace(',', '.')) || 0 }); });
+  // 05b L (Muddat_holati) — ko'ringan matndan emas, xom qiymatdan (02.11.2026, 3-bosqichga tayyorgarlik)
+  aOxiri(R5).forEach(({ r, x }) => { if (r[0] && s(r[6]) === 'Буферда' && /MUDDATI O'TDI/i.test(s(x[11]))) bufer.push({ id: s(r[0]), sana: s(r[1]), no: s(r[2]), summa: Number(s(r[3]).replace(/\s/g, '').replace(',', '.')) || 0 }); });
   return { mlM, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }

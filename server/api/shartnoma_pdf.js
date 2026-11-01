@@ -53,6 +53,7 @@ async function sotuvYasa(no) {
   no = s(no).trim();
   const z = (await V.qatorlar('03_Sotuv_shartnomalar')).find(q => s(q.r[0]) === no); if (!z) throw new S.Xato('Shartnoma topilmadi: ' + no);
   const r = pad(z.r, 40);
+  r[22] = V.matn(z.x[22]);   // 03 W «Umumiy qiymat» — ko'ringan matndan emas, XOM qiymatdan (02.11.2026, 3-bosqichga tayyorgarlik; aks-baza xom: 0 farq)
   const mr0 = await mijoz(r[4]); if (!mr0) throw new S.Xato('Mijoz 02 da topilmadi (ID ' + r[4] + ').');
   const mr = pad(mr0, 25);
   const jad = (await V.qatorlar('03b_Tolov_jadvali')).map(q => q.r).filter(x => s(x[1]) === r[0] && Number(x[2]) > 0).map(x => ({ sana: s(x[3]), summa: SH.num(x[4]) }));
@@ -65,6 +66,7 @@ async function ijaraYasa(no) {
   no = s(no).trim();
   const z = (await V.qatorlar('04_Ijara_shartnomalar')).find(q => s(q.r[0]) === no); if (!z) throw new S.Xato('Ijara shartnomasi topilmadi: ' + no);
   const r = pad(z.r, 37);
+  r[28] = V.korSana(z.x[28]);   // 04 AC bepul davr tugashi — XOM qiymatdan «dd.MM.yyyy» (02.11.2026; aks-baza xom: 0 farq)
   const mr0 = await mijoz(r[5]); if (!mr0) throw new S.Xato('Ijarachi 02 da topilmadi (ID ' + r[5] + ').');
   const mr = pad(mr0, 25);
   const d = (await V.qatorlar('01_Dokonlar')).find(q => s(q.x[0]) === s(r[4])); if (!d) throw new S.Xato('Do\'kon topilmadi: ' + r[4]);

@@ -25,14 +25,15 @@ async function reyestrIjara([kodSes]) {
   const k = await KR.korish(u);
   const [MIJ, R4] = await Promise.all([mijozlar(), V.qatorlar('04_Ijara_shartnomalar')]);
   const L = [];
-  aOxiri(R4).map(z => kor(z.r, 29)).forEach(r => {
+  // 02.11.2026 (3-bosqichga tayyorgarlik): hisoblangan ustunlar (04 X, Y, Z, AC) ko'ringan matndan emas, XOM qiymatdan (x) — aks-baza xom: 0 farq
+  aOxiri(R4).forEach(z => { const r = kor(z.r, 29), x = z.x;
     const no = String(r[0] || '').trim(); if (!/^IJ-27\/\d+$/.test(no)) return;
     if (!k(r[2], '', no)) return;
     const m = MIJ[String(r[5]).trim()] || {};
     L.push({ no, sana: r[1], holati: String(r[2] || ''), dokon: String(r[4] || ''), mid: String(r[5] || ''),
-      fish: String(r[23] || m.fish || ''), tel: String(r[24] || m.tel || ''),
-      bosh: r[9], tugash: r[10], m2: Number(String(r[25]).replace(',', '.').replace(/[^\d.]/g, '')) || 0,
-      oylik: Number(String(r[14]).replace(/\D/g, '')) || 0, bepul: Number(String(r[12]).replace(/\D/g, '')) || 0, bepulTugash: String(r[28] || ''),
+      fish: String(V.matn(x[23]) || m.fish || ''), tel: String(V.matn(x[24]) || m.tel || ''),
+      bosh: r[9], tugash: r[10], m2: V.son(x[25]),
+      oylik: Number(String(r[14]).replace(/\D/g, '')) || 0, bepul: Number(String(r[12]).replace(/\D/g, '')) || 0, bepulTugash: V.korSana(x[28]),
       faoliyat: String(r[18] || '') });
   });
   L.sort((a, b) => (Number(b.no.replace(/\D/g, '')) || 0) - (Number(a.no.replace(/\D/g, '')) || 0));
@@ -48,13 +49,14 @@ async function reyestrSotuv([kodSes]) {
   const [MIJ, R3] = await Promise.all([mijozlar(), V.qatorlar('03_Sotuv_shartnomalar')]);
   const num = v => Number(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')) || 0;
   const L = [];
-  aOxiri(R3).map(z => kor(z.r, 33)).forEach(r => {
+  // 02.11.2026: hisoblangan ustunlar (03 U, Z, AA, AB, AE, AF, AG) — xom qiymatdan (x)
+  aOxiri(R3).forEach(z => { const r = kor(z.r, 33), x = z.x;
     const no = String(r[0] || '').trim(); if (!/^27\/\d+$/.test(no)) return;
     if (REY_SOT_HOLAT.indexOf(String(r[13] || '').trim()) < 0) return;
     if (!k(r[13], r[17], no)) return;
     const m = MIJ[String(r[4]).trim()] || {};
     L.push({ no, sana: r[2], mid: String(r[4] || ''), dokon: String(r[5] || ''), m2: num(r[6]), holati: String(r[13] || ''), undiruvchi: String(r[17] || ''),
-      fish: String(r[20] || m.fish || ''), tel: String(m.tel || ''), qiymat: num(r[25]), oylik: num(r[26]), tolangan: num(r[27]), qarz: num(r[30]), muddati: num(r[31]), kechikkan: num(r[32]) });
+      fish: String(V.matn(x[20]) || m.fish || ''), tel: String(m.tel || ''), qiymat: num(x[25]), oylik: num(x[26]), tolangan: num(x[27]), qarz: num(x[30]), muddati: num(x[31]), kechikkan: num(x[32]) });
   });
   L.sort((a, b) => (Number(b.no.replace(/\D/g, '')) || 0) - (Number(a.no.replace(/\D/g, '')) || 0));
   const f = L, son = {}; L.forEach(x => son[x.holati] = (son[x.holati] || 0) + 1);

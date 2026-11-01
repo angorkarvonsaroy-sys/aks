@@ -39,7 +39,7 @@ function bandOchir(body, kalit) {
     DS.deleteText(hit.p, hit.boshi, hit.oxiri - 1);
   }
 }
-// sotuvHujjat_: r — 03 qatori (displayValues, 40 ustun) yoki nusxasi; mr — 02 qatori (displayValues); jad — [{sana:'dd.mm.yyyy', summa}];
+// sotuvHujjat_: r — 03 qatori (displayValues, 40 ustun; r[22] W qiymat — 02.11.2026 dan xom qiymat matni, api/shartnoma_pdf.js) yoki nusxasi; mr — 02 qatori (displayValues); jad — [{sana:'dd.mm.yyyy', summa}];
 // opt — { nom, qayta: { eskiNo, eskiSana, kelSana } }. Qaytaradi { pdf, bet, qolgan, bosh, nom }
 async function sotuvHujjat(r, mr, jad, opt) {
   const tid = SHABLON[r[3]]; if (!tid) throw new Error('Bu shartnoma turi uchun shablon belgilanmagan: ' + r[3]);

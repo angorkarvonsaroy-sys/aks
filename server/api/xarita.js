@@ -16,7 +16,8 @@ async function xaritaMalumot([kodSes]) {
   const [R1, R4, R3] = await Promise.all([V.qatorlar('01_Dokonlar'), V.qatorlar('04_Ijara_shartnomalar'), mol ? V.qatorlar('03_Sotuv_shartnomalar') : []]);
   const v = R1.filter(z => z.n <= 641).map(z => xom(z.x, 30)).filter(r => r[0]);
   const S3 = {}, S4 = {};
-  aOxiri(R4).forEach(({ r: r0 }) => { const r = kor(r0, 37); if (r[0]) S4[String(r[0])] = r; });
+  // 04 AC (bepul davr tugashi) — ko'ringan matndan emas, xom qiymatdan «dd.MM.yyyy» (02.11.2026, 3-bosqichga tayyorgarlik; aks-baza xom: 0 farq)
+  aOxiri(R4).forEach(({ r: r0, x: x0 }) => { const r = kor(r0, 37); r[28] = V.korSana(x0[28]); if (r[0]) S4[String(r[0])] = r; });
   if (mol) aOxiri(R3).forEach(({ x }) => { const r = xom(x, 40); if (r[0]) S3[String(r[0])] = r; });
   const dokonlar = v.map(r => {
     const o = { id: String(r[0]), holat: String(r[25] || "Bo'sh"), maydon: Number(r[5]) || 0, faoliyat: String(r[23] || ''), savdo: String(r[24] || ''), xona: String(r[29] || ''),

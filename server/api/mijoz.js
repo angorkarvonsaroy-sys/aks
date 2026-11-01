@@ -68,10 +68,11 @@ async function mijozKarta([kodSes, mid]) {
   const k = await KR.korish(u), YO = {};
   // shartnomalar
   const SH = [], NO = {};
-  (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[4] || '').trim() !== mid) return; if (!k(x[13], x[17], String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
-    SH.push({ no: String(x[0]).trim(), tur: 'sotuv', sana: x[2] || '', dokon: x[5] || '', maydon: x[6] || '', holati: x[13] || '', qiymat: num(x[25]), oylik: num(x[26]), tolangan: num(x[27]), asosiy: num(x[28]), qoshimcha: num(x[29]), jami: num(x[30]), muddati: num(x[31]), kechikkan: num(x[32]), undiruvchi: x[17] || '', bekorSana: x[14] || '' }); });
-  (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r: x }) => { if (!x[0] || String(x[5] || '').trim() !== mid) return; if (!k(x[2], '', String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
-    SH.push({ no: String(x[0]).trim(), tur: 'ijara', sana: x[1] || '', dokon: x[4] || '', maydon: x[13] || '', holati: x[2] || '', bosh: x[9] || '', tugash: x[10] || '', muddat: x[11] || '', bepul: x[12] || '', oylik: num(x[14]), faoliyat: x[18] || '', masul: x[20] || '', bepulTugash: x[28] || '', bekorSana: x[3] || '' }); });
+  // 02.11.2026 (3-bosqichga tayyorgarlik): hisoblangan ustunlar (03 Z–AG, 04 AC) ko'ringan matndan emas, XOM qiymatdan (x0) — aks-baza xom: 0 farq
+  (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r: x, x: x0 }) => { if (!x[0] || String(x[4] || '').trim() !== mid) return; if (!k(x[13], x[17], String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
+    SH.push({ no: String(x[0]).trim(), tur: 'sotuv', sana: x[2] || '', dokon: x[5] || '', maydon: x[6] || '', holati: x[13] || '', qiymat: num(x0[25]), oylik: num(x0[26]), tolangan: num(x0[27]), asosiy: num(x0[28]), qoshimcha: num(x0[29]), jami: num(x0[30]), muddati: num(x0[31]), kechikkan: num(x0[32]), undiruvchi: x[17] || '', bekorSana: x[14] || '' }); });
+  (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r: x, x: x0 }) => { if (!x[0] || String(x[5] || '').trim() !== mid) return; if (!k(x[2], '', String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
+    SH.push({ no: String(x[0]).trim(), tur: 'ijara', sana: x[1] || '', dokon: x[4] || '', maydon: x[13] || '', holati: x[2] || '', bosh: x[9] || '', tugash: x[10] || '', muddat: x[11] || '', bepul: x[12] || '', oylik: num(x[14]), faoliyat: x[18] || '', masul: x[20] || '', bepulTugash: V.korSana(x0[28]) || '', bekorSana: x[3] || '' }); });
   if (!SH.length && (Object.keys(YO).length || k.cheklangan)) throw new S.Xato('Mijoz topilmadi: ' + mid);   // faqat yashirin shartnomalari bor (undiruvchi/yurist — shartnomasiz ham)
   // 03b: keyingi to'lov sanasi va jadval tugashi
   const bugunIso = V.bugun(); const JD = {};
@@ -79,13 +80,15 @@ async function mijozKarta([kodSes, mid]) {
   SH.forEach(s => { const L = (JD[s.no] || []).sort(); if (!L.length) return; s.tugash = L[L.length - 1].split('-').reverse().join('.'); const k = L.find(d => d >= bugunIso); s.keyingi = k ? k.split('-').reverse().join('.') : 'jadval tugagan'; });
   // do'konlar (01_Dokonlar)
   const DK = []; const DKN = {}; SH.forEach(s => { if (s.dokon && !/bekor/i.test(s.holati)) DKN[String(s.dokon).trim()] = s; });
-  if (Object.keys(DKN).length) (await V.qatorlar('01_Dokonlar')).forEach(({ r }) => { const id = String(r[0] || '').trim(); const s = DKN[id]; if (!s) return;
+  // 02.11.2026: hisoblangan ustunlar (01 Q, S, V–Z; 05 M) — xom qiymatdan (x0)
+  if (Object.keys(DKN).length) (await V.qatorlar('01_Dokonlar')).forEach(({ r, x: x0 }) => { const id = String(r[0] || '').trim(); const s = DKN[id]; if (!s) return;
     const real = num(r[5]), sh = num(s.maydon);
     DK.push({ id, blok: r[2] || '', qavat: r[3] || '', raqam: r[4] || '', real, shartnoma: sh, farq: real && sh ? Math.round((real - sh) * 100) / 100 : 0, qurilish: r[7] || '', taqiq: r[8] || '', rais: r[11] || '',
-      zona: r[16] || '', no: s.no, tur: s.tur, egasi: r[18] || '', ijaraNo: r[21] || '', ijarachi: r[22] || '', faoliyat: r[23] || '', savdo: r[24] || '', xarita: r[25] || '', hujjat: r[26] || '', narx: num(r[6]) }); });
+      zona: V.matn(x0[16]) || '', no: s.no, tur: s.tur, egasi: V.matn(x0[18]) || '', ijaraNo: V.matn(x0[21]) || '', ijarachi: V.matn(x0[22]) || '', faoliyat: V.matn(x0[23]) || '', savdo: V.matn(x0[24]) || '',
+      xarita: V.matn(x0[25]) || '', hujjat: r[26] || '', narx: num(r[6]) }); });
   // to'lovlar
   const T = [];
-  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || String(x[12] || '').trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
+  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || V.matn(x0[12]).trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
   T.reverse();
   // xatlar, hujjatlar, undiruv, yurist
   const X = (await J.xatJurnal()).filter(h => NO[h.no]).map(h => ({ raqam: h.raqam, no: h.no, sana: h.sana, shablon: h.shablon, bosqich: h.bosqich, holati: h.holati, yetSana: h.yetSana, kim: h.kim })).reverse();
