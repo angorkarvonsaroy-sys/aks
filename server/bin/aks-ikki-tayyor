@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 🗄 ikki tomonlama yozish, 3.0: tayyorgarlik tekshiruvi (faqat o'qiydi) — bayroqlar, vaqt ishlari, eski tizim yozuvlari, 09c, 2a natijasi
+cd /opt/aks/app && exec sudo -u aks -H node bin/ikki_tayyor.js "$@"
