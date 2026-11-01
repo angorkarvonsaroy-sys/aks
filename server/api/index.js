@@ -56,6 +56,13 @@ const OCHIQ = { 'manifest.json': 'application/manifest+json', 'sw.js': 'text/jav
   'icon-192.png': 'image/png', 'icon-512.png': 'image/png', 'favicon.png': 'image/png' };
 const ochiqFayl = {};
 for (const f of Object.keys(OCHIQ)) { try { ochiqFayl[f] = require('fs').readFileSync(__dirname + '/../public/' + f); } catch (e) {} }
+// 🔐 ilova sahifasini qulflash uchun OCHIQ kalit (sir emas; maxfiy qismi faqat serverda — aks-index-kalit, deploy.sh 6a)
+fastify.get('/index-kalit.txt', async (req, reply) => {
+  reply.type('text/plain; charset=utf-8').header('Cache-Control', 'no-store');
+  try { const t = require('fs').readFileSync('/opt/aks/private/index.pub', 'utf8').trim(); if (/^age1[0-9a-z]{58}$/.test(t)) return t + '\n'; } catch (e) { }
+  reply.code(404); return 'kalit hali yasalmagan\n';
+});
+
 fastify.get('/:fayl', async (req, reply) => {
   const f = req.params.fayl;
   // 25.10: bosh ekrandagi yorliq (iPhone «Добавить на главный экран») kodni O'ZI bilan olib yursin.

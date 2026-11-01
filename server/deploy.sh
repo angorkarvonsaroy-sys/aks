@@ -61,6 +61,7 @@ install -m 755 "$APP/bin/aks-inventar" /usr/local/bin/aks-inventar
 install -m 755 "$APP/bin/aks-tasischi" /usr/local/bin/aks-tasischi
 install -m 755 "$APP/bin/aks-qisqa" /usr/local/bin/aks-qisqa
 install -m 755 "$APP/bin/aks-sayt" /usr/local/bin/aks-sayt
+install -m 755 "$APP/bin/aks-index-kalit" /usr/local/bin/aks-index-kalit
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer
@@ -81,6 +82,22 @@ systemctl start --no-block aks-kozgu.service
 
 # 6. ilova serveri (pm2, aks foydalanuvchisi) — yangi kod bilan qayta yuklanadi
 mkdir -p /opt/aks/private && chown -R aks:aks /opt/aks/private && chmod 750 /opt/aks/private
+# 6a. 🔐 ilova sahifalari (Index.html, Xarita.html) — ochiq omborda faqat QULFLANGAN holda (yopiq/<nom>.html.age, 01.11.2026).
+#     Kalit faqat serverda: /opt/aks/index.key (aks-index-kalit yasaydi). Kalit yoki fayl yo'q bo'lsa — hech narsa qilinmaydi.
+#     Fayl o'zgargan bo'lsagina almashtiriladi; oldingisi <nom>.html.oldingi bo'lib qoladi. Server qayta yuklanishi shart emas.
+for f in Index Xarita; do
+  ENC="$REPO/yopiq/$f.html.age"; DST="/opt/aks/private/$f.html"
+  { [ -f "$ENC" ] && [ -f /opt/aks/index.key ] && command -v age >/dev/null; } || continue
+  TMP=$(mktemp)
+  if age -d -i /opt/aks/index.key -o "$TMP" "$ENC" 2>/dev/null && [ -s "$TMP" ]; then
+    if ! cmp -s "$TMP" "$DST"; then
+      if [ -f "$DST" ]; then cp -p "$DST" "$DST.oldingi"; fi
+      cat "$TMP" > "$DST"; chown aks:aks "$DST"; chmod 640 "$DST"
+      echo "  $f.html: yangilandi (md5 $(md5sum < "$DST" | cut -c1-32))"
+    fi
+  else echo "  !!! $f.html.age ochilmadi (kalit mos emasmi?)"; fi
+  rm -f "$TMP"
+done
 git -C "$REPO" rev-parse HEAD >"$APP/.versiya"
 chown aks:aks "$APP/.versiya"
 sudo -u aks -H bash -c "cd $APP && pm2 startOrReload ecosystem.config.js --update-env >/dev/null && pm2 save >/dev/null"

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 🔐 ilova sahifasini (Index.html) GitHub orqali QULFLANGAN holda olish uchun kalit (bir martalik, direktor qarori 01.11.2026).
+# Ombor ochiq — shuning uchun Index.html u yerga faqat shifrlangan holda (yopiq/Index.html.age) qo'yiladi.
+# Shifrni ochadigan kalit faqat shu serverda: /opt/aks/index.key (root, 600) — hech qayerga chiqmaydi.
+# Ochiq qismi (sir emas) /opt/aks/private/index.pub ga yoziladi va https://aks-tizim.uz/index-kalit.txt da ko'rinadi —
+# Claude shu bilan qulflaydi. Qayta ishga tushirilsa kalit almashmaydi.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v age >/dev/null; then
+  echo "age o'rnatilmoqda…"; apt-get install -y -q age >/dev/null 2>&1 || { apt-get update -q >/dev/null; apt-get install -y -q age >/dev/null; }
+fi
+K=/opt/aks/index.key
+if [ ! -f "$K" ]; then ( umask 077; age-keygen -o "$K" >/dev/null 2>&1 ); chmod 600 "$K"; echo "✅ Kalit yasaldi (faqat serverda qoladi)."
+else echo "✅ Kalit allaqachon bor."; fi
+mkdir -p /opt/aks/private; age-keygen -y "$K" > /opt/aks/private/index.pub; chown aks:aks /opt/aks/private/index.pub 2>/dev/null || true; chmod 644 /opt/aks/private/index.pub
+echo "Ochiq qism (sir emas): $(cut -c1-12 /opt/aks/private/index.pub)…  — Claude uni o'zi o'qiydi."
