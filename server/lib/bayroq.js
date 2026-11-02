@@ -6,9 +6,9 @@
 'use strict';
 const { redis } = require('./db');
 
-const YOZUV_OCHIQ = new Set(['bekor_tasdiq', 'arxiv']);   // bekor_tasdiq — direktor qarori kutilmoqda; arxiv — sinovdan keyin yoqiladi (02.11)
+const YOZUV_OCHIQ = new Set(['bekor_tasdiq']);   // direktor qarori kutilmoqda: bekor qilishni tasdiqlash hali eski tizimda
 const VAQT_OCHIQ = new Set();
-// koddagi hamma yozuv bayroqlari (02.11.2026: 49 ta; 47 tasi yoniq, bekor_tasdiq va arxiv — o'chiq). Yangi bayroq qo'shilsa — shu ro'yxatga,
+// koddagi hamma yozuv bayroqlari (02.11.2026: 49 ta; 48 tasi yoniq — arxiv 02.11 07:15 da sinovdan o'tib yoqildi; bekor_tasdiq — o'chiq). Yangi bayroq qo'shilsa — shu ro'yxatga,
 // va sinovdan o'tib yoqilguncha YOZUV_OCHIQ ga ham (aks holda standart holatda darhol yoniq bo'lib qoladi).
 const YOZUV_NOMLAR = [
   'arxiv', 'avto_isbot', 'bajardim', 'bekor', 'bekor_tasdiq', 'bekor_word', 'devon', 'devon2', 'devon_kordi', 'devon_xat', 'eksport', 'eksport_pdf',

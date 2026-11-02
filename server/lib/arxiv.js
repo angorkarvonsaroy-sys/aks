@@ -2,7 +2,8 @@
 // Ilgari bu ishni eski tizim (Koprik: koprikDriveSaqla, koprikXatSaqla, …) qilardi. Endi: rclone, direktor hisobi (angorkarvonsaroy@gmail.com),
 // ruxsat — faqat o'zi yaratgan fayllar (drive.file): server Drive'dagi boshqa fayllarni ko'rmaydi. Robotga «Редактор» berilmaydi.
 // Papka «AKS TIZIM» ichida — robot (o'qish huquqi) yangi fayllarni ham o'qiy oladi (Telegram'ga yuborish, ko'rish).
-// Yoqilishi: yozuv_yondi:arxiv (aks-bayroq yoq arxiv) va /opt/aks/rclone.conf. O'chiq bo'lsa — hammasi avvalgidek eski tizim orqali.
+// Yoqilishi: yozuv_yondi:arxiv (02.11.2026 07:15 sinovdan o'tib yoqildi, standart — yoniq) va /opt/aks/rclone.conf.
+// Favqulodda o'chirish: aks-bayroq ochir arxiv — hammasi avvalgidek eski tizim orqali.
 //   chaqir(fn, kod, args, opt) — koprik.chaqir bilan bir xil chaqiruv va javob shakli (Koprik v1.20 dagi Drive yordamchilari);
 //   eski tizim yaratgan fayllarga (bu arxivda yo'q) — avvalgidek eski tizim orqali tegiladi (ko'prik bor ekan).
 //   zaxira() — AKS_BAZA nusxasi (xlsx) «99 ZAXIRA» ga, 30 kun; nusxa() — serverdagi barcha fayllar «SERVER NUSXA» ga (har kecha).
