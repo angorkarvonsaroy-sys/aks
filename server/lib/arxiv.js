@@ -56,8 +56,8 @@ async function stat(yol) {
   try { const j = JSON.parse(await rc(['lsjson', '--stat', REM + yol])); return j && j.ID ? j : null; }
   catch (e) { if (topilmadi(e)) return null; throw e; }
 }
-function jurnal(fn, ms, ok, xato) {
-  try { q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1, $2, $3, $4, $5)', [s(fn).slice(0, 80), 'arxiv', ms, ok, xato ? s(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { }
+function jurnal(fn, ms, ok, xato) {   // promis qaytaradi — buyruq qatoridan (aks-arxiv) chaqirilganda kutiladi, ilovada kutilmaydi
+  try { return q('INSERT INTO rpc_jurnal (fn, qayerda, ms, ok, xato) VALUES ($1, $2, $3, $4, $5)', [s(fn).slice(0, 80), 'arxiv', ms, ok, xato ? s(xato).slice(0, 300) : null]).catch(() => {}); } catch (e) { return Promise.resolve(); }
 }
 
 // ------------------------------------------------------------------ asosiy amallar
@@ -267,15 +267,15 @@ async function zaxira() {
   const t0 = Date.now(), sana = new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10);
   const nom = 'AKS_BAZA_' + sana + '.xlsx';
   try {
-    if (await stat('99 ZAXIRA/' + nom)) { jurnal('zaxira', Date.now() - t0, true); return { nom, bor: true }; }
+    if (await stat('99 ZAXIRA/' + nom)) { await jurnal('zaxira', Date.now() - t0, true); return { nom, bor: true }; }
     const b = await require('./google').driveEksport(env.aksBazaId, XLSX, env.googleKey);
     if (b.length < 10000) throw new Error('AKS_BAZA eksporti juda kichik (' + b.length + ' bayt)');
     await saqla(['99 ZAXIRA'], nom, b, { yangi: true });
     let ochdi = '';
     try { await rc(['delete', REM + '99 ZAXIRA', '--min-age', '30d', '--include', 'AKS_BAZA_*.xlsx']); } catch (e) { ochdi = ' (eski nusxalar o\'chmadi: ' + e.message + ')'; }
-    jurnal('zaxira', Date.now() - t0, true);
+    await jurnal('zaxira', Date.now() - t0, true);
     return { nom: nom + ochdi, hajm: b.length };
-  } catch (e) { jurnal('zaxira', Date.now() - t0, false, e.message); throw e; }
+  } catch (e) { await jurnal('zaxira', Date.now() - t0, false, e.message); throw e; }
 }
 // serverdagi hamma fayl (/opt/aks/hujjat) → «SERVER NUSXA» (faqat yangi va o'zgarganlari; Drive keshi va _arxiv — yo'q, ular arxivda bor)
 async function nusxa() {
@@ -283,9 +283,9 @@ async function nusxa() {
   const t0 = Date.now();
   try {
     await rc(['copy', ILDIZ, REM + 'SERVER NUSXA', '--exclude', '.drive/**', '--exclude', '_arxiv/**', '--exclude', '*.tmp'], { ms: 3300000 });
-    jurnal('nusxa', Date.now() - t0, true);
+    await jurnal('nusxa', Date.now() - t0, true);
     return { ok: true, ms: Date.now() - t0 };
-  } catch (e) { jurnal('nusxa', Date.now() - t0, false, e.message); throw e; }
+  } catch (e) { await jurnal('nusxa', Date.now() - t0, false, e.message); throw e; }
   finally { redis.del('arxiv_nusxa_qulf').catch(() => {}); }
 }
 
