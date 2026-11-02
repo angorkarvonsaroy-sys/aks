@@ -162,7 +162,8 @@ async function sozlama(arg) {
   let farqBor = false;
   // 1. xat zanjiri
   const Z = await X.xatZanjir(kod), mz = await SZ.malumot('xat_zanjir');
-  console.log('1. XAT ZANJIRI (XAT_ZANJIR) — ' + (mz ? Object.keys(Z).length + ' shartnoma · manba: ' + mz.manba + ' · ' + vaqt(mz.yangilandi) + ' · ' + (mz.kim || '') : '⚠ bazada hali yo\'q (eski joydan ko\'chirib bo\'lmadi)'));
+  const oxB = Object.values(Z).sort().pop() || '—';
+  console.log('1. XAT ZANJIRI (XAT_ZANJIR) — ' + (mz ? Object.keys(Z).length + ' shartnoma · eng oxirgi belgi: ' + oxB + ' · manba: ' + mz.manba + ' · ' + vaqt(mz.yangilandi) + ' · ' + (mz.kim || '') : '⚠ bazada hali yo\'q (eski joydan ko\'chirib bo\'lmadi)'));
   const ez = await eski('koprikZanjir');
   if (ez.xato) console.log('   eski tizim bilan solishtirib bo\'lmadi: ' + ez.xato);
   else {
