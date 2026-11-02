@@ -6,12 +6,12 @@
 'use strict';
 const { redis } = require('./db');
 
-const YOZUV_OCHIQ = new Set(['bekor_tasdiq']);   // direktor qarori kutilmoqda: bekor qilishni tasdiqlash hali eski tizimda
+const YOZUV_OCHIQ = new Set(['bekor_tasdiq', 'arxiv']);   // bekor_tasdiq — direktor qarori kutilmoqda; arxiv — sinovdan keyin yoqiladi (02.11)
 const VAQT_OCHIQ = new Set();
-// koddagi hamma yozuv bayroqlari (02.11.2026: 48 ta; 47 tasi yoniq, bekor_tasdiq — o'chiq). Yangi bayroq qo'shilsa — shu ro'yxatga,
+// koddagi hamma yozuv bayroqlari (02.11.2026: 49 ta; 47 tasi yoniq, bekor_tasdiq va arxiv — o'chiq). Yangi bayroq qo'shilsa — shu ro'yxatga,
 // va sinovdan o'tib yoqilguncha YOZUV_OCHIQ ga ham (aks holda standart holatda darhol yoniq bo'lib qoladi).
 const YOZUV_NOMLAR = [
-  'avto_isbot', 'bajardim', 'bekor', 'bekor_tasdiq', 'bekor_word', 'devon', 'devon2', 'devon_kordi', 'devon_xat', 'eksport', 'eksport_pdf',
+  'arxiv', 'avto_isbot', 'bajardim', 'bekor', 'bekor_tasdiq', 'bekor_word', 'devon', 'devon2', 'devon_kordi', 'devon_xat', 'eksport', 'eksport_pdf',
   'hisobot_pdf', 'hujjat', 'ijro_tekshir', 'imzosiz', 'imzosiz_bekor', 'kb', 'kb2', 'kirish07b', 'mayda', 'mijoz_karta_pdf', 'qadam', 'qadam_hujjat',
   'qadam_ruxsat', 'qayta', 'qayta2', 'qayta_bekor', 'qayta_hujjat', 'shartnoma', 'shartnoma_pdf', 'sifat', 'tahrir', 'taminot', 'tasdiq',
   'tasdiq_qaror', 'tashrif', 'tg', 'tg_kirish', 'tolov', 'top_avto', 'top_mening', 'topshiriq', 'xat_chiqar', 'xat_isbot', 'yurist_aloqa',

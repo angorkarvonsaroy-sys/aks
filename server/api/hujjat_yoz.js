@@ -6,6 +6,7 @@
 // Server o'quvchilari (yuristHujjat, hujjatlarRoyxati) SRV ni tushunadi; eski tizimdagi o'quvchilar faqat Drive ID ni — shuning uchun ko'chirish darhol boshlanadi.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const { verOk } = require('../lib/versiya');
 const fs = require('fs');
 const path = require('path');
@@ -123,14 +124,14 @@ async function driveGaKochir(kod, f, urinish = 0) {
   if (!koprik.bor()) return;
   try {
     const b64 = fs.readFileSync(f.yol).toString('base64');
-    const r = await koprik.chaqir('koprikDriveSaqla', kod, [{ no: f.no, fish: f.fish, nom: f.nom, b64 }]);
+    const r = await ARX.chaqir('koprikDriveSaqla', kod, [{ no: f.no, fish: f.fish, nom: f.nom, b64 }]);
     if (!r || !r.id) throw new Error('Drive ID qaytmadi');
     const ids = await G.ustunOqi(env.aksBazaId, HUJ, 'A', env.googleKey);
     const i = ids.findIndex(v => String(v) === String(f.id));   // ids[0] — sarlavha (1-qator)
     if (i < 0) throw new Error('06d da ' + f.id + ' topilmadi');
     await G.yoz(env.aksBazaId, [{ varaq: HUJ, katak: 'I' + (i + 1), qiymat: [[r.id]] }], env.googleKey);
     const hol = await G.qatorOqi(env.aksBazaId, HUJ, i + 1, 'N', env.googleKey).catch(() => []);   // shu orada «✎ Tuzatish» bilan bekor qilingan bo'lsa
-    if (String(hol[13] || '') === 'Bekor') koprik.chaqir('koprikHujjatBekorFayl', kod, [r.id, 'BEKOR_' + f.id + '_' + f.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
+    if (String(hol[13] || '') === 'Bekor') ARX.chaqir('koprikHujjatBekorFayl', kod, [r.id, 'BEKOR_' + f.id + '_' + f.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
     tetik.varaqlarYangila([HUJ]).catch(() => {});
     console.log(new Date().toISOString(), 'hujjat Drive ga ko\'chdi:', f.rel, '→', r.id);
     kochdiBelgi(f.rel);
@@ -242,7 +243,7 @@ async function bekKataklar(hj, sabab, fish, vaqt) {
 }
 function driveBekor(kod, faylId, nom) {   // eski tizimda: try { moveTo + setName } catch (e) {} — xato e'tiborsiz
   if (!faylId || /^SRV:/.test(faylId)) return;   // hali Drive'ga ko'chmagan — driveGaKochir ko'chgach o'zi «_BEKOR QILINGANLAR» ga qo'yadi
-  koprik.chaqir('koprikHujjatBekorFayl', kod, [faylId, nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
+  ARX.chaqir('koprikHujjatBekorFayl', kod, [faylId, nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
 }
 async function hujjatTuzat(args) {
   const [kodSes, id, sabab0] = args;

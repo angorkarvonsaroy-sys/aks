@@ -7,6 +7,7 @@
 // Yoqilishi: Redis yozuv_yondi:xat_chiqar («aks-yozuv-sinov xatchiqar») va Koprik ≥ 1.8. Aks holda — eski tizim.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -104,7 +105,7 @@ async function driveGa(kod, f, urinish = 0) {
   if (!koprik.bor()) return;
   try {
     const b64 = fs.readFileSync(path.join(ILDIZ, f.rel)).toString('base64');
-    const r = await koprik.chaqir('koprikXatSaqla', kod, [{ yil: f.yil, nom: f.nom, b64, eski: f.eski || '' }]);
+    const r = await ARX.chaqir('koprikXatSaqla', kod, [{ yil: f.yil, nom: f.nom, b64, eski: f.eski || '' }]);
     if (!r || !r.id) throw new Error('Drive ID qaytmadi');
     try { await redis.set('xat_srv:' + r.id, f.rel, 'EX', 400 * 86400); } catch (e) { }
     const A = await G.ustunOqi(env.aksBazaId, XAT_V, 'A', env.googleKey);
@@ -117,7 +118,7 @@ async function driveGa(kod, f, urinish = 0) {
       console.log(new Date().toISOString(), 'xat Drive ga ko\'chdi:', f.raqam, '→', r.id);
       return r;
     }
-    koprik.chaqir('koprikXatSaqla', kod, [{ eski: r.id }]).catch(e => console.error('xat (eski nusxa savatga):', e.message));
+    ARX.chaqir('koprikXatSaqla', kod, [{ eski: r.id }]).catch(e => console.error('xat (eski nusxa savatga):', e.message));
     console.log(new Date().toISOString(), 'xat qayta yasalgan — ko\'chgan nusxa savatga:', f.raqam);
     return null;
   } catch (e) {
@@ -135,7 +136,7 @@ async function qolganlarniKochir() {
     if (!L.length) return;
     const { q } = require('../lib/db');
     const x = (await q(`SELECT kirish_kodi FROM v_xodimlar WHERE holat='Ishlayapti' AND 'admin' = ANY(huquqlar) ORDER BY qator_no LIMIT 1`)).rows[0];
-    if (!x || !(await koprik18(x.kirish_kodi))) return;
+    if (!x || !((await ARX.yoniq()) || (await koprik18(x.kirish_kodi)))) return;
     for (const h of L.slice(0, 5)) { const rel = s(h.pdf).slice(4); if (fs.existsSync(path.join(ILDIZ, rel))) await driveGa(x.kirish_kodi, { raqam: h.raqam, rel, yil: rel.split('/')[1], nom: path.basename(rel) }, 3); }
   } catch (e) { console.error('qolgan xatlar:', e.message); } finally { yolda = false; }
 }

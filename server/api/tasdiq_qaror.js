@@ -9,6 +9,7 @@
 // «↩ Isbotni tiklash» (tqTiklash_) — serverda (23.10 22:30); Drive'da faylni joyiga qaytarish — Koprik v1.18 koprikFaylTikla. Koprik < 1.18 — eski tqAmal.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -80,7 +81,7 @@ async function hujjatRad(ctx, kod, h, sabab, fish) {
   const [x, b] = await Promise.all([H.xatKataklar(h, 'tekshiruvda rad etildi: ' + sabab, fish, vaqt), H.bekKataklar(h, sabab, fish, vaqt)]);
   await yoz(ctx, HUJ_V + ' N/O' + h.qator + ' (' + h.nom + ') ← Bekor, «Tekshiruvda rad etildi: ' + sabab + '»' + (x.Y.length ? ' + 06e «Tayyorlandi» (' + x.matn.slice(0, 60) + ')' : '') + (b.Y.length ? ' + 06h orqaga' : ''),
     [kat(HUJ_V, h.qator, 14, ['Bekor']), kat(HUJ_V, h.qator, 15, [(h.izoh ? h.izoh + ' | ' : '') + 'Tekshiruvda rad etildi: ' + sabab + ' (' + fish + ', ' + vaqt + ')'])].concat(x.Y, b.Y));
-  if (!ctx.quruq && h.faylId && !/^SRV:/.test(h.faylId)) koprik.chaqir('koprikHujjatBekorFayl', kod, [h.faylId, 'BEKOR_' + h.id + '_' + h.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
+  if (!ctx.quruq && h.faylId && !/^SRV:/.test(h.faylId)) ARX.chaqir('koprikHujjatBekorFayl', kod, [h.faylId, 'BEKOR_' + h.id + '_' + h.nom]).catch(e => console.error('hujjat bekor (Drive):', e.message));
   else if (ctx.quruq && h.faylId) ctx.log.push({ yozuv: 'Drive: fayl «_BEKOR QILINGANLAR» ga (Koprik koprikHujjatBekorFayl) — BEKOR_' + h.id + '_' + h.nom });
   h.holati = 'Bekor';
   return ['Yuklangan fayl (' + h.nom + ') bekor qilindi — to\'g\'risini qayta yuklang.', x.matn, b.matn].filter(Boolean).join(' ');
@@ -329,7 +330,7 @@ async function tqTiklash(u, q0, ctx) {
       await yoz(ctx, HUJ_V + ' N/O' + h.qator + ' (' + h.nom + ') ← Faol', [kat(HUJ_V, h.qator, 14, ['Faol']), kat(HUJ_V, h.qator, 15, [(z.izoh ? z.izoh + ' | ' : '') + iz])]);
       if (h.faylId && !/^SRV:/.test(h.faylId) && (z.fnom || z.papka)) {
         if (ctx.quruq) ctx.log.push({ yozuv: 'Drive (Koprik v1.18 koprikFaylTikla): fayl → «' + (z.fnom || h.nom) + '»' + (z.papka ? ', asl papkasiga' : '') });
-        else koprik.chaqir('koprikFaylTikla', u.kod, [h.faylId, z.fnom || '', z.papka || '']).catch(e => console.error('tiklash (Drive):', e.message)); } }
+        else ARX.chaqir('koprikFaylTikla', u.kod, [h.faylId, z.fnom || '', z.papka || '']).catch(e => console.error('tiklash (Drive):', e.message)); } }
     // 3) xatlar — «Yuborildi», yetkazish ma'lumoti qaytadi; 06 undiruv jurnalida belgi (undXatBelgi_)
     let UJ = null;
     for (const z of T.xat) { const h = XJ.find(x => x.raqam === z.raqam), v = z.v || [];

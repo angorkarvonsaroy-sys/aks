@@ -8,6 +8,7 @@
 // Yoqilishi: Redis yozuv_yondi:yurist_aloqa («aks-yozuv-sinov aloqa») va Koprik ≥ 1.11. Aks holda — eski tizim.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -85,8 +86,8 @@ async function driveGa(kod, k, urinish = 0) {
   if (!koprik.bor() || yolda.has(k.raqam)) return null;
   yolda.add(k.raqam);
   try {
-    if (!(await koprik111(kod))) return null;
-    const yukla = async rel => { const r = await koprik.chaqir('koprikXatSaqla', kod, [{ yil: k.yil, nom: path.basename(rel), b64: fs.readFileSync(path.join(ILDIZ, rel)).toString('base64') }]);
+    if (!(await ARX.yoniq()) && !(await koprik111(kod))) return null;
+    const yukla = async rel => { const r = await ARX.chaqir('koprikXatSaqla', kod, [{ yil: k.yil, nom: path.basename(rel), b64: fs.readFileSync(path.join(ILDIZ, rel)).toString('base64') }]);
       if (!r || !r.id) throw new Error('Drive ID qaytmadi'); try { await redis.set('xat_srv:' + r.id, rel, 'EX', 400 * 86400); } catch (e) { } return r.id; };
     const pId = k.pRel ? await yukla(k.pRel) : '', dId = k.dRel ? await yukla(k.dRel) : '';
     const yozildi = await QY.qulf('yux', async () => {
@@ -98,7 +99,7 @@ async function driveGa(kod, k, urinish = 0) {
       return true;
     });
     if (yozildi) { tetik.varaqlarYangila([YUX_V]).catch(() => {}); console.log(new Date().toISOString(), 'aloqa xati Drive ga ko\'chdi:', k.raqam, '→', pId, dId); return { pId, dId }; }
-    for (const id of [pId, dId].filter(Boolean)) koprik.chaqir('koprikXatSaqla', kod, [{ eski: id }]).catch(e => console.error('aloqa (nusxa savatga):', e.message));
+    for (const id of [pId, dId].filter(Boolean)) ARX.chaqir('koprikXatSaqla', kod, [{ eski: id }]).catch(e => console.error('aloqa (nusxa savatga):', e.message));
     return null;
   } catch (e) {
     console.error(new Date().toISOString(), 'aloqa xati Drive ko\'chirish (' + (urinish + 1) + '):', k.raqam, e.message);
@@ -115,7 +116,7 @@ async function qolganlarniKochir() {
     if (!L.length) return;
     const { q } = require('../lib/db');
     const a = (await q(`SELECT kirish_kodi FROM v_xodimlar WHERE holat='Ishlayapti' AND 'admin' = ANY(huquqlar) ORDER BY qator_no LIMIT 1`)).rows[0];
-    if (!a || !(await koprik111(a.kirish_kodi))) return;
+    if (!a || !((await ARX.yoniq()) || (await koprik111(a.kirish_kodi)))) return;
     for (const h of L.slice(0, 3)) {
       const rel = v => /^SRV:/.test(v) && fs.existsSync(path.join(ILDIZ, v.slice(4))) ? v.slice(4) : '';
       const k = { raqam: h.raqam, yil: (rel(h.pdf) || rel(h.doc)).split('/')[1] || h.raqam.slice(3, 7), pRel: rel(h.pdf), dRel: rel(h.doc) };

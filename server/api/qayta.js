@@ -14,6 +14,7 @@
 //   2-bosqich (loyiha, ijrochi, tasdiq) — qo'shimcha yozuv_yondi:qayta2 («aks-yozuv-sinov qayta2» — nusxa varaqlarda to'liq tasdiq yozuvi, eski yozganlari bilan).
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const crypto = require('crypto');
 const { verOk } = require('../lib/versiya');
 const S = require('./sessiya');
@@ -240,7 +241,7 @@ async function hujjatBekor(hid, sabab, kim) {
 }
 function driveBekor(kod, h) {   // eski: f.moveTo(_BEKOR QILINGANLAR); f.setName('BEKOR_' + id + '_' + nom) — xato e'tiborsiz
   if (!h || !h.faylId || /^SRV:/.test(h.faylId)) return;   // hali Drive'ga ko'chmagan — driveGaKochir 06d «Bekor» ni ko'rib o'zi bekor papkaga qo'yadi
-  koprik.chaqir('koprikHujjatBekorFayl', kod, [h.faylId, 'BEKOR_' + h.id + '_' + h.nom]).catch(e => console.error('qayta: hujjat bekor (Drive):', e.message));
+  ARX.chaqir('koprikHujjatBekorFayl', kod, [h.faylId, 'BEKOR_' + h.id + '_' + h.nom]).catch(e => console.error('qayta: hujjat bekor (Drive):', e.message));
 }
 async function hujjatTikla(h) { await yoz([kat(HUJ, h.qator, 14, 'Faol'), kat(HUJ, h.qator, 15, h.izoh || '')]); }   // qtHujjatTikla_
 
@@ -341,7 +342,7 @@ async function bekorYadro(u, id, sabab, opt = {}) {
   if ((await qtShartnoma(x.eski, manba(true))).barcha.indexOf(x.yangi) >= 0) throw new S.Xato(x.yangi + ' bazada yozilgan — loyihani bekor qilib bo\'lmaydi.' + (x.holati === 'Yozilmoqda' ? ' ✓ Tasdiqlash ni qayta bosing — tizim qolgan qadamlarni bajaradi.' : ''));
   for (const h of QT_HUJ) if (x.skan[h[0]] && !opt.quruq) { const hj = await hujjatBekor(x.skan[h[0]], 'Qayta tuzish №' + x.id + ' bekor qilindi: ' + sabab, u.fish); driveBekor(u.kod, hj); }
   // yangi raqam uchun ochilgan bo'sh hujjat papkasi — o'chiriladi (eski: try/catch, xato e'tiborsiz)
-  if (!opt.quruq) await koprik.chaqir('koprikQtPapkaSavat', u.kod, [x.yangi]).catch(e => console.error('qayta bekor: papka savat:', e.message));
+  if (!opt.quruq) await ARX.chaqir('koprikQtPapkaSavat', u.kod, [x.yangi]).catch(e => console.error('qayta bekor: papka savat:', e.message));
   await yoz([kat(varaq, x.qator, 3, 'Bekor'), jurnalKatV(varaq, x, 'BEKOR: ' + sabab + ' (raqam ' + x.yangi + ' bo\'shadi)', u.fish)]);
   if (!opt.quruq) await qtTop(x, 'Bekor', u.fish, 'loyiha bekor qilindi: ' + sabab);
   return { ok: true, yangi: x.yangi };

@@ -9,6 +9,7 @@
 // Yoqilishi: Redis yozuv_yondi:bekor («aks-yozuv-sinov bekor») va Koprik ≥ 1.9. Aks holda — eski tizim.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -239,8 +240,8 @@ async function driveGa(kod, id, k, urinish = 0) {
     const m = { yil: k.yil, bNom: k.bNom, xNom: k.xNom, bB64: b64(k.bRel), xB64: b64(k.xRel), x: k.x, X: { jumla: k.X.jumla }, P: k.P,
       raqam: k.raqam, xRaqam: k.xRaqam, sana: k.sana, fish: k.fish, eski: k.eski || [] };
     // Koprik v1.10: serverdagi Word fayli Drive'ga o'zi qo'yiladi; v1.9: Google Doc nusxasini eski tizim yasaydi (bekorBuyruq_ / bekorXabarnoma_)
-    if (k.bDocRel && k.xDocRel && (await koprik110(kod))) { m.bDocB64 = b64(k.bDocRel); m.xDocB64 = b64(k.xDocRel); }
-    const r = await koprik.chaqir('koprikBekorSaqla', kod, [m]);
+    if (k.bDocRel && k.xDocRel && ((await ARX.yoniq()) || (await koprik110(kod)))) { m.bDocB64 = b64(k.bDocRel); m.xDocB64 = b64(k.xDocRel); }
+    const r = await ARX.chaqir('koprikBekorSaqla', kod, [m]);
     if (!r || !r.bPdf || !r.xPdf) throw new Error('Drive ID qaytmadi');
     try {
       await redis.set('xat_srv:' + r.bPdf, k.bRel, 'EX', 400 * 86400); await redis.set('xat_srv:' + r.xPdf, k.xRel, 'EX', 400 * 86400);
@@ -255,7 +256,7 @@ async function driveGa(kod, id, k, urinish = 0) {
     });
     await navbatdan(id, k);
     if (yozildi) { tetik.varaqlarYangila([BEK]).catch(() => {}); console.log(new Date().toISOString(), 'bekor hujjatlari Drive ga ko\'chdi:', k.raqam, '→', r.bPdf, r.xPdf); return r; }
-    koprik.chaqir('koprikBekorSaqla', kod, [{ eski: [r.bPdf, r.bDoc, r.xPdf, r.xDoc].filter(Boolean) }]).catch(e => console.error('bekor (eski nusxa savatga):', e.message));
+    ARX.chaqir('koprikBekorSaqla', kod, [{ eski: [r.bPdf, r.bDoc, r.xPdf, r.xDoc].filter(Boolean) }]).catch(e => console.error('bekor (eski nusxa savatga):', e.message));
     console.log(new Date().toISOString(), 'bekor hujjatlari qayta yasalgan — ko\'chgan nusxa savatga:', k.raqam);
     return null;
   } catch (e) {

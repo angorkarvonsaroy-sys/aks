@@ -10,6 +10,7 @@
 // Yoqilishi: kbTayyorla — Redis yozuv_yondi:kb («aks-yozuv-sinov kb»); kbSkan/kbBekor/kbTasdiq — yozuv_yondi:kb2 («aks-yozuv-sinov kb2», Koprik ≥ 1.13). Aks holda — eski tizim.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -315,10 +316,10 @@ async function kbTasdiq(args) {
 const skanYolda = new Set();
 async function skanDriveGa(kod, k, urinish = 0) {
   if (!koprik.bor() || skanYolda.has(k.rel)) return null;
-  if (!(await koprik113(kod))) { if (urinish < 3) setTimeout(() => skanDriveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
+  if (!(await ARX.yoniq()) && !(await koprik113(kod))) { if (urinish < 3) setTimeout(() => skanDriveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
   skanYolda.add(k.rel);
   try {
-    const r = await koprik.chaqir('koprikKbSaqla', kod, [{ yil: k.yil, skanNom: k.nom, skanB64: fs.readFileSync(path.join(ILDIZ, k.rel)).toString('base64') }], { muddat: 120000, urinish: 1 });
+    const r = await ARX.chaqir('koprikKbSaqla', kod, [{ yil: k.yil, skanNom: k.nom, skanB64: fs.readFileSync(path.join(ILDIZ, k.rel)).toString('base64') }], { muddat: 120000, urinish: 1 });
     if (!r || !r.skan) throw new Error('Drive ID qaytmadi');
     try { await redis.set('xat_srv:' + r.skan, k.rel, 'EX', 400 * 86400); } catch (e) { }
     const yozildi = await qulfBilan(async () => {
@@ -340,11 +341,11 @@ async function skanDriveGa(kod, k, urinish = 0) {
 const yolda = new Set();
 async function driveGa(kod, k, urinish = 0) {
   if (!koprik.bor() || yolda.has(k.pdfRel)) return null;
-  if (!(await koprik112(kod))) { if (urinish < 3) setTimeout(() => driveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
+  if (!(await ARX.yoniq()) && !(await koprik112(kod))) { if (urinish < 3) setTimeout(() => driveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
   yolda.add(k.pdfRel);
   try {
     const b64 = rel => fs.readFileSync(path.join(ILDIZ, rel)).toString('base64');
-    const r = await koprik.chaqir('koprikKbSaqla', kod, [{ yil: k.yil, nom: k.nom, pdfB64: b64(k.pdfRel), docB64: b64(k.docRel), eski: k.eski || [] }], { muddat: 120000, urinish: 1 });
+    const r = await ARX.chaqir('koprikKbSaqla', kod, [{ yil: k.yil, nom: k.nom, pdfB64: b64(k.pdfRel), docB64: b64(k.docRel), eski: k.eski || [] }], { muddat: 120000, urinish: 1 });
     if (!r || !r.pdf || !r.doc) throw new Error('Drive ID qaytmadi');
     try { await redis.set('xat_srv:' + r.pdf, k.pdfRel, 'EX', 400 * 86400); await redis.set('xat_srv:' + r.doc, k.docRel, 'EX', 400 * 86400); } catch (e) { }
     const yozildi = await qulfBilan(async () => {
@@ -354,7 +355,7 @@ async function driveGa(kod, k, urinish = 0) {
       return true;
     });
     if (yozildi) { tetik.varaqlarYangila([KB_V]).catch(() => {}); console.log(new Date().toISOString(), 'kelishuv hujjatlari Drive ga ko\'chdi:', k.nom, '→', r.pdf, r.doc); return r; }
-    koprik.chaqir('koprikKbSaqla', kod, [{ eski: [r.pdf, r.doc] }]).catch(e => console.error('kb (eski nusxa savatga):', e.message));
+    ARX.chaqir('koprikKbSaqla', kod, [{ eski: [r.pdf, r.doc] }]).catch(e => console.error('kb (eski nusxa savatga):', e.message));
     return null;
   } catch (e) {
     console.error(new Date().toISOString(), 'kb Drive ko\'chirish (' + (urinish + 1) + '):', k.nom, e.message);

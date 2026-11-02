@@ -13,6 +13,7 @@
 //   Fayllar (skan, isbot, kvitansiya, PDF/Word) — eski tizimdagidek darhol direktor Drive'iga («08 DEVONXONA / Kirim|Chiqim|Ijro / <yil>»), jadvalda Drive ID.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const crypto = require('crypto');
 const { verOk } = require('../lib/versiya');
 const S = require('./sessiya');
@@ -130,7 +131,7 @@ async function devonKirimSaqla(args) {
     const tartib = devonKeyingi(R.L, 'Kirim');
     const nom = 'K-' + tartib + '_' + sana.split('.').reverse().join('-') + '_' + devonFaylNom(tashkilot) + '_' + devonFaylNom(raqam);
     // devonFaylSaqla_: skan direktor Drive'iga — «AKS TIZIM / 08 DEVONXONA / Kirim / <yil>» (eski tizimning o'zi, Koprik v1.12 orqali)
-    const f = await koprik.chaqir('koprikDevonSaqla', u.kod, [{ qism: 'Kirim', nom, b64: bayt.toString('base64') }], { muddat: 120000, urinish: 1 });
+    const f = await ARX.chaqir('koprikDevonSaqla', u.kod, [{ qism: 'Kirim', nom, b64: bayt.toString('base64') }], { muddat: 120000, urinish: 1 });
     if (!f || !f.id) throw new Error('Skan Drive\'ga saqlanmadi (Drive ID qaytmadi).');
     try { return await devonYoz(DEVON_V, R, { turi: 'Kirim', tartib, kim: u.fish, tashkilot, raqam, sana, mazmun, fayl: f.id, holati }); }
     catch (e) { await yetimTozala(u, f.id); throw e; }   // qator yozilmadi — fayl savatga (har qanday xatoda, 23.10)
@@ -257,11 +258,11 @@ const devonYubMatn = y => y.usul === 'pochta' ? 'pochta orqali, kvitansiya №' 
 async function faylSaqla(u, qism, nom, bayt, docx, opt) {
   if (opt && opt.quruq) return { id: 'SINOV_' + qism + '_' + nom, doc: docx ? 'SINOV_' + qism + '_' + nom + '.docx' : '' };
   const m = { qism, nom, b64: bayt.toString('base64') }; if (docx) m.docB64 = docx.toString('base64');
-  const f = await koprik.chaqir('koprikDevonSaqla', u.kod, [m], { muddat: 120000, urinish: 1 });
+  const f = await ARX.chaqir('koprikDevonSaqla', u.kod, [m], { muddat: 120000, urinish: 1 });
   if (!f || !f.id || (docx && !f.doc)) throw new Error('Fayl Drive\'ga saqlanmadi (Drive ID qaytmadi).');
   return f;
 }
-const faylOchir = (u, id) => { if (id && !/^SINOV_/.test(s(id))) koprik.chaqir('koprikDevonSaqla', u.kod, [{ eski: id }]).catch(() => {}); };   // devonOchir_
+const faylOchir = (u, id) => { if (id && !/^SINOV_/.test(s(id))) ARX.chaqir('koprikDevonSaqla', u.kod, [{ eski: id }]).catch(() => {}); };   // devonOchir_
 // 23.10.2026 (eski xato tuzatildi): qator yozilmay qolsa skan Drive'da YETIM qolardi — avval faqat «ruxsat yo'q» xatosida savatga tashlanardi.
 // Endi HAR QANDAY xatoda: varaq qayta o'qiladi — fayl ID biror qatorda bo'lmasa (qator chindan yozilmagan) → savatga; bo'lsa (javob yo'qolgan, qator bor) — tegilmaydi.
 async function yetimTozala(u, id, varaq) {

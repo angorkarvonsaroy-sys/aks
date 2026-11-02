@@ -39,6 +39,7 @@ install -m 755 "$APP/bin/aks-yangila" /usr/local/bin/aks-yangila
 install -m 755 "$APP/bin/aks-holat"   /usr/local/bin/aks-holat
 install -m 755 "$APP/bin/aks-kozgu"   /usr/local/bin/aks-kozgu
 install -m 755 "$APP/bin/aks-bugun"   /usr/local/bin/aks-bugun
+install -m 755 "$APP/bin/aks-arxiv"   /usr/local/bin/aks-arxiv
 install -m 755 "$APP/bin/aks-solishtir" /usr/local/bin/aks-solishtir
 install -m 755 "$APP/bin/aks-yurist"  /usr/local/bin/aks-yurist
 install -m 755 "$APP/bin/aks-skan"    /usr/local/bin/aks-skan

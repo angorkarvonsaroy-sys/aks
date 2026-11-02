@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 🗄 Drive arxivi («AKS TIZIM / AKS ARXIV»): aks-arxiv — holat · aks-arxiv sinov — yuklash/o'qish/ko'chirish/savat sinovi · aks-arxiv zaxira · aks-arxiv nusxa
+cd /opt/aks/app && exec sudo -u aks -H node bin/arxiv.js "$@"

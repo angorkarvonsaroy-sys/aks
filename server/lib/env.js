@@ -29,6 +29,9 @@ module.exports = {
   },
   googleKey: E.GOOGLE_KEY || '/opt/aks/google-key.json',
   hujjatPapka: E.HUJJAT_PAPKA || '/opt/aks/hujjat',      // skanlar serverda (Drive'ga fonda ko'chadi)
+  // 02.11.2026: arxiv — direktor Drive'idagi «AKS TIZIM / AKS ARXIV» (rclone, direktor hisobi, drive.file). Ulanish kaliti faqat serverda (/opt/aks/rclone.conf)
+  rcloneKonf: E.RCLONE_KONF || '/opt/aks/rclone.conf',
+  arxivPapka: E.ARXIV_PAPKA || '1xJGD7CpL5qdHoTEvPfikmedl58FpOkGC',
   redisUrl: E.REDIS_URL || 'redis://127.0.0.1:6379',
   appPort: Number(E.APP_PORT || 3000),
   // Eski tizim (Apps Script) ko'prigi: serverda hali yozilmagan amallar o'sha yerga yuboriladi. Bo'sh bo'lsa — ko'prik yo'q.

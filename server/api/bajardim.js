@@ -8,6 +8,7 @@
 // Yoqilishi: Redis yozuv_yondi:bajardim («aks-yozuv-sinov bajardim») va Koprik ≥ 1.7. Aks holda — eski tizim.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const G = require('../lib/google');
@@ -59,7 +60,7 @@ async function isbotSaqla(kod, x, f) {
   if (bayt.length > 25 * 1024 * 1024) throw new S.Xato('Isbot fayli 25 MB dan katta.');
   if (bayt.slice(0, 5).toString('latin1') !== '%PDF-') throw new S.Xato('Isbot PDF bo\'lishi kerak (rasmga olsangiz — ilova o\'zi PDF qiladi).');
   const nom = 'top' + x.id + (x.no ? '_' + s(x.no).replace(/\//g, '-') : '') + '_' + hozirNom() + '.pdf';
-  const r = await koprik.chaqir('koprikIsbotSaqla', kod, [{ nom, b64: bayt.toString('base64') }]);
+  const r = await ARX.chaqir('koprikIsbotSaqla', kod, [{ nom, b64: bayt.toString('base64') }]);
   if (!r || !r.id) throw new Error('koprikIsbotSaqla: Drive ID qaytmadi');
   return r.id;
 }

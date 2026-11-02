@@ -9,6 +9,7 @@
 //   taminotDalolatnoma — haftalik qabul qilish-topshirish dalolatnomasi (PDF server, Drive — Koprik ≥ 1.20)
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
+const ARX = require('../lib/arxiv');   // Drive arxivi: server o'zi yuklaydi (yozuv_yondi:arxiv), aks holda eski tizim
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
 const S = require('./sessiya');
@@ -200,7 +201,7 @@ async function taminotTolov(args) {
     Y.forEach(r => { if (s(r[0]) && s(r[2]) + '|' + s(r[3]) === k) h.tolan += raqamT(r[4]); });
     const id = (Y.length ? Math.max(...Y.map(r => Number(s(r[0]).replace(/\D/g, '')) || 0)) : 0) + 1, l = m + 2;
     const nom = 'Tolov_' + tamDMY(sana).replace(/\./g, '-') + '_' + taminotchi.replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40) + '_' + id + '.pdf';
-    const f = await koprik.chaqir('koprikTamIsbot', u.kod, [{ nom, b64: bayt.toString('base64') }], { muddat: 120000 });
+    const f = await ARX.chaqir('koprikTamIsbot', u.kod, [{ nom, b64: bayt.toString('base64') }], { muddat: 120000 });
     if (!f || !f.id) throw new S.Xato('Isbot fayli Drive\'ga saqlanmadi — qayta urinib ko\'ring.');
     const q = await G.qatorQoshR(env.aksBazaId, TAM_TV, l + 1, [id, tamDMY(sana), tTuri, taminotchi, summa, usul, tilxat, nom, f.id, u.fish, hozirDmyHm(), izoh], env.googleKey)
       .catch(e => { if (e instanceof G.RuxsatYoq) throw new S.Xato('Robotda jadvalga yozish huquqi yo\'q — isbot fayli saqlandi (' + nom + '), direktorga ayting.'); throw e; });
@@ -395,7 +396,7 @@ async function taminotDalolatnoma(args) {
       const pdf = await PDF.yasa(tamAktHtml(raqam, bugun, bosh, oxir, tTuri, ism, f, P, jami), '',
         { format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
       const nom = 'Dalolatnoma_' + raqam.replace('/', '-') + '_' + taminotchi.replace(/[\\/:*?"<>|]/g, ' ').slice(0, 40) + '.pdf';
-      const d = await koprik.chaqir('koprikTamIsbot', u.kod, [{ qism: 'DALOLATNOMALAR', nom, b64: pdf.toString('base64') }], { muddat: 120000 });
+      const d = await ARX.chaqir('koprikTamIsbot', u.kod, [{ qism: 'DALOLATNOMALAR', nom, b64: pdf.toString('base64') }], { muddat: 120000 });
       if (!d || !d.id) throw new S.Xato('Dalolatnoma Drive\'ga saqlanmadi (' + raqam + ') — qayta urinib ko\'ring.');
       qatorlar.push([raqam, bugun, tamDMY(bosh) + '–' + tamDMY(oxir), tTuri, taminotchi, P.length, jami, d.id, u.fish]);
       fayllar.push({ raqam, taminotchi, soni: P.length, jami, nom, b64: pdf.toString('base64'), mime: 'application/pdf' });

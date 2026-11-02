@@ -118,6 +118,14 @@ async function kechkiHisobot(kod, opt = {}) {
 
 // ------------------------------------------------------------------ zaxiraKunlik (Zaxira.gs) — Koprik v1.16 orqali
 async function zaxiraKunlik(kod, opt = {}) {
+  // 02.11.2026: arxiv yoniq bo'lsa — server o'zi: AKS_BAZA (xlsx) «AKS ARXIV / 99 ZAXIRA» ga (30 kun) va serverdagi fayllar «SERVER NUSXA» ga (fonda)
+  const ARX = require('./arxiv');
+  if (await ARX.yoniq()) {
+    if (opt.quruq) return { quruq: true, xabarlar: [], sabab: 'arxiv yoniq — AKS_BAZA nusxasi server orqali «AKS ARXIV / 99 ZAXIRA» ga (quruq sinovda olinmaydi)' };
+    const r = await ARX.zaxira();
+    ARX.nusxa().then(n => console.log(new Date().toISOString(), 'server fayllari nusxasi:', JSON.stringify(n))).catch(e => console.error('server fayllari nusxasi:', e.message));
+    return { nom: r.nom, arxiv: true };
+  }
   const { verOk } = require('./versiya');
   const v = await koprik.chaqir('koprikVersiya', kod, []);
   if (!verOk(v, '1.16')) throw new Error('Koprik ' + v + ' — zaxira uchun v1.16 kerak (koprikZaxira)');
