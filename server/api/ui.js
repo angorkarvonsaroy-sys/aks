@@ -197,11 +197,18 @@ const TAQIQ = kirishSahifa('Saqlangan kirish eskirgan. Telefon raqamingiz va par
 const KOP = kirishSahifa('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qayta urinib ko\'ring.');
 
 // doGet (Kod.gs) ning serverdagi o'rni
-// 03.11.2026: direktor sahifasida pastki chap burchakda kichik «🛠» — /holat (Tizim holati). Xodimlarda (va «xodim ko'zi bilan» rejimida) yo'q; chop etishda ko'rinmaydi.
-const HOLAT_TUGMA = kod => '<a id="aks-holat-tugma" href="/holat?k=' + encodeURIComponent(kod) + '" title="Tizim holati" aria-label="Tizim holati" ' +
-  'style="position:fixed;left:10px;bottom:10px;z-index:2147483000;width:34px;height:34px;border-radius:50%;background:#0B3D2E;color:#fff;display:flex;' +
-  'align-items:center;justify-content:center;text-decoration:none;font-size:17px;opacity:.55;box-shadow:0 1px 4px rgba(0,0,0,.3)">🛠</a>' +
-  '<style>#aks-holat-tugma:hover{opacity:1}@media print{#aks-holat-tugma{display:none!important}}</style>';
+// 03.11.2026: direktorga «🛠 Тизим ҳолати» (/holat). Kompyuterda — chap menyuning pastki qismida (#yon .pastki, «Созламалар» ustida), boshqa tugmalar
+// bilan bir xil ko'rinishda; menyu yo'q bo'lsa (telefon) — o'ng pastki burchakda oq kichik tugma. Xodimlarda (va «xodim ko'zi bilan» rejimida) yo'q; chop etishda ko'rinmaydi.
+// (Birinchi variant — chap pastki burchakdagi yashil doira — yashil menyu ustida ko'rinmay qoldi.)
+const HOLAT_TUGMA = kod => { const u = '/holat?k=' + encodeURIComponent(kod);
+  return '<a id="aks-holat-tugma" href="' + u + '" title="Тизим ҳолати" style="position:fixed;right:12px;bottom:12px;z-index:60;background:#fff;color:#0B3D2E;' +
+  'border:1px solid #0B3D2E;border-radius:18px;padding:6px 12px;font:600 13px Arial,sans-serif;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.2)">🛠 Ҳолат</a>' +
+  '<style>@media print{#aks-holat-tugma,#aks-holat-yon{display:none!important}}</style>' +
+  '<script>(function(){var U=' + JSON.stringify(u) + ',n=0;function q(){var y=document.getElementById("yon"),p=y&&y.querySelector(".pastki");' +
+  'if(!p||getComputedStyle(y).display==="none")return false;if(!document.getElementById("aks-holat-yon")){var b=document.createElement("button");b.type="button";' +
+  'b.id="aks-holat-yon";b.innerHTML=\'<span class="ik">🛠</span>Тизим ҳолати\';b.onclick=function(){location.href=U};p.insertBefore(b,p.firstChild);}' +
+  'var f=document.getElementById("aks-holat-tugma");if(f)f.style.display="none";return true;}' +
+  'var t=setInterval(function(){if(q()||++n>60)clearInterval(t)},250);})();</script>'; };
 function sahifa(user, kod, bilet) {
   const matn = indexMatn();
   if (!matn) return null;
