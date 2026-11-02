@@ -1,7 +1,8 @@
 // AKS TIZIM — UNDIRUV PORTFELI hisobi serverda (Undiruv.gs v26.3 undPortfel_ + Xat.gs xatShartnomalar_/xatKeyingi_/xatDavo_ + Yurist.gs yuMezon_/yuFaolSet_).
 // Monitoring, bosh sahifa va «Bugungi ish» shunga tayanadi. Natija shakli eski tizim bilan BIR XIL.
 // Farqi: eski undPortfel_ yo'l-yo'lakay ikkita yozuv qilardi — undVadaYangila_ (va'da natijasi) va xatZanjirBelgila_ (yopilgan zanjir).
-// Server yozmaydi: va'da natijasini xuddi shu qoida bilan O'ZI hisoblaydi (javob bir xil chiqadi); zanjir belgilari eski tizimdan (koprikZanjir) olinadi.
+// Va'da natijasini server yozmaydi — xuddi shu qoida bilan O'ZI hisoblaydi (javob bir xil chiqadi). Zanjir belgisini 02.11.2026 dan server o'zi qo'yadi
+// (X.xatZanjirBelgila — server bazasidagi XAT_ZANJIR, eski tizimdagidek portfel har hisoblanganda).
 'use strict';
 const V = require('./varaq');
 const J = require('./jurnallar');
@@ -214,10 +215,11 @@ function undBuyruq(x) {
   return B;
 }
 
-// ------------------------------------------------------------------ undPortfel_ (kod — xat zanjirini ko'prikdan olish uchun xodim kodi)
+// ------------------------------------------------------------------ undPortfel_ (kod — xodim kodi: xat zanjirini bir martalik ko'chirishda ko'prik uchun)
 async function undPortfel(filtr, kod) {
   const bugun = V.bugun();
-  const [UJ, T, XJ, HJ, YF, SH, XSL, Z] = await Promise.all([J.undJurnal(), U.undTolovlar(), J.xatJurnal(), J.hujjatJurnal(), yuFaolSet(), U.undShartnomalar(), xatShartnomalar(bugun), X.xatZanjir(kod)]);
+  const [UJ, T, XJ, HJ, YF, SH, XSL] = await Promise.all([J.undJurnal(), U.undTolovlar(), J.xatJurnal(), J.hujjatJurnal(), yuFaolSet(), U.undShartnomalar(), xatShartnomalar(bugun)]);
+  const Z = await X.xatZanjirBelgila(XSL, XJ, bugun, kod);   // Xat.gs v25.7: yopilgan zanjirlar belgilanadi, keyin o'qiladi
   UJ.forEach(j => { j.vadaNatija = vadaNatija(j, T, bugun); });
   const H = HJ.filter(h => h.holati === 'Faol');
   const L = SH.filter(x => filtr(x) && !YF.yuristda.has(x.no));

@@ -1,7 +1,7 @@
-// AKS TIZIM — 📌 Topshiriqlar (Topshiriq.gs v2.2): topRoyxat (direktor: hamma topshiriqlar + qoidalar) serverda, topQoidaYoz — eski tizim orqali.
-// Qoidalar sozlamasi (TOP_QOIDA) eski tizimning Script Properties'ida turadi — server oxirgi nusxasini Redis'da saqlaydi:
-//   'top_qoida' (muddatsiz) darhol ishlatiladi; 1 soatdan eskirsa — fonda eski tizimdagi topRoyxat orqali yangilanadi;
-//   topQoidaYoz serverdan o'tadi: eski tizimga yozadi va shu zahoti Redis'dagi nusxani ham yangilaydi.
+// AKS TIZIM — 📌 Topshiriqlar (Topshiriq.gs v2.2): topRoyxat (direktor: hamma topshiriqlar + qoidalar) va topQoidaYoz — serverda.
+// Qoidalar sozlamasi (TOP_QOIDA) eski tizimda Script Properties'da turardi; 26.10.2026 dan server Redis'da saqlardi (srv:1),
+// 02.11.2026 dan — server bazasida (server_sozlama 'top_qoida', lib/sozlama.js). Birinchi o'qishda bir marta ko'chiriladi:
+// Redis 'top_qoida' → bo'lmasa eski tizim (ko'prik topRoyxat). Keyin eski tizimga umuman murojaat qilinmaydi.
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -9,33 +9,29 @@ const J = require('../lib/jurnallar');
 const TS = require('../lib/tasdiq');
 const koprik = require('./koprik');
 const { redis } = require('../lib/db');
+const SZ = require('../lib/sozlama');
 
 const TOP_QOIDALAR = [   // [kalit, nomi, muddat kun, kimga]
   ['skan', 'Yangi shartnoma skansiz', 1, 'tuzgan xodim'], ['davo', "Da'vo muddatiga 90 kun qoldi", 7, 'undiruvchi'], ['vada', "Mijoz va'da qilgan sana keldi", 0, 'undiruvchi'],
   ['tolov', "Oylik to'lov o'tdi, to'lov yo'q", 3, 'undiruvchi'], ['xat', 'Ogohlantirish xati yetkazilmagan', 2, 'xatni chiqargan'], ['bekor', 'Bekor qilish skanlari kechikdi', 1, "so'rov kiritgan"],
   ['pasport', 'Mijoz pasporti tugagan / 30 kunda tugaydi', 14, 'biriktirilgan xodim'], ['bepul', 'Ijara bepul davriga 30 kun qoldi', 14, 'ijara mas\'uli'], ['bufer', "Bufer to'lov muddati o'tdi", 1, 'direktor'],
   ['skanq', "Qarzdor shartnomasining skani yo'q", 7, 'kotiba']];
-const QOIDA_ESKI_MS = 60 * 60 * 1000;
 
 // TOP_QOIDA (xom) → har qoida uchun {on, kun} (topQoidaCfg_ bilan bir xil)
 function cfgDan(p) { const o = {}; TOP_QOIDALAR.forEach(q => { const c = (p || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: c.kun === undefined ? q[2] : Number(c.kun) || 0 }; }); return o; }
-async function qoidaKoprikdan(kod) {
+// bir martalik ko'chirish: { qiymat, manba } | null (hozir olib bo'lmadi — keyingi o'qishda yana urinadi)
+async function qoidaEskidan(kod) {
+  try { const s = await redis.get('top_qoida'); if (s) { const z = JSON.parse(s); if (z && z.p && typeof z.p === 'object') return { qiymat: z.p, manba: 'eski:redis' }; } } catch (e) { }
+  if (!koprik.bor()) return { qiymat: {}, manba: 'bosh' };
+  if (!kod) kod = await require('../lib/vaqt').adminKod();
   const r = await koprik.chaqir('topRoyxat', kod, []);
   if (!r || !Array.isArray(r.qoidalar)) return null;
   const p = {}; r.qoidalar.forEach(q => { p[q.k] = { on: q.on, kun: q.kun }; });
-  await redis.set('top_qoida', JSON.stringify({ t: Date.now(), p }));
-  return p;
-}
-function qoidaFonda(kod) {
-  redis.set('top_qoida_qulf', '1', 'NX', 'EX', 180).then(ok => { if (!ok) return;
-    qoidaKoprikdan(kod).catch(e => console.error('top_qoida (fonda):', e.message)).finally(() => redis.del('top_qoida_qulf').catch(() => {}));
-  }).catch(() => {});
+  return { qiymat: p, manba: 'eski:koprik' };
 }
 async function topQoidaCfg(kod) {
-  let z = null; try { const s = await redis.get('top_qoida'); if (s) z = JSON.parse(s); } catch (e) { }
-  // srv:1 — qoidalar serverda saqlangan (asosiy manba), eski tizimdan qayta olinmaydi
-  if (z && z.p) { if (!z.srv && Date.now() - (z.t || 0) > QOIDA_ESKI_MS) qoidaFonda(kod); return cfgDan(z.p); }
-  let p = null; try { p = await qoidaKoprikdan(kod); } catch (e) { console.error('top_qoida (ko\'prik):', e.message); }
+  let p = null;
+  try { p = await SZ.olYokiKochir('top_qoida', () => qoidaEskidan(kod)); } catch (e) { console.error('top_qoida:', e.message); }
   return cfgDan(p || {});
 }
 
@@ -87,14 +83,12 @@ async function topRoyxat([kodSes]) {
     qoidalar: TOP_QOIDALAR.map(q => ({ k: q[0], nom: q[1], kimga: q[3], on: cfg[q[0]].on, kun: cfg[q[0]].kun })),
     son: { ochiq: R.filter(x => x.holati === 'Jarayonda').length, kechikkan: R.filter(x => x.kechikkan).length, tekshiruv: R.filter(x => x.holati === 'Tekshiruvda').length, bugun: R.filter(x => x.holati === 'Bajarildi' && x.yopildi.slice(0, 10) === bugun).length } };
 }
-// qoidalarni saqlash — 26.10.2026 dan SERVERDA (Redis top_qoida, srv:1 — asosiy manba).
+// qoidalarni saqlash — server bazasida (server_sozlama 'top_qoida'). Eski tizimga nusxa endi yozilmaydi (02.11.2026).
 // Tekshiruv va chegaralar Topshiriq.gs v2.2 topQoidaYoz bilan bir xil (on: c.on !== false, kun 0–60).
-// Eski tizimdagi Script Properties nusxasi ham yangilanadi — fonda, zaxira yo'l uchun (javob kutilmaydi).
 async function topQoidaYoz([kodSes, cfg]) {
   const u = await S.ruxsat(kodSes, 'admin');
   const o = {}; TOP_QOIDALAR.forEach(q => { const c = (cfg || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: Math.max(0, Math.min(60, Number(c.kun) || 0)) }; });
-  await redis.set('top_qoida', JSON.stringify({ t: Date.now(), p: o, srv: 1 }));
-  if (koprik.bor()) koprik.chaqir('topQoidaYoz', u.kod, [cfg]).catch(e => console.error('topQoidaYoz (ko\'prik nusxasi):', e.message));
+  await SZ.yoz('top_qoida', o, u.fish);
   return { ok: true };
 }
 

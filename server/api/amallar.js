@@ -120,7 +120,7 @@ Object.assign(A, require('./direktor'));
 Object.assign(A, require('./taminot'));
 // 📦 Ta'minot yozuvlari (taminotKiritish, taminotTasdiq) — aks-yozuv-sinov taminot yoqgandan keyin va Koprik v1.5 bilan; aks holda eski tizim
 Object.assign(A, require('./taminot_yoz'));
-// 📌 topRoyxat (direktor topshiriqlari) — serverda; topQoidaYoz — eski tizim + server nusxasi
+// 📌 topRoyxat (direktor topshiriqlari) va topQoidaYoz (qoidalar — server bazasida, lib/sozlama.js) — serverda
 Object.assign(A, require('./topshiriq'));
 // 📌 topBer (topshiriq berish), topSkanTopilmadi — server o'zi yozadi (aks-yozuv-sinov topshiriq yoqgandan keyin va Koprik v1.5 bilan); aks holda eski tizim
 Object.assign(A, require('./topshiriq_yoz'));

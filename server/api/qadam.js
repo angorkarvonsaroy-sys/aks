@@ -1,6 +1,6 @@
 // AKS TIZIM — ▶ BUGUNGI ISH (Qadam.gs v2.2) o'qishi serverda: qadamBoshlang, qadamMijoz, qadamNazorat, qadamJamoa (+ Ijro.gs ijroQisqa_); qadamKutish (⏸ Kutyapman) — yozadi.
 // Natija eski tizim bilan bir xil. Yozuvlar: undiruv_yoz.js (qadamChora, qadamKechiktir), qadam_yoz.js (qadamOtkaz, qadamDirektorga, …).
-// qdSnap_ (ertalabki navbat, Script Properties QD_NAVBAT_*) — o'qish/yozish Koprik v1.4 koprikQdSnap orqali: eski tizim bilan BITTA ro'yxat.
+// qdSnap_ (ertalabki navbat, eski tizimda Script Properties QD_NAVBAT_*) — 02.11.2026 dan server bazasida (qd_navbat, lib/sozlama.js), ko'priksiz.
 // Koprik eski bo'lsa — Redis'dagi kunlik ro'yxat (faqat server ichida).
 'use strict';
 const S = require('./sessiya');
@@ -13,6 +13,7 @@ const TS = require('../lib/tasdiq');
 const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
 const { redis } = require('../lib/db');
+const SZ = require('../lib/sozlama');
 
 const QD_MAQSAD = 20, QD_TEL = '+998 95-557-88-88';
 const QD_KUTISH = 'Kutilmoqda', QD_KUTISH_TUR = ['skan', 'hj', 'olib'], QD_KUTISH_MAX = 30, QD_SABAB_MIN = 10;   // v2.2
@@ -135,20 +136,16 @@ async function qdTopshiriq(dmy, A, RX, bugun) {
       (A[no] = A[no] || []).push({ tur: 'top', kim: t.yopdi, vaqt: hm(t.yopildi), srt: hm(t.yopildi), ik: '📌', matn: 'Topshiriq: ' + t.sarlavha + (t.dalil ? ' — ' + String(t.dalil).slice(0, 80) : '') }); });
   return T;
 }
-// ertalabki navbat (qdSnap_): eski tizim Script Properties — Koprik v1.4 orqali; bo'lmasa Redis. Qaytaradi {no: 1}
+// ertalabki navbat (qdSnap_): kun boshida navbatda bo'lganlar (+ o'sha paytda bajarilganlar) — kun davomida ro'yxatdan tushmaydi.
+// Server bazasida (qd_navbat). Deploy kuni uchun: bazada hali yo'q bo'lsa — Redis'dagi bugungi nusxa (avvalgi joy, 36 soatda o'zi o'chadi). Qaytaradi {no: 1}
 async function qdSnap(kod, fish, bugun, navbatNo, tugadiNo) {
-  const kalit = 'qd:snap:' + bugun + ':' + Buffer.from(String(fish)).toString('base64url');
-  let S0 = {}; try { const v = await redis.get(kalit); if (v) JSON.parse(v).forEach(n => S0[n] = 1); } catch (e) { }
-  const yangiKun = !Object.keys(S0).length;
-  if (yangiKun && koprik.bor()) {   // kun boshida — eski tizimdagi ro'yxat (u yerda allaqachon bo'lishi mumkin)
-    try { const r = await koprik.chaqir('koprikQdSnap', kod, [fish, bugun, [], []]); if (r && Array.isArray(r.n)) r.n.forEach(n => S0[n] = 1); } catch (e) { if (!/topilmadi/.test(e.message)) console.error('qdSnap (ko\'prik):', e.message); }
-  }
+  let S0 = {}, bazada = null, kochdi = false;
+  try { bazada = await SZ.navbatOl(fish, bugun); } catch (e) { console.error('qdSnap (o\'qish):', e.message); }
+  if (bazada) bazada.forEach(n => S0[n] = 1);
+  else { try { const v = await redis.get('qd:snap:' + bugun + ':' + Buffer.from(String(fish)).toString('base64url')); if (v) { JSON.parse(v).forEach(n => S0[n] = 1); kochdi = Object.keys(S0).length > 0; } } catch (e) { } }
   const yangi = []; const hali = !Object.keys(S0).length;
   navbatNo.concat(hali ? tugadiNo : []).forEach(n => { if (!S0[n]) { S0[n] = 1; yangi.push(n); } });
-  if (yangi.length) {
-    try { await redis.set(kalit, JSON.stringify(Object.keys(S0)), 'EX', 36 * 3600); } catch (e) { }
-    if (koprik.bor()) koprik.chaqir('koprikQdSnap', kod, [fish, bugun, yangi, []]).catch(e => { if (!/topilmadi/.test(e.message)) console.error('qdSnap yozish (ko\'prik):', e.message); });
-  } else if (yangiKun) { try { await redis.set(kalit, JSON.stringify(Object.keys(S0)), 'EX', 36 * 3600); } catch (e) { } }
+  if (yangi.length || kochdi) { try { await SZ.navbatQosh(fish, bugun, Object.keys(S0)); } catch (e) { console.error('qdSnap (yozish):', e.message); } }
   return S0;
 }
 
@@ -888,4 +885,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };
+module.exports._ichki = { qadamXulosa, qdSnap, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };

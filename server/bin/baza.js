@@ -12,6 +12,8 @@
 //   aks-baza ikki solishtir [--tuzat] — hozir: ko'zgu → «baza_tekshir» va «baza» bilan har katak (--tuzat — farqlarni tuzatadi, faqat yoniq bo'lsa)
 //   aks-baza ikki jurnal [jadval|varaq] [--xato] — oxirgi yozuvlar
 //   aks-baza ikki sinov      — qatlamning o'z-o'zini sinovi: ko'zgudagi hamma qator qatlam orqali vaqtinchalik sxemaga (Google'ga va «baza» ga tegmaydi)
+//   aks-baza sozlama [--tuzat] — eski tizim Script Properties o'rniga server sozlamalari (sql/009): xat zanjiri, topshiriq qoidalari,
+//                              bugungi ish navbati; eski tizimdagi nusxa bilan solishtiradi (--tuzat — eskida bo'lib serverda yo'q zanjir belgilarini qo'shadi)
 // Google jadvalga va ilovaga TEGMAYDI (tikla / ikki — faqat ko'zguni Google'dan o'qib yangilaydi). Ilova hali bu jadvallardan o'qimaydi.
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
@@ -150,6 +152,51 @@ async function ikki(db, arg) {
   }
 }
 
+// ---------- ⚙ server sozlamalari (02.11.2026): eski tizim Script Properties o'rniga server bazasi
+async function sozlama(arg) {
+  const SZ = require('../lib/sozlama'), X = require('../lib/xat_yordam'), TQ = require('../api/topshiriq')._ichki, koprik = require('../api/koprik');
+  const tuzat = arg.includes('--tuzat');
+  const kod = koprik.bor() ? await require('../lib/vaqt').adminKod() : '';
+  const vaqt = d => d ? new Date(d).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' }) : '—';
+  const eski = async fn => { if (!koprik.bor()) return { xato: 'ko\'prik sozlanmagan' }; try { return { r: await koprik.chaqir(fn, kod, []) }; } catch (e) { return { xato: e.message }; } };
+  let farqBor = false;
+  // 1. xat zanjiri
+  const Z = await X.xatZanjir(kod), mz = await SZ.malumot('xat_zanjir');
+  console.log('1. XAT ZANJIRI (XAT_ZANJIR) — ' + (mz ? Object.keys(Z).length + ' shartnoma · manba: ' + mz.manba + ' · ' + vaqt(mz.yangilandi) + ' · ' + (mz.kim || '') : '⚠ bazada hali yo\'q (eski joydan ko\'chirib bo\'lmadi)'));
+  const ez = await eski('koprikZanjir');
+  if (ez.xato) console.log('   eski tizim bilan solishtirib bo\'lmadi: ' + ez.xato);
+  else {
+    const E = ez.r || {}, tushgan = [];
+    let teng = 0, yangi = 0;
+    for (const [no, d] of Object.entries(E)) { if (Z[no] === d) teng++; else if (!Z[no] || Z[no] < d) tushgan.push([no, d, Z[no] || '—']); else yangi++; }
+    yangi += Object.keys(Z).filter(no => !(no in E)).length;
+    console.log('   eski tizimda: ' + Object.keys(E).length + ' · bir xil: ' + teng + ' · faqat serverda (server qo\'ygan yangi belgi): ' + yangi + ' · eskida bor, serverda yo\'q/eskiroq: ' + tushgan.length);
+    tushgan.slice(0, 20).forEach(([no, d, z]) => console.log('     ' + chap(no, 10) + ' eski: ' + d + '  server: ' + z));
+    if (tushgan.length && tuzat) { const Y = {}; tushgan.forEach(([no, d]) => { Y[no] = d; }); await SZ.qosh('xat_zanjir', Y, 'aks-baza sozlama --tuzat'); console.log('   ✅ ' + tushgan.length + ' ta belgi serverga qo\'shildi.'); }
+    else if (tushgan.length) { farqBor = true; console.log('   ⚠ Tuzatish: aks-baza sozlama --tuzat'); }
+  }
+  // 2. topshiriq qoidalari
+  const C = await TQ.topQoidaCfg(kod), mq = await SZ.malumot('top_qoida');
+  console.log('\n2. TOPSHIRIQ QOIDALARI (TOP_QOIDA) — ' + (mq ? 'manba: ' + mq.manba + ' · ' + vaqt(mq.yangilandi) + ' · ' + (mq.kim || '') : '⚠ bazada hali yo\'q'));
+  const et = await eski('topRoyxat'), EQ = {};
+  if (!et.xato && et.r && Array.isArray(et.r.qoidalar)) et.r.qoidalar.forEach(q => { EQ[q.k] = q; });
+  let qf = 0;
+  for (const k of Object.keys(C)) {
+    const e = EQ[k], f = e && (e.on !== C[k].on || Number(e.kun) !== C[k].kun);
+    if (f) qf++;
+    console.log('   ' + chap(k, 9) + chap(C[k].on ? 'yoniq' : 'o\'chiq', 8) + ong(C[k].kun, 3) + ' kun' + (e ? (f ? '   ⚠ eski tizimda: ' + (e.on ? 'yoniq' : 'o\'chiq') + ' ' + e.kun + ' kun' : '   = eski') : ''));
+  }
+  if (et.xato) console.log('   eski tizim bilan solishtirib bo\'lmadi: ' + et.xato);
+  else if (qf) console.log('   ℹ ' + qf + ' ta qoida eski tizimdagidan farq qiladi — server qiymati asosiy (direktor oxirgi saqlagani). Eski tizimda o\'zgartirish endi kerak emas.');
+  // 3. bugungi ish navbati
+  const bugun = require('../lib/varaq').bugun();
+  const n = (await require('../lib/db').q(`SELECT count(*)::int x, coalesce(sum(jsonb_array_length(nolar)), 0)::int s, max(yangilandi) t FROM qd_navbat WHERE sana = $1`, [bugun])).rows[0];
+  let rk = 0; try { rk = (await require('../lib/db').redis.keys('qd:snap:' + bugun + ':*')).length; } catch (e) { }
+  console.log('\n3. BUGUNGI ISH NAVBATI (' + bugun + ') — serverda: ' + n.x + ' xodim, ' + n.s + ' shartnoma' + (n.t ? ' · oxirgi: ' + vaqt(n.t) : '') + ' · avvalgi joyda (Redis): ' + rk + ' xodim');
+  console.log('\n' + (farqBor ? '⚠ Farq bor — yuqoriga qarang.' : '✅ Sozlamalar server bazasida.'));
+  if (farqBor) process.exitCode = 2;
+}
+
 (async () => {
   const buyruq = process.argv[2] || 'holat';
   const db = new Client(env.db);
@@ -163,6 +210,8 @@ async function ikki(db, arg) {
       console.log('\nSolishtirish: aks-baza ikki solishtir · «baza» ni qaytadan qurish: aks-baza tikla');
     } else if (buyruq === 'tikla') {
       await tikla(db);
+    } else if (buyruq === 'sozlama') {
+      await sozlama(process.argv.slice(3));
     } else if (buyruq === 'ikki') {
       await ikki(db, process.argv.slice(3));
     } else if (buyruq === 'toldir') {
