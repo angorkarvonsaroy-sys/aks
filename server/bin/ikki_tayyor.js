@@ -46,8 +46,8 @@ const VAQT_YOZADI = { top_avto: '10_Topshiriqlar', und_ertalab: '07c_Ertalab_svo
 
 // ---------- 3. eski tizim chaqiruvlari tasnifi
 const KOPRIK_YOZADI = { koprikTopTasdiqTg: '10 V (Telegram havolasi)', koprikXatTasdiqTg: '06e Y (Telegram havolasi)', koprikHujjatYukla: '06d — yangi qator',
-  koprikSkanNaz: '06d P/Q', topHozir: '10 — topAvto eski tizimda', qaytaHujjatlar: '06k Z, AE (server fonda chaqiradi)', pinKir: '07b_Kirish_jurnali',
-  shartnomaPdf: '03 S — PDF havolasi (server fonda chaqiradi, Drive nusxasi uchun)', ijaraPdf: '04 V — PDF havolasi (server fonda chaqiradi, Drive nusxasi uchun)' };
+  koprikSkanNaz: '06d P/Q', topHozir: '10 — topAvto eski tizimda', qaytaHujjatlar: '06k Z, AE (faqat arxiv o\'chiq bo\'lsa — 02.11 dan server o\'zi yozadi)', pinKir: '07b_Kirish_jurnali',
+  shartnomaPdf: '03 S — PDF havolasi (faqat arxiv o\'chiq bo\'lsa — 02.11 dan server o\'zi yozadi)', ijaraPdf: '04 V — PDF havolasi (faqat arxiv o\'chiq bo\'lsa — 02.11 dan server o\'zi yozadi)' };
 const ZARARSIZ = new Set(('koprikVersiya koprikTgYubor koprikTgChat koprikTgGuruh koprikTg koprikZaxira koprikXatSaqla koprikKbSaqla koprikDevonSaqla koprikDevonTg ' +
   'koprikBekorSaqla koprikHujjatBekorFayl koprikDriveSaqla koprikIsbotSaqla koprikQtPapkaSavat koprikNusxaTozala koprikFaylTikla koprikTamIsbot koprikQdSnap koprikZanjir ' +
   'qadamVersiya').split(/\s+/));

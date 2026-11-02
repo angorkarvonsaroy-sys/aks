@@ -1,10 +1,12 @@
 // AKS TIZIM — 📄 SHARTNOMA PDF: shartnomaPdf (sotuv, Kod.gs v9.7) va ijaraPdf (ijara) serverda.
 // Index pdfYarat: raqam «27/…» → shartnomaPdf, «IJ-27/…» → ijaraPdf; natija { ok, no, nom, b64, pdf, doc, shablon, qolgan, bosh }.
 // Serverda: shablon robot orqali (lib/docs_shablon.js), matn lib/sotuv_hujjat.js / lib/ijara_hujjat.js, PDF Chromium (lib/shablon_pdf.js) — 2–4 s
-// (eski tizim 15–60 s). PDF darhol qaytadi va /opt/aks/hujjat/shartnoma/ ga yoziladi. Drive'dagi Google Doc + PDF nusxasi va 03 S / 04 V
-// ustunidagi havola — FONDA eski tizimning o'zi (shartnomaPdf / ijaraPdf ko'prik orqali, natijasi kutilmaydi; robotda Drive'ga yozish yo'q).
+// (eski tizim 15–60 s). PDF darhol qaytadi va /opt/aks/hujjat/shartnoma/ ga yoziladi. Arxiv o'chiq bo'lsa: Drive'dagi Google Doc + PDF nusxasi va
+// 03 S / 04 V ustunidagi havola — FONDA eski tizimning o'zi (shartnomaPdf / ijaraPdf ko'prik orqali, natijasi kutilmaydi).
 // Direktorga ko'rsatiladigan «Drive'da ochish» / «Google Doc» havolalari — hujjat papkasi (nusxa ~1 daqiqada paydo bo'ladi).
 // Yoqish: aks-yozuv-sinov shpdf (yozuv_yondi:shartnoma_pdf); o'chiq bo'lsa — eski tizim.
+// 02.11.2026 (direktor qarori — faqat PDF): arxiv yoniq bo'lsa (lib/arxiv.js) PDF ni server o'zi «AKS ARXIV / 03 HUJJATLAR / 03.1 | 03.2» ga qo'yadi
+// (qayta yasalsa — o'sha fayl yangilanadi, ID o'zgarmaydi) va 03 S / 04 V ga havolani yozadi. Eski tizim chaqirilmaydi; Google Doc nusxasi endi yo'q.
 'use strict';
 const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
@@ -16,6 +18,8 @@ const env = require('../lib/env');
 const SH = require('../lib/sotuv_hujjat');
 const IJ = require('../lib/ijara_hujjat');
 const PDF = require('../lib/pdf');
+const ARX = require('../lib/arxiv');
+const G = require('../lib/google');
 const fs = require('fs');
 const path = require('path');
 
@@ -28,7 +32,8 @@ const pad = (a, n) => { const o = []; for (let k = 0; k < n; k++) o.push(a && a[
 const fam = mr => s(mr[2]).split(' ')[0];
 
 async function bayroq() { try { return (await BQ.yozuv('shartnoma_pdf')); } catch (e) { return false; } }
-async function serverda() { return (await bayroq()) && koprik.bor() && (await PDF.bor()); }
+// arxiv yoniq bo'lsa eski tizim umuman kerak emas (shablon — robot, PDF — Chromium, Drive — arxiv)
+async function serverda() { return (await bayroq()) && (koprik.bor() || (await ARX.yoniq())) && (await PDF.bor()); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 function diskkaYoz(tur, nom, buf) {
   try { const dir = path.join(env.hujjatPapka || '/opt/aks/hujjat', 'shartnoma', tur); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, nom.replace(/[^\w.-]/g, '_')), buf); }
@@ -47,6 +52,18 @@ async function nusxaTozala(kod, yol, nom) {
     if (r && r.ochirildi) console.log('shartnoma pdf: eski nusxa savatga —', nom, r.ochirildi); }
   catch (e) { console.error('nusxa tozalash (' + nom + '):', e.message); }
 }
+// PDF → arxiv, havola → 03 S (sotuv) / 04 V (ijara) — faqat o'sha qator hali shu shartnoma bo'lsa (fonda, natijasi kutilmaydi)
+const ARX_PAPKA = { sotuv: ['03 HUJJATLAR', '03.1 Sotuv shartnomalari'], ijara: ['03 HUJJATLAR', '03.2 Ijara shartnomalari'] };
+async function arxivga(tur, h, no) {
+  const varaq = tur === 'sotuv' ? '03_Sotuv_shartnomalar' : '04_Ijara_shartnomalar', ustun = tur === 'sotuv' ? 'S' : 'V';
+  const r = await ARX.saqla(ARX_PAPKA[tur], h.nom + '.pdf', h.pdf, { yangi: true });
+  const A = await G.qatorOqi(env.aksBazaId, varaq, h.qator, 'A', env.googleKey).catch(() => []);
+  if (s(A[0]).trim() !== s(no).trim()) { console.error('shartnoma pdf (arxiv): ' + varaq + ' ' + h.qator + '-qator endi ' + s(A[0]) + ' — havola yozilmadi (' + no + ')'); return r; }
+  await G.yoz(env.aksBazaId, [{ varaq, katak: ustun + h.qator, qiymat: [[ARX.url(r.id)]] }], env.googleKey);
+  tetik.varaqlarYangila([varaq]).catch(() => {});
+  return r;
+}
+async function papkaHavola(tur) { try { return (await ARX.papkaUrl(ARX_PAPKA[tur])) || PAPKA[tur]; } catch (e) { return PAPKA[tur]; } }
 async function mijoz(mid) { return ((await V.qatorlar('02_Mijozlar')).find(z => s(z.r[0]) === s(mid)) || { r: null }).r; }   // 02 (displayValues, 25 ustun)
 
 // ---- sotuv: 03 qatori (ko'rinish), 02 mijoz, 03b to'lov jadvali → { pdf, bet, nom, qolgan, bosh, r, mr, shablon }
@@ -84,11 +101,13 @@ async function shartnomaPdf(args) {
   if (!(await serverda())) return eskiTizim('shartnomaPdf', u, [no]);
   const h = await sotuvYasa(no);
   diskkaYoz('sotuv', h.nom + '.pdf', h.pdf);
-  // fonda: eski tizim Drive'ga Google Doc + PDF nusxasini qo'yadi va 03 S ga havolani yozadi (avvalgidek; natijasi kutilmaydi)
-  koprik.chaqir('shartnomaPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
-    .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.1 Sotuv shartnomalari'], h.nom))
-    .then(() => tetik.varaqlarYangila(['03_Sotuv_shartnomalar'])).catch(err => console.error('shartnomaPdf (Drive, eski tizim):', err.message));
-  return { ok: true, no: h.r[0], pdf: u.admin ? PAPKA.sotuv : '', doc: u.admin ? PAPKA.sotuv : '', nom: h.nom + '.pdf', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
+  if (await ARX.yoniq()) arxivga('sotuv', h, no).catch(err => console.error('shartnomaPdf (arxiv):', err.message));   // 02.11: server o'zi
+  else   // eski yo'l: eski tizim Drive'ga Google Doc + PDF nusxasini qo'yadi va 03 S ga havolani yozadi (natijasi kutilmaydi)
+    koprik.chaqir('shartnomaPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
+      .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.1 Sotuv shartnomalari'], h.nom))
+      .then(() => tetik.varaqlarYangila(['03_Sotuv_shartnomalar'])).catch(err => console.error('shartnomaPdf (Drive, eski tizim):', err.message));
+  const ph = u.admin ? await papkaHavola('sotuv') : '';
+  return { ok: true, no: h.r[0], pdf: ph, doc: ph, nom: h.nom + '.pdf', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
 }
 // 📄 ijaraPdf(kod, no) — ijara shartnomasi PDF (ruxsat: shartnoma)
 async function ijaraPdf(args) {
@@ -97,12 +116,15 @@ async function ijaraPdf(args) {
   if (!(await serverda())) return eskiTizim('ijaraPdf', u, [no]);
   const h = await ijaraYasa(no);
   diskkaYoz('ijara', h.nom + '.pdf', h.pdf);
-  koprik.chaqir('ijaraPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
-    .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.2 Ijara shartnomalari'], h.nom))
-    .then(() => tetik.varaqlarYangila(['04_Ijara_shartnomalar'])).catch(err => console.error('ijaraPdf (Drive, eski tizim):', err.message));
-  return { ok: true, no: h.r[0], pdf: u.admin ? PAPKA.ijara : '', doc: u.admin ? PAPKA.ijara : '', nom: h.nom + '.pdf', shablon: h.sotilgan ? 'egasi nomidan' : 'MChJ nomidan', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
+  if (await ARX.yoniq()) arxivga('ijara', h, no).catch(err => console.error('ijaraPdf (arxiv):', err.message));   // 02.11: server o'zi
+  else
+    koprik.chaqir('ijaraPdf', u.kod, [s(no).trim()], { muddat: 300000, urinish: 1 })
+      .then(() => nusxaTozala(u.kod, ['AKS TIZIM', '03 HUJJATLAR', '03.2 Ijara shartnomalari'], h.nom))
+      .then(() => tetik.varaqlarYangila(['04_Ijara_shartnomalar'])).catch(err => console.error('ijaraPdf (Drive, eski tizim):', err.message));
+  const ph = u.admin ? await papkaHavola('ijara') : '';
+  return { ok: true, no: h.r[0], pdf: ph, doc: ph, nom: h.nom + '.pdf', shablon: h.sotilgan ? 'egasi nomidan' : 'MChJ nomidan', qolgan: h.qolgan, bosh: h.bosh, b64: h.pdf.toString('base64'), bet: h.bet, serverda: true };
 }
 
 module.exports = { shartnomaPdf, ijaraPdf };
-module.exports._ichki = { nusxaTozala, koprik17 };
-module.exports._ichki = { sotuvYasa, ijaraYasa, bayroq, PAPKA };
+// (02.11: ikkinchi «_ichki =» birinchisini bosib ketgan edi — qayta.js dagi nusxaTozala chaqiruvi jimgina ishlamas edi; endi bitta)
+module.exports._ichki = { sotuvYasa, ijaraYasa, bayroq, serverda, PAPKA, arxivga, ARX_PAPKA, papkaHavola, nusxaTozala, koprik17 };

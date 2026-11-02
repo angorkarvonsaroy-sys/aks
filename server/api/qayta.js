@@ -666,15 +666,33 @@ async function qaytaHujjatlar(args) {
   // PDF lar diskda (arxiv): /opt/aks/hujjat/qayta/<id>/<nom>
   try { const dir = path.join(env.hujjatPapka || '/opt/aks/hujjat', 'qayta', String(x.id).replace(/[^\w-]/g, '_')); fs.mkdirSync(dir, { recursive: true }); N.forEach(n => fs.writeFileSync(path.join(dir, n.nom), n.pdf)); }
   catch (err) { console.error('qayta hujjat: diskka yozilmadi:', err.message); }
-  // fonda: eski tizimning o'zi Drive papkasi + Google Doc nusxalari + 06k Z va jurnal (avvalgidek; natijasi kutilmaydi)
+  const qtNom = x.id + ' ' + s(x.eski).replace('/', '-') + ' → ' + s(x.yangi).replace('/', '-') + ' ' + s(x.fish).split(' ')[0];
+  // 02.11.2026 (direktor qarori — faqat PDF): arxiv yoniq bo'lsa — 4 ta PDF ni server o'zi «AKS ARXIV / 03 HUJJATLAR / 03.3 Qayta tuzish / <loyiha>» ga
+  // qo'yadi (qayta bosilsa — o'sha fayllar yangilanadi), keyin 06k Z = papka havolasi va jurnal «4 ta hujjat chiqarildi». Eski tizim chaqirilmaydi.
+  if (await ARX.yoniq()) { qtArxivga(x.id, ['03 HUJJATLAR', '03.3 Qayta tuzish', qtNom], N, u.fish).catch(err => console.error('qayta hujjat (arxiv):', err.message)); return natijaQt(N, u, x); }
+  // eski yo'l (arxiv o'chiq): fonda eski tizimning o'zi Drive papkasi + Google Doc nusxalari + 06k Z va jurnal (natijasi kutilmaydi)
   // 23.10: eski qaytaHujjatlar har bosishda papkada yangi Doc + PDF qoldiradi — tayyor bo'lgach eski nusxalar savatga (Koprik ≥ 1.17, shartnoma_pdf.js nusxaTozala)
-  const qtPapka = ['AKS TIZIM', '03 HUJJATLAR', '03.3 Qayta tuzish', x.id + ' ' + s(x.eski).replace('/', '-') + ' → ' + s(x.yangi).replace('/', '-') + ' ' + s(x.fish).split(' ')[0]];
+  const qtPapka = ['AKS TIZIM', '03 HUJJATLAR', '03.3 Qayta tuzish', qtNom];
   koprik.chaqir('qaytaHujjatlar', u.kod, [x.id], { muddat: 300000, urinish: 1 })
     .then(async () => { const SP = require('./shartnoma_pdf')._ichki; for (const n of N) await SP.nusxaTozala(u.kod, qtPapka, s(n.nom).replace(/\.pdf$/, '')); })
     .then(() => yangila([QT_VARAQ])).catch(err => console.error('qayta hujjat (Drive, eski tizim):', err.message));
+  return natijaQt(N, u, x);
+}
+function natijaQt(N, u, x) {
   const qolgan = [].concat(...N.map(n => n.qolgan || []));
   return { ok: true, fayllar: N.map(n => ({ k: n.k, nom: n.nom, b64: n.pdf.toString('base64') })), qolgan: Array.from(new Set(qolgan)), bosh: N[3].bosh || [], papka: u.admin ? s(x.papka) : '' };
 }
+// 4 PDF → arxiv; keyin (qulf ostida, 06k qatori Google'dan yangidan) Z = papka havolasi, AE jurnal — eski qaytaHujjatlar dagidek
+async function qtArxivga(id, papka, N, kim) {
+  for (const n of N) await ARX.saqla(papka, n.nom, n.pdf, { yangi: true });
+  const url = await ARX.papkaUrl(papka);
+  await qulfBilan(async () => {
+    const x = ((await qtRows()) || []).find(z => s(z.id) === s(id)); if (!x) return;   // qtRows — Google'dan yangi
+    const Y = [jurnalKat(x, '4 ta hujjat chiqarildi', kim)]; if (url) Y.unshift(kat(QT_VARAQ, x.qator, 26, url));
+    await yoz(Y);
+  });
+  await yangila([QT_VARAQ]);
+}
 
 module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar, qaytaBekor };
-module.exports._ichki = { bekorYadro, koprik114, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy };
+module.exports._ichki = { bekorYadro, koprik114, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };

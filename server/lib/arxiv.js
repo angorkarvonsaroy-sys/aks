@@ -116,6 +116,17 @@ async function tikla(id, nom) {
   await q('UPDATE arxiv_fayllar SET yol = $2, asl_yol = NULL, yangilandi = now() WHERE id = $1', [r.id, asl]);
   return { ok: true, nom: path.posix.basename(asl) };
 }
+// arxivdagi papka havolasi (direktorga «Drive'da ochish» uchun). Papka hali yo'q bo'lsa — ''
+const papkaKesh = new Map();
+async function papkaUrl(papka) {
+  const yol = papka.map(seg).join('/');
+  if (papkaKesh.has(yol)) return papkaKesh.get(yol);
+  const z = await stat(yol);
+  if (!z || !z.ID) return '';
+  const u = 'https://drive.google.com/drive/folders/' + z.ID;
+  papkaKesh.set(yol, u);
+  return u;
+}
 // «05 MIJOZ HUJJATLARI / <27-123> <Familiya Ism>» (Hujjat.gs hujjatPapka_ bilan bir xil nom)
 const MIJOZ = '05 MIJOZ HUJJATLARI';
 let mijozKesh = { t: 0, L: [] };
@@ -289,4 +300,4 @@ async function nusxa() {
   finally { redis.del('arxiv_nusxa_qulf').catch(() => {}); }
 }
 
-module.exports = { yoniq, bor, chaqir, zaxira, nusxa, saqla, savatga, kochir, tikla, mijozPapka, meniki, stat, ISH, _ichki: { SINOV, rc, seg, url, MAHALLIY, mijozKesh: () => { mijozKesh = { t: 0, L: [] }; } } };
+module.exports = { yoniq, bor, chaqir, zaxira, nusxa, saqla, savatga, kochir, tikla, mijozPapka, meniki, stat, url, papkaUrl, ISH, _ichki: { SINOV, rc, seg, url, MAHALLIY, mijozKesh: () => { mijozKesh = { t: 0, L: [] }; } } };

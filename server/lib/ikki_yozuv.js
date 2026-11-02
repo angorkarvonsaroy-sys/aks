@@ -382,7 +382,7 @@ async function qaytaQolla(db, dan, opt = {}) {
 // ko'zgusi yangilanadi va ko'rsatilgan ustunlarda «baza» dan farq qilgan qatorlar qatlamning o'zi orqali qo'llanadi (jurnalda amal «koprik:<fn>»).
 // Bazada umuman yo'q qator (masalan koprikHujjatYukla qo'shgan) — butun qator olinadi. Harf '*' — barcha ustunlar.
 const KOPRIK_TORT = {
-  shartnomaPdf: [['03_Sotuv_shartnomalar', 'S']],          // skan / PDF havolasi (server fonda chaqiradi)
+  shartnomaPdf: [['03_Sotuv_shartnomalar', 'S']],          // PDF havolasi — faqat arxiv o'chiq bo'lsa (02.11 dan server o'zi yozadi, google.js orqali)
   ijaraPdf: [['04_Ijara_shartnomalar', 'V']],
   qaytaHujjatlar: [['06k_Qayta_tuzish', 'Z AE']],          // hujjat papkasi, jurnal
   koprikTopTasdiqTg: [['10_Topshiriqlar', 'V']],           // Telegram havolasi (fayl robotga ko'rinmasa — Koprik)

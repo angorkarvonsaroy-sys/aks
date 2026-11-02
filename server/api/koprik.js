@@ -80,10 +80,12 @@ async function chaqir(fn, kod, args, opt) {
   } finally { joyBer(); }
 }
 
-// 02.11.2026: eski tizimga AMAL borsa (koprik* yordamchilari — Drive / Telegram / sozlama — va fondagi PDF nusxalari emas) — direktorga xabar,
+// 02.11.2026: eski tizimga AMAL borsa (koprik* yordamchilari — Drive / Telegram / sozlama — emas) — direktorga xabar,
 // har amal uchun soatiga ko'pi bilan bitta. Hamma yozuv bayroqlari yoniq va standart holat kodda (lib/bayroq.js) — bunday chaqiruv bo'lmasligi kerak:
 // bo'lsa — bayroq ataylab o'chirilgan yoki server amalni bajara olmay eski tizimga uzatgan. bekorTasdiq / bekorQaytarish — ataylab eski tizimda (bekor_tasdiq).
-const ESKI_ODATIY = new Set(['shartnomaPdf', 'ijaraPdf', 'qaytaHujjatlar', 'topRoyxat', 'qadamVersiya', 'bekorTasdiq', 'bekorQaytarish']);
+// 02.11 (kechqurun): shartnomaPdf / ijaraPdf / qaytaHujjatlar endi ro'yxatda YO'Q — PDF ning Drive nusxasini server o'zi qo'yadi (lib/arxiv.js);
+// ular eski tizimga borsa — arxiv o'chiq yoki ulanish fayli yo'q (aks-arxiv).
+const ESKI_ODATIY = new Set(['topRoyxat', 'qadamVersiya', 'bekorTasdiq', 'bekorQaytarish']);
 function eskiXabar(fn) {
   if (/^koprik/.test(fn) || ESKI_ODATIY.has(fn)) return;
   try {
