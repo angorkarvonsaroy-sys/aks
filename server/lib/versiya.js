@@ -7,4 +7,19 @@ function verOk(v, min) {
   for (let i = 0; i < Math.max(a.length, b.length); i++) { if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0); }
   return true;
 }
-module.exports = { verOk };
+// 02.11.2026: Koprik versiyasi tekshiruvlari (koprik15, koprik16, … — 15 joy) amalga kerakli koprik* yordamchilari uchun edi. Endi ularni server o'zi bajaradi:
+// Drive — lib/arxiv.js (ISH), Telegram — lib/telegram.js (KOPRIK_ORNI). Ro'yxatdagi HAMMA yordamchi serverda bo'lsa — eski tizim (va uning versiyasi) kerak emas:
+// eski tizim javob bermasa ham amal serverda bajariladi (avval versiya olinmasa amal butunligicha eski tizimga ketardi — u ham ishlamasdi).
+// Bittasi serverda bo'lmasa (bayroq o'chiq, ulanish fayli / TG_TOKEN yo'q) — false: avvalgidek versiya tekshiriladi.
+async function serverOzi(fnlar) {
+  const ARX = require('./arxiv'), TG = require('./telegram');
+  try {
+    for (const fn of fnlar) {
+      if (ARX.ISH[fn]) { if (!(await ARX.yoniq())) return false; continue; }
+      if (TG.KOPRIK_ORNI[fn]) { if (!(await TG.serverda(fn))) return false; continue; }
+      return false;   // server bajarmaydigan yordamchi
+    }
+    return true;
+  } catch (e) { return false; }
+}
+module.exports = { verOk, serverOzi };

@@ -66,6 +66,7 @@ const devonKeyingi = (R, turi) => R.filter(x => x.turi === turi).reduce((m, x) =
 
 let kv = { ok: false, t: 0 };
 async function koprik112(kod) {   // Koprik.gs v1.12 (koprikDevonSaqla, koprikDevonTg) — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
+  if (await require('../lib/versiya').serverOzi(['koprikDevonSaqla', 'koprikDevonTg', 'koprikTgYubor'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.12'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
@@ -199,6 +200,7 @@ const DEVON_TUR = { javob: '✉ Javob xati tayyorlansin', ijro: '📋 Ijro etils
 const DEVON_MATN_MAX = 8000;
 let kv15 = { ok: false, t: 0 };
 async function koprik115(kod) {   // Koprik.gs v1.15 — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
+  if (await require('../lib/versiya').serverOzi(['koprikDevonSaqla', 'koprikDevonTg', 'koprikTgChat', 'koprikTgYubor'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv15.t && Date.now() - kv15.t < (kv15.ok ? 30 : 2) * 60000) return kv15.ok;
   try { kv15 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.15'), t: Date.now() }; } catch (e) { kv15 = { ok: false, t: Date.now() }; }
   return kv15.ok;

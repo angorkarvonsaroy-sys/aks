@@ -42,6 +42,7 @@ async function qulfBilan(ish) {   // LockService o'rni (ta'minot yozuvlari bir v
 }
 let kv = { ok: false, t: 0 };
 async function koprik15(kod) {   // Koprik.gs v1.5 (koprikTgYubor) o'rnatilganmi — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
+  if (await require('../lib/versiya').serverOzi(['koprikTgYubor'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.5'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
@@ -170,6 +171,7 @@ async function taminotTasdiq(args) {
 const TAM_TV = '09b_Taminot_tolovlari';
 let kv19 = { ok: false, t: 0 };
 async function koprik19(kod) {
+  if (await require('../lib/versiya').serverOzi(['koprikTamIsbot', 'koprikTgYubor'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv19.t && Date.now() - kv19.t < (kv19.ok ? 30 : 2) * 60000) return kv19.ok;
   try { kv19 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.19'), t: Date.now() }; } catch (e) { kv19 = { ok: false, t: Date.now() }; }
   return kv19.ok;
@@ -328,6 +330,7 @@ async function taminotTilxat(args) {
 const TAM_AV = '09d_Taminot_dalolatnomalari';
 let kv120 = { ok: false, t: 0 };
 async function koprik120(kod) {
+  if (await require('../lib/versiya').serverOzi(['koprikTamIsbot', 'koprikTgYubor'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv120.t && Date.now() - kv120.t < (kv120.ok ? 30 : 2) * 60000) return kv120.ok;
   try { kv120 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.20'), t: Date.now() }; } catch (e) { kv120 = { ok: false, t: Date.now() }; }
   return kv120.ok;
@@ -411,4 +414,4 @@ async function taminotDalolatnoma(args) {
 }
 
 module.exports = { taminotKiritish, taminotTasdiq, taminotTolov, taminotFirmaQosh, taminotTilxat, taminotDalolatnoma };
-module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15 };
+module.exports._ichki = { kiritishYoz, tasdiqYoz, qatorlarYangi, tamPul, TAM_V, koprik15, koprik19, koprik120 };

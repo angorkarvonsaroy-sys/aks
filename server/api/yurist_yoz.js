@@ -5,7 +5,8 @@
 // Telegram xabari ham eski tizim orqali (koprikTg). Qaysidir imkon bo'lmasa (robotda yozish huquqi yo'q / Koprik eski) —
 // amal butunligicha eski tizimga yuboriladi (avvalgidek ishlaydi, faqat sekinroq). yuristTopBer — hali eski tizimda (topshiriq raqami o'sha yerda beriladi).
 'use strict';
-const { verOk } = require('../lib/versiya');
+const { verOk, serverOzi } = require('../lib/versiya');
+const BQ = require('../lib/bayroq');
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -47,6 +48,8 @@ async function yozishMumkin() {                       // robotda «Редакт�
   imk.yozT = Date.now(); return imk.yoz;
 }
 async function faylMumkin(kod) {                      // Koprik.gs v1.2 o'rnatilganmi (koprikHujjatYukla, koprikTg)
+  // 02.11: skan — serverda (hujjat_yoz yuklaYadro), Telegram — server: eski tizim (va uning versiyasi) kerak emas
+  try { if ((await BQ.yozuv('hujjat')) && (await serverOzi(['koprikTg', 'koprikDriveSaqla']))) return true; } catch (e) { }
   if (imk.fayl !== null && Date.now() - imk.faylT < (imk.fayl ? 30 : 3) * 60000) return imk.fayl;
   try { imk.fayl = koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.2'); }
   catch (e) { imk.fayl = false; }
@@ -177,10 +180,14 @@ async function yuristHolat(args) {
   }));
 }
 
-// Skanni Drive'ga yuklash (eski tizim orqali — hujjatYukla_ bilan aynan bir xil: tekshiruv, papka, nom, 06d yozuvi)
+// Skanni yuklash — hujjatYukla_ bilan aynan bir xil: tekshiruv, papka, nom, 06d yozuvi.
+// 02.11.2026: serverda (api/hujjat_yoz.js yuklaYadro — xat isboti, bekor, kelishuv, qayta tuzish skanlari ham shu bilan; fayl Drive'ga fonda — arxiv).
+// «hujjat» bayrog'i ataylab o'chirilgan bo'lsa — avvalgidek eski tizim (koprikHujjatYukla).
 async function skanYukla(u, i0, m) {
   const x = (await U.undShartnomalar()).find(z => z.no === i0.no) || { no: i0.no, fish: i0.fish, dokon: i0.dokon };
-  const hr = await koprik.chaqir('koprikHujjatYukla', u.kod, [m, { no: i0.no, tur: 'sotuv', fish: x.fish, dokon: x.dokon }]);
+  const sh = { no: i0.no, tur: 'sotuv', fish: x.fish, dokon: x.dokon };
+  if (await BQ.yozuv('hujjat')) { const r = await require('./hujjat_yoz')._ichki.yuklaYadro(u, m, sh); return (r && r.nom) || ''; }
+  const hr = await koprik.chaqir('koprikHujjatYukla', u.kod, [m, sh]);
   if (!hr || hr.mavjud) throw new S.Xato((hr && hr.xabar) || 'Skan yuklanmadi.');
   return hr.nom || '';
 }
@@ -364,3 +371,4 @@ async function yuristHujjat(args) {
 }
 
 module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat };
+module.exports._ichki = { faylMumkin, skanYukla };

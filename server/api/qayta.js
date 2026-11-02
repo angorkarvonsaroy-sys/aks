@@ -199,12 +199,14 @@ async function qaytaOchiq(args) {
 // ------------------------------------------------------------------ yozuv yordamchilari
 let kv14 = { ok: false, t: 0 };
 async function koprik114(kod) {   // qaytaBekor: koprikQtPapkaSavat (v1.14)
+  if (await require('../lib/versiya').serverOzi(['koprikQtPapkaSavat'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv14.t && Date.now() - kv14.t < (kv14.ok ? 30 : 2) * 60000) return kv14.ok;
   try { kv14 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.14'), t: Date.now() }; } catch (e) { kv14 = { ok: false, t: Date.now() }; }
   return kv14.ok;
 }
 let kv = { ok: false, t: 0 };
 async function koprik16(kod) {
+  if (await require('../lib/versiya').serverOzi(['koprikHujjatBekorFayl', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.6'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
@@ -695,4 +697,4 @@ async function qtArxivga(id, papka, N, kim) {
 }
 
 module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar, qaytaBekor };
-module.exports._ichki = { bekorYadro, koprik114, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };
+module.exports._ichki = { bekorYadro, koprik114, koprik16, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };

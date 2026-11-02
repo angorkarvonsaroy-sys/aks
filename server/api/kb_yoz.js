@@ -43,8 +43,8 @@ async function koprikVer(kod) {   // Koprik.gs versiyasi — 30 daqiqa kesh (oli
   try { kver = { v: koprik.bor() ? String(await koprik.chaqir('koprikVersiya', kod, [])) : '', t: Date.now() }; } catch (e) { kver = { v: '', t: Date.now() }; }
   return kver.v;
 }
-async function koprik112(kod) { return verOk(await koprikVer(kod), '1.12'); }   // koprikKbSaqla (PDF + Word)
-async function koprik113(kod) { return verOk(await koprikVer(kod), '1.13'); }   // koprikKbSaqla skan
+async function koprik112(kod) { if (await require('../lib/versiya').serverOzi(['koprikKbSaqla'])) return true; return verOk(await koprikVer(kod), '1.12'); }   // koprikKbSaqla (PDF + Word)
+async function koprik113(kod) { if (await require('../lib/versiya').serverOzi(['koprikKbSaqla', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat'])) return true; return verOk(await koprikVer(kod), '1.13'); }   // koprikKbSaqla skan
 async function serverda() { try { return (await BQ.yozuv('kb')) && (await PDF.bor()); } catch (e) { return false; } }
 async function serverda2(kod) { try { if (!(await BQ.yozuv('kb2'))) return false; } catch (e) { return false; } return koprik113(kod); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args, { muddat: 120000, urinish: 1 }); await tetik.yangilaKut(20000); return r; }
@@ -315,7 +315,7 @@ async function kbTasdiq(args) {
 // skan → Drive (fon): Koprik v1.13 koprikKbSaqla { yil, skanNom, skanB64 } → { skan }; 06m P ga Drive ID (agar hali shu SRV bo'lsa)
 const skanYolda = new Set();
 async function skanDriveGa(kod, k, urinish = 0) {
-  if (!koprik.bor() || skanYolda.has(k.rel)) return null;
+  if (!(await ARX.bor()) || skanYolda.has(k.rel)) return null;   // 02.11: arxiv yoki ko'prik
   if (!(await ARX.yoniq()) && !(await koprik113(kod))) { if (urinish < 3) setTimeout(() => skanDriveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
   skanYolda.add(k.rel);
   try {
@@ -340,7 +340,7 @@ async function skanDriveGa(kod, k, urinish = 0) {
 // ------------------------------------------------------------------ Drive'ga ko'chirish (fon) — Koprik v1.12 koprikKbSaqla → «AKS TIZIM / 07 BEKOR QILISH / Kelishuv / <yil>»
 const yolda = new Set();
 async function driveGa(kod, k, urinish = 0) {
-  if (!koprik.bor() || yolda.has(k.pdfRel)) return null;
+  if (!(await ARX.bor()) || yolda.has(k.pdfRel)) return null;   // 02.11: arxiv yoki ko'prik
   if (!(await ARX.yoniq()) && !(await koprik112(kod))) { if (urinish < 3) setTimeout(() => driveGa(kod, k, urinish + 1).catch(() => {}), 10 * 60000).unref(); return null; }
   yolda.add(k.pdfRel);
   try {
@@ -366,7 +366,7 @@ async function driveGa(kod, k, urinish = 0) {
 // Har 15 daqiqada: hali Drive'ga ko'chmagan (SRV:) qatorlar bo'lsa — qayta urinish (Koprik yangilanmagan / internet uzilgan / server qayta ishga tushgan bo'lsa)
 let aylanmoqda = false;
 async function qolganlarniKochir() {
-  if (aylanmoqda || !koprik.bor()) return; aylanmoqda = true;
+  const ul = await ARX.bor(); if (aylanmoqda || !ul) return; aylanmoqda = true;   // 02.11: arxiv yoki ko'prik
   try {
     const R = await KBH.kbRowsKozgu();
     const L = R.filter(z => /^SRV:kb\//.test(z.pdf) && /^SRV:kb\//.test(z.doc)), Ls = R.filter(z => /^SRV:kb\//.test(z.skan));

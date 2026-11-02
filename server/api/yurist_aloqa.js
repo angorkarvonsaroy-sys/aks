@@ -44,7 +44,7 @@ async function koprikVer(kod) {   // 30 daqiqa kesh (1.11 dan past / xato bo'lsa
   try { kv = { ver: koprik.bor() ? String(await koprik.chaqir('koprikVersiya', kod, [])) : '', t: Date.now() }; } catch (e) { kv = { ver: '', t: Date.now() }; }
   return kv.ver;
 }
-async function koprik111(kod) { const v = await koprikVer(kod); return !!v && verOk(v, '1.11'); }   // koprikXatSaqla .docx ni qabul qiladi
+async function koprik111(kod) { if (await require('../lib/versiya').serverOzi(['koprikXatSaqla', 'koprikDriveSaqla'])) return true; const v = await koprikVer(kod); return !!v && verOk(v, '1.11'); }   // koprikXatSaqla .docx ni qabul qiladi
 async function serverda(kod) {
   try { if (!(await BQ.yozuv('yurist_aloqa'))) return false; } catch (e) { return false; }
   return koprik111(kod);
@@ -83,7 +83,7 @@ async function qatorYoz(varaq, q) {
 // k = { raqam, yil, pRel, dRel }. Ko'chgach 06g I / J ga Drive ID (agar hali o'sha SRV turgan bo'lsa — aks holda yuklangan nusxa savatga).
 const yolda = new Set();
 async function driveGa(kod, k, urinish = 0) {
-  if (!koprik.bor() || yolda.has(k.raqam)) return null;
+  const ul = await ARX.bor(); if (!ul || yolda.has(k.raqam)) return null;   // 02.11: arxiv yoki ko'prik
   yolda.add(k.raqam);
   try {
     if (!(await ARX.yoniq()) && !(await koprik111(kod))) return null;
@@ -110,7 +110,7 @@ async function driveGa(kod, k, urinish = 0) {
 // Har 15 daqiqada: 06g da hali «SRV:» turgan xatlar (Koprik yangilanmagan / internet uzilgan / server qayta ishga tushgan bo'lsa)
 let aylanmoqda = false;
 async function qolganlarniKochir() {
-  if (aylanmoqda || !koprik.bor()) return; aylanmoqda = true;
+  const ul = await ARX.bor(); if (aylanmoqda || !ul) return; aylanmoqda = true;   // 02.11: arxiv yoki ko'prik
   try {
     const L = (await J.yuxJurnal()).filter(h => /^SRV:/.test(h.pdf) || /^SRV:/.test(h.doc));
     if (!L.length) return;

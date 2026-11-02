@@ -42,6 +42,7 @@ async function qulfBilan(ish) {   // LockService o'rni (server ichidagi topshiri
 }
 let kv = { ok: false, t: 0 };
 async function koprik15(kod) {   // Koprik.gs v1.5 (koprikTgChat) — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
+  if (await require('../lib/versiya').serverOzi(['koprikTgChat'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.5'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;

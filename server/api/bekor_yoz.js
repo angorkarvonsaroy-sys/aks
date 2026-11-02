@@ -52,8 +52,8 @@ async function koprikVer(kod) {   // eski tizim ko'prigi versiyasi — 30 daqiqa
   try { kv = { ver: koprik.bor() ? String(await koprik.chaqir('koprikVersiya', kod, [])) : '', t: Date.now() }; } catch (e) { kv = { ver: '', t: Date.now() }; }
   return kv.ver;
 }
-async function koprik19(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.9'); }    // koprikBekorSaqla
-async function koprik110(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.10'); }  // koprikBekorSaqla Word (.docx) faylini qabul qiladi
+async function koprik19(kod) { if (await require('../lib/versiya').serverOzi(['koprikBekorSaqla', 'koprikDriveSaqla'])) return true; const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.9'); }    // koprikBekorSaqla
+async function koprik110(kod) { if (await require('../lib/versiya').serverOzi(['koprikBekorSaqla'])) return true; const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.10'); }  // koprikBekorSaqla Word (.docx) faylini qabul qiladi
 async function serverda(kod) {
   try { if (!(await BQ.yozuv('bekor'))) return false; } catch (e) { return false; }
   return koprik19(kod);
@@ -233,7 +233,7 @@ async function navbatdan(id, k) {
     await redis.del('bekor_kochir:' + id); await redis.srem('bekor_kochir', String(id)); } catch (e) { }
 }
 async function driveGa(kod, id, k, urinish = 0) {
-  if (!koprik.bor() || yolda.has(id + '|' + k.bRel)) return null;
+  const ul = await ARX.bor(); if (!ul || yolda.has(id + '|' + k.bRel)) return null;   // 02.11: arxiv yoki ko'prik
   yolda.add(id + '|' + k.bRel);
   try {
     const b64 = rel => fs.readFileSync(path.join(ILDIZ, rel)).toString('base64');
@@ -268,7 +268,7 @@ async function driveGa(kod, id, k, urinish = 0) {
 // Har 15 daqiqada: navbatda qolganlar (Koprik yangilanmagan / internet uzilgan / server qayta ishga tushgan bo'lsa)
 let aylanmoqda = false;
 async function qolganlarniKochir() {
-  if (aylanmoqda || !koprik.bor()) return; aylanmoqda = true;
+  const ul = await ARX.bor(); if (aylanmoqda || !ul) return; aylanmoqda = true;   // 02.11: arxiv yoki ko'prik
   try {
     const ids = await redis.smembers('bekor_kochir'); if (!ids.length) return;
     const { q } = require('../lib/db');

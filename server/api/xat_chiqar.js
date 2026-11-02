@@ -44,6 +44,7 @@ const verSon = v => s(v).split('.').map(n => Number(n) || 0);
 function verOk(v, min) { const a = verSon(v), b = verSon(min); for (let i = 0; i < Math.max(a.length, b.length); i++) { if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0); } return true; }
 let kv = { ok: false, t: 0 };
 async function koprik18(kod) {   // Koprik.gs v1.8 (koprikXatSaqla) — 30 daqiqa kesh (yo'q bo'lsa 2 daqiqa)
+  if (await require('../lib/versiya').serverOzi(['koprikXatSaqla'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv.t && Date.now() - kv.t < (kv.ok ? 30 : 2) * 60000) return kv.ok;
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.8'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
@@ -102,7 +103,7 @@ async function qatorYoz(varaq, q) {
 // Koprik v1.8 koprikXatSaqla → «AKS TIZIM / 06 XATLAR / <yil>»; ko'chgach 06e O ga Drive ID (agar O hali shu SRV bo'lsa — aks holda xat shu orada
 // qayta yasalgan: yuklangan nusxa savatga). eski — almashtirilgan xatning Drive ID si (xatQaytaYasa: setTrashed).
 async function driveGa(kod, f, urinish = 0) {
-  if (!koprik.bor()) return;
+  if (!(await ARX.bor())) return;   // 02.11: arxiv yoki ko'prik
   try {
     const b64 = fs.readFileSync(path.join(ILDIZ, f.rel)).toString('base64');
     const r = await ARX.chaqir('koprikXatSaqla', kod, [{ yil: f.yil, nom: f.nom, b64, eski: f.eski || '' }]);
@@ -130,7 +131,7 @@ async function driveGa(kod, f, urinish = 0) {
 // Har 15 daqiqada: 06e da hali «SRV:» turgan xatlar (Koprik yangilanmagan / internet uzilgan bo'lsa)
 let yolda = false;
 async function qolganlarniKochir() {
-  if (yolda || !koprik.bor()) return; yolda = true;
+  const ul = await ARX.bor(); if (yolda || !ul) return; yolda = true;   // 02.11: arxiv yoki ko'prik
   try {
     const L = (await XI.xatlarYangi(XAT_V)).filter(h => /^SRV:/.test(s(h.pdf)));
     if (!L.length) return;

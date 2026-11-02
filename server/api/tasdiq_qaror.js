@@ -291,6 +291,7 @@ async function tqTogri(u, q, ctx) {
 // Jadvallar, 06q uzrli, Telegram — server; Drive'da faylni asl nomi/papkasiga qaytarish — Koprik v1.18 koprikFaylTikla (fonda; xato e'tiborsiz — eski kodda ham try/catch).
 let kv18 = { ok: false, t: 0 };
 async function koprik18(kod) {
+  if (await require('../lib/versiya').serverOzi(['koprikFaylTikla'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv18.t && Date.now() - kv18.t < (kv18.ok ? 30 : 2) * 60000) return kv18.ok;
   try { kv18 = { ok: koprik.bor() && require('../lib/versiya').verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.18'), t: Date.now() }; } catch (e) { kv18 = { ok: false, t: Date.now() }; }
   return kv18.ok;

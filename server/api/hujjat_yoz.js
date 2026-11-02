@@ -121,7 +121,7 @@ function kochdiBelgi(rel) {
 }
 // Fon: faylni Drive'ga ko'chirish (Koprik v1.3 koprikDriveSaqla) → 06d I ustuniga Drive ID. Muvaffaqiyatsiz bo'lsa — 10 daqiqadan keyin yana (3 marta).
 async function driveGaKochir(kod, f, urinish = 0) {
-  if (!koprik.bor()) return;
+  if (!(await ARX.bor())) return;   // 02.11: arxiv yoniq bo'lsa ko'prik shart emas
   try {
     const b64 = fs.readFileSync(f.yol).toString('base64');
     const r = await ARX.chaqir('koprikDriveSaqla', kod, [{ no: f.no, fish: f.fish, nom: f.nom, b64 }]);
@@ -144,7 +144,7 @@ async function driveGaKochir(kod, f, urinish = 0) {
 // Har 15 daqiqada: hali Drive'ga ko'chmagan (SRV:) fayllar bo'lsa — qayta urinish (Koprik yangilanmagan / internet uzilgan bo'lsa)
 let yolda = false;
 async function qolganlarniKochir() {
-  if (yolda || !koprik.bor()) return; yolda = true;
+  const ul = await ARX.bor(); if (yolda || !ul) return; yolda = true;   // 02.11: arxiv yoki ko'prik
   try {
     const L = (await J.hujjatJurnal()).filter(h => /^SRV:/.test(String(h.faylId)));
     if (!L.length) return;
@@ -176,6 +176,7 @@ const s_ = v => String(v == null ? '' : v);
 function hozirHm() { return hozir().slice(0, 16); }
 let kv16 = { ok: false, t: 0 };
 async function koprik16(kod) {
+  if (await require('../lib/versiya').serverOzi(['koprikHujjatBekorFayl', 'koprikDriveSaqla'])) return true;   // 02.11: yordamchilarni server o'zi bajaradi — eski tizim versiyasi kerak emas (lib/versiya.js)
   if (kv16.t && Date.now() - kv16.t < (kv16.ok ? 30 : 2) * 60000) return kv16.ok;
   try { kv16 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.6'), t: Date.now() }; } catch (e) { kv16 = { ok: false, t: Date.now() }; }
   return kv16.ok;
