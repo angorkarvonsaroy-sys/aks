@@ -7,6 +7,7 @@
 // Eski tizim xato qaytarsa (masalan shu orada Telegram tugmasi bilan tasdiqlangan) — isbot ro'yxatga qaytadi, direktorga Telegram, yozuv_ogoh.
 // Yoqilishi: Redis yozuv_yondi:tasdiq = 1 (aks-yozuv-sinov tasdiq). Yo'q bo'lsa — avvalgidek eski tizim kutiladi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const J = require('../lib/jurnallar');
 const V = require('../lib/varaq');
@@ -22,7 +23,7 @@ const rol = u => (u.huquq || []).indexOf('admin') >= 0 ? 'Direktor' : (u.huquq |
 function hozirDmyHm() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
   return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
 async function ogoh(xab) { try { await redis.lpush('yozuv_ogoh', JSON.stringify(Object.assign({ vaqt: hozirDmyHm() }, xab))); await redis.ltrim('yozuv_ogoh', 0, 49); } catch (e) { } }
-async function yoqilgan() { try { return (await redis.get('yozuv_yondi:tasdiq')) === '1'; } catch (e) { return false; } }
+async function yoqilgan() { try { return (await BQ.yozuv('tasdiq')); } catch (e) { return false; } }
 async function kutilmoqda() { try { return (await redis.hgetall(KUT)) || {}; } catch (e) { return {}; } }
 
 // topKimga_ (skan qaytarilganda kimga topshiriq ketishini javobda aytish uchun)

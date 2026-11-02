@@ -9,6 +9,7 @@
 //              qulfdan keyin skan 06d ga «QOSHIMCHA_KELISHUV» bo'lib (hujjat_yoz yuklaYadro — serverda, Drive fonda), 01 nazorati; ✖: «Rad etildi» + T:V; xodim(lar)ga Telegram.
 // Yoqilishi: kbTayyorla — Redis yozuv_yondi:kb («aks-yozuv-sinov kb»); kbSkan/kbBekor/kbTasdiq — yozuv_yondi:kb2 («aks-yozuv-sinov kb2», Koprik ≥ 1.13). Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -43,8 +44,8 @@ async function koprikVer(kod) {   // Koprik.gs versiyasi — 30 daqiqa kesh (oli
 }
 async function koprik112(kod) { return verOk(await koprikVer(kod), '1.12'); }   // koprikKbSaqla (PDF + Word)
 async function koprik113(kod) { return verOk(await koprikVer(kod), '1.13'); }   // koprikKbSaqla skan
-async function serverda() { try { return (await redis.get('yozuv_yondi:kb')) === '1' && (await PDF.bor()); } catch (e) { return false; } }
-async function serverda2(kod) { try { if ((await redis.get('yozuv_yondi:kb2')) !== '1') return false; } catch (e) { return false; } return koprik113(kod); }
+async function serverda() { try { return (await BQ.yozuv('kb')) && (await PDF.bor()); } catch (e) { return false; } }
+async function serverda2(kod) { try { if (!(await BQ.yozuv('kb2'))) return false; } catch (e) { return false; } return koprik113(kod); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args, { muddat: 120000, urinish: 1 }); await tetik.yangilaKut(20000); return r; }
 async function qulfBilan(ish) {   // LockService.getScriptLock() o'rni
   const kalit = 'qulf:kb', belgi = crypto.randomBytes(8).toString('hex'), t0 = Date.now();

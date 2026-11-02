@@ -6,6 +6,7 @@
 // Direktorga javobda Drive havolasi («Drive'da ochish») — eski tizimdagidek: fayl ko'chishi 15 soniyagacha kutiladi (ko'chmasa havola bo'sh).
 // Yoqilishi: Redis yozuv_yondi:xat_chiqar («aks-yozuv-sinov xatchiqar») va Koprik ≥ 1.8. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -47,7 +48,7 @@ async function koprik18(kod) {   // Koprik.gs v1.8 (koprikXatSaqla) — 30 daqiq
   return kv.ok;
 }
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:xat_chiqar')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('xat_chiqar'))) return false; } catch (e) { return false; }
   return koprik18(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

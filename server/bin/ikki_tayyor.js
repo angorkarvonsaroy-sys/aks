@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const env = require('../lib/env');
 const { q, redis, pool } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const G = require('../lib/google');
 process.stdout.on('error', e => { if (e.code === 'EPIPE') process.exit(0); });
 
@@ -29,9 +30,10 @@ function koddagiBayroqlar() {
     for (const f of fayllar) {
       if (/yozuv_sinov|ikki_tayyor/.test(f)) continue;
       const t = fs.readFileSync(path.join(ILOVA, d, f), 'utf8');
-      for (const m of t.matchAll(/yozuv_yondi:([a-z0-9_]+)/g)) { if (!B.has(m[1])) B.set(m[1], new Set()); B.get(m[1]).add(d + '/' + f); }
+      for (const m of t.matchAll(/(?:yozuv_yondi:|BQ\.yozuv\(')([a-z0-9_]+)/g)) { if (!B.has(m[1])) B.set(m[1], new Set()); B.get(m[1]).add(d + '/' + f); }
     }
   }
+  for (const n of require('../lib/bayroq').YOZUV_NOMLAR) if (!B.has(n)) B.set(n, new Set(['lib/bayroq.js']));   // 02.11: ro'yxat lib/bayroq.js da
   return B;
 }
 // o'chiq bo'lsa ham jadvalga yozmaydigan (faqat hujjat / eksport / o'qish) bayroqlar
@@ -70,7 +72,7 @@ const C09 = [['D', 3, 'STIR', 9], ['E', 4, 'Hisob raqam (h/r)', 20], ['G', 6, 'M
   const redisda = new Set((await redis.keys('yozuv_yondi:*')).map(k => k.replace('yozuv_yondi:', '')));
   const nomlar = [...new Set([...B.keys(), ...redisda])].sort();
   const ochiq = [];
-  for (const n of nomlar) { const yoq = (await redis.get('yozuv_yondi:' + n)) === '1'; if (!yoq) ochiq.push(n); }
+  for (const n of nomlar) { const yoq = (await BQ.yozuv(n)); if (!yoq) ochiq.push(n); }
   const yoqilgan = nomlar.length - ochiq.length;
   console.log('Kodda ' + B.size + ' ta bayroq' + (redisda.size ? ', Redis\'da ' + redisda.size + ' ta' : '') + ' → 🟢 yoqilgan: ' + yoqilgan + ' · ⚪ o\'chiq: ' + ochiq.length);
   let xavfliBayroq = 0;

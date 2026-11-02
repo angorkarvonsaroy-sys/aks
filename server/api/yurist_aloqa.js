@@ -7,6 +7,7 @@
 // (eski tizimda Word o'rnida Google Doc edi — endi .docx fayl; «Word» tugmasi serverdagi nusxani beradi).
 // Yoqilishi: Redis yozuv_yondi:yurist_aloqa («aks-yozuv-sinov aloqa») va Koprik ≥ 1.11. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -44,7 +45,7 @@ async function koprikVer(kod) {   // 30 daqiqa kesh (1.11 dan past / xato bo'lsa
 }
 async function koprik111(kod) { const v = await koprikVer(kod); return !!v && verOk(v, '1.11'); }   // koprikXatSaqla .docx ni qabul qiladi
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:yurist_aloqa')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('yurist_aloqa'))) return false; } catch (e) { return false; }
   return koprik111(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

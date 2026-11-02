@@ -5,6 +5,7 @@
 //     topshiriq + 06p qatori). Zinapoya «bir marta xabar» holati — Redis (ijro_zina:<oy>:<xodim>; eski tizimda Script Properties — alohida).
 // Yoqilishi: Redis yozuv_yondi:ijro_tekshir («aks-yozuv-sinov tekshir») va Koprik ≥ 1.5 (Telegram). Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const G = require('../lib/google');
@@ -45,7 +46,7 @@ const ustunHarf = n => { let r = ''; while (n > 0) { const m = (n - 1) % 26; r =
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
 
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:ijro_tekshir')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('ijro_tekshir'))) return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

@@ -8,6 +8,7 @@
 //   taminotTilxat    — naqd pul tilxati (PDF; jadvalga ham, Drive'ga ham yozmaydi)
 //   taminotDalolatnoma — haftalik qabul qilish-topshirish dalolatnomasi (PDF server, Drive — Koprik ≥ 1.20)
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
 const S = require('./sessiya');
@@ -45,7 +46,7 @@ async function koprik15(kod) {   // Koprik.gs v1.5 (koprikTgYubor) o'rnatilganmi
   return kv.ok;
 }
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:taminot')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('taminot'))) return false; } catch (e) { return false; }
   return koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

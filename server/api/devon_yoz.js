@@ -12,6 +12,7 @@
 //   («aks-yozuv-sinov devonxat» — eski tizim yasagan xatlar bilan so'zma-so'z). Tekshiruvlar, xato matnlari, kataklar, tarix, JSON (R) va Telegram matnlari — Devon.gs bilan aynan.
 //   Fayllar (skan, isbot, kvitansiya, PDF/Word) — eski tizimdagidek darhol direktor Drive'iga («08 DEVONXONA / Kirim|Chiqim|Ijro / <yil>»), jadvalda Drive ID.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const { verOk } = require('../lib/versiya');
 const S = require('./sessiya');
@@ -69,7 +70,7 @@ async function koprik112(kod) {   // Koprik.gs v1.12 (koprikDevonSaqla, koprikDe
   return kv.ok;
 }
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:devon')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('devon'))) return false; } catch (e) { return false; }
   return koprik112(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args, { muddat: 120000, urinish: 1 }); await tetik.yangilaKut(20000); return r; }
@@ -154,7 +155,7 @@ async function devonKirimSaqla(args) {
 
 // ------------------------------------------------------------------ v1.5: direktor kirim xatni ko'rdi (devonKordi_)
 const devonIjro = x => { try { return JSON.parse(x.ijro || '{}') || {}; } catch (e) { return {}; } };
-async function kordiServerda() { try { return (await redis.get('yozuv_yondi:devon_kordi')) === '1'; } catch (e) { return false; } }
+async function kordiServerda() { try { return (await BQ.yozuv('devon_kordi')); } catch (e) { return false; } }
 // yozuv yadrosi (sinov ham shuni ishlatadi): R — JSON (avvalgi maydonlar + kordi), S — tarix. Qaytaradi kordi vaqti
 async function devonKordiYoz(varaq, x, fish) {
   const J = devonIjro(x);
@@ -201,8 +202,8 @@ async function koprik115(kod) {   // Koprik.gs v1.15 — 30 daqiqa kesh (yo'q bo
   try { kv15 = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.15'), t: Date.now() }; } catch (e) { kv15 = { ok: false, t: Date.now() }; }
   return kv15.ok;
 }
-async function bayroq2() { try { return (await redis.get('yozuv_yondi:devon2')) === '1'; } catch (e) { return false; } }
-async function bayroqXat() { try { return (await redis.get('yozuv_yondi:devon_xat')) === '1'; } catch (e) { return false; } }
+async function bayroq2() { try { return (await BQ.yozuv('devon2')); } catch (e) { return false; } }
+async function bayroqXat() { try { return (await BQ.yozuv('devon_xat')); } catch (e) { return false; } }
 async function serverda2(kod) { return (await serverda(kod)) && (await bayroq2()) && koprik115(kod); }
 async function serverdaXat(kod) { return (await serverda2(kod)) && bayroqXat(); }
 async function topQulf(ish) {   // 10_Topshiriqlar yozuvlari — topshiriq_yoz.js / qadam_yoz.js / qayta.js bilan bitta qulf (devon qulfi ichida)

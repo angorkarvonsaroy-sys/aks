@@ -6,6 +6,7 @@
 // Direktorga ko'rsatiladigan «Drive'da ochish» / «Google Doc» havolalari — hujjat papkasi (nusxa ~1 daqiqada paydo bo'ladi).
 // Yoqish: aks-yozuv-sinov shpdf (yozuv_yondi:shartnoma_pdf); o'chiq bo'lsa — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const koprik = require('./koprik');
@@ -26,7 +27,7 @@ const PAPKA = {   // AKS TIZIM / 03 HUJJATLAR / … (eski papka_ shu nomlar bila
 const pad = (a, n) => { const o = []; for (let k = 0; k < n; k++) o.push(a && a[k] !== undefined && a[k] !== null ? a[k] : ''); return o; };
 const fam = mr => s(mr[2]).split(' ')[0];
 
-async function bayroq() { try { return (await redis.get('yozuv_yondi:shartnoma_pdf')) === '1'; } catch (e) { return false; } }
+async function bayroq() { try { return (await BQ.yozuv('shartnoma_pdf')); } catch (e) { return false; } }
 async function serverda() { return (await bayroq()) && koprik.bor() && (await PDF.bor()); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 function diskkaYoz(tur, nom, buf) {

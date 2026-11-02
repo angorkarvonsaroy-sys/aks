@@ -60,6 +60,7 @@ async function chaqir(fn, kod, args, opt) {
     if (koprikka) jurnal(fn, Date.now() - t0, true, 'fayl robotga ko\'rinmadi → Koprik', 'tg');   // davom — eski Koprik (direktor hisobi faylni ko'radi)
   }
   if (!bor()) throw new Error('Bu amal («' + fn + '») hali serverga ko\'chirilmagan, eski tizim ko\'prigi esa sozlanmagan.');
+  eskiXabar(fn);
   const tana = JSON.stringify({ s: env.bridgeSecret, fn, kod, args: args || [] });
   const t0 = Date.now();
   await joyOl();
@@ -79,9 +80,24 @@ async function chaqir(fn, kod, args, opt) {
   } finally { joyBer(); }
 }
 
+// 02.11.2026: eski tizimga AMAL borsa (koprik* yordamchilari — Drive / Telegram / sozlama — va fondagi PDF nusxalari emas) — direktorga xabar,
+// har amal uchun soatiga ko'pi bilan bitta. Hamma yozuv bayroqlari yoniq va standart holat kodda (lib/bayroq.js) — bunday chaqiruv bo'lmasligi kerak:
+// bo'lsa — bayroq ataylab o'chirilgan yoki server amalni bajara olmay eski tizimga uzatgan. bekorTasdiq / bekorQaytarish — ataylab eski tizimda (bekor_tasdiq).
+const ESKI_ODATIY = new Set(['shartnomaPdf', 'ijaraPdf', 'qaytaHujjatlar', 'topRoyxat', 'qadamVersiya', 'bekorTasdiq', 'bekorQaytarish']);
+function eskiXabar(fn) {
+  if (/^koprik/.test(fn) || ESKI_ODATIY.has(fn)) return;
+  try {
+    const { redis } = require('../lib/db');
+    redis.set('eski_xabar:' + fn, '1', 'EX', 3600, 'NX').then(ok => ok && require('../lib/telegram').direktor('⚠️ <b>Amal eski tizim orqali bajarildi:</b> <code>' + String(fn).replace(/[<>&]/g, '') +
+      '</code>\nServer bu amalni o\'zi bajarmadi. Sababini aniqlash uchun serverda: <code>aks-bugun eski 3</code> va <code>aks-bayroq</code> — natijani Claude\'ga ko\'rsating.\n(Shu amal bo\'yicha xabar soatiga ko\'pi bilan bitta.)'))
+      .catch(e => console.error('eski tizim xabari:', e.message));
+  } catch (e) { }
+}
+
 // 3-bosqich: eski tizim jadvalga yozgan ustunlar «baza» ga ham (lib/ikki_yozuv.js KOPRIK_TORT; bayroq ikki_yozuv_yondi o'chiq bo'lsa — hech narsa). Kutilmaydi.
 function ikkiKeyin(fn) { try { const IK = require('../lib/ikki_yozuv'); if (IK.KOPRIK_TORT[fn]) IK.koprikdanKeyin(fn).catch(e => console.error('ikki yozuv (koprik ' + fn + '):', e.message)); } catch (e) { } }
 
 function holat() { return { band, navbatda: kutayotganlar.length, navbat: NAVBAT }; }
 
 module.exports = { bor, chaqir, holat };
+module.exports._ichki = { eskiXabar, ESKI_ODATIY };

@@ -5,6 +5,7 @@
 // ✎ Tuzatish (hujjatTuzat) ham shu yerda — pastda.
 // Server o'quvchilari (yuristHujjat, hujjatlarRoyxati) SRV ni tushunadi; eski tizimdagi o'quvchilar faqat Drive ID ni — shuning uchun ko'chirish darhol boshlanadi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const { verOk } = require('../lib/versiya');
 const fs = require('fs');
 const path = require('path');
@@ -179,7 +180,7 @@ async function koprik16(kod) {
   return kv16.ok;
 }
 async function tuzatServerda(kod) {
-  try { if ((await redis.get('yozuv_yondi:hujjat')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('hujjat'))) return false; } catch (e) { return false; }
   return koprik16(kod);
 }
 // Varaqni Google'dan YANGI o'qish (getDisplayValues yoki getValues), A ustunining oxirgi to'ldirilgan qatorigacha; har qator {qator, r}

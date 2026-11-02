@@ -8,6 +8,7 @@
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { pool, redis } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const TS = require('../lib/tasdiq');
 const TT = require('../lib/tg_tasdiq');
 const AV = require('../api/avto_isbot');
@@ -22,14 +23,14 @@ async function royxat() {
 (async () => {
   const arg = process.argv[2];
   console.log('================ 🤖 ISBOTLARNI AVTO QABUL QILISH ================');
-  const b = (await redis.get('yozuv_yondi:avto_isbot')) === '1', tq = (await redis.get('yozuv_yondi:tasdiq_qaror')) === '1';
+  const b = (await BQ.yozuv('avto_isbot')), tq = (await BQ.yozuv('tasdiq_qaror'));
   console.log('Holat: ' + (b && tq ? '🟢 YOQIQ — yangi skan va xat isbotlari odam kutmaydi' : b ? '🟡 bayroq yoqiq, lekin tasdiq_qaror o\'chiq — ishlamaydi' : '⚪ o\'chiq — isbotlar yuristni kutadi'));
   if (arg === 'yoq') { if (!tq) { console.log('✖ Avval aks-tasdiq-qaror yoq (qaror serverda bo\'lishi shart).'); return tugat(1); }
-    await redis.set('yozuv_yondi:avto_isbot', '1');
+    await BQ.yoq('yozuv', 'avto_isbot');
     console.log('✅ YOQILDI — endi yurist tekshiradigan isbotlar (shartnoma skanlari, xat isbotlari) yuklangan zahoti avtomatik qabul qilinadi;');
     console.log('   ixtiyoriy skan nazorati ham yuborilmaydi. Direktor tekshiradigan isbotlar va boshqa tasdiqlar — avvalgidek.');
     console.log('   Eski navbatni yopish: aks-avto-isbot navbat bajar'); }
-  if (arg === 'ochir') { await redis.del('yozuv_yondi:avto_isbot'); console.log('⛔ O\'CHIRILDI — isbotlar yana yurist tekshiruvini kutadi.'); }
+  if (arg === 'ochir') { await BQ.ochir('yozuv', 'avto_isbot'); console.log('⛔ O\'CHIRILDI — isbotlar yana yurist tekshiruvini kutadi.'); }
   const R = await royxat();
   console.log('Tekshiruvda: yurist kutayotgani ' + R.yu.length + ' ta (topshiriq ' + R.yu.filter(z => z.tur === 'top').length + ', xat ' + R.yu.filter(z => z.tur === 'xat').length + ')'
     + ' · ixtiyoriy skan ' + R.naz.length + ' ta · direktorniki ' + R.dir.length + ' ta (tegilmaydi)');

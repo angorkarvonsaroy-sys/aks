@@ -4,6 +4,7 @@
 // Kalit — faqat /opt/aks/.env (TG_TOKEN); kodda, repoda, chatda YO'Q. Kalit yo'q bo'lsa bor() = false — chaqiruvchilar Koprik'ka qaytadi.
 // Har so'rov rpc_jurnal (qayerda = 'tg') ga: aks-bugun tg. 4096 belgidan uzun matn — qatorlar bo'yicha bo'laklab. Xatoda 2 marta qayta (429/5xx).
 'use strict';
+const BQ = require('./bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const env = require('./env');
 const V = require('./varaq');
 const { q } = require('./db');
@@ -119,9 +120,9 @@ async function koprikOrni(fn, args) {
 }
 // fn berilsa: 2-toifa (tasdiq tugmalari) uchun yana yozuv_yondi:tg_kirish ham kerak (3-qadam — aks-tg-kirish yoq)
 async function serverda(fn) {
-  try { const r = require('./db').redis; if (!bor() || (await r.get('yozuv_yondi:tg')) !== '1') return false;
-    return !(fn && KOPRIK_ORNI[fn] === 2) || (await r.get('yozuv_yondi:tg_kirish')) === '1'; } catch (e) { return false; }
+  try { const r = require('./db').redis; if (!bor() || !(await BQ.yozuv('tg'))) return false;
+    return !(fn && KOPRIK_ORNI[fn] === 2) || (await BQ.yozuv('tg_kirish')); } catch (e) { return false; }
 }
-async function kirishYoqilgan() { try { return bor() && (await require('./db').redis.get('yozuv_yondi:tg_kirish')) === '1'; } catch (e) { return false; } }
+async function kirishYoqilgan() { try { return bor() && (await BQ.yozuv('tg_kirish')); } catch (e) { return false; } }
 
 module.exports = Object.assign(M, { KOPRIK_ORNI, koprikOrni, serverda, kirishYoqilgan, xodimTg, bor, api, chat, direktor, direktorlar, guruh, fayl, tugmalarOzgartir, callbackJavob, men, bolak });

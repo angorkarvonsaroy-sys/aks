@@ -10,12 +10,13 @@
 // Yoqilishi: yozuv_yondi:avto_isbot (aks-avto-isbot yoq) + yozuv_yondi:tasdiq_qaror (qaror serverda bo'lishi shart).
 // O'chirilsa — hammasi avvalgidek: isbotlar «Tekshiruvda»da yuristni kutadi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const { redis } = require('../lib/db');
 
 const FISH = 'Tizim — avto qabul';
 
 async function yoqilgan() {
-  try { return (await redis.get('yozuv_yondi:avto_isbot')) === '1' && await require('./tasdiq_qaror')._ichki.yoqilgan(); }
+  try { return (await BQ.yozuv('avto_isbot')) && await require('./tasdiq_qaror')._ichki.yoqilgan(); }
   catch (e) { return false; }
 }
 // qaror() uchun soxta foydalanuvchi: huquqi faqat «yurist» — direktor tekshiradigan isbotga yanglishib ham qo'l tegiza olmaydi

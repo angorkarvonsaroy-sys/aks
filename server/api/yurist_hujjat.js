@@ -5,6 +5,7 @@
 // Hujjat saqlanmaydi (eski tizimdagidek): yasaladi va xodimga beriladi. Bazaga hech narsa yozilmaydi.
 // Yoqilishi: Redis yozuv_yondi:yurist_hujjat («aks-yozuv-sinov yhhujjat» namunalar tasdiqlangach). Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const koprik = require('./koprik');
 const { redis } = require('../lib/db');
@@ -15,7 +16,7 @@ const DD = require('../lib/docs_docx');
 
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-async function serverda() { try { return (await redis.get('yozuv_yondi:yurist_hujjat')) === '1'; } catch (e) { return false; } }
+async function serverda() { try { return (await BQ.yozuv('yurist_hujjat')); } catch (e) { return false; } }
 const eskiTizim = (fn, u, args) => koprik.chaqir(fn, u.kod, args);
 async function yig(id) {
   try { return await YM.yhYig(id); } catch (e) { if (/topilmadi/.test(e.message)) throw new S.Xato(e.message); throw e; }

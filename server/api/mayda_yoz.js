@@ -4,6 +4,7 @@
 // Yozish faqat «aks-yozuv-sinov mayda» nusxa varaqlarda tekshirgach yoqiladi (Redis: yozuv_yondi:mayda) va Koprik v1.5 bo'lsa.
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const G = require('../lib/google');
@@ -21,7 +22,7 @@ function hozirDmyHm() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n 
   return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:mayda')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('mayda'))) return false; } catch (e) { return false; }
   return koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

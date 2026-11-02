@@ -13,6 +13,7 @@
 //   yozuvlar uchun yana Koprik ≥ 1.6 (koprikHujjatBekorFayl, koprikTgYubor, koprikTgChat). Aks holda — eski tizim (o'qishlar ham).
 //   2-bosqich (loyiha, ijrochi, tasdiq) — qo'shimcha yozuv_yondi:qayta2 («aks-yozuv-sinov qayta2» — nusxa varaqlarda to'liq tasdiq yozuvi, eski yozganlari bilan).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const { verOk } = require('../lib/versiya');
 const S = require('./sessiya');
@@ -207,9 +208,9 @@ async function koprik16(kod) {
   try { kv = { ok: koprik.bor() && verOk(await koprik.chaqir('koprikVersiya', kod, []), '1.6'), t: Date.now() }; } catch (e) { kv = { ok: false, t: Date.now() }; }
   return kv.ok;
 }
-async function bayroq() { try { return (await redis.get('yozuv_yondi:qayta')) === '1'; } catch (e) { return false; } }
+async function bayroq() { try { return (await BQ.yozuv('qayta')); } catch (e) { return false; } }
 async function serverda(kod) { return (await bayroq()) && koprik16(kod); }
-async function bayroq2() { try { return (await redis.get('yozuv_yondi:qayta2')) === '1'; } catch (e) { return false; } }   // 2-bosqich: loyiha, ijrochi, tasdiq («aks-yozuv-sinov qayta2»)
+async function bayroq2() { try { return (await BQ.yozuv('qayta2')); } catch (e) { return false; } }   // 2-bosqich: loyiha, ijrochi, tasdiq («aks-yozuv-sinov qayta2»)
 async function serverda2(kod) { return (await bayroq()) && (await bayroq2()) && koprik16(kod); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 async function qulfBilan(ish) {   // LockService.getScriptLock() o'rni (eski tizimning qolgan qayta amallari bilan umumiy emas — direktor bitta)
@@ -331,7 +332,7 @@ async function qaytaQaytar(args) {
 }
 
 // ================================================================== 1b) DIREKTOR: LOYIHANI BEKOR QILISH (Qayta.gs qaytaBekor — tartib va matnlar aynan)
-async function bayroqB() { try { return (await redis.get('yozuv_yondi:qayta_bekor')) === '1'; } catch (e) { return false; } }
+async function bayroqB() { try { return (await BQ.yozuv('qayta_bekor')); } catch (e) { return false; } }
 // Yadro (sinov ham shuni ishlatadi): opt = { varaq (06k nusxasi), quruq (Drive/topshiriq/Telegram yo'q) }
 async function bekorYadro(u, id, sabab, opt = {}) {
   const varaq = opt.varaq || QT_VARAQ;
@@ -593,7 +594,7 @@ async function qaytaTasdiq(args) {
 // Server: shablonlar robot orqali (Google DOCX eksporti), to'ldirish modelda (lib/docs_shablon.js), PDF Chromium (lib/shablon_pdf.js) — 2–4 s;
 // PDF lar /opt/aks/hujjat/qayta/<id>/ da. Drive papkasi, Google Doc nusxalari, 06k Z va jurnal — fonda eski qaytaHujjatlar ning o'zi
 // (ko'prik orqali, xodim kutmaydi) — Drive arxivi avvalgidek. Bayroq: yozuv_yondi:qayta_hujjat («aks-yozuv-sinov qaytahuj»).
-async function bayroq3() { try { return (await redis.get('yozuv_yondi:qayta_hujjat')) === '1'; } catch (e) { return false; } }
+async function bayroq3() { try { return (await BQ.yozuv('qayta_hujjat')); } catch (e) { return false; } }
 async function qtMijoz(mid) { return ((await V.qatorlar('02_Mijozlar')).find(z => s(z.r[0]) === s(mid)) || { r: null }).r; }   // qtMijoz_: 02 (displayValues, 25 ustun)
 function qtBandlar(tur) { return /^Қурилаётган/.test(tur) && /Муддатли/.test(tur) ? ['5.1 ва 5.3', '5.4, 5.5 ва 6.2'] : ['2.7 ва 3.3.1', '3.3.2, 4.2 ва 4.3']; }
 function qtShakl(x) { x = s(x); return /naq|нақд|наличн/i.test(x) ? 'Нақд' : /barter|ўзаро|o'zaro/i.test(x) ? 'Ўзаро ҳисоб' : /plastik|karta|карт|uzcard|humo/i.test(x) ? 'Пластик карта' : /bank|банк|o'tkazma|перечис/i.test(x) ? 'Банк' : x; }

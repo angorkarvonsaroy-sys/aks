@@ -3,6 +3,7 @@
 // qdSnap_ (ertalabki navbat, eski tizimda Script Properties QD_NAVBAT_*) — 02.11.2026 dan server bazasida (qd_navbat, lib/sozlama.js), ko'priksiz.
 // Koprik eski bo'lsa — Redis'dagi kunlik ro'yxat (faqat server ichida).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
@@ -421,7 +422,7 @@ function ijroYig(A) { const z = { rT: 0, rB: 0, nT: 0, nB: 0, xT: 0, xB: 0, tT: 
 // Qoida ijro_kechki serverga o'tgach kuchga kiradi (Redis vaqt_yondi:ijro_kechki = 1; eski tizim «o'z kunida» qoidasida qoladi) — aks-vaqt yoq ijro_kechki.
 const xatMuhlat = iso => { const d = new Date(iso + 'T12:00:00Z'); do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0); return d.toISOString().slice(0, 10); };
 const xatIshKun = (iso, bugun) => { let k = 0; const d = new Date(iso + 'T12:00:00Z'), ox = new Date(bugun + 'T12:00:00Z'); while (d < ox) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() !== 0) k++; } return k; };
-async function xatYangiQoida() { try { return (await redis.get('vaqt_yondi:ijro_kechki')) === '1'; } catch (e) { return false; } }
+async function xatYangiQoida() { try { return (await BQ.vaqt('ijro_kechki')); } catch (e) { return false; } }
 function ijroKun(h, fish, bugun, Xj, T, Sx, hozir0, yangi) {   // hozir0 — sinovda eski trigger vaqti (18:15); yangi — xat muhlati qoidasi
   const hozir = hozir0 || TS.topHozirIso();
   const navbatda = h.hamma.filter(m => m.navbatda).length;
@@ -825,8 +826,8 @@ async function ijroTrigger(kod) {
   const { redis } = require('../lib/db');
   // ⏰ ijro_kechki / ijro_tanla serverda (lib/vaqt.js) bo'lsa eski ijroKorish CHAQIRILMAYDI: u triggerlardan biri yo'qligini ko'rib, ikkalasini qayta
   // o'rnatardi (ijroTriggerOrnat) — eski va server birga ishlab, xabarlar ikki marta ketardi
-  try { const [k, t] = await Promise.all([redis.get('vaqt_yondi:ijro_kechki'), redis.get('vaqt_yondi:ijro_tanla')]);
-    if (k === '1' || t === '1') return { ok: true, kechki: true, tanla: true, server: true }; } catch (e) { return { ok: true, kechki: true, tanla: true }; }
+  try { const [k, t] = await Promise.all([BQ.vaqt('ijro_kechki'), BQ.vaqt('ijro_tanla')]);
+    if (k || t) return { ok: true, kechki: true, tanla: true, server: true }; } catch (e) { return { ok: true, kechki: true, tanla: true }; }
   const ol = async () => { const r = await koprik.chaqir('ijroKorish', kod, [{}]); if (r && r.trigger) { const t = Object.assign({}, r.trigger); delete t.ornatildi; delete t.xato;
     await redis.set('ijro_trigger', JSON.stringify({ t: Date.now(), v: t })); return t; } return null; };
   let z = null; try { const s = await redis.get('ijro_trigger'); if (s) z = JSON.parse(s); } catch (e) { }
@@ -885,4 +886,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa, qdSnap, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };
+module.exports._ichki = { qadamXulosa, qdSnap, ijroTrigger, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };

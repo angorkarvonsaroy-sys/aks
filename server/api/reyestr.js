@@ -3,6 +3,7 @@
 // PDF — Chromium, eski tizim (Google) bilan bir xil dvigatel (lib/pdf.js), Excel — lib/xlsx.js. Faqat «aks-yozuv-sinov eksport» eski tizim fayllari bilan solishtirgach yoqiladi
 // (Redis yozuv_yondi:eksport, PDF uchun yana yozuv_yondi:eksport_pdf); yoqilmagan bo'lsa yoki PDF dasturi yo'q bo'lsa — avvalgidek eski tizim orqali.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
@@ -173,7 +174,7 @@ function sotuvJadval(L) {
 }
 
 async function yoqilgan(pdf) {   // Excel: yozuv_yondi:eksport; PDF: yana yozuv_yondi:eksport_pdf (Chromium bilan sinovdan o'tgach) va Chromium ishlasa
-  try { if ((await redis.get('yozuv_yondi:eksport')) !== '1') return false; if (pdf && (await redis.get('yozuv_yondi:eksport_pdf')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('eksport'))) return false; if (pdf && !(await BQ.yozuv('eksport_pdf'))) return false; } catch (e) { return false; }
   return pdf ? PDF.bor() : true;
 }
 const eskiTizim = (fn, u, filtr) => koprik.chaqir(fn, u.kod, [filtr]);

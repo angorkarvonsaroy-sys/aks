@@ -4,6 +4,7 @@
 // Avval PIN kirishi uchun server eski tizimga pinKir ni fonda yuborardi (faqat shu yozuv uchun) — endi kerak emas.
 // Yoqilishi: Redis yozuv_yondi:kirish07b («aks-yozuv-sinov kirish»). Aks holda — avvalgidek eski tizim (ko'prik).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const G = require('../lib/google');
 const env = require('../lib/env');
 const { redis } = require('../lib/db');
@@ -11,7 +12,7 @@ const { redis } = require('../lib/db');
 const KIRISH_V = '07b_Kirish_jurnali';
 function hozir() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
   return { dmy: p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(), hms: p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds()) }; }
-async function yoqilgan() { try { return (await redis.get('yozuv_yondi:kirish07b')) === '1'; } catch (e) { return false; } }
+async function yoqilgan() { try { return (await BQ.yozuv('kirish07b')); } catch (e) { return false; } }
 // yozuv yadrosi (sinov ham shuni ishlatadi — nusxa varaqda)
 async function kirishYoz(fish, usul, varaq) {
   const v = varaq || KIRISH_V, h = hozir();

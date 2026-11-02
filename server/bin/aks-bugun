@@ -40,9 +40,10 @@ if [ "$1" = "eski" ]; then
   q -c "SELECT fn AS amal, count(*) soni, to_char(max(vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI') oxirgi, count(*) FILTER (WHERE vaqt > now() - interval '3 days') AS \"3_kun\", count(*) FILTER (WHERE vaqt > now() - interval '1 day') AS \"1_kun\", count(DISTINCT (vaqt AT TIME ZONE 'Asia/Tashkent')::date) kunlar, count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE qayerda = 'eski' AND fn NOT LIKE 'koprik%' AND vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY max(vaqt) DESC;"
   echo "--- 2. Ko'prik yordamchilari (Drive, Telegram, sozlamalar — koprik*) ---"
   q -c "SELECT fn AS amal, count(*) soni, to_char(max(vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI') oxirgi, count(*) FILTER (WHERE vaqt > now() - interval '3 days') AS \"3_kun\", count(*) FILTER (WHERE vaqt > now() - interval '1 day') AS \"1_kun\", count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE qayerda = 'eski' AND fn LIKE 'koprik%' AND vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY max(vaqt) DESC;"
-  echo "--- 3. Yozuv bayroqlari (yozuv_yondi:*) — o'chiqlari ---"
-  for k in $(redis-cli --scan --pattern 'yozuv_yondi:*' | sort); do v=$(redis-cli get "$k"); [ "$v" = "1" ] || echo "  $k = [$v]"; done
-  echo "  (yoniqlar: $(redis-cli --scan --pattern 'yozuv_yondi:*' | while read k; do [ "$(redis-cli get "$k")" = "1" ] && echo x; done | wc -l) ta)"
+  echo "--- 3. Ataylab o'chirilgan bayroqlar ('0') — boshqalari serverda (Redis'da kalit bo'lmasa ham; bekor_tasdiq — standart o'chiq) ---"
+  n=0; for k in $(redis-cli --scan --pattern 'yozuv_yondi:*'; redis-cli --scan --pattern 'vaqt_yondi:*'); do [ "$(redis-cli get "$k")" = "0" ] && { echo "  $k"; n=$((n+1)); }; done; [ $n = 0 ] && echo "  yo'q"
+  echo "--- 4. Redis xotirasi (to'lsa eski kalitlarni o'zi o'chiradi) ---"
+  echo "  band: $(redis-cli info memory | grep '^used_memory_human' | cut -d: -f2 | tr -d '\r') / chegara: $(redis-cli config get maxmemory | tail -1) bayt · o'chirilgan kalitlar (evicted_keys): $(redis-cli info stats | grep '^evicted_keys' | cut -d: -f2 | tr -d '\r')"
   exit 0
 fi
 if [ "$1" = "xato" ]; then

@@ -7,6 +7,7 @@
 //   topSkanBerilmagan — ✖ kotiba: «menga berilmagan» → undiruvchining topshirig'i qaytadi + Telegram
 // Yoqilishi: Redis yozuv_yondi:bajardim («aks-yozuv-sinov bajardim») va Koprik ≥ 1.7. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const G = require('../lib/google');
@@ -29,7 +30,7 @@ const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.error('ko\'zgu (bajardim):', e.message)), 15000);
 
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:bajardim')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('bajardim'))) return false; } catch (e) { return false; }
   return QH.koprik17(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

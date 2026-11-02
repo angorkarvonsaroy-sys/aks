@@ -3,6 +3,7 @@
 //   06f_Yurist_tarix ga «Undiruvchi yuristga o'tkazishni so'radi». Direktor tasdiqlashi (yuristTasdiq) — allaqachon serverda.
 // Yoqilishi: Redis yozuv_yondi:yurist_sorov («aks-yozuv-sinov yurist»). Aks holda, yoki robotda yozish huquqi bo'lmasa — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
@@ -21,7 +22,7 @@ const s = v => String(v == null ? '' : v);
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 function hozir() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
   return { iso: d.toISOString().slice(0, 19).replace('T', ' '), dmyHms: p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds()) }; }
-async function serverda() { try { return (await redis.get('yozuv_yondi:yurist_sorov')) === '1'; } catch (e) { return false; } }
+async function serverda() { try { return (await BQ.yozuv('yurist_sorov')); } catch (e) { return false; } }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 
 async function yuristIsmi() {   // yuYuristIsmi_: 07_Xodimlar S da «yurist», K «Ishlayapti» — birinchisi

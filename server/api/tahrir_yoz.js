@@ -9,6 +9,7 @@
 // Yozish faqat «aks-yozuv-sinov tahrir» nusxa varaqlarda tekshirgach yoqiladi (Redis: yozuv_yondi:tahrir) va Koprik v1.5 bo'lsa.
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi (hech narsa yozilmasdan oldin qaytariladi).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
@@ -40,7 +41,7 @@ const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.e
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
 
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:tahrir')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('tahrir'))) return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

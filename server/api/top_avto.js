@@ -10,6 +10,7 @@
 // Eski topAvto triggeri (har 2 soatda) — lib/vaqt.js «top_avto» (vaqt_yondi:top_avto) yoqilgach serverda; eski trigger Apps Script'da o'chiriladi (22.10.2026).
 // Yoqilishi: Redis yozuv_yondi:top_avto («aks-yozuv-sinov tophozir») va Koprik ≥ 1.5. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -37,7 +38,7 @@ const isoX = v => typeof v === 'number' ? V.iso(v) : '';   // getValues dagi Dat
 function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== null && x[0] !== undefined && x[0] !== '') m = n; }); return rows.filter(z => z.n <= m); }
 
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:top_avto')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('top_avto'))) return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args, { muddat: 120000, urinish: 1 }); await tetik.yangilaKut(20000); return r; }
@@ -194,7 +195,7 @@ async function topAvto(kod, opt = {}) {
   // tgTugmaOrnat_ — faqat Apps Script (eski trigger o'zi o'rnatadi). skanNazTekshir_ — eski tizimning o'zi (Koprik v1.12), xato e'tiborsiz
   let skanNaz = null;
   // 23.10: vaqt_yondi:skan_naz yoqilgan bo'lsa — serverning o'zi har 10 daqiqada (lib/tg_ishlar.js), eski koprikSkanNaz chaqirilmaydi (ikki marta ketmasin)
-  let snServer = false; try { snServer = (await redis.get('vaqt_yondi:skan_naz')) === '1'; } catch (e) { }
+  let snServer = false; try { snServer = (await BQ.vaqt('skan_naz')); } catch (e) { }
   try { if (!snServer && await koprik112(kod)) skanNaz = (await koprik.chaqir('koprikSkanNaz', kod, [], { muddat: 90000, urinish: 1 }) || {}).n; } catch (e) { console.error('koprikSkanNaz:', e.message); }
   if (hj.tg.length) tasdiqTg(kod, hj.tg);
   if (yangi.length) TP.topTg(kod, yangi, XD);
@@ -214,7 +215,7 @@ async function koprik112(kod) {
 async function topMeningYop(u, opt = {}) {
   const quruq = !!opt.quruq;
   if (!quruq) {
-    try { if ((await redis.get('yozuv_yondi:top_mening')) !== '1') return null; } catch (e) { return null; }
+    try { if (!(await BQ.yozuv('top_mening'))) return null; } catch (e) { return null; }
     if (!(await require('./qadam_hujjat')._ichki.koprik17(u.kod))) return null;   // koprikTopTasdiqTg
   }
   const { xodimTeng } = require('../lib/xodim');

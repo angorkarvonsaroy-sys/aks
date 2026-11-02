@@ -8,6 +8,7 @@
 // Shartlar: IJ-27/…, 04 «Aktiv», imzolangan SHARTNOMA skani (06d Faol) yo'q, 05 / 05b (Буферда) to'lov yo'q, 06h da ochiq bekor so'rovi yo'q.
 // Yoqilishi: Redis yozuv_yondi:imzosiz («aks-yozuv-sinov imzosiz») va Koprik ≥ 1.5 (Telegram); ijaraImzosizBekor — yozuv_yondi:imzosiz_bekor (o'sha sinov). Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -32,8 +33,8 @@ function hozir() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => St
   return { dmy, dmyHm: dmy + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()), iso: d.toISOString().slice(0, 10) }; }
 function yozilmadi(e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; }
 
-async function serverda(kod, bayroq = 'yozuv_yondi:imzosiz') {
-  try { if ((await redis.get(bayroq)) !== '1') return false; } catch (e) { return false; }
+async function serverda(kod, bayroq = 'imzosiz') {
+  if (!(await BQ.yozuv(bayroq))) return false;
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
@@ -182,7 +183,7 @@ async function ijaraImzosizBekor(args) {
   const no = s(no0).trim(), sabab = s(sabab0).replace(/\s+/g, ' ').trim();
   if (!/^IJ-27\/\d+$/.test(no)) throw new S.Xato('Bu yo\'l faqat ijara shartnomasi (IJ-27/…) uchun: ' + no);
   if (sabab.length < 5) throw new S.Xato('Sababini yozing (kamida 5 belgi).');
-  if (!(await serverda(u.kod, 'yozuv_yondi:imzosiz_bekor'))) return eskiTizim('ijaraImzosizBekor', u, [no, sabab]);
+  if (!(await serverda(u.kod, 'imzosiz_bekor'))) return eskiTizim('ijaraImzosizBekor', u, [no, sabab]);
   const r = await qulfBilan(async () => {
     const x = await imzTekshir(no);
     const ogoh = await imzBekorQil(u, x, sabab, 'direktor — imzolanmagan: ' + sabab);

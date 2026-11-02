@@ -8,6 +8,7 @@
 // Yoqilishi: yozuv_yondi:tasdiq_qaror (aks-tasdiq-qaror yoq) + yozuv_yondi:tg + tg_kirish. ctx (lib/tg_tasdiq.js): haqiqiy / quruq (sinov — yozmaydi, yubormaydi).
 // «↩ Isbotni tiklash» (tqTiklash_) — serverda (23.10 22:30); Drive'da faylni joyiga qaytarish — Koprik v1.18 koprikFaylTikla. Koprik < 1.18 — eski tqAmal.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -32,7 +33,7 @@ const HY = () => require('./hujjat_yoz')._ichki;
 const XI = () => require('./xat_isbot')._ichki;
 const IJ = () => require('./ijro_yoz')._ichki;
 
-async function yoqilgan() { try { return (await redis.get('yozuv_yondi:tasdiq_qaror')) === '1' && (await TG.serverda()); } catch (e) { return false; } }
+async function yoqilgan() { try { return (await BQ.yozuv('tasdiq_qaror')) && (await TG.serverda()); } catch (e) { return false; } }
 const dmyHm = TT.hozirDmyHm;
 const rol = u => (u.huquq || []).indexOf('admin') >= 0 ? 'Direktor' : (u.huquq || []).indexOf('yurist') >= 0 ? 'Yurist' : s(u.fish);
 const rolK = u => (u.huquq || []).indexOf('admin') >= 0 ? 'direktor' : (u.huquq || []).indexOf('yurist') >= 0 ? 'yurist' : 'xodim';

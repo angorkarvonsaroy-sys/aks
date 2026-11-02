@@ -3,6 +3,7 @@
 // PDF — Chromium (lib/pdf.js), eski tizim (Google) bilan bir xil dvigatel; sahifa o'lchami HTML'ning o'zidagi @page dan.
 // Faqat «aks-yozuv-sinov hisobot» eski tizim fayli bilan solishtirgach yoqiladi (Redis yozuv_yondi:hisobot_pdf); aks holda eski tizim orqali.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const koprik = require('./koprik');
@@ -191,7 +192,7 @@ async function hisobotYasa(fish, bosh0, oxir0, vaqt) {
   return { nom: fayl, davr: f(bosh) + (bosh === oxir ? '' : ' — ' + f(oxir)) + ' (' + nom + ')', b64: pdf.toString('base64') };
 }
 async function yoqilgan() {
-  try { if ((await redis.get('yozuv_yondi:hisobot_pdf')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('hisobot_pdf'))) return false; } catch (e) { return false; }
   return PDF.bor();
 }
 async function hisobotPdf([kodSes, bosh, oxir]) {

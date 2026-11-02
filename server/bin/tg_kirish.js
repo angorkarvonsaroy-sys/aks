@@ -8,6 +8,7 @@
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { pool, redis, q } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const TG = require('../lib/telegram');
 const TT = require('../lib/tg_tasdiq');
 const K = require('../lib/tg_kirish');
@@ -21,18 +22,18 @@ function chop(y) { const x = y.xabarlar || y.log || []; x.forEach(z => { if (z.y
 (async () => {
   const arg = process.argv[2];
   console.log('================ 📥 TELEGRAM — BOTDAN KELADIGANLAR (serverda) ================');
-  const bay = await redis.get('yozuv_yondi:tg'), bk = await K.yoqilgan();
-  console.log('TG_TOKEN: ' + (TG.bor() ? 'bor' : 'YO\'Q') + ' · yuborish (yozuv_yondi:tg): ' + (bay === '1' ? '🟢 serverdan' : '⚪ Koprik') + ' · kirish (yozuv_yondi:tg_kirish): ' + (bk ? '🟢 SERVER O\'QIYDI' : '⚪ eski tgTugmaPoll triggeri o\'qiydi'));
+  const bay = await BQ.yozuv('tg'), bk = await K.yoqilgan();
+  console.log('TG_TOKEN: ' + (TG.bor() ? 'bor' : 'YO\'Q') + ' · yuborish (yozuv_yondi:tg): ' + (bay ? '🟢 serverdan' : '⚪ Koprik') + ' · kirish (yozuv_yondi:tg_kirish): ' + (bk ? '🟢 SERVER O\'QIYDI' : '⚪ eski tgTugmaPoll triggeri o\'qiydi'));
   if (arg === 'yoq') {
     if (!TG.bor()) { console.log('✖ TG_TOKEN yo\'q — yoqib bo\'lmaydi.'); return tugat(1); }
-    if (bay !== '1') { console.log('✖ Avval 2-qadam (aks-tg yoq) yoqilishi kerak.'); return tugat(1); }
-    await redis.set('yozuv_yondi:tg_kirish', '1'); await redis.set('vaqt_yondi:skan_naz', '1'); await redis.set('vaqt_yondi:tq_kechki', '1');
+    if (!bay) { console.log('✖ Avval 2-qadam (aks-tg yoq) yoqilishi kerak.'); return tugat(1); }
+    await BQ.yoq('yozuv', 'tg_kirish'); await BQ.yoq('vaqt', 'skan_naz'); await BQ.yoq('vaqt', 'tq_kechki');
     console.log('✅ YOQILDI: botdan keladigan xabarlar (ulash, PIN, ✅/✖ tugmalar, /tekshiruv), skan_naz (har 10 daq), tq_kechki (20:05) — endi SERVERDA.');
     console.log('   Poll 10 soniya ichida boshlanadi. Eski tgTugmaPoll triggeri O\'CHIRILGAN bo\'lishi shart — aks holda pastda «Conflict» ko\'rinadi.');
     console.log('   Qaytarish: aks-tg-kirish ochir, keyin Apps Script\'da tgTugmaOrnat ▶.');
     await new Promise(r => setTimeout(r, 15000));
   }
-  if (arg === 'ochir') { await redis.del('yozuv_yondi:tg_kirish', 'vaqt_yondi:skan_naz', 'vaqt_yondi:tq_kechki'); console.log('⛔ O\'CHIRILDI — bot xabarlarini yana eski tizim o\'qiydi (Apps Script\'da tgTugmaOrnat ▶ ni ishga tushiring).'); }
+  if (arg === 'ochir') { await BQ.ochir('yozuv', 'tg_kirish'); await BQ.ochir('vaqt', 'skan_naz'); await BQ.ochir('vaqt', 'tq_kechki'); console.log('⛔ O\'CHIRILDI — bot xabarlarini yana eski tizim o\'qiydi (Apps Script\'da tgTugmaOrnat ▶ ni ishga tushiring).'); }
   if (!TG.bor()) return tugat(0);
 
   if (arg === 'sinov') return sinov();
@@ -42,7 +43,7 @@ function chop(y) { const x = y.xabarlar || y.log || []; x.forEach(z => { if (z.y
   console.log('Poll (getUpdates): ' + (h.yoq ? (tirik >= 0 && tirik < 120 ? '🟢 tirik (' + tirik + ' s oldin)' : '🔴 TIRIK EMAS' + (tirik >= 0 ? ' (oxirgi ' + tirik + ' s oldin)' : ' (hech qachon)') + ' — pm2 aks-api ishlayaptimi?') : '⚪ o\'chiq') + ' · offset: ' + h.offset);
   if (h.konflikt) console.log('⚠ CONFLICT bo\'lgan: ' + h.konflikt + '\n   → Apps Script\'da tgTugmaPoll triggeri hali ishlayapti. Uni o\'chiring.');
   if (h.xato) console.log('⚠ Oxirgi poll xatosi: ' + h.xato);
-  for (const nom of ['skan_naz', 'tq_kechki']) { const y = (await redis.get('vaqt_yondi:' + nom)) === '1'; let ox = null; try { ox = JSON.parse((await redis.get('vaqt:' + nom + ':oxirgi')) || 'null'); } catch (e) { }
+  for (const nom of ['skan_naz', 'tq_kechki']) { const y = (await BQ.vaqt(nom)); let ox = null; try { ox = JSON.parse((await redis.get('vaqt:' + nom + ':oxirgi')) || 'null'); } catch (e) { }
     console.log('⏰ ' + nom.padEnd(10) + (y ? '🟢 SERVERDA' : '⚪ eski trigger ichida') + (ox ? ' · oxirgi: ' + ox.vaqt + ' ' + (ox.ok ? '✅ ' + JSON.stringify(ox.natija).slice(0, 120) : '✖ ' + ox.xato) : '')); }
   try { const w = await TG.api('getWebhookInfo', {}, null, { jurnalsiz: true }); console.log('Botda kutayotgan yangiliklar: ' + (w.pending_update_count || 0) + (w.url ? ' · ⚠ webhook o\'rnatilgan: ' + w.url : ' · webhook yo\'q ✅')); } catch (e) { console.log('getWebhookInfo: ✖ ' + e.message); }
   const J = await K.jurnalOqi(15);

@@ -7,6 +7,7 @@
 // Yozish faqat «aks-yozuv-sinov shartnoma» nusxa varaqlarda tekshirgach yoqiladi (Redis: yozuv_yondi:shartnoma).
 // Aks holda, yoki robotda yozish huquqi bo'lmasa — avvalgidek eski tizim. Shartnoma PDF (Google Docs shablon) — eski tizimda qoladi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -45,7 +46,7 @@ async function qulfBilan(ish) {   // LockService o'rni — 02/03/03b/04 yozuvlar
   while (!(await redis.set(kalit, belgi, 'PX', 60000, 'NX'))) { if (Date.now() - t0 > 30000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
   try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
 }
-async function serverda() { try { return (await redis.get('yozuv_yondi:shartnoma')) === '1'; } catch (e) { return false; } }
+async function serverda() { try { return (await BQ.yozuv('shartnoma')); } catch (e) { return false; } }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 async function ogoh(xab) { try { await redis.lpush('yozuv_ogoh', JSON.stringify(Object.assign({ vaqt: hozir() }, xab))); await redis.ltrim('yozuv_ogoh', 0, 49); } catch (e) { } }
 const yozilmadi = e => { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; return e; };

@@ -8,17 +8,18 @@
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { pool, redis, q } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const TG = require('../lib/telegram');
 const env = require('../lib/env');
 (async () => {
   const arg = process.argv[2];
   console.log('================ 📱 TELEGRAM (serverdan) ================');
   console.log('TG_TOKEN (.env): ' + (TG.bor() ? 'bor (' + env.tgToken.length + ' belgi, oxiri …' + env.tgToken.slice(-4) + ')' : 'YO\'Q — Telegram avvalgidek Koprik orqali') + ' · TG_GURUH: ' + (env.tgGuruh ? 'bor' : 'yo\'q'));
-  const bay = (await redis.get('yozuv_yondi:tg')) === '1';
-  const bk = (await redis.get('yozuv_yondi:tg_kirish')) === '1';
+  const bay = (await BQ.yozuv('tg'));
+  const bk = (await BQ.yozuv('tg_kirish'));
   console.log('Xabarlar yo\'li (yozuv_yondi:tg): ' + (bay ? '🟢 SERVERDAN to\'g\'ridan-to\'g\'ri' : '⚪ Koprik orqali (eski tizim)') + ' · tasdiq tugmalari va botdan keladiganlar (yozuv_yondi:tg_kirish): ' + (bk ? '🟢 serverda' : '⚪ eski tizimda (aks-tg-kirish)'));
-  if (arg === 'yoq') { if (!TG.bor()) { console.log('✖ TG_TOKEN yo\'q — yoqib bo\'lmaydi.'); } else { await redis.set('yozuv_yondi:tg', '1'); console.log('✅ YOQILDI — endi Telegram xabarlari serverdan to\'g\'ridan-to\'g\'ri (eski tizim tegilmaydi; qaytarish: aks-tg ochir).'); } }
-  if (arg === 'ochir') { await redis.del('yozuv_yondi:tg'); console.log('⛔ O\'CHIRILDI — xabarlar yana Koprik orqali.'); }
+  if (arg === 'yoq') { if (!TG.bor()) { console.log('✖ TG_TOKEN yo\'q — yoqib bo\'lmaydi.'); } else { await BQ.yoq('yozuv', 'tg'); console.log('✅ YOQILDI — endi Telegram xabarlari serverdan to\'g\'ridan-to\'g\'ri (eski tizim tegilmaydi; qaytarish: aks-tg ochir).'); } }
+  if (arg === 'ochir') { await BQ.ochir('yozuv', 'tg'); console.log('⛔ O\'CHIRILDI — xabarlar yana Koprik orqali.'); }
   if (!TG.bor()) { await pool.end(); redis.disconnect(); process.exit(0); }
   try { const m = await TG.men(); console.log('Bot: @' + m.username + ' (' + m.first_name + ')'); } catch (e) { console.log('Bot: ✖ ' + e.message); }
   const D = await TG.direktorlar(); console.log('Direktorlar (07_Xodimlar: admin + Ishlayapti + Telegram): ' + D.length + ' ta');

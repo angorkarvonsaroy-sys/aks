@@ -8,6 +8,7 @@
 'use strict';
 process.env.AKS_ENV = process.env.AKS_ENV || '/opt/aks/.env';
 const { pool, redis } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const TT = require('../lib/tg_tasdiq');
 const TQ = require('../api/tasdiq_qaror')._ichki;
 const TS = require('../lib/tasdiq');
@@ -18,10 +19,10 @@ function chop(log) { log.forEach(z => { if (z.yozuv) console.log('     📝 ' + 
 (async () => {
   const arg = process.argv[2];
   console.log('================ 🔎 ISBOT QARORI (serverda) ================');
-  const b = (await redis.get('yozuv_yondi:tasdiq_qaror')) === '1', tg = (await redis.get('yozuv_yondi:tg')) === '1', tk = (await redis.get('yozuv_yondi:tg_kirish')) === '1', nv = (await redis.get('yozuv_yondi:tasdiq')) === '1';
+  const b = (await BQ.yozuv('tasdiq_qaror')), tg = (await BQ.yozuv('tg')), tk = (await BQ.yozuv('tg_kirish')), nv = (await BQ.yozuv('tasdiq'));
   console.log('Qaror: ' + (b && tg ? '🟢 SERVERNING O\'ZIDA (darhol)' : nv ? '⚪ navbat → eski tizim (Koprik tasdiqQil)' : '⚪ eski tizim (Koprik tasdiqQil, kutib)') + ' · Telegram yuborish: ' + (tg ? '🟢' : '⚪') + ' · bot o\'qish: ' + (tk ? '🟢' : '⚪'));
-  if (arg === 'yoq') { if (!tg || !tk) { console.log('✖ Avval aks-tg yoq va aks-tg-kirish yoq.'); return tugat(1); } await redis.set('yozuv_yondi:tasdiq_qaror', '1'); console.log('✅ YOQILDI — endi ✅/✖ qarori (ilova va Telegram tugmasi) serverning o\'zida bajariladi; «👍 To\'g\'ri qaytargan» ham. «↩ Isbotni tiklash» — hali eski tizim.'); }
-  if (arg === 'ochir') { await redis.del('yozuv_yondi:tasdiq_qaror'); console.log('⛔ O\'CHIRILDI — qaror yana avvalgidek (navbat / eski tizim).'); }
+  if (arg === 'yoq') { if (!tg || !tk) { console.log('✖ Avval aks-tg yoq va aks-tg-kirish yoq.'); return tugat(1); } await BQ.yoq('yozuv', 'tasdiq_qaror'); console.log('✅ YOQILDI — endi ✅/✖ qarori (ilova va Telegram tugmasi) serverning o\'zida bajariladi; «👍 To\'g\'ri qaytargan» ham. «↩ Isbotni tiklash» — hali eski tizim.'); }
+  if (arg === 'ochir') { await BQ.ochir('yozuv', 'tasdiq_qaror'); console.log('⛔ O\'CHIRILDI — qaror yana avvalgidek (navbat / eski tizim).'); }
   const L = await TS.tasdiqNavbat(); const yu = L.filter(it => it.tasdiqchi === 'yurist');
   console.log('Tekshiruvdagi isbotlar: ' + L.length + ' (yurist: ' + yu.length + ', direktor: ' + (L.length - yu.length) + ')');
   if (arg === 'sinov') {

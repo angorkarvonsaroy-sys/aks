@@ -3,6 +3,7 @@
 //   yuristTopBer   — yurist undiruvchiga topshiriq beradi (10_Topshiriqlar yangi qator «yutop|…», Telegram; 06f tarix).
 // Yoqilishi: Redis yozuv_yondi:yurist_ish («aks-yozuv-sinov yuristish»). Aks holda, yoki robotda yozish huquqi bo'lmasa — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const J = require('../lib/jurnallar');
@@ -26,7 +27,7 @@ const s = v => String(v == null ? '' : v);
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 function hozirDmyHm() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => String(n).padStart(2, '0');
   return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
-async function serverda() { try { return (await redis.get('yozuv_yondi:yurist_ish')) === '1'; } catch (e) { return false; } }
+async function serverda() { try { return (await BQ.yozuv('yurist_ish')); } catch (e) { return false; } }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 
 // yuTalabBor_: isbotli talabnoma — tizimdagi 3-bosqich xat «Yuborildi» (yurist tekshiruvida emas) yoki «Ogohlantirish xati» turidagi talabnoma skani

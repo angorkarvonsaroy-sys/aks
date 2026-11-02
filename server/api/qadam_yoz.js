@@ -10,6 +10,7 @@
 // Telegram — Koprik v1.5 koprikTgYubor (eski tizimning tgYubor_ ining o'zi). Yozish faqat «aks-yozuv-sinov qadam» nusxa varaqda tekshirgach yoqiladi
 // (Redis yozuv_yondi:qadam). Aks holda yoki robotda yozish huquqi bo'lmasa — amal avvalgidek eski tizim orqali bajariladi.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -47,7 +48,7 @@ async function qulf(nom, ish) {   // LockService o'rni; «topshiriq» — topshi
   try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
 }
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:qadam')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('qadam'))) return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
@@ -280,7 +281,7 @@ async function qadamTgYubordim(args) {
 
 // ------------------------------------------------------------------ 👔 direktor javoblari
 async function serverdaR(kod) {
-  try { if ((await redis.get('yozuv_yondi:qadam_ruxsat')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('qadam_ruxsat'))) return false; } catch (e) { return false; }
   return TP.koprik15(kod);
 }
 async function tgXodim(kod, fish, matn) {   // tgYuborChat_(x.tg, …) — xato e'tiborsiz

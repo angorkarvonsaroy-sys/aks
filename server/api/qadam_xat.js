@@ -6,6 +6,7 @@
 // ko'prik muddatidan oshib xato ham berardi; serverda isbot fayli avval diskka yoziladi, Drive va Telegram — fonda.
 // Yoqilishi: xat isboti bilan bir xil — Redis yozuv_yondi:xat_isbot va Koprik ≥ 1.7. Aks holda — butunlay eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
@@ -16,7 +17,7 @@ const QH = require('./qadam_hujjat')._ichki;
 
 const s = v => String(v == null ? '' : v);
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:xat_isbot')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('xat_isbot'))) return false; } catch (e) { return false; }
   return QH.koprik17(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

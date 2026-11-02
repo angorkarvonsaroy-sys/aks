@@ -26,6 +26,7 @@
 //   baza_solishtir — (03:00, 01.11.2026 yangi): lib/baza_kunlik.js — «baza» ni ko'zgudan quradi va har qatorni Google hisobi bilan solishtiradi;
 //                    farq yoki to'xtash bo'lsa — direktorga Telegram, bo'lmasa jim (baza ko'chirishi 2a-bosqichi).
 'use strict';
+const BQ = require('./bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const { q, redis } = require('./db');
 
 const s = v => String(v == null ? '' : v);
@@ -65,7 +66,7 @@ async function topAvtoIsh(kod, opt = {}) {
   const TA = require('../api/top_avto')._ichki, TP = require('../api/topshiriq_yoz')._ichki, koprik = require('../api/koprik'), tetik = require('./kozgu_tetik');
   if (opt.quruq) { const r = await TA.topAvto(kod, { quruq: true }); return { quruq: true, yangi: r.yangi, yopildi: r.yopildi }; }
   let serverda = false;
-  try { serverda = (await redis.get('yozuv_yondi:top_avto')) === '1' && (await TP.koprik15(kod)); } catch (e) { serverda = false; }
+  try { serverda = (await BQ.yozuv('top_avto')) && (await TP.koprik15(kod)); } catch (e) { serverda = false; }
   if (serverda) {
     let yoq = false;
     const r = await TA.qulfUrin(async () => { try { return await TA.topAvto(kod); } catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; } });
@@ -161,7 +162,7 @@ async function tekshir() {
   try {
     const t = toshkent();
     for (const ish of ISHLAR) {
-      let yoq = false; try { yoq = (await redis.get('vaqt_yondi:' + ish.nom)) === '1'; } catch (e) { }
+      const yoq = await BQ.vaqt(ish.nom);
       if (!yoq) continue;
       const b = bolak(ish, t); if (!b) continue;
       if ((await redis.get('vaqt:' + ish.nom + ':bolak')) === b) continue;   // bu bo'lakda bajarilgan
@@ -179,7 +180,7 @@ function boshla() { const t = setInterval(() => tekshir().catch(() => {}), 60000
 async function holat() {
   const t = toshkent(), out = [];
   for (const ish of ISHLAR) {
-    let yoq = false, ox = null; try { yoq = (await redis.get('vaqt_yondi:' + ish.nom)) === '1'; ox = JSON.parse((await redis.get('vaqt:' + ish.nom + ':oxirgi')) || 'null'); } catch (e) { }
+    const yoq = await BQ.vaqt(ish.nom); let ox = null; try { ox = JSON.parse((await redis.get('vaqt:' + ish.nom + ':oxirgi')) || 'null'); } catch (e) { }
     out.push({ nom: ish.nom, tavsif: ish.tavsif, har: ish.har, eski: ish.eski, yoq, keyingi: yoq ? keyingi(ish, t) : '', oxirgi: ox });
   }
   return out;

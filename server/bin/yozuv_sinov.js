@@ -44,6 +44,7 @@ const G = require('../lib/google');
 const env = require('../lib/env');
 const V = require('../lib/varaq');
 const { pool, redis } = require('../lib/db');
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari (standart holat kodda)
 const K = require('../api/kassa')._ichki;
 const TY = require('../api/taminot_yoz')._ichki;
 const HY = require('../api/hujjat_yoz')._ichki;
@@ -161,7 +162,7 @@ async function taminotSinov() {
   }
   console.log('');
   if (!x && k15) {
-    await redis.set('yozuv_yondi:taminot', '1');
+    await BQ.yoq('yozuv', 'taminot');
     console.log('✅ HAMMASI BIR XIL — ta\'minot (kiritish, tasdiq/rad) endi server orqali saqlanadi.');
     console.log('   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
   } else if (!x) console.log('⚠ Yozuv bir xil, lekin Koprik.gs v1.5 o\'rnatilmagan — YOQILMADI. Koprik.gs ni yangilab, qayta ishga tushiring.');
@@ -205,7 +206,7 @@ async function hujjatSinov() {
   }
   console.log('');
   if (!x && k16) {
-    await redis.set('yozuv_yondi:hujjat', '1');
+    await BQ.yoq('yozuv', 'hujjat');
     console.log('✅ HAMMASI BIR XIL — hujjatni tuzatish endi server orqali saqlanadi.');
     console.log('   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
   } else if (!x) console.log('⚠ Yozuv bir xil, lekin Koprik.gs v1.6 o\'rnatilmagan — YOQILMADI. Koprik.gs ni yangilab, qayta ishga tushiring.');
@@ -260,7 +261,7 @@ async function topshiriqSinov() {
   }
   console.log('');
   if (!x && k15) {
-    await redis.set('yozuv_yondi:topshiriq', '1');
+    await BQ.yoq('yozuv', 'topshiriq');
     console.log('✅ HAMMASI BIR XIL — topshiriq berish endi server orqali saqlanadi.');
     console.log('   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
   } else if (!x) console.log('⚠ Yozuv bir xil, lekin Koprik.gs v1.5 o\'rnatilmagan — YOQILMADI.');
@@ -311,7 +312,7 @@ async function maydaSinov() {
     console.log('Nusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:mayda', '1'); console.log('✅ HAMMASI BIR XIL — xatni bekor qilish va oylik reja endi server orqali saqlanadi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'mayda'); console.log('✅ HAMMASI BIR XIL — xatni bekor qilish va oylik reja endi server orqali saqlanadi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else if (!x) console.log('⚠ Yozuv bir xil, lekin Koprik.gs v1.5 o\'rnatilmagan — YOQILMADI.');
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
@@ -385,7 +386,7 @@ async function shartnomaSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:shartnoma', '1'); console.log('✅ HAMMASI BIR XIL — yangi mijoz, sotuv shartnomasi (jadvali bilan) va ijara endi server orqali saqlanadi.\n   Shartnoma PDF — avvalgidek eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'shartnoma'); console.log('✅ HAMMASI BIR XIL — yangi mijoz, sotuv shartnomasi (jadvali bilan) va ijara endi server orqali saqlanadi.\n   Shartnoma PDF — avvalgidek eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -512,7 +513,7 @@ async function eksportSinov() {
     }
   } finally { await redis.del('ses:' + tok); }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:eksport', '1'); await redis.set('yozuv_yondi:eksport_pdf', '1'); console.log('✅ HAMMASI BIR XIL — reyestr PDF va Excel endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'eksport'); await BQ.yoq('yozuv', 'eksport_pdf'); console.log('✅ HAMMASI BIR XIL — reyestr PDF va Excel endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -544,7 +545,7 @@ async function hisobotSinov() {
     }
   } finally { await redis.del('ses:' + tok); }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:hisobot_pdf', '1'); console.log('✅ HAMMASI BIR XIL — sotuv bo\'limi hisoboti (PDF) endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'hisobot_pdf'); console.log('✅ HAMMASI BIR XIL — sotuv bo\'limi hisoboti (PDF) endi serverda yasaladi.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -599,7 +600,7 @@ async function qadamSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:qadam', '1'); await redis.set('yozuv_yondi:qadam_ruxsat', '1'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ⏭ o\'tkazish, 📣 direktorga, ⓘ ma\'lumot, 📅 muddat so\'rash, ✈ Telegram\n   va direktorning ✓ ruxsat / ✕ rad javoblari (o\'tkazish, muddat, kutish) endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'qadam'); await BQ.yoq('yozuv', 'qadam_ruxsat'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ⏭ o\'tkazish, 📣 direktorga, ⓘ ma\'lumot, 📅 muddat so\'rash, ✈ Telegram\n   va direktorning ✓ ruxsat / ✕ rad javoblari (o\'tkazish, muddat, kutish) endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'ko\'prik javob bermadi') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -684,7 +685,7 @@ async function tahrirSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:tahrir', '1'); console.log('✅ HAMMASI BIR XIL — ✎ shartnoma ma\'lumotini tahrirlash, 📨 direktordan so\'rash, direktorning ✓/✕ javobi\n   va 📌 ma\'lumot topshirig\'ini kiritish / tasdiqlash endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'tahrir'); console.log('✅ HAMMASI BIR XIL — ✎ shartnoma ma\'lumotini tahrirlash, 📨 direktordan so\'rash, direktorning ✓/✕ javobi\n   va 📌 ma\'lumot topshirig\'ini kiritish / tasdiqlash endi server orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'ko\'prik javob bermadi') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -718,7 +719,7 @@ async function undiruvSinov() {
     console.log('\nNusxa varaq o\'chirildi.');
   }
   console.log('');
-  if (!x && k17) { await redis.set('yozuv_yondi:qadam_hujjat', '1'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ✕ xatni bekor qilish, 📎 shartnoma skani va 📎 so\'ralgan hujjatni yuklash\n   endi server orqali (tekshiruvchiga Telegram — eski tizim, fayl Drive\'ga ko\'chgach).\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k17) { await BQ.yoq('yozuv', 'qadam_hujjat'); console.log('✅ HAMMASI BIR XIL — «Bugungi ish» dagi ✕ xatni bekor qilish, 📎 shartnoma skani va 📎 so\'ralgan hujjatni yuklash\n   endi server orqali (tekshiruvchiga Telegram — eski tizim, fayl Drive\'ga ko\'chgach).\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -764,7 +765,7 @@ async function xatSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k17) { await redis.set('yozuv_yondi:xat_isbot', '1'); console.log('✅ HAMMASI BIR XIL — ✉ xat yetkazildi (imzolangan nusxa / pochta kvitansiyasi) va 📨 talabnoma isboti endi server orqali\n   (direktorga Telegram — eski tizim, fayl Drive\'ga ko\'chgach). Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k17) { await BQ.yoq('yozuv', 'xat_isbot'); console.log('✅ HAMMASI BIR XIL — ✉ xat yetkazildi (imzolangan nusxa / pochta kvitansiyasi) va 📨 talabnoma isboti endi server orqali\n   (direktorga Telegram — eski tizim, fayl Drive\'ga ko\'chgach). Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -802,7 +803,7 @@ async function bajardimSinov() {
     console.log('\nNusxa varaq o\'chirildi.');
   }
   console.log('');
-  if (!x && k17) { await redis.set('yozuv_yondi:bajardim', '1'); console.log('✅ HAMMASI BIR XIL — 📌 topshiriqdagi «✓ Bajardim» (faylsiz), 🤝 nusxani kotibaga topshirish va ✖ «menga berilmagan»\n   endi server orqali (tekshiruvchiga Telegram — eski tizim). Isbot fayli bilan «Bajardim» — hali eski tizim orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k17) { await BQ.yoq('yozuv', 'bajardim'); console.log('✅ HAMMASI BIR XIL — 📌 topshiriqdagi «✓ Bajardim» (faylsiz), 🤝 nusxani kotibaga topshirish va ✖ «menga berilmagan»\n   endi server orqali (tekshiruvchiga Telegram — eski tizim). Isbot fayli bilan «Bajardim» — hali eski tizim orqali.\n   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -916,7 +917,7 @@ async function yuristHujjatSinov() {
       else xH += await zipQismlar(nom, eb, yb, fmt === 'xlsx');
     }
   }
-  if (!xH) { await redis.set('yozuv_yondi:yurist_hujjat', '1'); console.log('\n✅ HUJJATLAR BIR XIL — ma\'lumotnoma, bayonnoma va penya hisobi (PDF, Word, Excel) endi serverda yasaladi.'); }
+  if (!xH) { await BQ.yoq('yozuv', 'yurist_hujjat'); console.log('\n✅ HUJJATLAR BIR XIL — ma\'lumotnoma, bayonnoma va penya hisobi (PDF, Word, Excel) endi serverda yasaladi.'); }
   else console.log('\n⚠ Hujjatlarda ' + xH + ' ta farq — YOQILMADI (eski tizimda qoladi).');
 
   console.log('\n=== ✉ ALOQA XATI (06g_Yuridik_xatlar, 06f_Yurist_tarix) ===');
@@ -977,7 +978,7 @@ async function yuristHujjatSinov() {
       }
     } catch (e) { console.log('  ⚠ Drive: ' + e.message); xA++; }
   }
-  if (!xA && k111) { await redis.set('yozuv_yondi:yurist_aloqa', '1'); console.log('\n✅ ALOQA XATI BIR XIL — «Алоқа хати» tayyorlash, yuborildi va bekor qilish endi serverda (PDF va Word darhol, Drive\'ga — fonda).'); }
+  if (!xA && k111) { await BQ.yoq('yozuv', 'yurist_aloqa'); console.log('\n✅ ALOQA XATI BIR XIL — «Алоқа хати» tayyorlash, yuborildi va bekor qilish endi serverda (PDF va Word darhol, Drive\'ga — fonda).'); }
   else console.log('\n⚠ Aloqa xati: ' + (xA ? xA + ' ta farq' : 'Koprik 1.11 emas') + ' — YOQILMADI (eski tizimda qoladi).');
   console.log('Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
 }
@@ -1014,7 +1015,7 @@ async function yuristIshSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:yurist_ish', '1'); console.log('✅ HAMMASI BIR XIL — ⚖ ishni to\'g\'ridan-to\'g\'ri yuristga o\'tkazish va yuristning topshirig\'i endi server orqali. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'yurist_ish'); console.log('✅ HAMMASI BIR XIL — ⚖ ishni to\'g\'ridan-to\'g\'ri yuristga o\'tkazish va yuristning topshirig\'i endi server orqali. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 async function yuristSorovSinov() {
@@ -1044,7 +1045,7 @@ async function yuristSorovSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:yurist_sorov', '1'); console.log('✅ HAMMASI BIR XIL — ⚖ «Yuristga o\'tkazish» so\'rovi endi server orqali. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'yurist_sorov'); console.log('✅ HAMMASI BIR XIL — ⚖ «Yuristga o\'tkazish» so\'rovi endi server orqali. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1101,7 +1102,7 @@ async function xatChiqarSinov() {
     } catch (e) { console.log('  ⚠ Drive: ' + e.message); x++; }
   }
   console.log('');
-  if (!x && k18) { await redis.set('yozuv_yondi:xat_chiqar', '1'); console.log('✅ HAMMASI BIR XIL — ✉ ogohlantirish xati, talabnoma va maydon farqi xatlari endi serverda chiqariladi\n   (PDF darhol, Drive\'ga nusxa — fonda). Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k18) { await BQ.yoq('yozuv', 'xat_chiqar'); console.log('✅ HAMMASI BIR XIL — ✉ ogohlantirish xati, talabnoma va maydon farqi xatlari endi serverda chiqariladi\n   (PDF darhol, Drive\'ga nusxa — fonda). Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.8 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1174,7 +1175,7 @@ async function bekorSinov() {
     } catch (e) { console.log('  ⚠ Drive: ' + e.message); x++; }
   }
   console.log('');
-  if (!x && k19) { await redis.set('yozuv_yondi:bekor', '1'); await redis.set('yozuv_yondi:bekor_word', '1'); console.log('✅ HAMMASI BIR XIL — ✂ shartnomani bekor qilish so\'rovi, buyruq va xabarnoma, ularning skanlari endi serverda\n   (PDF va Word darhol, Drive\'ga nusxa — fonda). Direktor tasdig\'i hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k19) { await BQ.yoq('yozuv', 'bekor'); await BQ.yoq('yozuv', 'bekor_word'); console.log('✅ HAMMASI BIR XIL — ✂ shartnomani bekor qilish so\'rovi, buyruq va xabarnoma, ularning skanlari endi serverda\n   (PDF va Word darhol, Drive\'ga nusxa — fonda). Direktor tasdig\'i hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.9 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1189,7 +1190,7 @@ async function qaytaSinov() {
   const k16 = verOk(ver, '1.6') && !/^xato/.test(ver);
   console.log('Eski tizim ko\'prigi: v' + ver + (k16 ? ' ✅' : ' ⚠ (1.6 kerak)'));
   const kod = adm.kirish_kodi, tok = await S.sessiyaOch(kod);
-  await redis.set('yozuv_yondi:qayta', '1');   // solishtirish paytida server yo'li ishlasin (bayroqsiz qaytaOchiq/qaytaKor eski tizimga boradi); farq bo'lsa — oxirida o'chiriladi
+  await BQ.yoq('yozuv', 'qayta');   // solishtirish paytida server yo'li ishlasin (bayroqsiz qaytaOchiq/qaytaKor eski tizimga boradi); farq bo'lsa — oxirida o'chiriladi
   const toza = v => JSON.parse(JSON.stringify(v, (k, x) => x === null || x === undefined ? '' : x));
   const farq = (a, b, yol, o) => { if (o.length > 30) return; const bo = v => v === '' || v === null || v === undefined;
     if (bo(a) && bo(b)) return; if (typeof a !== typeof b) { if (String(a) !== String(b)) o.push(yol + ': ' + JSON.stringify(a).slice(0, 60) + ' ←→ ' + JSON.stringify(b).slice(0, 60)); return; }
@@ -1239,8 +1240,8 @@ async function qaytaSinov() {
     }
   }
   console.log('');
-  if (x || !k16) await redis.del('yozuv_yondi:qayta');
-  if (!x && k16) { await redis.set('yozuv_yondi:qayta', '1'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish: skan yuklash, tekshiruvga yuborish va qaytarish endi serverda (o\'qishlar — deploy bilan).\n   Loyiha yaratish, hujjatlar (4 PDF), tasdiqlash va bekor qilish hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (x || !k16) await BQ.ochir('yozuv', 'qayta');
+  if (!x && k16) { await BQ.yoq('yozuv', 'qayta'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish: skan yuklash, tekshiruvga yuborish va qaytarish endi serverda (o\'qishlar — deploy bilan).\n   Loyiha yaratish, hujjatlar (4 PDF), tasdiqlash va bekor qilish hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.6 emas') + ' — yozuvlar YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1289,8 +1290,8 @@ async function qaytabekorSinov() {
     console.log('Nusxa varaq o\'chirildi.');
   }
   console.log('');
-  if (!x && k114) { await redis.set('yozuv_yondi:qayta_bekor', '1'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish loyihasini bekor qilish endi serverda (06k, 06d, topshiriq — server; bo\'sh Drive papkasi — Koprik 1.14). Qaytarish: aks-yozuv-sinov ochir'); }
-  else { await redis.del('yozuv_yondi:qayta_bekor'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.14 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
+  if (!x && k114) { await BQ.yoq('yozuv', 'qayta_bekor'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish loyihasini bekor qilish endi serverda (06k, 06d, topshiriq — server; bo\'sh Drive papkasi — Koprik 1.14). Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await BQ.ochir('yozuv', 'qayta_bekor'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.14 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
 }
 
 // 🔁 QAYTA TUZISH 2-BOSQICH (tasdiq, loyiha): 06k/03/03b/05/05b NUSXALARIDA server to'liq tasdiq yozuvini bajaradi (tasdiqYadro — ishdagi kodning o'zi)
@@ -1362,7 +1363,7 @@ async function qayta2Sinov() {
     console.log('Nusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k16) { await redis.set('yozuv_yondi:qayta2', '1'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish: loyiha yaratish, ijrochini almashtirish va ✓ TASDIQLASH endi serverda.\n   Hujjatlar (4 PDF) va ✕ bekor qilish hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
+  if (!x && k16) { await BQ.yoq('yozuv', 'qayta2'); console.log('✅ HAMMASI BIR XIL — 🔁 qayta tuzish: loyiha yaratish, ijrochini almashtirish va ✓ TASDIQLASH endi serverda.\n   Hujjatlar (4 PDF) va ✕ bekor qilish hozircha eski tizimda. Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.6 emas') + ' — 2-bosqich YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1442,7 +1443,7 @@ async function qaytahujSinov() {
     else console.log('  ✅ ' + w.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + w.dmax.toFixed(2) + ' pt — lotin harflari kerningi)');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:qayta_hujjat', '1'); console.log('✅ HAMMASI BIR XIL — 📄 qayta tuzish hujjatlari (4 PDF) endi serverda yasaladi (Drive papkasi, Google Doc nusxalari, 06k Z va jurnal — fonda eski tizim). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'qayta_hujjat'); console.log('✅ HAMMASI BIR XIL — 📄 qayta tuzish hujjatlari (4 PDF) endi serverda yasaladi (Drive papkasi, Google Doc nusxalari, 06k Z va jurnal — fonda eski tizim). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — hujjatlar YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1479,7 +1480,7 @@ async function shpdfSinov(nolar) {
     else console.log('  ✅ ' + q.sozlar[0] + ' so\'zning joyi bir xil (eng katta og\'ish ' + q.dmax.toFixed(2) + ' pt)');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:shartnoma_pdf', '1'); console.log('✅ HAMMASI BIR XIL — 📄 shartnoma PDF (sotuv va ijara) endi serverda yasaladi, 2–4 soniyada (Drive nusxasi va 03 S / 04 V havolasi — fonda eski tizim, ~1 daqiqa). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'shartnoma_pdf'); console.log('✅ HAMMASI BIR XIL — 📄 shartnoma PDF (sotuv va ijara) endi serverda yasaladi, 2–4 soniyada (Drive nusxasi va 03 S / 04 V havolasi — fonda eski tizim, ~1 daqiqa). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — shartnoma PDF YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1540,7 +1541,7 @@ async function tekshirSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:ijro_tekshir', '1'); console.log('✅ HAMMASI BIR XIL — 🎲 tekshiruv qo\'ng\'irog\'i javobi (✅ / ❌ / 📵) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'ijro_tekshir'); console.log('✅ HAMMASI BIR XIL — 🎲 tekshiruv qo\'ng\'irog\'i javobi (✅ / ❌ / 📵) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1596,7 +1597,7 @@ async function imzosizSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:imzosiz', '1'); await redis.set('yozuv_yondi:imzosiz_bekor', '1'); console.log('✅ HAMMASI BIR XIL — ✕ imzolanmagan ijara: xodim so\'rovi, direktor javobi (✅ bekor / ✖ rad) va direktorning darhol bekor qilishi (ijaraImzosizBekor — o\'sha yozuvlar) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'imzosiz'); await BQ.yoq('yozuv', 'imzosiz_bekor'); console.log('✅ HAMMASI BIR XIL — ✕ imzolanmagan ijara: xodim so\'rovi, direktor javobi (✅ bekor / ✖ rad) va direktorning darhol bekor qilishi (ijaraImzosizBekor — o\'sha yozuvlar) endi server orqali (Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1661,7 +1662,7 @@ async function devonSinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k112) { await redis.set('yozuv_yondi:devon', '1'); await redis.set('yozuv_yondi:devon_kordi', '1'); console.log('✅ HAMMASI BIR XIL — 📮 kirim xatni saqlash va «direktor ko\'rdi» belgisi endi server orqali (skan Drive\'ga va direktorga Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k112) { await BQ.yoq('yozuv', 'devon'); await BQ.yoq('yozuv', 'devon_kordi'); console.log('✅ HAMMASI BIR XIL — 📮 kirim xatni saqlash va «direktor ko\'rdi» belgisi endi server orqali (skan Drive\'ga va direktorga Telegram — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.12 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1763,7 +1764,7 @@ async function kbSinov() {
     }
   }
   console.log('');
-  if (!x && k112) { await redis.set('yozuv_yondi:kb', '1'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv + dalolatnoma endi serverda yasaladi (PDF va Word darhol; Drive nusxasi — fonda eski tizim). Skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i hozircha eski tizimda. Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k112) { await BQ.yoq('yozuv', 'kb'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv + dalolatnoma endi serverda yasaladi (PDF va Word darhol; Drive nusxasi — fonda eski tizim). Skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i hozircha eski tizimda. Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.12 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1843,7 +1844,7 @@ async function kb2Sinov() {
     }
   }
   console.log('');
-  if (!x && k113) { await redis.set('yozuv_yondi:kb2', '1'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv: skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i/radi endi server orqali (skan Drive\'ga va Telegram — eski tizim ko\'prigi; tasdiqda skan 06d ga serverda). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k113) { await BQ.yoq('yozuv', 'kb2'); console.log('✅ HAMMASI BIR XIL — 🤝 kelishuv: skan yuklash, so\'rovni bekor qilish va direktor tasdig\'i/radi endi server orqali (skan Drive\'ga va Telegram — eski tizim ko\'prigi; tasdiqda skan 06d ga serverda). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.13 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -1880,7 +1881,7 @@ async function sifatSinov() {
     if (!sf.length) x++;
   } finally { for (const k of await redis.keys('sfses:' + tok + ':*')) { const t2 = await redis.get(k); if (t2) await redis.del('ses:' + t2); await redis.del(k); } await redis.del('ses:' + tok); }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:sifat', '1'); console.log('✅ HAMMASI BIR XIL — 👁 «xodim ko\'zi bilan» endi yangi saytda ochiladi (havola, bilet, o\'qish — serverda; serverda yo\'q o\'qishlar — eski tizim). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'sifat'); console.log('✅ HAMMASI BIR XIL — 👁 «xodim ko\'zi bilan» endi yangi saytda ochiladi (havola, bilet, o\'qish — serverda; serverda yo\'q o\'qishlar — eski tizim). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (havola avvalgidek eski saytga ochiladi).');
 }
 
@@ -2030,8 +2031,8 @@ async function devon2Sinov() {
     console.log('\nNusxa varaqlar o\'chirildi.');
   }
   console.log('');
-  if (!x && k115) { await redis.set('yozuv_yondi:devon2', '1'); console.log('✅ HAMMASI BIR XIL — 📮 devonxona: chiqim xatni ro\'yxatga olish, yuborildi, rezolyutsiya, ijro topshirish, qabul/qaytarish, rezolyutsiyani qaytarib olish, bekor — endi serverda (fayllar Drive\'ga va Telegram — eski tizim ko\'prigi). Blankadagi xat — alohida: aks-yozuv-sinov devonxat. Qaytarish: aks-yozuv-sinov ochir'); }
-  else { await redis.del('yozuv_yondi:devon2'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
+  if (!x && k115) { await BQ.yoq('yozuv', 'devon2'); console.log('✅ HAMMASI BIR XIL — 📮 devonxona: chiqim xatni ro\'yxatga olish, yuborildi, rezolyutsiya, ijro topshirish, qabul/qaytarish, rezolyutsiyani qaytarib olish, bekor — endi serverda (fayllar Drive\'ga va Telegram — eski tizim ko\'prigi). Blankadagi xat — alohida: aks-yozuv-sinov devonxat. Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await BQ.ochir('yozuv', 'devon2'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).'); }
 }
 
 // Qatorma-qator: eski va server PDF dagi har bir matn qatorining yuqori chegarasi (so'zlar bir xil ketma-ketlikda bo'lsa) — farq o'zgargan joylar chiqariladi
@@ -2087,8 +2088,8 @@ async function devonxatSinov() {
     } catch (e) { console.log('  ⚠ ' + e.message); x++; }
   }
   console.log('');
-  if (!x && k115) { await redis.set('yozuv_yondi:devon_xat', '1'); console.log('✅ HAMMASI BIR XIL — ✍ blankadagi chiquvchi xat endi serverda yasaladi (PDF 1–2 s, Word; Drive\'ga — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
-  else { await redis.del('yozuv_yondi:devon_xat'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (blankadagi xat eski tizimda yasalaveradi).'); }
+  if (!x && k115) { await BQ.yoq('yozuv', 'devon_xat'); console.log('✅ HAMMASI BIR XIL — ✍ blankadagi chiquvchi xat endi serverda yasaladi (PDF 1–2 s, Word; Drive\'ga — eski tizim ko\'prigi). Qaytarish: aks-yozuv-sinov ochir'); }
+  else { await BQ.ochir('yozuv', 'devon_xat'); console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.15 emas') + ' — YOQILMADI (blankadagi xat eski tizimda yasalaveradi).'); }
 }
 
 // ☀️ 07c ERTALAB SVOD (Monitoring.gs monErtalabYoz_): nusxa varaqda server 2 ta sinov qator yozadi, keyin qayta yozadi (bugungi eski qatorlar o'chirilib, yangilari);
@@ -2199,7 +2200,7 @@ async function kirishSinov() {
     console.log('\nNusxa varaq o\'chirildi.');
   }
   console.log('');
-  if (!x) { await redis.set('yozuv_yondi:kirish07b', '1'); console.log('✅ HAMMASI BIR XIL — 🔑 PIN kirishi 07b ga endi server o\'zi yozadi (eski tizimga pinKir yuborilmaydi). Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x) { await BQ.yoq('yozuv', 'kirish07b'); console.log('✅ HAMMASI BIR XIL — 🔑 PIN kirishi 07b ga endi server o\'zi yozadi (eski tizimga pinKir yuborilmaydi). Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + x + ' ta farq — YOQILMADI (avvalgidek eski tizim orqali).');
 }
 
@@ -2249,7 +2250,7 @@ async function mijozpdfSinov(midlar) {
   } finally { await redis.del('ses:' + tok); }
   console.log('\nNatija: «html» varianti — ' + (natija.html ? natija.html + ' ta farq' : 'BIR XIL') + ' · «google» varianti — ' + (natija.google ? natija.google + ' ta farq' : 'BIR XIL'));
   const tanlov = !natija.html ? 'html' : !natija.google ? 'google' : '';
-  if (!xato && tanlov && midlar.length) { await redis.set('mijoz_karta_sahifa', tanlov); await redis.set('yozuv_yondi:mijoz_karta_pdf', '1'); console.log('✅ HAMMASI BIR XIL («' + tanlov + '» sahifa) — 👤 mijoz kartasi PDF endi serverda yasaladi. Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!xato && tanlov && midlar.length) { await redis.set('mijoz_karta_sahifa', tanlov); await BQ.yoq('yozuv', 'mijoz_karta_pdf'); console.log('✅ HAMMASI BIR XIL («' + tanlov + '» sahifa) — 👤 mijoz kartasi PDF endi serverda yasaladi. Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (xato ? xato + ' ta eski tizim xatosi' : 'ikkala variantda ham farq') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -2290,7 +2291,7 @@ async function topmeningSinov() {
   }
   await tetik.varaqlarYangila([TP.TOP_V]).catch(() => {});
   console.log('');
-  if (!x && k17) { await redis.set('yozuv_yondi:top_mening', '1'); console.log('✅ HAMMASI BIR XIL — 📌 «Topshiriqlarim»: yuklangan hujjat topshiriqlarini yopish endi serverda (eski tizimga o\'tmaydi; tekshiruvchiga Telegram — ko\'prik).' + (!jami ? '\n   (Bu safar hech kimda yopiladigan hujjat topshirig\'i yo\'q edi — «hech narsa yo\'q» mosligi; yozuv yo\'li qadamSkan va topHozir sinovlarida tasdiqlangan.)' : '') + ' Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k17) { await BQ.yoq('yozuv', 'top_mening'); console.log('✅ HAMMASI BIR XIL — 📌 «Topshiriqlarim»: yuklangan hujjat topshiriqlarini yopish endi serverda (eski tizimga o\'tmaydi; tekshiruvchiga Telegram — ko\'prik).' + (!jami ? '\n   (Bu safar hech kimda yopiladigan hujjat topshirig\'i yo\'q edi — «hech narsa yo\'q» mosligi; yozuv yo\'li qadamSkan va topHozir sinovlarida tasdiqlangan.)' : '') + ' Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.7 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
@@ -2347,38 +2348,38 @@ async function tophozirSinov() {
     else console.log('  (№' + t.id + ' ni shu orada xodim yopdi: ' + t.yopdi + ' — hisobga olinmadi)'); });
   await tetik.varaqlarYangila([TP.TOP_V]).catch(() => {});
   console.log('');
-  if (!x && k15) { await redis.set('yozuv_yondi:top_avto', '1'); console.log('✅ HAMMASI BIR XIL — 🤖 «Hozir tekshirish» endi serverda (yangi topshiriqlar, avtomatik yopish, xodimga Telegram — ko\'prik). Eski 2 soatlik trigger ishlayveradi.' + (!q.yangi.length && !q.yop.length ? '\n   (Bu safar ikkala tomonda ham yangi topshiriq va yopish yo\'q edi — nomzodlar ' + q.nomzod + ' ta, hammasi band; «hech narsa yo\'q» mosligi tasdiqlandi. Keyingi haqiqiy topshiriq ochilganda aks-bugun ko\'rsatadi.)' : '') + ' Qaytarish: aks-yozuv-sinov ochir'); }
+  if (!x && k15) { await BQ.yoq('yozuv', 'top_avto'); console.log('✅ HAMMASI BIR XIL — 🤖 «Hozir tekshirish» endi serverda (yangi topshiriqlar, avtomatik yopish, xodimga Telegram — ko\'prik). Eski 2 soatlik trigger ishlayveradi.' + (!q.yangi.length && !q.yop.length ? '\n   (Bu safar ikkala tomonda ham yangi topshiriq va yopish yo\'q edi — nomzodlar ' + q.nomzod + ' ta, hammasi band; «hech narsa yo\'q» mosligi tasdiqlandi. Keyingi haqiqiy topshiriq ochilganda aks-bugun ko\'rsatadi.)' : '') + ' Qaytarish: aks-yozuv-sinov ochir'); }
   else console.log('⚠ ' + (x ? x + ' ta farq' : 'Koprik 1.5 emas') + ' — YOQILMADI (eski tizim orqali ishlayveradi).');
 }
 
 (async () => {
   const arg = process.argv[2];
   if (arg === 'devon') {
-    console.log('Hozir: kirim xat — ' + ((await redis.get('yozuv_yondi:devon')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: kirim xat — ' + ((await BQ.yozuv('devon')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await devonSinov();
   } else if (arg === 'kb') {
-    console.log('Hozir: kelishuv hujjati — ' + ((await redis.get('yozuv_yondi:kb')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: kelishuv hujjati — ' + ((await BQ.yozuv('kb')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kbSinov();
   } else if (arg === 'kb2') {
-    console.log('Hozir: kelishuv skan/bekor/tasdiq — ' + ((await redis.get('yozuv_yondi:kb2')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: kelishuv skan/bekor/tasdiq — ' + ((await BQ.yozuv('kb2')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kb2Sinov();
   } else if (arg === 'sifat') {
-    console.log('Hozir: ko\'rish rejimi — ' + ((await redis.get('yozuv_yondi:sifat')) === '1' ? 'yangi saytda' : 'eski saytda (ko\'prik)'));
+    console.log('Hozir: ko\'rish rejimi — ' + ((await BQ.yozuv('sifat')) ? 'yangi saytda' : 'eski saytda (ko\'prik)'));
     await sifatSinov();
   } else if (arg === 'devon2') {
-    console.log('Hozir: devonxona qolgan amallari — ' + ((await redis.get('yozuv_yondi:devon2')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: devonxona qolgan amallari — ' + ((await BQ.yozuv('devon2')) ? 'serverda' : 'eski tizimda'));
     await devon2Sinov();
   } else if (arg === 'devonxat') {
-    console.log('Hozir: blankadagi chiquvchi xat — ' + ((await redis.get('yozuv_yondi:devon_xat')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: blankadagi chiquvchi xat — ' + ((await BQ.yozuv('devon_xat')) ? 'serverda' : 'eski tizimda'));
     await devonxatSinov();
   } else if (arg === 'ertalab') {
     await ertalabSinov();
@@ -2388,61 +2389,61 @@ async function tophozirSinov() {
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await ijrokunSinov();
   } else if (arg === 'kirish') {
-    console.log('Hozir: 07b kirish jurnali — ' + ((await redis.get('yozuv_yondi:kirish07b')) === '1' ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
+    console.log('Hozir: 07b kirish jurnali — ' + ((await BQ.yozuv('kirish07b')) ? 'serverda' : 'eski tizimda (pinKir ko\'prik)'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await kirishSinov();
   } else if (arg === 'mijozpdf') {
-    console.log('Hozir: mijoz kartasi PDF — ' + ((await redis.get('yozuv_yondi:mijoz_karta_pdf')) === '1' ? 'serverda (sahifa: ' + (await redis.get('mijoz_karta_sahifa')) + ')' : 'eski tizimda'));
+    console.log('Hozir: mijoz kartasi PDF — ' + ((await BQ.yozuv('mijoz_karta_pdf')) ? 'serverda (sahifa: ' + (await redis.get('mijoz_karta_sahifa')) + ')' : 'eski tizimda'));
     await mijozpdfSinov(process.argv.slice(3).map(z => String(z).trim()).filter(Boolean));
   } else if (arg === 'topmening') {
-    console.log('Hozir: Topshiriqlarim (hujjat topshiriqlarini yopish) — ' + ((await redis.get('yozuv_yondi:top_mening')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: Topshiriqlarim (hujjat topshiriqlarini yopish) — ' + ((await BQ.yozuv('top_mening')) ? 'serverda' : 'eski tizimda'));
     await topmeningSinov();
   } else if (arg === 'tophozir') {
-    console.log('Hozir: topshiriq qoidalari (Hozir tekshirish) — ' + ((await redis.get('yozuv_yondi:top_avto')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: topshiriq qoidalari (Hozir tekshirish) — ' + ((await BQ.yozuv('top_avto')) ? 'serverda' : 'eski tizimda'));
     await tophozirSinov();
   } else if (arg === 'tekshir') {
-    console.log('Hozir: tekshiruv javobi — ' + ((await redis.get('yozuv_yondi:ijro_tekshir')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: tekshiruv javobi — ' + ((await BQ.yozuv('ijro_tekshir')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await tekshirSinov();
   } else if (arg === 'imzosiz') {
-    console.log('Hozir: imzolanmagan ijara — ' + ((await redis.get('yozuv_yondi:imzosiz')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: imzolanmagan ijara — ' + ((await BQ.yozuv('imzosiz')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await imzosizSinov();
   } else if (arg === 'shpdf') {
-    console.log('Hozir: shartnoma PDF — ' + ((await redis.get('yozuv_yondi:shartnoma_pdf')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: shartnoma PDF — ' + ((await BQ.yozuv('shartnoma_pdf')) ? 'serverda' : 'eski tizimda'));
     await shpdfSinov(process.argv.slice(3).map(z => String(z).trim().toUpperCase()));
   } else if (arg === 'qaytahuj') {
-    console.log('Hozir: qayta tuzish hujjatlari — ' + ((await redis.get('yozuv_yondi:qayta_hujjat')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: qayta tuzish hujjatlari — ' + ((await BQ.yozuv('qayta_hujjat')) ? 'serverda' : 'eski tizimda'));
     await qaytahujSinov();
   } else if (arg === 'qaytabekor') {
-    console.log('Hozir: qayta tuzish bekor qilish — ' + ((await redis.get('yozuv_yondi:qayta_bekor')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: qayta tuzish bekor qilish — ' + ((await BQ.yozuv('qayta_bekor')) ? 'serverda' : 'eski tizimda'));
     await qaytabekorSinov();
   } else if (arg === 'qayta2') {
-    console.log('Hozir: qayta tuzish tasdiq/loyiha — ' + ((await redis.get('yozuv_yondi:qayta2')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: qayta tuzish tasdiq/loyiha — ' + ((await BQ.yozuv('qayta2')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await qayta2Sinov();
   } else if (arg === 'qayta') {
-    console.log('Hozir: qayta tuzish yozuvlari — ' + ((await redis.get('yozuv_yondi:qayta')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: qayta tuzish yozuvlari — ' + ((await BQ.yozuv('qayta')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await qaytaSinov();
   } else if (arg === 'bekor') {
-    console.log('Hozir: bekor qilish — ' + ((await redis.get('yozuv_yondi:bekor')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: bekor qilish — ' + ((await BQ.yozuv('bekor')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await bekorSinov();
   } else if (arg === 'xatchiqar') {
-    console.log('Hozir: xat chiqarish — ' + ((await redis.get('yozuv_yondi:xat_chiqar')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: xat chiqarish — ' + ((await BQ.yozuv('xat_chiqar')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
@@ -2457,10 +2458,10 @@ async function tophozirSinov() {
       if (!r.farq) await redis.set('xat_pdf_tekshirildi', new Date().toISOString());
     }
   } else if (arg === 'ochir') {
-    await redis.del('yozuv_yondi:tolov', 'yozuv_yondi:tashrif', 'yozuv_yondi:taminot', 'yozuv_yondi:hujjat', 'yozuv_yondi:topshiriq', 'yozuv_yondi:tasdiq', 'yozuv_yondi:mayda', 'yozuv_yondi:shartnoma', 'yozuv_yondi:eksport', 'yozuv_yondi:eksport_pdf', 'yozuv_yondi:hisobot_pdf', 'yozuv_yondi:qadam', 'yozuv_yondi:qadam_ruxsat', 'yozuv_yondi:tahrir', 'yozuv_yondi:qadam_hujjat', 'yozuv_yondi:xat_isbot', 'yozuv_yondi:bajardim', 'yozuv_yondi:yurist_sorov', 'yozuv_yondi:xat_chiqar', 'yozuv_yondi:bekor', 'yozuv_yondi:bekor_word', 'yozuv_yondi:yurist_ish', 'yozuv_yondi:yurist_hujjat', 'yozuv_yondi:yurist_aloqa', 'yozuv_yondi:qayta', 'yozuv_yondi:qayta2', 'yozuv_yondi:qayta_hujjat', 'yozuv_yondi:shartnoma_pdf', 'yozuv_yondi:ijro_tekshir', 'yozuv_yondi:imzosiz', 'yozuv_yondi:devon', 'yozuv_yondi:kb', 'yozuv_yondi:top_avto', 'yozuv_yondi:kb2', 'yozuv_yondi:imzosiz_bekor', 'yozuv_yondi:devon_kordi', 'yozuv_yondi:top_mening', 'yozuv_yondi:mijoz_karta_pdf', 'yozuv_yondi:kirish07b', 'yozuv_yondi:sifat', 'yozuv_yondi:qayta_bekor', 'yozuv_yondi:devon2', 'yozuv_yondi:devon_xat', 'yozuv_yondi:tg', 'yozuv_yondi:tg_kirish', 'yozuv_yondi:tasdiq_qaror');
+    for (const n of ['tolov', 'tashrif', 'taminot', 'hujjat', 'topshiriq', 'tasdiq', 'mayda', 'shartnoma', 'eksport', 'eksport_pdf', 'hisobot_pdf', 'qadam', 'qadam_ruxsat', 'tahrir', 'qadam_hujjat', 'xat_isbot', 'bajardim', 'yurist_sorov', 'xat_chiqar', 'bekor', 'bekor_word', 'yurist_ish', 'yurist_hujjat', 'yurist_aloqa', 'qayta', 'qayta2', 'qayta_hujjat', 'shartnoma_pdf', 'ijro_tekshir', 'imzosiz', 'devon', 'kb', 'top_avto', 'kb2', 'imzosiz_bekor', 'devon_kordi', 'top_mening', 'mijoz_karta_pdf', 'kirish07b', 'sifat', 'qayta_bekor', 'devon2', 'devon_xat', 'tg', 'tg_kirish', 'tasdiq_qaror']) await BQ.ochir('yozuv', n);   // '0' — kalitni o'chirish endi standart (yoniq) holatga qaytaradi
     console.log('⏸ Serverda yozish O\'CHIRILDI — to\'lov, tashrif, ta\'minot, hujjat tuzatish, topshiriq, tasdiqlash, shartnoma va reyestr PDF/Excel yana eski tizim orqali.');
   } else if (arg === 'yurhujjat') {
-    const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';
+    const holat = async n => (await BQ.yozuv(n)) ? 'serverda' : 'eski tizimda';
     console.log('Hozir: yurist hujjatlari — ' + await holat('yurist_hujjat') + ', aloqa xati — ' + await holat('yurist_aloqa'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
@@ -2469,95 +2470,95 @@ async function tophozirSinov() {
   } else if (arg === 'yhnamuna') {
     await yhNamuna(process.argv[3]);
   } else if (arg === 'yuristish') {
-    console.log('Hozir: to\'g\'ridan-to\'g\'ri yuristga va yurist topshirig\'i — ' + ((await redis.get('yozuv_yondi:yurist_ish')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: to\'g\'ridan-to\'g\'ri yuristga va yurist topshirig\'i — ' + ((await BQ.yozuv('yurist_ish')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await yuristIshSinov();
   } else if (arg === 'yurist') {
-    console.log('Hozir: yuristga o\'tkazish so\'rovi — ' + ((await redis.get('yozuv_yondi:yurist_sorov')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: yuristga o\'tkazish so\'rovi — ' + ((await BQ.yozuv('yurist_sorov')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await yuristSorovSinov();
   } else if (arg === 'bajardim') {
-    console.log('Hozir: topshiriq «Bajardim», nusxa kotibaga — ' + ((await redis.get('yozuv_yondi:bajardim')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: topshiriq «Bajardim», nusxa kotibaga — ' + ((await BQ.yozuv('bajardim')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await bajardimSinov();
   } else if (arg === 'xat') {
-    console.log('Hozir: xat isboti (yetkazildi) — ' + ((await redis.get('yozuv_yondi:xat_isbot')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: xat isboti (yetkazildi) — ' + ((await BQ.yozuv('xat_isbot')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await xatSinov();
   } else if (arg === 'undiruv') {
-    console.log('Hozir: Bugungi ish — skan, hujjat, xat bekor — ' + ((await redis.get('yozuv_yondi:qadam_hujjat')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: Bugungi ish — skan, hujjat, xat bekor — ' + ((await BQ.yozuv('qadam_hujjat')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await undiruvSinov();
   } else if (arg === 'tahrir') {
-    console.log('Hozir: shartnoma tahriri va direktor so\'rovlari — ' + ((await redis.get('yozuv_yondi:tahrir')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: shartnoma tahriri va direktor so\'rovlari — ' + ((await BQ.yozuv('tahrir')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await tahrirSinov();
   } else if (arg === 'qadam') {
-    console.log('Hozir: Bugungi ish amallari — ' + ((await redis.get('yozuv_yondi:qadam')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: Bugungi ish amallari — ' + ((await BQ.yozuv('qadam')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await qadamSinov();
   } else if (arg === 'hisobot') {
-    console.log('Hozir: hisobot PDF — ' + ((await redis.get('yozuv_yondi:hisobot_pdf')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: hisobot PDF — ' + ((await BQ.yozuv('hisobot_pdf')) ? 'serverda' : 'eski tizimda'));
     await hisobotSinov();
   } else if (arg === 'eksport') {
-    console.log('Hozir: reyestr PDF/Excel — ' + ((await redis.get('yozuv_yondi:eksport')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: reyestr PDF/Excel — ' + ((await BQ.yozuv('eksport')) ? 'serverda' : 'eski tizimda'));
     await eksportSinov();
   } else if (arg === 'taminot') {
-    console.log('Hozir: ta\'minot — ' + ((await redis.get('yozuv_yondi:taminot')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: ta\'minot — ' + ((await BQ.yozuv('taminot')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await taminotSinov();
   } else if (arg === 'shartnoma') {
-    console.log('Hozir: shartnoma/mijoz/ijara saqlash — ' + ((await redis.get('yozuv_yondi:shartnoma')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: shartnoma/mijoz/ijara saqlash — ' + ((await BQ.yozuv('shartnoma')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await shartnomaSinov();
   } else if (arg === 'mayda') {
-    console.log('Hozir: xat bekor / oylik reja — ' + ((await redis.get('yozuv_yondi:mayda')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: xat bekor / oylik reja — ' + ((await BQ.yozuv('mayda')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await maydaSinov();
   } else if (arg === 'tasdiq') {
     // jadvalga server yozmaydi — qarorni eski tizimning o'zi (tasdiqQil / topTasdiq) fonda bajaradi; faqat ko'prik ishlashini tekshiramiz
-    console.log('Hozir: tasdiqlash — ' + ((await redis.get('yozuv_yondi:tasdiq')) === '1' ? 'tez (navbat)' : 'eski tizim (kutiladi)'));
+    console.log('Hozir: tasdiqlash — ' + ((await BQ.yozuv('tasdiq')) ? 'tez (navbat)' : 'eski tizim (kutiladi)'));
     const adm = (await pool.query('SELECT kirish_kodi, huquqlar FROM v_xodimlar WHERE kompaniya_id = 1')).rows.find(x => (x.huquqlar || []).includes('admin') && String(x.kirish_kodi || '').length >= 8);
     let ver = '?'; try { ver = String(await koprik.chaqir('koprikVersiya', adm.kirish_kodi, [])); } catch (e) { ver = 'xato: ' + e.message; }
     const k15 = verOk(ver, '1.5') && !/^xato/.test(ver);
     console.log('Eski tizim ko\'prigi: v' + ver + (k15 ? ' ✅' : ' ⚠ (1.5 kerak)'));
     console.log('Navbatda: ' + (await redis.llen('tasdiq_navbat')) + ' ta qaror');
-    if (k15) { await redis.set('yozuv_yondi:tasdiq', '1'); console.log('✅ YOQILDI — «Tasdiqlash / Qaytarish» darhol javob beradi; qarorni eski tizim fonda bajaradi (natija avvalgidek).\n   Xato bo\'lsa — isbot ro\'yxatga qaytadi va direktorga Telegram keladi. Qaytarish: aks-yozuv-sinov ochir'); }
+    if (k15) { await BQ.yoq('yozuv', 'tasdiq'); console.log('✅ YOQILDI — «Tasdiqlash / Qaytarish» darhol javob beradi; qarorni eski tizim fonda bajaradi (natija avvalgidek).\n   Xato bo\'lsa — isbot ro\'yxatga qaytadi va direktorga Telegram keladi. Qaytarish: aks-yozuv-sinov ochir'); }
     else console.log('⚠ Ko\'prik javob bermadi — YOQILMADI.');
   } else if (arg === 'topshiriq') {
-    console.log('Hozir: topshiriq berish — ' + ((await redis.get('yozuv_yondi:topshiriq')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: topshiriq berish — ' + ((await BQ.yozuv('topshiriq')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await topshiriqSinov();
   } else if (arg === 'hujjat') {
-    console.log('Hozir: hujjat tuzatish — ' + ((await redis.get('yozuv_yondi:hujjat')) === '1' ? 'serverda' : 'eski tizimda'));
+    console.log('Hozir: hujjat tuzatish — ' + ((await BQ.yozuv('hujjat')) ? 'serverda' : 'eski tizimda'));
     const M = await G.varaqlar(ID, KEY);
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
     if (eski.length) await G.soralar(ID, eski.map(v => ({ deleteSheet: { sheetId: v.sheetId } })), KEY);
     await hujjatSinov();
   } else {
-    const holat = async n => (await redis.get('yozuv_yondi:' + n)) === '1' ? 'serverda' : 'eski tizimda';
+    const holat = async n => (await BQ.yozuv(n)) ? 'serverda' : 'eski tizimda';
     console.log('Hozir: to\'lov — ' + await holat('tolov') + ', tashrif — ' + await holat('tashrif'));
     const M = await G.varaqlar(ID, KEY);   // oldingi sinovdan qolib ketgan nusxalar
     const eski = M.varaqlar.filter(v => /^zz_sinov_/.test(v.title));
@@ -2568,7 +2569,7 @@ async function tophozirSinov() {
     x += await sinov('TASHRIF', K.T01b, K.F01b, 16, (h, p) => [h.id, bugun, 'Sinov Tekshiruv', String(p[3] || ''), String(p[4] || ''), String(p[5] || ''), String(p[6] || ''), 'SINOV', 'SINOV', K.hozirDmyHms()]);
     console.log('');
     if (!x) {
-      await redis.set('yozuv_yondi:tolov', '1'); await redis.set('yozuv_yondi:tashrif', '1');
+      await BQ.yoq('yozuv', 'tolov'); await BQ.yoq('yozuv', 'tashrif');
       console.log('✅ HAMMASI BIR XIL — serverda yozish YOQILDI: to\'lov va tashrif endi server orqali saqlanadi.');
       console.log('   Qaytarish kerak bo\'lsa: aks-yozuv-sinov ochir');
     } else {

@@ -6,6 +6,7 @@
 // Qator qo'shish Google'ning «append» usuli bilan: shu orada eski tizim ham shu varaqqa qator qo'shsa — ustma-ust tushmaydi;
 // yozuvdan 10 va 60 soniya keyin qator yana tekshiriladi (o'zgarib qolsa — «yozuv_ogoh» ro'yxatiga, aks-holat ko'rsatadi).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const V = require('../lib/varaq');
@@ -85,7 +86,7 @@ async function qulfBilan(nom, ish) {
   while (!(await redis.set(kalit, belgi, 'PX', 30000, 'NX'))) { if (Date.now() - t0 > 20000) throw new S.Xato('Tizim band — birozdan keyin qayta urinib ko\'ring.'); await new Promise(r => setTimeout(r, 150)); }
   try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
 }
-async function yoqilgan(nom) { try { return (await redis.get('yozuv_yondi:' + nom)) === '1'; } catch (e) { return false; } }
+async function yoqilgan(nom) { return BQ.yozuv(nom); }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 

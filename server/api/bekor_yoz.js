@@ -8,6 +8,7 @@
 // yoziladi, «Word» baribir serverdagi nusxadan beriladi (Redis xat_srv:<Drive ID>). Direktor tasdig'i / rad etish / qaytarish va 17:15 nazorati — hali eski tizimda.
 // Yoqilishi: Redis yozuv_yondi:bekor («aks-yozuv-sinov bekor») va Koprik ≥ 1.9. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const fs = require('fs');
 const path = require('path');
 const S = require('./sessiya');
@@ -53,7 +54,7 @@ async function koprikVer(kod) {   // eski tizim ko'prigi versiyasi — 30 daqiqa
 async function koprik19(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.9'); }    // koprikBekorSaqla
 async function koprik110(kod) { const v = await koprikVer(kod); return !!v && XC.verOk(v, '1.10'); }  // koprikBekorSaqla Word (.docx) faylini qabul qiladi
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:bekor')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('bekor'))) return false; } catch (e) { return false; }
   return koprik19(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }
@@ -213,7 +214,7 @@ async function hujjatYasa(x, X, P, raqam, xRaqam, sanaIso, u) {
   const bRel = 'bekor/' + yil + '/' + belgi + '/' + fx(bNom) + '.pdf', xRel = 'bekor/' + yil + '/' + belgi + '/' + fx(xNom) + '.pdf';
   // Word nusxasi (eski tizimdagi Google Doc o'rniga — «Word» tugmasi darhol ishlaydi). Yasalmasa — avvalgidek eski tizim Drive'da yasaydi.
   let bDocRel = '', xDocRel = '';
-  let wordOn = false; try { wordOn = (await redis.get('yozuv_yondi:bekor_word')) === '1'; } catch (e) { }   // «aks-yozuv-sinov bekor» — namuna tasdiqlangach
+  let wordOn = false; try { wordOn = (await BQ.yozuv('bekor_word')); } catch (e) { }   // «aks-yozuv-sinov bekor» — namuna tasdiqlangach
   if (wordOn) try {
     const bd = BW.buyruqDocx(b.matn, raqam, sanaIso, b.k), xd = BW.xabarnomaDocx(x, h.matn, xRaqam, sanaIso, ij, h.k);
     bDocRel = bRel.replace(/\.pdf$/, '.docx'); xDocRel = xRel.replace(/\.pdf$/, '.docx'); saqla(bDocRel, bd); saqla(xDocRel, xd);
@@ -432,7 +433,7 @@ async function qadamBekorKirit(args) {
 // 01_Dokonlar kataklari Google'dan YANGI o'qiladi: FORMULA bo'lsa — tegilmaydi va ogohlantiriladi (eski kod kabi);
 // qator mos kelmasa (qator surilgan bo'lsa) — hech narsa yozilmaydi. Hamma yozuv bitta so'rovda ketadi.
 const harfU = n => { let r = ''; while (n > 0) { const m = (n - 1) % 26; r = String.fromCharCode(65 + m) + r; n = Math.floor((n - 1) / 26); } return r; };
-async function tasdiqServerda() { try { return (await redis.get('yozuv_yondi:bekor_tasdiq')) === '1'; } catch (e) { return false; } }
+async function tasdiqServerda() { try { return (await BQ.yozuv('bekor_tasdiq')); } catch (e) { return false; } }
 async function dokonYangi(qator) {
   const a1 = 'A' + qator + ':Z' + qator;
   const [V0, F0] = await Promise.all([

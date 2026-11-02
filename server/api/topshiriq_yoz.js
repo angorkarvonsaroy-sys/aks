@@ -8,6 +8,7 @@
 // Shuning uchun: A ustuni yozishdan oldin Google'dan YANGI o'qiladi, qator «append» bilan qo'shiladi (ustma-ust tushmaydi) va yozgandan keyin
 // ID takrorlanmaganini tekshiradi; takrorlangan bo'lsa — server qatoriga keyingi bo'sh ID beriladi (yozuv_ogoh ga yoziladi).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const { verOk } = require('../lib/versiya');
 const crypto = require('crypto');
 const S = require('./sessiya');
@@ -46,7 +47,7 @@ async function koprik15(kod) {   // Koprik.gs v1.5 (koprikTgChat) — 30 daqiqa 
   return kv.ok;
 }
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:topshiriq')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('topshiriq'))) return false; } catch (e) { return false; }
   return koprik15(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

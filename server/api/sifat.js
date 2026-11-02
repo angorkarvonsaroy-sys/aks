@@ -8,6 +8,7 @@
 //   GET /?k=…&sifat=ID — api/index.js: sahifa xodim ismi va huquqlari (+ «sifat=ID») bilan ochiladi (Kod.gs doGet v9.6).
 // Yoqilishi: Redis yozuv_yondi:sifat («aks-yozuv-sinov sifat»). Aks holda — avvalgidek eski tizim (ko'prik: havola eski saytga).
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const crypto = require('crypto');
 const S = require('./sessiya');
 const koprik = require('./koprik');
@@ -28,7 +29,7 @@ const SIFAT_OQISH = ['xodimBosh', 'topMening', 'topXodimlar', 'pinTirik', 'qadam
 const BILET_SEK = 600;
 const s = v => String(v == null ? '' : v);
 
-async function yoqilgan() { try { return (await redis.get('yozuv_yondi:sifat')) === '1'; } catch (e) { return false; } }
+async function yoqilgan() { try { return (await BQ.yozuv('sifat')); } catch (e) { return false; } }
 // sifatXodim_: ishlayotgan, huquqi bor xodim (Xodim_ID bo'yicha)
 async function sifatXodim(xodimId) {
   const id = s(xodimId).replace(/\.0$/, '').trim(); if (!id) return null;

@@ -6,6 +6,7 @@
 // Telegram (fayl + ✅/✖) — eski tizimning o'zi: Koprik v1.7 koprikXatTasdiqTg / koprikTopTasdiqTg, fayl Drive'ga ko'chgach.
 // Yoqilishi: Redis yozuv_yondi:xat_isbot («aks-yozuv-sinov xat») va Koprik ≥ 1.7. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const V = require('../lib/varaq');
 const P = require('../lib/portfel');
@@ -32,7 +33,7 @@ function hozir() { const d = new Date(Date.now() + 5 * 3600 * 1000), p = n => St
   return { iso: d.toISOString().slice(0, 19).replace('T', ' '), isoHm: d.toISOString().slice(0, 16).replace('T', ' ') }; }
 
 async function serverda(kod) {
-  try { if ((await redis.get('yozuv_yondi:xat_isbot')) !== '1') return false; } catch (e) { return false; }
+  try { if (!(await BQ.yozuv('xat_isbot'))) return false; } catch (e) { return false; }
   return QH.koprik17(kod);
 }
 async function eskiTizim(fn, u, args) { const r = await koprik.chaqir(fn, u.kod, args); await tetik.yangilaKut(20000); return r; }

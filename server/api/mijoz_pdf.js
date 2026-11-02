@@ -4,6 +4,7 @@
 // eski PDF bilan solishtirib tanlaydi (Redis mijoz_karta_sahifa: 'html' | 'google').
 // Yoqilishi: Redis yozuv_yondi:mijoz_karta_pdf va Chromium. Aks holda — eski tizim.
 'use strict';
+const BQ = require('../lib/bayroq');   // yozuv/vaqt bayroqlari — standart holat kodda (02.11.2026)
 const S = require('./sessiya');
 const PDF = require('../lib/pdf');
 const koprik = require('./koprik');
@@ -53,7 +54,7 @@ async function kartaPdfYasa(kodSes, mid, opt = {}) {
   const pdf = await PDF.yasa(SAHIFA[sahifa] ? html.replace('</style>', SAHIFA[sahifa] + '</style>') : html, '');
   return { ok: true, b64: pdf.toString('base64'), nom: 'Mijoz_kartasi_' + String(m.fish).split(' ')[0] + '_' + m.id + '.pdf', mime: 'application/pdf' };
 }
-async function yoqilgan() { try { if ((await redis.get('yozuv_yondi:mijoz_karta_pdf')) !== '1') return false; } catch (e) { return false; } return PDF.bor(); }
+async function yoqilgan() { try { if (!(await BQ.yozuv('mijoz_karta_pdf'))) return false; } catch (e) { return false; } return PDF.bor(); }
 
 async function mijozKartaPdf(args) {
   const [kodSes, mid] = args;
