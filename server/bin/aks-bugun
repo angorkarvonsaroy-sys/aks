@@ -5,6 +5,7 @@
 #            aks-bugun koprik [N] — hali eski tizimga boradigan amallar (oxirgi N kun, odatda 3), umumiy kutish vaqti bo'yicha (keyingi ko'chirish navbati)
 #            aks-bugun skan       — kim qaysi skanni ochdi (huquq «skan»)
 #            aks-bugun xato [N]   — oxirgi N kundagi (odatda 3) XATO bilan tugagan chaqiruvlar (vaqti, amal, qayerda, xato matni)
+#            aks-bugun eski [N]   — eski tizimga borgan har bir chaqiruv turi (oxirgi N kun, odatda 14): soni, OXIRGI marta qachon, so'nggi 1 / 3 kunda
 #            aks-bugun <amal> [N] — nomida <amal> bor chaqiruvlar, oxirgi N kun (odatda bugun), oxirgi 20 tasi
 q() { sudo -u postgres psql -X -q -d aks_tizim -P pager=off "$@" 2>&1; }
 if [ "$1" = "koprik" ]; then
@@ -30,6 +31,18 @@ for l in sys.stdin:
   if not l: continue
   try: x=json.loads(l); print(x.get('vaqt',''),'|',x.get('fish',''),'|',x.get('no',''),'|',x.get('nom',''))
   except Exception: print(l)"
+  exit 0
+fi
+if [ "$1" = "eski" ]; then
+  KUN=$(echo "${2:-14}" | tr -cd '0-9'); KUN=${KUN:-14}
+  echo "================ AKS — ESKI TIZIMGA borgan chaqiruvlar (oxirgi $KUN kun), oxirgi marta qachon ================"
+  echo "--- 1. Eski amallar (server o'zi bajarolmay eski tizimga yuborgan — zaxira yo'llar) ---"
+  q -c "SELECT fn AS amal, count(*) soni, to_char(max(vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI') oxirgi, count(*) FILTER (WHERE vaqt > now() - interval '3 days') AS \"3_kun\", count(*) FILTER (WHERE vaqt > now() - interval '1 day') AS \"1_kun\", count(DISTINCT (vaqt AT TIME ZONE 'Asia/Tashkent')::date) kunlar, count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE qayerda = 'eski' AND fn NOT LIKE 'koprik%' AND vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY max(vaqt) DESC;"
+  echo "--- 2. Ko'prik yordamchilari (Drive, Telegram, sozlamalar — koprik*) ---"
+  q -c "SELECT fn AS amal, count(*) soni, to_char(max(vaqt) AT TIME ZONE 'Asia/Tashkent','DD.MM.YYYY HH24:MI') oxirgi, count(*) FILTER (WHERE vaqt > now() - interval '3 days') AS \"3_kun\", count(*) FILTER (WHERE vaqt > now() - interval '1 day') AS \"1_kun\", count(*) FILTER (WHERE NOT ok) xato FROM rpc_jurnal WHERE qayerda = 'eski' AND fn LIKE 'koprik%' AND vaqt > now() - interval '$KUN days' GROUP BY 1 ORDER BY max(vaqt) DESC;"
+  echo "--- 3. Yozuv bayroqlari (yozuv_yondi:*) — o'chiqlari ---"
+  for k in $(redis-cli --scan --pattern 'yozuv_yondi:*' | sort); do v=$(redis-cli get "$k"); [ "$v" = "1" ] || echo "  $k = [$v]"; done
+  echo "  (yoniqlar: $(redis-cli --scan --pattern 'yozuv_yondi:*' | while read k; do [ "$(redis-cli get "$k")" = "1" ] && echo x; done | wc -l) ta)"
   exit 0
 fi
 if [ "$1" = "xato" ]; then
