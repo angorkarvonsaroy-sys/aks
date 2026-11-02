@@ -197,6 +197,11 @@ const TAQIQ = kirishSahifa('Saqlangan kirish eskirgan. Telefon raqamingiz va par
 const KOP = kirishSahifa('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qayta urinib ko\'ring.');
 
 // doGet (Kod.gs) ning serverdagi o'rni
+// 03.11.2026: direktor sahifasida pastki chap burchakda kichik «🛠» — /holat (Tizim holati). Xodimlarda (va «xodim ko'zi bilan» rejimida) yo'q; chop etishda ko'rinmaydi.
+const HOLAT_TUGMA = kod => '<a id="aks-holat-tugma" href="/holat?k=' + encodeURIComponent(kod) + '" title="Tizim holati" aria-label="Tizim holati" ' +
+  'style="position:fixed;left:10px;bottom:10px;z-index:2147483000;width:34px;height:34px;border-radius:50%;background:#0B3D2E;color:#fff;display:flex;' +
+  'align-items:center;justify-content:center;text-decoration:none;font-size:17px;opacity:.55;box-shadow:0 1px 4px rgba(0,0,0,.3)">🛠</a>' +
+  '<style>#aks-holat-tugma:hover{opacity:1}@media print{#aks-holat-tugma{display:none!important}}</style>';
 function sahifa(user, kod, bilet) {
   const matn = indexMatn();
   if (!matn) return null;
@@ -214,6 +219,7 @@ function sahifa(user, kod, bilet) {
     return '';
   });
   html = html.replace(/<head>/i, '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">' + PWA_BOSH + SHIM);
+  if (user.admin) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, HOLAT_TUGMA(kod) + '</body>');   // 03.11: faqat direktorga — 🛠 Tizim holati
   return html;
 }
 

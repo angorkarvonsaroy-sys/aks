@@ -14,7 +14,15 @@ SV=shajara-zaxira.service
 RU=$(systemctl show "$SV" -p User --value 2>/dev/null); RU=${RU:-root}
 RCONF=$(systemctl show "$SV" -p Environment --value 2>/dev/null | grep -oE 'RCLONE_CONFIG=[^ ]+' | cut -d= -f2 | head -1)
 RC() { if [ "$RU" = root ]; then env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 300 rclone "$@"; else sudo -u "$RU" -H env ${RCONF:+RCLONE_CONFIG=$RCONF} timeout 300 rclone "$@"; fi; }
-xato() { echo "⛔ $*"; exit 1; }
+# 03.11.2026: natija «Tizim holati» sahifasi uchun /opt/aks/holat/zaxira_tashqi.json ga (ilova serveri /var/backups/aks ni ko'ra olmaydi — u yopiq qoladi)
+HOLAT=/opt/aks/holat/zaxira_tashqi.json
+holat() {
+  local f="${F:-}" bv="" h=0; [ -n "$f" ] && [ -f "$f" ] && { bv=$(date -Is -r "$f"); h=$(stat -c %s "$f"); }
+  mkdir -p /opt/aks/holat && chmod 755 /opt/aks/holat
+  printf '{"vaqt":"%s","ok":%s,"baza":"%s","baza_vaqt":"%s","hajm":%s,"matn":"%s"}\n' "$(date -Is)" "$1" "$(basename "${f:-}")" "$bv" "$h" "$(printf '%s' "$2" | tr -d '"\\' | tr '\n' ' ' | head -c 300)" >"$HOLAT.tmp" \
+    && chmod 644 "$HOLAT.tmp" && mv "$HOLAT.tmp" "$HOLAT"
+}
+xato() { echo "⛔ $*"; holat false "$*" 2>/dev/null; exit 1; }
 
 command -v rclone >/dev/null || xato "rclone o'rnatilmagan"
 if [ "${1:-}" = tekshir ]; then
@@ -38,3 +46,4 @@ RC rcat "$REMOTE/$(basename "$OUT")" <"$OUT" || xato "Drive'ga yuborib bo'lmadi 
 RC delete --min-age 30d "$REMOTE" >/dev/null 2>&1 || true
 find "$T" -name '*.age' -mtime +14 -delete
 echo "✅ $(basename "$OUT") ($(du -h "$OUT" | cut -f1)) → $REMOTE · kalit: $PUB"
+holat true "$(basename "$OUT") → $REMOTE" 2>/dev/null || true

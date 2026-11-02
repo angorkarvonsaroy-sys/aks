@@ -22,4 +22,10 @@ async function serverOzi(fnlar) {
     return true;
   } catch (e) { return false; }
 }
-module.exports = { verOk, serverOzi };
+// bo'limlar va ularga kerakli yordamchilar — aks-koprik va «Tizim holati» sahifasi uchun (api/* dagi tekshiruvlar bilan bir xil ro'yxat)
+const BOLIMLAR = [['Topshiriqlar', ['koprikTgChat']], ["Ta'minot (kiritish, tasdiq, to'lov, dalolatnoma)", ['koprikTgYubor', 'koprikTamIsbot']],
+  ['Devonxona', ['koprikDevonSaqla', 'koprikDevonTg', 'koprikTgChat', 'koprikTgYubor']], ['Qayta tuzish', ['koprikHujjatBekorFayl', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat', 'koprikQtPapkaSavat']],
+  ['Ogohlantirish xatlari', ['koprikXatSaqla']], ['Qadam hujjatlari (skan)', ['koprikTopTasdiqTg', 'koprikDriveSaqla']], ['Mijoz hujjatlari (yuklash, tuzatish)', ['koprikHujjatBekorFayl', 'koprikDriveSaqla']],
+  ['Isbotni tiklash (direktor qarori)', ['koprikFaylTikla']], ['Yurist aloqa xati', ['koprikXatSaqla', 'koprikDriveSaqla']], ['Shartnomani bekor qilish', ['koprikBekorSaqla', 'koprikDriveSaqla']],
+  ['Ijara kelishuvi', ['koprikKbSaqla', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat']], ['Yurist ishi (skan, rad, tasdiq)', ['koprikTg', 'koprikDriveSaqla']]];
+module.exports = { verOk, serverOzi, BOLIMLAR };

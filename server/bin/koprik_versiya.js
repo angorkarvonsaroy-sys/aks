@@ -13,12 +13,7 @@ const VQ = require('../lib/vaqt');
   console.log('Koprik versiyasi (eski tizim): ' + v + '  (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
   const kerak = process.argv[2];
   if (kerak) console.log(require('../lib/versiya').verOk(v, kerak) ? '✅ ' + kerak + ' yoki yangiroq — yangi funksiyalar ishlaydi.' : '✖ ' + kerak + ' kerak edi — Apps Script\'da «Новая версия» qilinganini tekshiring.');
-  const { serverOzi } = require('../lib/versiya');
-  const B = [['Topshiriqlar', ['koprikTgChat']], ["Ta'minot (kiritish, tasdiq, to'lov, dalolatnoma)", ['koprikTgYubor', 'koprikTamIsbot']],
-    ['Devonxona', ['koprikDevonSaqla', 'koprikDevonTg', 'koprikTgChat', 'koprikTgYubor']], ['Qayta tuzish', ['koprikHujjatBekorFayl', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat', 'koprikQtPapkaSavat']],
-    ['Ogohlantirish xatlari', ['koprikXatSaqla']], ['Qadam hujjatlari (skan)', ['koprikTopTasdiqTg', 'koprikDriveSaqla']], ['Mijoz hujjatlari (yuklash, tuzatish)', ['koprikHujjatBekorFayl', 'koprikDriveSaqla']],
-    ['Isbotni tiklash (direktor qarori)', ['koprikFaylTikla']], ['Yurist aloqa xati', ['koprikXatSaqla', 'koprikDriveSaqla']], ['Shartnomani bekor qilish', ['koprikBekorSaqla', 'koprikDriveSaqla']],
-    ['Ijara kelishuvi', ['koprikKbSaqla', 'koprikDriveSaqla', 'koprikTgYubor', 'koprikTgChat']], ['Yurist ishi (skan, rad, tasdiq)', ['koprikTg', 'koprikDriveSaqla']]];
+  const { serverOzi, BOLIMLAR: B } = require('../lib/versiya');
   console.log('\nEski tizim javob bermasa ham serverda ishlaydimi:');
   let n = 0;
   for (const [nom, L] of B) { const ha = await serverOzi(L); if (ha) n++; console.log('  ' + (ha ? '✅' : '⚠') + ' ' + nom + (ha ? '' : ' — hali eski tizim versiyasiga bog\'liq (arxiv yoki Telegram o\'chiq)')); }

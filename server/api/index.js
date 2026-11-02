@@ -52,6 +52,25 @@ fastify.get('/', async (req, reply) => {
   return html;
 });
 
+// ---------- 🛠 tizim holati (03.11.2026) — FAQAT direktor: kundalik tekshiruvlar SSH siz, istalgan kompyuter yoki telefondan (api/holat_sahifa.js)
+async function direktorKod(req, reply) {
+  const kod = String(req.query.k || '').trim(), ip = String(req.ip || '').slice(0, 45);
+  reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-store').header('X-Robots-Tag', 'noindex');
+  try { if (Number(await redis.get('kirx:' + ip)) > 20) { reply.send(ui.KOP); return null; } } catch (e) { }
+  const user = kod ? await S.xodimKod(kod) : null;
+  if (!user || !user.admin) {   // '/' dagi kabi: noto'g'ri kod — tanlab topishga qarshi hisob
+    try { const n = await redis.incr('kirx:' + ip); if (n === 1) await redis.expire('kirx:' + ip, 900); } catch (e) { }
+    reply.code(403).send(ui.TAQIQ); return null;
+  }
+  return user;
+}
+const HS = require('./holat_sahifa');
+fastify.get('/holat', async (req, reply) => { const u = await direktorKod(req, reply); if (!u) return reply; return HS.sahifa(u.kod); });
+fastify.get('/holat/qism', async (req, reply) => {
+  const u = await direktorKod(req, reply); if (!u) return reply;
+  try { return await HS.qism(u, VERSIYA); } catch (e) { console.error('holat sahifasi:', e); return '<div class="xul xt">✖ Holatni yig\'ib bo\'lmadi<small>' + String(e.message).replace(/</g, '&lt;') + '</small></div>'; }
+});
+
 // ---------- ilova sifatida o'rnatish fayllari (manifest, belgi, sw)
 const OCHIQ = { 'manifest.json': 'application/manifest+json', 'sw.js': 'text/javascript; charset=utf-8',
   'icon-192.png': 'image/png', 'icon-512.png': 'image/png', 'favicon.png': 'image/png' };
