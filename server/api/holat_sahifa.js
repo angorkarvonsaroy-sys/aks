@@ -1,5 +1,5 @@
-// AKS TIZIM — 🛠 «Tizim holati» sahifasi (03.11.2026): /holat?k=KOD — FAQAT direktor (admin). Ma'lumot — lib/tizim_holat.js (faqat o'qiydi).
-// Sahifa darhol ochiladi, ma'lumot keyin keladi (/holat/qism?k=KOD — Drive va eski tizimni so'rash 5–20 s olishi mumkin).
+// AKS TIZIM — 🛠 «Tizim holati» sahifasi (03.11.2026): /tizim-holati?k=KOD — FAQAT direktor (admin). Ma'lumot — lib/tizim_holat.js (faqat o'qiydi).
+// Sahifa darhol ochiladi, ma'lumot keyin keladi (/tizim-holati/qism?k=KOD — Drive va eski tizimni so'rash 5–20 s olishi mumkin).
 'use strict';
 const TH = require('../lib/tizim_holat');
 
@@ -41,7 +41,7 @@ footer{color:var(--kul);font-size:12px;text-align:center;margin:18px 0 8px}
 </div><script>
 (function(){var j=document.getElementById('j'),y=document.getElementById('yan'),band=false;
 function ol(){if(band)return;band=true;y.disabled=true;j.innerHTML='<div class="yuk"><span class="spin"></span>Tekshirilmoqda…</div>';
-fetch('/holat/qism?k=${k}',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Server javobi: '+r.status);return r.text();})
+fetch('/tizim-holati/qism?k=${k}',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Server javobi: '+r.status);return r.text();})
 .then(function(t){j.innerHTML=t;}).catch(function(e){j.innerHTML='<div class="xul xt">Yuklab bo\\'lmadi<small>'+String(e.message).replace(/</g,'&lt;')+'</small></div>';})
 .then(function(){band=false;y.disabled=false;});}
 y.onclick=ol;ol();})();

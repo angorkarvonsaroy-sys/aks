@@ -52,7 +52,7 @@ fastify.get('/', async (req, reply) => {
   return html;
 });
 
-// ---------- 🛠 tizim holati (03.11.2026) — FAQAT direktor: kundalik tekshiruvlar SSH siz, istalgan kompyuter yoki telefondan (api/holat_sahifa.js)
+// ---------- 🛠 tizim holati (03.11.2026) — /tizim-holati (nginx'da «/holat» band — u yerda nginx o'zi «server ishlayapti» qaytaradi). FAQAT direktor: kundalik tekshiruvlar SSH siz, istalgan kompyuter yoki telefondan (api/holat_sahifa.js)
 async function direktorKod(req, reply) {
   const kod = String(req.query.k || '').trim(), ip = String(req.ip || '').slice(0, 45);
   reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-store').header('X-Robots-Tag', 'noindex');
@@ -65,8 +65,8 @@ async function direktorKod(req, reply) {
   return user;
 }
 const HS = require('./holat_sahifa');
-fastify.get('/holat', async (req, reply) => { const u = await direktorKod(req, reply); if (!u) return reply; return HS.sahifa(u.kod); });
-fastify.get('/holat/qism', async (req, reply) => {
+fastify.get('/tizim-holati', async (req, reply) => { const u = await direktorKod(req, reply); if (!u) return reply; return HS.sahifa(u.kod); });
+fastify.get('/tizim-holati/qism', async (req, reply) => {
   const u = await direktorKod(req, reply); if (!u) return reply;
   try { return await HS.qism(u, VERSIYA); } catch (e) { console.error('holat sahifasi:', e); return '<div class="xul xt">✖ Holatni yig\'ib bo\'lmadi<small>' + String(e.message).replace(/</g, '&lt;') + '</small></div>'; }
 });

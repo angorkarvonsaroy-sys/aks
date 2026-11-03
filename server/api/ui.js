@@ -200,7 +200,7 @@ const KOP = kirishSahifa('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qay
 // 03.11.2026: direktorga «🛠 Тизим ҳолати» (/holat). Kompyuterda — chap menyuning pastki qismida (#yon .pastki, «Созламалар» ustida), boshqa tugmalar
 // bilan bir xil ko'rinishda; menyu yo'q bo'lsa (telefon) — o'ng pastki burchakda oq kichik tugma. Xodimlarda (va «xodim ko'zi bilan» rejimida) yo'q; chop etishda ko'rinmaydi.
 // (Birinchi variant — chap pastki burchakdagi yashil doira — yashil menyu ustida ko'rinmay qoldi.)
-const HOLAT_TUGMA = kod => { const u = '/holat?k=' + encodeURIComponent(kod);
+const HOLAT_TUGMA = kod => { const u = '/tizim-holati?k=' + encodeURIComponent(kod);
   return '<a id="aks-holat-tugma" href="' + u + '" title="Тизим ҳолати" style="position:fixed;right:12px;bottom:12px;z-index:60;background:#fff;color:#0B3D2E;' +
   'border:1px solid #0B3D2E;border-radius:18px;padding:6px 12px;font:600 13px Arial,sans-serif;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.2)">🛠 Ҳолат</a>' +
   '<style>@media print{#aks-holat-tugma,#aks-holat-yon{display:none!important}}</style>' +
