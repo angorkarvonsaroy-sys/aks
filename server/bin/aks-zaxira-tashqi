@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AKS TIZIM — 💾 server bazasi (aks_tizim) zaxirasini SHIFRLAB serverdan tashqariga — Google Drive «gdrive:aks-zaxira» (01.11.2026).
+# AKS TIZIM — 💾 server bazasi (aks_tizim) zaxirasini SHIFRLAB serverdan tashqariga — Google Drive (01.11.2026; 03.11 dan «AKS ARXIV / 98 SERVER BAZASI», zaxira yo'l — «gdrive:aks-zaxira»).
 # Usul — shajara bilan bir xil (/opt/shajara/app/deploy/zaxira.sh): age ochiq kalit bilan shifrlash, rclone bilan Drive'ga.
 #   aks-zaxira-tashqi          — eng oxirgi /var/backups/aks/aks_tizim_*.sql.gz ni shifrlab yuboradi (taymer: har kuni 03:30, aks-backup 03:00 dan keyin)
 #   aks-zaxira-tashqi tekshir  — Drive'dagi fayllar ro'yxati (hech narsa yubormaydi)
@@ -40,10 +40,25 @@ if [ ! -s "$OUT" ]; then
   age --encrypt --recipients-file "$PUB" --output "$OUT.tmp" "$F" || xato "shifrlab bo'lmadi"
   mv "$OUT.tmp" "$OUT" && chmod 644 "$OUT"
 fi
-# 01.11: rclone boshqa foydalanuvchi ($RU) nomidan ishlaydi — /var/backups/aks u uchun yopiq («directory not found»).
-# Shuning uchun fayl root tomonidan stdin orqali beriladi (rclone rcat), papkaga ruxsat kerak emas.
-RC rcat "$REMOTE/$(basename "$OUT")" <"$OUT" || xato "Drive'ga yuborib bo'lmadi ($REMOTE)"
-RC delete --min-age 30d "$REMOTE" >/dev/null 2>&1 || true
+# 03.11.2026: avval — AKS arxivi ulanishi (direktor hisobi, «AKS TIZIM / AKS ARXIV / 98 SERVER BAZASI», lib/arxiv.js bilan bir xil; rclone aks nomidan —
+# ulanish fayli aks ga tegishli qolsin). 03.11 kechasi eski yo'l (gdrive:aks-zaxira) xato berdi — u endi faqat zaxira yo'l. Xato matni holat fayliga tushadi.
+# 01.11: rclone boshqa foydalanuvchi nomidan ishlaydi — /var/backups/aks u uchun yopiq. Shuning uchun fayl root tomonidan stdin orqali beriladi (rclone rcat).
+AKONF=/opt/aks/rclone.conf
+APAPKA=$(grep -E '^ARXIV_PAPKA=' /opt/aks/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' "); APAPKA=${APAPKA:-1xJGD7CpL5qdHoTEvPfikmedl58FpOkGC}
+ARC() { sudo -u aks -H timeout 300 rclone --config "$AKONF" --drive-root-folder-id "$APAPKA" "$@"; }
+ERRF=$(mktemp); YER=""; XAT=""
+if [ -z "${ZAXIRA_TASHQI:-}" ] && [ -s "$AKONF" ]; then
+  if ARC rcat "aksarxiv:98 SERVER BAZASI/$(basename "$OUT")" <"$OUT" 2>"$ERRF"; then
+    YER="AKS ARXIV / 98 SERVER BAZASI"; ARC delete --min-age 30d "aksarxiv:98 SERVER BAZASI" >/dev/null 2>&1 || true
+  else XAT="arxiv: $(tail -c 200 "$ERRF" | tr '\n' ' ')"; fi
+fi
+if [ -z "$YER" ]; then
+  if RC rcat "$REMOTE/$(basename "$OUT")" <"$OUT" 2>"$ERRF"; then YER="$REMOTE"; RC delete --min-age 30d "$REMOTE" >/dev/null 2>&1 || true
+  else XAT="${XAT:+$XAT · }$REMOTE: $(tail -c 200 "$ERRF" | tr '\n' ' ')"; fi
+fi
+rm -f "$ERRF"
+[ -n "$YER" ] || xato "Drive'ga yuborib bo'lmadi — $XAT"
 find "$T" -name '*.age' -mtime +14 -delete
-echo "✅ $(basename "$OUT") ($(du -h "$OUT" | cut -f1)) → $REMOTE · kalit: $PUB"
-holat true "$(basename "$OUT") → $REMOTE" 2>/dev/null || true
+echo "✅ $(basename "$OUT") ($(du -h "$OUT" | cut -f1)) → $YER · kalit: $PUB"
+IZ=""; [ -n "$XAT" ] && IZ=" (birinchi yo'l xatosi: $XAT)"
+holat true "$(basename "$OUT") → $YER$IZ" 2>/dev/null || true

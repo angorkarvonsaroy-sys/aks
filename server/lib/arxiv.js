@@ -299,5 +299,17 @@ async function nusxa() {
   } catch (e) { await jurnal('nusxa', Date.now() - t0, false, e.message); throw e; }
   finally { redis.del('arxiv_nusxa_qulf').catch(() => {}); }
 }
+// 03.11.2026: «SERVER NUSXA» kechasi boshlanadi, lekin o'sha paytda ilova qayta ishga tushsa (yangilanish) rclone uziladi va jurnalga ham tushmaydi
+// (02.11 kechasi shunday bo'ldi). Har soat tekshiriladi: oxirgi muvaffaqiyatli nusxa 20 soatdan eski bo'lsa — fonda qayta boshlanadi.
+// rclone copy faqat yangi va o'zgarganlarini yuboradi — uzilgan nusxa qolgan joyidan davom etadi.
+async function nusxaKerak(kod, opt = {}) {
+  if (!(await yoniq())) return { otkazildi: 'arxiv o\'chiq' };
+  const t = (await q(`SELECT max(vaqt) t FROM rpc_jurnal WHERE qayerda = 'arxiv' AND fn = 'nusxa' AND ok`)).rows[0].t;
+  if (t && Date.now() - new Date(t).getTime() < 20 * 3600000) return { otkazildi: 'oxirgi nusxa ' + Math.round((Date.now() - new Date(t).getTime()) / 3600000) + ' soat oldin' };
+  if (await redis.get('arxiv_nusxa_qulf')) return { otkazildi: 'nusxa hozir ketyapti' };
+  if (opt.quruq) return { quruq: true, xabarlar: [], sabab: 'nusxa fonda boshlanadi (oxirgi muvaffaqiyatlisi: ' + (t ? new Date(t).toISOString() : 'yo\'q') + ')' };
+  nusxa().then(n => console.log(new Date().toISOString(), 'server fayllari nusxasi (soatlik tekshiruv):', JSON.stringify(n))).catch(e => console.error('server fayllari nusxasi:', e.message));
+  return { boshlandi: true };
+}
 
-module.exports = { yoniq, bor, chaqir, zaxira, nusxa, saqla, savatga, kochir, tikla, mijozPapka, meniki, stat, url, papkaUrl, ISH, _ichki: { SINOV, rc, seg, url, MAHALLIY, mijozKesh: () => { mijozKesh = { t: 0, L: [] }; } } };
+module.exports = { yoniq, bor, chaqir, zaxira, nusxa, nusxaKerak, saqla, savatga, kochir, tikla, mijozPapka, meniki, stat, url, papkaUrl, ISH, _ichki: { SINOV, rc, seg, url, MAHALLIY, mijozKesh: () => { mijozKesh = { t: 0, L: [] }; } } };
