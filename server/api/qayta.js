@@ -97,7 +97,7 @@ async function qtRows(varaq) {   // qtRows_ — Google'dan YANGI (getDisplayValu
     return { qator: i + 2, id: r[0], yaratildi: r[1], holati: r[2], eski: r[3], yangi: r[4], mid: r[5], fish: r[6], dokon: r[7],
       turi: r[8], qiymat: son(r[9]), tolangan: son(r[10]), qolgan: son(r[11]),
       sana: r[12], oy: Number(r[13]) || 0, kun: Number(r[14]) || 0, birinchi: r[15], sabab: r[16], eskiNomi: r[17], ijrochi: r[18], yaratdi: r[19], topId: r[20],
-      skan: { ariza: r[21], kelishuv: r[22], solishtirma: r[23], shartnoma: r[24] }, papka: r[25], tekshiruvga: r[26], tasdiqVaqt: r[27], tasdiqladi: r[28], kochirilgan: r[29], jurnal: r[30], qm: QM_BELGI.test(r[30]) };
+      skan: { ariza: r[21], kelishuv: r[22], solishtirma: r[23], shartnoma: r[24] }, papka: r[25], tekshiruvga: r[26], tasdiqVaqt: r[27], tasdiqladi: r[28], kochirilgan: r[29], jurnal: r[30], qm: QM_BELGI.test(r[30]), ...narxBelgi(r[30]) };
   }).filter(x => x.id);
 }
 function qtBandRaqamlar(rows) { const o = {}; rows.forEach(x => { if (QT_FAOL.indexOf(x.holati) >= 0) o[x.yangi] = x.id; }); return o; }
@@ -130,6 +130,10 @@ async function qtXodimlar() { return (await TP.topXodimlar()).filter(z => !z.adm
 // hammasi (asosiy + qo'shimcha maydon) yangi jadvalga. Yangi 03 qatorida G = V → X = 0, Y = 0, W = V × H (formulalar o'zi) — qo'shimcha qarz ikki marta sanalmaydi.
 // Belgisi — 06k jurnalida «QO'SHIMCHA MAYDON BILAN» (yangi ustun ochilmaydi).
 const QM_BELGI = /QO'SHIMCHA MAYDON BILAN/;
+// 04.11.2026 (direktor qarori): YANGI 1 m² NARXI — qayta tuzishda direktor narxni kamaytirishi yoki oshirishi mumkin (sabab bilan). Yangi qiymat = maydon × yangi narx
+// (maydon — shartnomadagi yoki «qo'shimcha maydon bilan» bo'lsa haqiqiy). Belgisi — 06k jurnalida «YANGI NARX 1 m²: <eski> → <yangi>» (raqamlar bo'shliqsiz).
+const NARX_BELGI = /YANGI NARX 1 m²: (\d+) → (\d+)/;
+function narxBelgi(j) { const m = NARX_BELGI.exec(s(j)); return m ? { eskiNarx: Number(m[1]), yangiNarx: Number(m[2]) } : { eskiNarx: 0, yangiNarx: 0 }; }
 const m2 = v => (Math.round(Number(v) * 100) / 100).toFixed(2).replace('.', ',');
 async function qmHolat(r, no) {
   const G0 = Number(r[6]) || 0, Vr = Number(r[21]) || 0, H = Number(r[7]) || 0, W = Math.round(Number(r[22]) || 0), Y = Math.round(Number(r[24]) || 0);
@@ -168,7 +172,10 @@ async function qtOgoh(x, M) {
   else {
     const r = S3.x.r;
     if (/bekor|yakun/i.test(s(r[13]))) ogoh.push('Eski shartnoma holati «' + r[13] + '».');
-    const tol = Math.round(Number(r[27]) || 0), qiy = Math.round(Number(r[22]) || 0) + (x.qm ? Math.round(Number(r[24]) || 0) : 0);   // 04.11: qo'shimcha maydon bilan — W + Y
+    const tol = Math.round(Number(r[27]) || 0);
+    // 04.11: qo'shimcha maydon bilan — W + Y; yangi narx bilan — maydon × yangi narx
+    const qiy = x.yangiNarx ? Math.round((x.qm ? Number(r[21]) : Number(r[6])) * x.yangiNarx) : Math.round(Number(r[22]) || 0) + (x.qm ? Math.round(Number(r[24]) || 0) : 0);
+    if (x.yangiNarx && Math.round(Number(r[7]) || 0) !== x.eskiNarx) ogoh.push('Loyihadan keyin eski shartnomaning 1 m² narxi o\'zgardi: ' + qtFmt(x.eskiNarx) + ' → ' + qtFmt(Number(r[7])) + ' — loyihani bekor qilib, qaytadan yarating.');
     if (Math.abs(tol - x.tolangan) > 1) ogoh.push('Loyihadan keyin to\'lov o\'zgardi: ' + qtFmt(x.tolangan) + ' → ' + qtFmt(tol) + '. Hujjatlar eskirgan — loyihani bekor qilib, qaytadan yarating.');
     if (Math.abs(qiy - x.qiymat) > 1) ogoh.push('Loyihadan keyin shartnoma qiymati o\'zgardi: ' + qtFmt(x.qiymat) + ' → ' + qtFmt(qiy) + ' — loyihani bekor qilib, qaytadan yarating.');
     if (s(r[4]) !== s(x.mid) || s(r[5]) !== s(x.dokon)) ogoh.push('Eski shartnomada mijoz yoki do\'kon o\'zgargan — loyihani bekor qilib, qaytadan yarating.');
@@ -198,7 +205,7 @@ async function qaytaKor(args) {
   const tur = s(r[3]), yangiTur = QT_TUR_MUDDATLI.indexOf(tur) >= 0 ? tur : (/^Қурилаётган/.test(tur) ? QT_TUR_MUDDATLI[1] : QT_TUR_MUDDATLI[0]);
   const XD = await qtXodimlar();
   const qm = await qmHolat(r, no);
-  return { ok: true, qm, no, holat: A.holat, sana: d[2], turi: tur, yangiTur, turlar: QT_TUR_MUDDATLI, mid: s(r[4]), dokon: s(r[5]), maydon: Number(r[6]) || 0,
+  return { ok: true, qm, eskiNarx: Math.round(Number(r[7]) || 0), no, holat: A.holat, sana: d[2], turi: tur, yangiTur, turlar: QT_TUR_MUDDATLI, mid: s(r[4]), dokon: s(r[5]), maydon: Number(r[6]) || 0,
     fish: s(r[20]), undiruvchi: s(r[17]), qiymat: A.qiymat, qoshimcha: Math.round(Number(r[24]) || 0), tolangan: A.tolangan, tolovYigindi: A.yig, qolgan: A.qiymat - A.tolangan,
     tolovlar: A.T.map(t => ({ v: t.v, sana: qtDmy(t.sana), summa: t.summa, shakl: t.shakl })), oy: Number(r[11]) || 0, tkun,
     keyingiNo: await qtKeyingiNo(A.S, rows), bugun, birinchi: qtOyQosh(bugun, Number(bugun.slice(8, 10)) < tkun ? 0 : 1, tkun),
@@ -215,7 +222,7 @@ async function qaytaOchiq(args) {
   const XD = u.admin ? await qtXodimlar() : [];
   return { ok: true, admin: u.admin, men: u.fish, xodimlar: XD, x: { id: x.id, holati: x.holati, eski: x.eski, yangi: x.yangi, fish: x.fish, dokon: x.dokon, turi: x.turi, qiymat: x.qiymat, tolangan: x.tolangan, qolgan: x.qolgan,
     sana: x.sana, oy: x.oy, kun: x.kun, birinchi: x.birinchi, sabab: x.sabab, eskiNomi: x.eskiNomi, ijrochi: x.ijrochi, yaratdi: x.yaratdi, yaratildi: x.yaratildi, papka: u.admin ? x.papka : '',
-    tasdiqVaqt: x.tasdiqVaqt, tasdiqladi: x.tasdiqladi, jurnal: x.jurnal, qm: !!x.qm }, jadval: Jd.map(j => ({ sana: qtDmy(j.sana), summa: j.summa })), skan: H.skan, ogoh: H.ogoh, tayyor: H.tayyor };
+    tasdiqVaqt: x.tasdiqVaqt, tasdiqladi: x.tasdiqladi, jurnal: x.jurnal, qm: !!x.qm, yangiNarx: x.yangiNarx || 0, eskiNarx: x.eskiNarx || 0 }, jadval: Jd.map(j => ({ sana: qtDmy(j.sana), summa: j.summa })), skan: H.skan, ogoh: H.ogoh, tayyor: H.tayyor };
 }
 
 // ------------------------------------------------------------------ yozuv yordamchilari
@@ -445,11 +452,23 @@ async function qaytaLoyiha(args) {
       qiymat = Q.qiymat;
       qmMatn = ' · QO\'SHIMCHA MAYDON BILAN: ' + m2(Q.shart) + ' → ' + m2(Q.real) + ' m² (+' + m2(Q.farq) + ' m² = ' + qtFmt(Q.qosh) + ' so\'m), qiymat ' + qtFmt(Q.qiymat) + ', xat ' + Q.xat;
     }
+    let narxMatn = '';
+    const H0 = Math.round(Number(r[7]) || 0);
+    if (d.narx != null && s(d.narx).trim() !== '' && Math.round(Number(d.narx)) !== H0) {   // 04.11: yangi 1 m² narxi (kamaytirish yoki oshirish)
+      const nx = Math.round(Number(d.narx));
+      if (!(nx >= 1000000 && nx <= 200000000)) throw new S.Xato('Yangi 1 m² narxi 1 000 000 — 200 000 000 so\'m oralig\'ida bo\'lsin.');
+      const ns = S_(d.narxSabab); if (ns.length < 5) throw new S.Xato('Narx o\'zgarishi sababini yozing (kamida 5 belgi).');
+      const Mz = d.qm ? Number(r[21]) : Number(r[6]);
+      if (!(Mz > 0)) throw new S.Xato('Shartnoma maydoni topilmadi — narxni o\'zgartirib bo\'lmaydi.');
+      const yq = Math.round(Mz * nx), f = yq - qiymat;
+      narxMatn = ' · YANGI NARX 1 m²: ' + H0 + ' → ' + nx + ' (qiymat ' + qtFmt(qiymat) + ' → ' + qtFmt(yq) + ', ' + (f < 0 ? 'chegirma ' + qtFmt(-f) : 'ustama ' + qtFmt(f)) + '; sabab: ' + ns.replace(/YANGI NARX/gi, 'yangi narx') + ')';
+      qiymat = yq;
+    }
     const qolgan = qiymat - A.tolangan;
-    if (qolgan <= 0) throw new S.Xato('Qarz yo\'q — qayta tuzish o\'rniga shartnomani «Yakunlangan» qiling.');
+    if (qolgan <= 0) throw new S.Xato(narxMatn ? 'Yangi qiymat (' + qtFmt(qiymat) + ') to\'langan summadan (' + qtFmt(A.tolangan) + ') kam yoki teng — narxni tekshiring.' : 'Qarz yo\'q — qayta tuzish o\'rniga shartnomani «Yakunlangan» qiling.');
     const row = [String(id), vaqt, 'Loyiha', eski, yangi, s(r[4] || ''), s(r[20] || ''), s(r[5] || ''), S_(d.turi),
       String(qiymat), String(A.tolangan), String(qolgan), qtDmy(d.sana), String(oy), String(kun), qtDmy(d.birinchi), sabab, eskiNomi, ijrochi, u.fish, '',
-      '', '', '', '', '', '', '', '', '', vaqt + ' · ' + u.fish + ': loyiha yaratildi (ijrochi: ' + ijrochi + ')' + qmMatn];
+      '', '', '', '', '', '', '', '', '', vaqt + ' · ' + u.fish + ': loyiha yaratildi (ijrochi: ' + ijrochi + ')' + qmMatn + narxMatn];
     let q;
     try { q = await loyihaQatorYoz(QT_VARAQ, l, row); } catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
     if (xodim) {
@@ -520,10 +539,12 @@ async function tasdiqYadro(VQ, u, x, M, davom) {
   // 1) 03 — yangi qator (qiymat va 1 m² narxi eskisidan; formulalar yuqoridagi qatordan)
   if (S3.barcha.indexOf(x.yangi) < 0) {
     const sl = (await SY.aUstun(VQ.s3)).last;
-    const G3 = x.qm ? Number(r[21]) : r[6];   // 04.11: qo'shimcha maydon bilan — haqiqiy maydon (V); W = V × H = loyiha qiymati (pastda tekshiriladi)
-    if (x.qm && Math.abs(Math.round(Number(r[21]) * Number(r[7])) - x.qiymat) > 1) throw new S.Xato('Haqiqiy maydon × 1 m² narxi loyiha qiymatiga teng emas — loyihani bekor qilib, qaytadan yarating.');
-    const q3 = [x.yangi, Number(x.yangi.split('/')[1]), sana, x.turi, r[4], r[5], G3, r[7], x.qiymat ? Math.round(x.tolangan / x.qiymat * 10000) / 10000 : 0, x.tolangan,
-      0, x.oy, x.kun, 'Aktiv', '', '', '', r[17], '', belgi];
+    const G3 = x.qm ? Number(r[21]) : r[6];   // 04.11: qo'shimcha maydon bilan — haqiqiy maydon (V); W = G × H = loyiha qiymati (pastda tekshiriladi)
+    const H3 = x.yangiNarx || r[7];            // 04.11: yangi 1 m² narxi
+    if ((x.qm || x.yangiNarx) && Math.abs(Math.round(Number(G3) * Number(H3)) - x.qiymat) > 1) throw new S.Xato('Maydon × 1 m² narxi loyiha qiymatiga teng emas — loyihani bekor qilib, qaytadan yarating.');
+    const izohNarx = x.yangiNarx ? ' · 1 m² narxi ' + qtFmt(x.eskiNarx) + ' → ' + qtFmt(x.yangiNarx) + ' (direktor qarori)' : '';
+    const q3 = [x.yangi, Number(x.yangi.split('/')[1]), sana, x.turi, r[4], r[5], G3, H3, x.qiymat ? Math.round(x.tolangan / x.qiymat * 10000) / 10000 : 0, x.tolangan,
+      0, x.oy, x.kun, 'Aktiv', '', '', '', r[17], '', belgi + izohNarx];
     for (let i = 21; i <= 40; i++) q3.push(null);   // U:AN — formulalar (copyPaste)
     q3.push(vaqt, u.fish);                           // AO:AP
     await SY.qatorlarYoz(VQ.s3, sl + 1, [q3], F03Q);
@@ -651,32 +672,58 @@ function qtBelgilar(x, e, mr, xr) {
     QIYMAT: qtFmt(x.qiymat), TOLANGAN: qtFmt(x.tolangan), TOLANGAN_SOZ: SH.sozBilan(x.tolangan), QOLDIQ: qtFmt(x.qolgan), OY: String(x.oy), OY_SOZ: SH.sozBilan(x.oy),
     SABAB: x.sabab, ESKI_PENYA_BANDLARI: B[0], ESKI_QAYTARISH_BANDLARI: B[1],
     // 04.11: qo'shimcha maydon bilan (x.qm) — xr: eski 03 qatorining xom qiymatlari (G, V, W, Y)
-    ...(x.qm && xr ? { REAL: m2(xr[21]), FARQ: m2(Number(xr[21]) - Number(xr[6])), QOSH: qtFmt(Math.round(Number(xr[24]) || 0)), QIYMAT_ESKI: qtFmt(Math.round(Number(xr[22]) || 0)) } : {}) };
+    ...(x.qm && xr ? { REAL: m2(xr[21]), FARQ: m2(Number(xr[21]) - Number(xr[6])), QOSH: qtFmt(Math.round(Number(xr[24]) || 0)), QIYMAT_ESKI: qtFmt(Math.round(Number(xr[22]) || 0)) } : {}),
+    // 04.11: yangi narx bilan — eski shartnoma bo'yicha jami va qoldiq alohida (kelishuv 2-band, solishtirma jadvali)
+    ...(x.yangiNarx && xr ? (() => { const ej = Math.round(Number(xr[22]) || 0) + (x.qm ? Math.round(Number(xr[24]) || 0) : 0);
+      return { ESKI_NARX: qtFmt(x.eskiNarx), YANGI_NARX: qtFmt(x.yangiNarx), ESKI_JAMI: qtFmt(ej), ESKI_QOLDIQ: qtFmt(ej - x.tolangan) }; })() : {}) };
 }
 // 04.11: qo'shimcha maydon bilan qayta tuzishda shablon matni MODEL ichida moslanadi (Google Doc shablonlari o'zgarmaydi). Kutilgan matn topilmasa — XATO:
 // shablon o'zgargan bo'lsa noto'g'ri hujjat chiqib ketmasin.
 const naq = t => SH.rx(t).replace(/ /g, '[\\s\\u00A0]+');
-function qmMoslash(k, body) {
-  const alm = (pat, yangi, el) => { if (!DS.replaceText(el || body, naq(pat), yangi)) throw new S.Xato('Qo\'shimcha maydon bilan hujjat: «' + k + '» shablonida kutilgan matn topilmadi («' + pat.slice(0, 60) + '») — shablon o\'zgargan, menga murojaat qiling.'); };
+function qmMoslash(k, body, rej) {
+  rej = rej || { qm: true, narx: false };   // qm — qo'shimcha maydon bilan; narx — yangi 1 m² narxi bilan
+  const alm = (pat, yangi, el) => { if (!DS.replaceText(el || body, naq(pat), yangi)) throw new S.Xato('Qayta tuzish hujjati: «' + k + '» shablonida kutilgan matn topilmadi («' + pat.slice(0, 60) + '») — shablon o\'zgargan, menga murojaat qiling.'); };
+  const biri = (L, el) => { let n = 0; L.forEach(([p, y]) => { n += DS.replaceText(el || body, naq(p), y); }); if (!n) throw new S.Xato('Qayta tuzish hujjati: «' + k + '» shablonida kutilgan matn topilmadi («' + L[0][0].slice(0, 60) + '») — shablon o\'zgargan, menga murojaat qiling.'); };
   const qEl = row => [].concat(...row.cells.map(c => c.el));
-  if (k === 'ariza') alm('шартнома қийматини ўзгартирмасдан,', '1 м² нархини ўзгартирмасдан, дўконнинг кадастр ўлчови бўйича ҳақиқий майдони (<<REAL>> м²) асосида (шу жумладан шартномадагидан ортиқ <<FARQ>> м² учун қўшимча бадал <<QOSH>> сўмни ҳам қўшган ҳолда),');
-  else if (k === 'kelishuv') {
-    alm('Шартнома қиймати (<<QIYMAT>> сўм)дан', 'Шартнома қиймати (<<QIYMAT_ESKI>> сўм) ва кадастр ўлчови бўйича ҳақиқий майдон (<<REAL>> м²) шартномадагидан <<FARQ>> м² га кўплиги учун қўшимча бадал (<<QOSH>> сўм) — жами <<QIYMAT>> сўмдан');
-    alm('ўша <<BLOK>>-блок, <<QAVAT>>-қават, №<<DOKON>>-дўкон, умумий майдони <<MAYDON>> м²', 'ўша <<BLOK>>-блок, <<QAVAT>>-қават, №<<DOKON>>-дўкон, кадастр ўлчови бўйича умумий майдони <<REAL>> м²');
+  const NARX = '1 м² нархини <<ESKI_NARX>> сўмдан <<YANGI_NARX>> сўмга ўзгартириб (умумий қиймати <<QIYMAT>> сўм),';
+  if (k === 'ariza') {
+    if (rej.qm && rej.narx) alm('шартнома қийматини ўзгартирмасдан,', 'дўконнинг кадастр ўлчови бўйича ҳақиқий майдони (<<REAL>> м²) асосида, ' + NARX);
+    else if (rej.qm) alm('шартнома қийматини ўзгартирмасдан,', '1 м² нархини ўзгартирмасдан, дўконнинг кадастр ўлчови бўйича ҳақиқий майдони (<<REAL>> м²) асосида (шу жумладан шартномадагидан ортиқ <<FARQ>> м² учун қўшимча бадал <<QOSH>> сўмни ҳам қўшган ҳолда),');
+    else if (rej.narx) alm('шартнома қийматини ўзгартирмасдан,', NARX);
+  } else if (k === 'kelishuv') {
+    if (rej.qm) {
+      alm('Шартнома қиймати (<<QIYMAT>> сўм)дан', 'Шартнома қиймати (<<QIYMAT_ESKI>> сўм) ва кадастр ўлчови бўйича ҳақиқий майдон (<<REAL>> м²) шартномадагидан <<FARQ>> м² га кўплиги учун қўшимча бадал (<<QOSH>> сўм) — жами <<QIYMAT>> сўмдан');
+      alm('ўша <<BLOK>>-блок, <<QAVAT>>-қават, №<<DOKON>>-дўкон, умумий майдони <<MAYDON>> м²', 'ўша <<BLOK>>-блок, <<QAVAT>>-қават, №<<DOKON>>-дўкон, кадастр ўлчови бўйича умумий майдони <<REAL>> м²');
+    }
+    if (rej.narx) {
+      // 2-band — ESKI shartnoma bo'yicha (jami va to'lanmagan qismi o'zgarmaydi)
+      biri([['<<QIYMAT>> сўм)дан <<QOLDIQ>> сўм тўланмаган', '<<ESKI_JAMI>> сўм)дан <<ESKI_QOLDIQ>> сўм тўланмаган'], ['<<QIYMAT>> сўмдан <<QOLDIQ>> сўм тўланмаган', '<<ESKI_JAMI>> сўмдан <<ESKI_QOLDIQ>> сўм тўланмаган']]);
+      // 3-band — yangi shartnomaning narxi, qiymati va to'lanadigan qoldig'i
+      alm('Тўланмаган <<QOLDIQ>> сўм Харидор томонидан', 'Томонлар келишувига асосан №<<YANGI_NO>>-сонли шартнома бўйича 1 м² нархи <<YANGI_NARX>> сўм (аввалги <<ESKI_NARX>> сўм ўрнига), умумий қиймати <<QIYMAT>> сўм этиб белгиланади. Шунга кўра тўланадиган қолдиқ <<QOLDIQ>> сўм Харидор томонидан');
+    }
   } else if (k === 'solishtirma') {
-    const q = DS.belgiQatori(body, '<<QIYMAT>>'); if (!q) throw new S.Xato('Qo\'shimcha maydon bilan hujjat: solishtirma shablonida «Шартнома қиймати» qatori topilmadi — menga murojaat qiling.');
-    const asl = q.tbl.rows[q.ix], r1 = DS.qatorNusxa(asl), r2 = DS.qatorNusxa(asl);
-    alm('Шартнома қиймати (<<MAYDON>> м²)', 'Қўшимча майдон (кадастр ўлчови: <<REAL>> м², фарқ <<FARQ>> м²)', qEl(r1)); alm('<<QIYMAT>>', '<<QOSH>>', qEl(r1));
-    alm('Шартнома қиймати (<<MAYDON>> м²)', 'Якуний қиймат (<<REAL>> м²)', qEl(r2));
-    alm('<<QIYMAT>>', '<<QIYMAT_ESKI>>', qEl(asl));
-    q.tbl.rows.splice(q.ix + 1, 0, r1, r2);
-    alm('Шартнома қийматидан тўланмай қолган қисм', 'Якуний қийматдан тўланмай қолган қисм');
+    if (rej.qm) {
+      const q = DS.belgiQatori(body, '<<QIYMAT>>'); if (!q) throw new S.Xato('Qayta tuzish hujjati: solishtirma shablonida «Шартнома қиймати» qatori topilmadi — menga murojaat qiling.');
+      const asl = q.tbl.rows[q.ix], r1 = DS.qatorNusxa(asl), r2 = DS.qatorNusxa(asl);
+      alm('Шартнома қиймати (<<MAYDON>> м²)', 'Қўшимча майдон (кадастр ўлчови: <<REAL>> м², фарқ <<FARQ>> м²)', qEl(r1)); alm('<<QIYMAT>>', '<<QOSH>>', qEl(r1));
+      alm('Шартнома қиймати (<<MAYDON>> м²)', 'Якуний қиймат (<<REAL>> м²)', qEl(r2));
+      alm('<<QIYMAT>>', '<<QIYMAT_ESKI>>', qEl(asl));
+      q.tbl.rows.splice(q.ix + 1, 0, r1, r2);
+      alm('Шартнома қийматидан тўланмай қолган қисм', 'Якуний қийматдан тўланмай қолган қисм');
+    }
+    if (rej.narx) {
+      // 3-band (jadvaldan tashqarida) — yangi shartnoma bo'yicha; jadval — ESKI shartnoma bo'yicha hisob-kitob
+      alm('тўланмаган <<QOLDIQ>> сўм ушбу шартнома жадвали бўйича тўланади', 'Томонлар келишувига асосан ушбу шартнома бўйича 1 м² нархи <<YANGI_NARX>> сўм (аввалги <<ESKI_NARX>> сўм ўрнига), умумий қиймати <<QIYMAT>> сўм этиб белгиланганлиги сабабли тўланадиган қолдиқ <<QOLDIQ>> сўм ушбу шартнома жадвали бўйича тўланади');
+      const q = DS.belgiQatori(body, '<<QOLDIQ>>'); if (!q) throw new S.Xato('Qayta tuzish hujjati: solishtirma shablonida yakuniy hisob jadvali topilmadi — menga murojaat qiling.');
+      const el = [].concat(...q.tbl.rows.map(qEl));
+      alm('<<QIYMAT>>', '<<ESKI_JAMI>>', el); alm('<<QOLDIQ>>', '<<ESKI_QOLDIQ>>', el);
+    }
   }
 }
 // shablondan PDF (qtDocPdf_): tana + kolontitullar; tolovlar berilsa — <<T_…>> qatori har to'lovga ko'paytiriladi
-async function qtDocPdf(shablonNom, nom, T, tolovlar, qmK) {
+async function qtDocPdf(shablonNom, nom, T, tolovlar, qmK, rej) {
   const sh = await DS.ol(shablonNom), m = sh.model, body = m.el;
-  if (qmK) qmMoslash(qmK, body);   // 04.11: qo'shimcha maydon bilan
+  if (qmK) qmMoslash(qmK, body, rej);   // 04.11: qo'shimcha maydon / yangi narx bilan
   if (tolovlar) {
     const q = DS.belgiQatori(body, '<<T_NO>>');
     if (q) {
@@ -694,17 +741,18 @@ async function qtDocPdf(shablonNom, nom, T, tolovlar, qmK) {
 }
 // 4 ta hujjatni yasash (bazaga yozmaydi): x — 06k loyihasi, e — eski shartnoma 03 qatori (displayValues), mr — 02 qatori, tolovlar — qtTolovlar
 async function hujjatlarYasa(x, e, mr, tolovlar, xr) {   // xr — eski 03 xom qatori (qo'shimcha maydon bilan bo'lsa shart)
-  if (x.qm && !xr) throw new S.Xato('Qo\'shimcha maydon bilan hujjat: eski shartnoma qatori berilmagan.');
+  if ((x.qm || x.yangiNarx) && !xr) throw new S.Xato('Qayta tuzish hujjati: eski shartnoma qatori berilmagan.');
   const nf = x.yangi.replace('/', '-'), ef = x.eski.replace('/', '-'), fam = s(mr[2]).split(' ')[0];
   const T = qtBelgilar(x, e, mr, xr);
   const N = [];
   for (const h of [['ariza', 'Qayta_ariza_shablon', '1_Ariza_' + ef + '_' + fam], ['kelishuv', 'Qayta_kelishuv_shablon', '2_Kelishuv_bekor_qilish_' + ef + '_' + fam],
     ['solishtirma', 'Qayta_solishtirma_shablon', '3_Solishtirma_dalolatnoma_' + ef + '_' + fam]]) {
-    N.push(Object.assign({ k: h[0] }, await qtDocPdf(h[1], h[2], T, h[0] === 'solishtirma' ? tolovlar : null, x.qm ? h[0] : null)));
+    N.push(Object.assign({ k: h[0] }, await qtDocPdf(h[1], h[2], T, h[0] === 'solishtirma' ? tolovlar : null, (x.qm || x.yangiNarx) ? h[0] : null, { qm: !!x.qm, narx: !!x.yangiNarx })));
   }
   // 4: yangi shartnoma — sotuvHujjat (Код v9.2+), virtual qator
   const r = e.slice(); r[0] = x.yangi; r[2] = x.sana; r[3] = x.turi; r[9] = String(x.tolangan); r[10] = '0'; r[11] = String(x.oy); r[12] = String(x.kun); r[22] = String(x.qiymat);
   if (x.qm) r[6] = (Math.round(Number(xr[21]) * 100) / 100).toFixed(2);   // 04.11: yangi shartnoma — kadastr bo'yicha haqiqiy maydon
+  if (x.yangiNarx) r[7] = String(x.yangiNarx);                                   // 04.11: yangi 1 m² narxi
   const jad = qtJadval(x.qolgan, x.oy, qtIsoD(x.birinchi), x.kun).map(j => ({ sana: qtDmy(j.sana), summa: j.summa }));
   const nom4 = '4_Shartnoma_' + nf + '_' + fam + '_' + x.dokon;
   const h4 = await SH.sotuvHujjat(r, mr, jad, { nom: nom4, qayta: { eskiNo: x.eski, eskiSana: e[2], kelSana: x.sana } });
@@ -755,4 +803,4 @@ async function qtArxivga(id, papka, N, kim) {
 }
 
 module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar, qaytaBekor };
-module.exports._ichki = { qmHolat, qmMoslash, bekorYadro, koprik114, koprik16, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };
+module.exports._ichki = { qmHolat, qmMoslash, narxBelgi, qtBelgilar, bekorYadro, koprik114, koprik16, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };
