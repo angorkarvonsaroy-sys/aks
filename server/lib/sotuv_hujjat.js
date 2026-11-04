@@ -5,6 +5,7 @@
 'use strict';
 const DS = require('./docs_shablon');
 const SP = require('./shablon_pdf');
+const MI = require('./mijoz_imzo');
 
 const s = v => String(v == null ? '' : v);
 const SHABLON = {
@@ -98,6 +99,7 @@ async function sotuvHujjat(r, mr, jad, opt) {
     satr.forEach((x, i) => { const p = DS.insertParagraph(hit.ota, bi + 1 + i, x, m.def); p.indStart = 36; p.indFirst = -36; });
     DS.removeChild(hit.ota, hit.p);
   }
+  MI.mijozQoida(m, { tur: 'shartnoma', imzo: 'Харидор', raqam: r[0], rol: 'Харидор', ism: s(mr[2]) }).forEach(x => bosh.push(x));   // varaq raqami, har varaqda mijoz imzosi, Ф.И.Ш. chizig'i
   const qolgan = DS.qolganBelgilar(body);
   const r2 = await SP.yasa(m);
   return { pdf: r2.pdf, bet: r2.bet, qolgan, bosh, nom: opt.nom, shablon: { id: sh.id, nom: sh.nom, modifiedTime: sh.modifiedTime } };
