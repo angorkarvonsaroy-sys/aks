@@ -52,7 +52,7 @@ function runHtml(r, p, tek) {
   if (r.u) st.push('text-decoration:underline');
   if (r.c) st.push('color:' + r.c);
   if (r.va === 'superscript') st.push('vertical-align:super;font-size:0.65em'); else if (r.va === 'subscript') st.push('vertical-align:sub;font-size:0.65em');
-  const ich = r.maydon === 'PAGE' ? '<span class="bet"></span>' : r.x.split('\n').map(z => sozlar(z, tek)).join('<br>');   // sahifa raqami — betlar() yozadi
+  const ich = r.maydon === 'PAGE' ? '<span class="bet"></span>' : r.maydon === 'NUMPAGES' ? '<span class="jami"></span>' : r.x.split('\n').map(z => sozlar(z, tek)).join('<br>');   // sahifa raqami — betlar() yozadi
   return st.length ? '<span style="' + st.join(';') + '">' + ich + '</span>' : ich;
 }
 function parHtml(p, ichida, eni) {
@@ -122,7 +122,10 @@ function jadvalHtml(t, eni) {
   return h + '</table>';
 }
 // kolontitul balandligi (bir qatorli xatboshilar deb): Docs sahifa tanasini kolontitul + uning chekkasidan pastga tushirmaydi
-function kolBaland(L) { return (L || []).reduce((a, e) => a + (e.t === 'p' ? qatorOlchov(e).L + (e.before || 0) + (e.after || 0) : 0), 0); }
+function kolBaland(L) {
+  return (L || []).reduce((a, e) => a + (e.t === 'p' ? qatorOlchov(e).L + (e.before || 0) + (e.after || 0)
+    : e.t === 'tbl' ? e.rows.reduce((y, r) => y + Math.max(r.h || 0, ...r.cells.map(c => kolBaland(c.el) + (c.pad.t || 0) + (c.pad.b || 0))), 0) : 0), 0);   // jadval (lib/mijoz_imzo.js kolontituli)
+}
 // Sahifa hoshiyalari: tepa/past — kolontitul bilan (Docs tanani kolontitul + chekkasidan pastga tushirmaydi)
 function hoshiya(m) {
   const past = Math.max(m.past, m.footer && m.footer.length ? m.pastKol + kolBaland(m.footer) : 0), tepa = Math.max(m.tepa, m.header && m.header.length ? m.tepaKol + kolBaland(m.header) : 0);
@@ -246,13 +249,13 @@ function betlar(m) {
   olch(bet => { document.querySelectorAll('table').forEach(t => { const R = [...t.rows]; R.forEach((tr, i) => { if (i < R.length - 1 && bet(R[i + 1].getBoundingClientRect().left) !== bet(tr.getBoundingClientRect().left)) tr.classList.add('pend'); }); }); });
   // 3) Sahifa raqami (PAGE maydoni) bor kolontitul: har sahifa uchun alohida nusxa — mutlaq joylashuv (sahifa k: y = k·H dan), fixed nusxa olib tashlanadi.
   //    Sahifalar soni — yakuniy joylashuvdagi ustunlar soni (oxirgi ustun + 1).
-  if (document.querySelector('.kol .bet')) {
+  if (document.querySelector('.kol .bet, .kol .jami')) {
     const N = olch(bet => { let mx = 0; ust.querySelectorAll('.ich p, .ich tr').forEach(e => [...e.getClientRects()].forEach(r => { if (r.width > 0 || r.height > 0) mx = Math.max(mx, bet(r.left)); })); return mx + 1; });
     document.querySelectorAll('.kol').forEach(k => {
-      if (!k.querySelector('.bet')) return;
+      if (!k.querySelector('.bet, .jami')) return;
       const h = k.getBoundingClientRect().height, past = k.classList.contains('kolP');
       for (let i = 0; i < N; i++) {
-        const c = k.cloneNode(true); c.querySelectorAll('.bet').forEach(z => { z.textContent = String(i + 1); });
+        const c = k.cloneNode(true); c.querySelectorAll('.bet').forEach(z => { z.textContent = String(i + 1); }); c.querySelectorAll('.jami').forEach(z => { z.textContent = String(N); });
         c.style.position = 'absolute'; c.style.bottom = 'auto'; c.style.top = (i * ${Hc} + (past ? ${Hc} - ${(m.pastKol * XP.KAT * 4 / 3).toFixed(3)} - h : ${(m.tepaKol * XP.KAT * 4 / 3).toFixed(3)})) + 'px';
         b.appendChild(c);
       }
