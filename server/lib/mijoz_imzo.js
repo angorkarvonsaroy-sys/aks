@@ -43,12 +43,15 @@ function fishChiziq(m, o) {
   const sz = lr.sz || joy.p.sz || 11, font = lr.font || joy.p.font || SHRIFT;
   const enI = t.cols[t.cols.length - 1] || 200;
   const pad = (joy.c.pad.l == null ? 5 : joy.c.pad.l) + (joy.c.pad.r == null ? 5 : joy.c.pad.r) + (joy.p.indStart || 0) + (joy.p.indEnd || 0);
-  const n = Math.max(16, Math.min(40, Math.floor((Math.min(enI - pad, 250) - 4 * sz) / (0.5 * sz)) - 2));   // «_» = 0,5 em; qator bitta qatorga sig'adi
-  const al = joy.p.al === 'right' ? 'right' : (joy.p.al === 'center' ? 'center' : 'left');
+  // Ф.И.Ш. to'liq (familiya, ism, otasining ismi — qo'lda 9–10 sm): sarlavha + ustun eni bo'ylab 2 ta chiziq, har biri 26 pt balandlikda (qo'lda yozishga joy)
+  const eni = Math.min(enI - pad, 300);
+  const n = Math.max(30, Math.floor(eni / (0.5 * sz)) - 1);   // «_» = 0,5 em — chiziq ustun eniga teng, bitta qatorga sig'adi
+  const al = joy.p.al === 'right' ? 'right' : 'left';
   const ind = { indStart: joy.p.indStart, indEnd: joy.p.indEnd };
-  const p1 = par([run('Ф.И.Ш.: ' + '_'.repeat(n), { c: null, sz, font })], al, Object.assign({ before: Math.round(sz * 0.9), sz, font, c: null, ls: 1.15 }, ind));
-  const p2 = par([run('(тўлиқ, ўз қўли билан)', { c: RANG, sz: 8, font, i: true })], al, Object.assign({ sz: 8, font, i: true }, ind));
-  joy.c.el.splice(joy.i + 1, 0, p1, p2);
+  const p0 = par([run('Ф.И.Ш. ', { c: null, sz, font }), run('(тўлиқ, ўз қўли билан):', { c: RANG, sz: sz - 2, font, i: true })], al, Object.assign({ before: Math.round(sz * 0.9), sz, font, c: null }, ind));
+  const chiziq = () => par([run('_'.repeat(n), { c: null, sz, font })], al, Object.assign({ sz, font, c: null, lsPt: 26 }, ind));
+  const p1 = p0, p2 = chiziq(), p3 = chiziq();
+  joy.c.el.splice(joy.i + 1, 0, p1, p2, p3);
   t.rows.forEach(r => { r.cantSplit = true; });   // imzo bloki varaqlarga bo'linmaydi (rekvizitlar va imzolar bitta varaqda)
   for (let i = m.el.indexOf(t) - 1, k = 0; i >= 0 && k < 4 && m.el[i].t === 'p'; i--, k++) { m.el[i].keepNext = true; if (DS.matn(m.el[i]).trim()) break; }   // sarlavhasi jadvaldan ajralmaydi
   return null;
