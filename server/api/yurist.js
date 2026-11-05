@@ -128,9 +128,12 @@ async function yuristIsh([kodSes, id]) {
   const I = await J.yuIshlar();
   const i = I.find(z => String(z.id) === String(id)); if (!i) throw new S.Xato('Ish topilmadi.');
   const nomi = {}; HUJJAT_TURLARI.forEach(t => nomi[t[0]] = t[1]);
-  const hujjat = (await J.hujjatJurnal()).filter(h => h.no === i.no && h.holati === 'Faol').map(h => ({ id: h.id, turi: nomi[h.turi] || h.turi, sana: h.sana, nom: h.nom }));
+  const hujjat = (await J.hujjatJurnal()).filter(h => h.no === i.no && h.holati === 'Faol').map(h => ({ id: h.id, kod: h.turi, turi: nomi[h.turi] || h.turi, sana: h.sana, nom: h.nom }));
+  // 📨 ogohlantirish xatlari: tizimda chiqarilganlari (06e) — PDF yuklab olinadi (yuristXat); tizimdan OLDIN yuborilgan xatlarning skanlari (06d «OGOHLANTIRISH»)
+  // ham shu bo'limda ko'rsatiladi (05.11.2026: 27/200 — 3 ta eski xat faqat «Mijoz hujjatlari» da edi, bo'lim «0» ko'rsatardi)
   const xat = (await J.xatJurnal()).filter(h => h.no === i.no && h.holati !== 'Bekor')
-    .map(h => ({ raqam: h.raqam, sana: h.sana, bosqich: (X.xatSeriya(h.shablon) === 'QM' ? X.XAT_BOSQICH_QM : X.XAT_BOSQICH)[h.bosqich], holati: h.holati, usul: h.usul, yetSana: h.yetSana }));
+    .map(h => ({ raqam: h.raqam, sana: h.sana, bosqich: (X.xatSeriya(h.shablon) === 'QM' ? X.XAT_BOSQICH_QM : X.XAT_BOSQICH)[h.bosqich], holati: h.holati, usul: h.usul, yetSana: h.yetSana, pdf: !!h.pdf }));
+  const xatSkan = hujjat.filter(h => h.kod === 'OGOHLANTIRISH');
   const jurnal = (await J.undJurnal()).filter(j => j.no === i.no).reverse().slice(0, 40).map(j => ({ sana: j.sana, chora: j.chora, natija: j.natija, mazmun: j.mazmun, kim: j.kim }));
   const tolov = (await U.undTolovlar()).filter(t => t.no === i.no).slice(-20).reverse();
   const tarix = await yuTarixOl(i.id);
@@ -142,7 +145,7 @@ async function yuristIsh([kodSes, id]) {
   const top = (await J.topRows()).filter(t => re.test(t.kalit)).map(J.topKor).reverse()
     .map(t => ({ id: t.id, sarlavha: t.sarlavha, izoh: t.izoh, kimga: t.kimga, muddat: t.muddat, holati: t.holati, dalil: t.dalil, yopildi: t.yopildi, kechikkan: t.kechikkan }));
   const S1 = (await U.undShartnomalar()).find(z => z.no === i.no); const kor = yuKorinish(i, S1, bugun, await yuKesh());
-  return { hujjat, xat, jurnal, tolov, tarix, yux, top, topTur: YU_TOP_TUR, mening: u.fish,
+  return { hujjat, xat, xatSkan, jurnal, tolov, tarix, yux, top, topTur: YU_TOP_TUR, mening: u.fish,
     qabul: kor.qabul, qabulKerak: kor.qabulKerak, chegara: kor.chegara, eslatma: kor.eslatma, kechikdi: kor.kechikdi, yuMas: kor.yuMas };
 }
 

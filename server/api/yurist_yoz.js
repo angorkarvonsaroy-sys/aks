@@ -370,5 +370,18 @@ async function yuristHujjat(args) {
   }
 }
 
-module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat };
+// 📨 yuristXat — yurist o'zidagi ishning ogohlantirish xatini (06e, tizimda chiqarilgan PDF) yuklab oladi. Yuristda «xat» huquqi yo'q — xatPdf o'rniga;
+// tekshiruv yuristHujjat bilan bir xil (shartnoma yuristdagi faol ishga tegishli). Faqat o'qiydi.
+async function yuristXat(args) {
+  const [kodSes, raqam] = args;
+  const u = await S.ruxsat(kodSes, 'yurist');
+  const h = (await J.xatJurnal()).find(z => z.raqam === String(raqam || '')); if (!h || h.holati === 'Bekor') throw new S.Xato('Xat topilmadi: ' + raqam);
+  if (!u.admin && !(await J.yuIshlar()).some(i => i.no === h.no && i.holati !== 'Rad etildi' && i.holati !== 'Tasdiq kutilmoqda')) throw new S.Xato('Bu xat sizdagi ishga tegishli emas.');
+  if (!h.pdf) throw new S.Xato('Bu xatning PDF fayli yo\'q: ' + raqam);
+  const f = await require('./xat_chiqar')._ichki.pdfOl(h.pdf);   // serverdagi nusxa yoki Drive (robot «Читатель»)
+  if (!f) throw new S.Xato('Xat faylini ochib bo\'lmadi: ' + raqam + '. Direktorga ayting.');
+  return { nom: f.nom, b64: f.bytes.toString('base64') };
+}
+
+module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat, yuristXat };
 module.exports._ichki = { faylMumkin, skanYukla };

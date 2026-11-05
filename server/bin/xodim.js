@@ -30,7 +30,7 @@ const XARITA = {
   'xat': 'xatBekor xatBoshlang xatPdf xatQaytaYasa xatTayyorla xatYuborildi',
   'xat,shartnoma,undiruv': 'monSorovYubor',
   'xarita': 'xaritaMalumot',
-  'yurist': 'tasdiqFayl tasdiqQil tasdiqRoyxat yhAloqa yhAloqaBekor yhAloqaFayl yhAloqaYuborildi yuristBoshlang yuristHolat yuristHujjat yuristIsh yuristKeyingi yuristMajlis yuristQabul yuristRad yuristTopBer',
+  'yurist': 'tasdiqFayl tasdiqQil tasdiqRoyxat yhAloqa yhAloqaBekor yhAloqaFayl yhAloqaYuborildi yuristBoshlang yuristHolat yuristHujjat yuristIsh yuristKeyingi yuristMajlis yuristQabul yuristRad yuristTopBer yuristXat',
 };
 // amallar.js da bor, lekin ichida baribir eski tizimga boradi (Telegram bot, PIN o'rnatish). topQoidaYoz — 02.11.2026 dan to'liq serverda
 const ICHI_ESKI = new Set(['tgUlanishBoshla', 'tgUlanishTekshir', 'pinKodYubor', 'pinOrnat']);
