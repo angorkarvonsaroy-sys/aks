@@ -45,7 +45,8 @@ async function buyruqYasa(x, Q, raqam, sanaIso) {
 }
 
 // ------------------------------------------------------------------ ЎЗАРО ҲИСОБ-КИТОБ ДАЛОЛАТНОМАСИ (A4, Chromium)
-function dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m) {
+function dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m, k) {
+  k = k || 1; const f = n => (n * k).toFixed(2);   // bir varaqqa sig'masa — kichraytiriladi (imzo bloki matndan ajralmasin)
   const tr = (a, b, c, d) => '<tr><td class="c">' + a + '</td><td>' + b + '</td><td>' + c + '</td><td class="r">' + d + '</td></tr>';
   const T = Q.tolovlar.map((t, i) => tr(i + 1, esc(yhDmy(t.sana)), esc((t.shakl === 'Naqt' ? 'нақд' : t.shakl === 'Bank' ? 'банк' : t.shakl === 'Plastik' ? 'пластик' : t.shakl) + (t.hujjat ? ', ҳужжат № ' + t.hujjat : '')), yhPul(t.summa))).join('')
     + '<tr class="j"><td colspan="3">Жами тўланган</td><td class="r">' + yhPul(x.tolangan) + '</td></tr>';
@@ -53,12 +54,12 @@ function dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m) {
     + '<tr class="j"><td colspan="3">Жами қайтарилган</td><td class="r">' + yhPul(Q.qaytarildi) + '</td></tr>';
   const pas = [m.pasport, m.iib ? m.iib + ' томонидан берилган' : '', m.psana ? yhDmy(m.psana) : ''].filter(Boolean).join(', ');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@page{size:A4;margin:13mm 14mm 20mm 20mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:11pt;line-height:1.25;color:#000}
+@page{size:A4;margin:${f(13)}mm 14mm 18mm 20mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:${f(11)}pt;line-height:${(1.25 - (1 - k) * 0.6).toFixed(3)};color:#000}
 h1{text-align:center;font-size:12.5pt;margin:0 0 1mm;line-height:1.2}.ost{text-align:center;font-size:10.5pt;margin:0 0 3mm}
 .r2{display:flex;justify-content:space-between;margin:0 0 3mm}p{margin:0 0 1.6mm;text-align:justify;text-indent:8mm}
 h2{font-size:11pt;margin:2mm 0 1mm}table{width:100%;border-collapse:collapse;margin:1mm 0 2mm;page-break-inside:auto}tr{page-break-inside:avoid}
-th,td{border:.6pt solid #000;padding:.9mm 2mm;font-size:10pt;vertical-align:middle}th{background:#eee;text-align:center}td.c{text-align:center;width:9mm}td.r{text-align:right;white-space:nowrap}tr.j td{font-weight:bold}
-.imz{width:100%;border-collapse:collapse;margin-top:4mm;page-break-inside:avoid}.imz td{border:0;vertical-align:top;width:50%;padding:0 4mm 0 0;font-size:10.5pt;line-height:1.45}
+th,td{border:.6pt solid #000;padding:${f(0.9)}mm 2mm;font-size:${f(10)}pt;vertical-align:middle}th{background:#eee;text-align:center}td.c{text-align:center;width:9mm}td.r{text-align:right;white-space:nowrap}tr.j td{font-weight:bold}
+.imz{width:100%;border-collapse:collapse;margin-top:4mm;page-break-inside:avoid}.imz td{border:0;vertical-align:top;width:50%;padding:0 4mm 0 0;font-size:${f(10.5)}pt;line-height:1.45}
 .ch{display:inline-block;border-bottom:.7pt solid #000;vertical-align:bottom}.k{font-size:9.5pt;color:#444}
 </style></head><body>
 <h1>№ ${esc(x.no)}-СОНЛИ ШАРТНОМАНИ ХАРИДОР ТАШАББУСИ БИЛАН БЕКОР ҚИЛИШ БЎЙИЧА<br>ЎЗАРО ҲИСОБ-КИТОБ ДАЛОЛАТНОМАСИ</h1>
@@ -69,9 +70,9 @@ th,td{border:.6pt solid #000;padding:.9mm 2mm;font-size:10pt;vertical-align:midd
 <p>2. Шартнома Харидорнинг ташаббуси билан, томонларнинг келишувига кўра, Жамият директорининг ${esc(yhSozDa(sanaIso))}ги ${esc(raqam)}-сонли буйруғи билан бекор қилинди.</p>
 <h2>3. Харидор томонидан Шартнома бўйича тўланган маблағлар:</h2>
 <table><tr><th>№</th><th>Сана</th><th>Тўлов шакли, ҳужжат</th><th>Сумма, сўм</th></tr>${T}</table>
-<h2>4. Жамият томонидан Харидорга қайтарилган маблағлар:</h2>
+<h2>4. Жамият томонидан Харидорга қайтарилган маблағлар${Q.buyruq ? ' (директорнинг ' + esc(yhDmy(Q.buyruqSana)) + ' даги ' + esc(Q.buyruq) + '-сонли буйруғи асосида)' : ''}:</h2>
 <table><tr><th>№</th><th>Сана</th><th>Ҳужжат</th><th>Сумма, сўм</th></tr>${K}</table>
-<p>5. Жамият директорининг ${esc(yhSozDa(Q.sana))}ги қарорига мувофиқ Харидорга қайтарилиши лозим бўлган сумма ${yhPul(Q.qaytar)} сўм; ушлаб қолинган сумма — ${yhPul(Q.ushlab)} сўм (жарима ушлаб қолинмади). Қайтарилган сумма ${yhPul(Q.qaytarildi)} сўм. <b>Қолдиқ: ${yhPul(Q.qoldiq)} сўм.</b></p>
+${Q.ismIzoh ? '<p>' + esc(Q.ismIzoh) + '</p>' : ''}<p>5. Жамият директорининг ${esc(yhSozDa(Q.sana))}ги қарорига мувофиқ Харидорга қайтарилиши лозим бўлган сумма ${yhPul(Q.qaytar)} сўм; ушлаб қолинган сумма — ${yhPul(Q.ushlab)} сўм (жарима ушлаб қолинмади). Қайтарилган сумма ${yhPul(Q.qaytarildi)} сўм. <b>Қолдиқ: ${yhPul(Q.qoldiq)} сўм.</b></p>
 <p>6. Томонлар Шартнома бўйича ўзаро ҳисоб-китоб тўлиқ амалга оширилганини тасдиқлайди. Харидор Жамиятга, Жамият Харидорга нисбатан Шартномадан келиб чиқадиган бирор-бир молиявий ва бошқа даъвога эга эмас.</p>
 <p>7. ${esc(x.dokon)} рақамли дўкон Жамият ихтиёрида қолади; Харидорнинг ушбу дўконга нисбатан Шартномадан келиб чиқадиган ҳуқуқлари ушбу далолатнома имзоланган кундан тугайди.</p>
 <p>8. Ушбу далолатнома икки нусхада тузилди, ҳар бир томонга бир нусхадан берилди; ҳар бир нусха бир хил юридик кучга эга.</p>
@@ -82,9 +83,13 @@ th,td{border:.6pt solid #000;padding:.9mm 2mm;font-size:10pt;vertical-align:midd
 </body></html>`;
 }
 async function dalolatnomaYasa(x, Q, raqam, dRaqam, sanaIso, m) {
-  const pdf = await PDF.yasa(dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true },
-    MI.chromKol({ imzo: 'Харидор', sarlavha: 'Далолатнома № ' + dRaqam, chap: 57, ong: 40 })));
-  return { pdf, bet: XP.betSoni(pdf) };
+  let pdf, bet = 9;
+  for (const k of [1, 0.95, 0.9, 0.86, 0.82]) {
+    pdf = await PDF.yasa(dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m, k), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true },
+      MI.chromKol({ imzo: 'Харидор', sarlavha: 'Далолатнома № ' + dRaqam, chap: 57, ong: 40 })));
+    bet = XP.betSoni(pdf); if (bet <= 1) break;
+  }
+  return { pdf, bet };
 }
 
-module.exports = { buyruqMatn, buyruqYasa, dalolatnomaHtml, dalolatnomaYasa, BAND };
+module.exports = { buyruqMatn, buyruqYasa, dalolatnomaHtml, dalolatnomaYasa, BAND, xatKirill: BH.xatKirill };

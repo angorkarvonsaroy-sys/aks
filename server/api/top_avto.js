@@ -76,7 +76,8 @@ async function topCtx(kod, bugun) {
   const bufer = [];
   // 05b L (Muddat_holati) — ko'ringan matndan emas, xom qiymatdan (02.11.2026, 3-bosqichga tayyorgarlik)
   aOxiri(R5).forEach(({ r, x }) => { if (r[0] && s(r[6]) === 'Буферда' && /MUDDATI O'TDI/i.test(s(x[11]))) bufer.push({ id: s(r[0]), sana: s(r[1]), no: s(r[2]), summa: Number(s(r[3]).replace(/\s/g, '').replace(',', '.')) || 0 }); });
-  return { mlM, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, bufer,
+  const qaytBlok = {}; (await require('../lib/qaytarish_blok').ochiqQarorlar()).forEach(q => { qaytBlok[q.no] = true; });   // pul qaytarilayotganlar — yuristga tavsiya yo'q
+  return { mlM, qaytBlok, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -148,7 +149,7 @@ async function topAvto(kod, opt = {}) {
   ctx.skansiz.forEach(x => nomzod('skan', x.no, 'Shartnoma skanini kiriting', x.fish + ' · ' + x.dokon + ' · ' + x.kun + ' kundan beri skan yo\'q', x.no, ctx.mid[x.no], x.kim));
   // 2–4 portfel
   ctx.P.forEach(x => {
-    if (x.davoXavf && !x.yuSorov) nomzod('davo', x.no, "Da'vo muddati yaqin — ogohlantirish yoki yuristga o'tkazish", x.fish + ' · ' + x.davoQolgan + ' kun qoldi · qarz ' + pul(x.jami), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
+    if (x.davoXavf && !x.yuSorov && !ctx.qaytBlok[x.no]) nomzod('davo', x.no, "Da'vo muddati yaqin — ogohlantirish yoki yuristga o'tkazish", x.fish + ' · ' + x.davoQolgan + ' kun qoldi · qarz ' + pul(x.jami), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
     if (x.bugunVada) nomzod('vada', x.no + '|' + (x.vada ? x.vada.sana : ''), "Va'da sanasi — mijoz bilan bog'laning", x.fish + ' · va\'da ' + (x.vada ? pul(x.vada.summa) + ' so\'m' : ''), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
     const k = Number(x.kechikkan) || 0;
     if ((Number(x.muddati) || 0) > 0 && k >= 1 && k <= 30 && !(x.oxirgi && x.oxirgi.sana >= ctx.kunOldin(k))) nomzod('tolov', x.no, "To'lov kechikdi — mijoz bilan bog'laning", x.fish + ' · ' + k + ' kun · muddati o\'tgan ' + pul(x.muddati), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);

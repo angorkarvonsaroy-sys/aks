@@ -71,6 +71,7 @@ async function yuristgaSorov(args) {
     const x = (await U.undShartnomalar()).find(z => z.no === s(no));
     if (!x || (!u.admin && x.undiruvchi !== u.fish)) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.');
     if (await ishBor(x.no)) throw new S.Xato('Bu mijoz allaqachon yuristga o\'tkazilgan yoki so\'rov yuborilgan.');
+    if (await require('../lib/qaytarish_blok').qaytarilmoqda(x.no)) throw new S.Xato(require('../lib/qaytarish_blok').SABAB(x.no));
     const [XJ, UJ, HJ, Z] = await Promise.all([J.xatJurnal(), J.undJurnal(), J.hujjatJurnal(), X.xatZanjir(u.kod)]);
     const m = P.yuMezon(x, XJ, UJ, HJ.filter(h => h.holati === 'Faol'), bugun, Z);
     if (!m.ok) throw new S.Xato('Mezonlar bajarilmagan: ' + m.yetishmaydi.join('; ') + '.');

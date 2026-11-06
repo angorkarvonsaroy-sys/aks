@@ -43,7 +43,16 @@ async function tekshir(no, BJ) {
   const tolovlar = H.T.filter(t => t.no === no).sort((a, b) => a.sana < b.sana ? -1 : 1);
   const tolangan = tolovlar.reduce((a, t) => a + t.summa, 0);
   const q = H.qarorlar.filter(z => z.no === no && z.holati !== 'Bekor').pop();
+  // yurist (06.11.2026): KO-2 lar buyruq ostida; ariza bosma qismidagi ism keyin pasport bo'yicha tuzatilgan bo'lsa — izoh jumlasi
+  const norm = v => s(v).replace(/\s+/g, ' ').trim().toUpperCase();
+  if (q && q.ariza && !q.arizaIsm) {   // AD bo'sh (qoidadan oldin yuklangan ariza, 27/313) — 06j tahrir jurnali: ariza yuklangandan keyingi F.I.Sh. tahririning ESKI qiymati
+    const tj = (await V.qatorlar('06j_Tahrir_jurnali')).map(z => z.x).filter(r => s(r[2]).trim() === no && /F\.I\.Sh/i.test(s(r[5]))).map(r => s(r[6]).trim()).filter(Boolean);
+    if (tj.length) q.arizaIsm = tj[0];
+  }
+  const ismIzoh = q && q.arizaIsm && norm(q.arizaIsm) !== norm(x.fish)
+    ? 'Изоҳ: Харидор аризасининг босма қисмидаги исм имлоси («' + BX.xatKirill(q.arizaIsm) + '») фарқи мижознинг қўлёзма Ф.И.Ш. билан тузатилган; ушбу далолатномада исм паспорт бўйича ёзилган.' : '';
   const Q = { qaytar: q ? q.qaytar : 0, ushlab: q ? q.ushlab : 0, qaytarildi: q ? q.qaytarildi : 0, qoldiq: q ? q.qoldiq : 0, sana: q ? q.sana : '', holati: q ? q.holati : '',
+    buyruq: q ? q.buyruq : '', buyruqSana: q ? q.buyruqSana : '', ismIzoh,
     ko2: q ? q.ko2.filter(k => k.holati !== 'Bekor').map(k => ({ raqam: k.raqam, sana: k.sana, summa: k.summa })) : [], tolovlar };
   if (tolangan > 0) {
     if (!q) return { mumkin: false, sabab: 'Shartnomaga ' + XP.pul(tolangan) + ' so\'m to\'langan — avval «💰 Moliya → ↩ Qaytarish (KO-2)» da qaytarish qarorini oching va pulni to\'liq qaytaring.', x, Q };

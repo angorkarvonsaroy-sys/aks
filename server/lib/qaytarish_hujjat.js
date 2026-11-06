@@ -80,6 +80,7 @@ function auditHtml(x, q, T, ishlatilgan, vaqt) {
   const qat = Kq.map(k => k.manba.map((m, i) => { const t = tt[m.tid] || {}; if (!i) { n++; jami += k.summa; }
     return '<tr>' + (i ? '' : `<td class="c" rowspan="${k.manba.length}">${n}</td><td rowspan="${k.manba.length}"><b>${esc(k.raqam)}</b><br>${esc(yhDmy(k.sana))}${k.holati === 'Faol' ? '' : '<br><i>скан кутилмоқда</i>'}</td><td class="r" rowspan="${k.manba.length}"><b>${yhPul(k.summa)}</b></td>`)
       + `<td>КО-1 № ${esc(m.tid)}${t.hujjat ? ' (' + esc(t.hujjat) + ')' : ''}<br>${esc(t.sana ? yhDmy(t.sana) : '')}</td><td>${esc(t.fish || '')}<br>${esc(t.no || '')}</td><td class="r">${t.summa != null ? yhPul(t.summa) : ''}</td><td class="r">${yhPul(m.olindi != null ? m.olindi : m.summa)}</td><td class="r">${t.summa != null ? yhPul(t.summa - (ishlatilgan[m.tid] || 0)) : ''}</td></tr>`; }).join('')).join('');
+  const oldingi = q.buyruq ? Kq.filter(k => k.sana <= q.buyruqSana).map(k => k.raqam) : [];   // buyruq bilan bir kunda / oldin yozilgan KO-2 (yurist: izoh bilan yopiladi)
   const bekor = q.ko2.filter(k => k.holati === 'Bekor').map(k => esc(k.raqam) + ' (' + esc(yhDmy(k.sana)) + ', ' + yhPul(k.summa) + ' сўм)').join('; ');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 @page{size:A4 landscape;margin:14mm 14mm 16mm 14mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:10.5pt;line-height:1.3;color:#000}
@@ -92,7 +93,7 @@ table{width:100%;border-collapse:collapse}th,td{border:.6pt solid #000;padding:1
 <table><tr><th>№</th><th>КО-2 (чиқим)</th><th>Берилди, сўм</th><th>Манба — КО-1 (кирим)</th><th>Кимдан, шартнома</th><th>КО-1 нақд, сўм</th><th>Шундан олинди</th><th>Кассада қолди</th></tr>
 ${qat || '<tr><td colspan="8" class="c">Ҳали КО-2 ёзилмаган</td></tr>'}
 <tr><th colspan="2" class="r">ЖАМИ қайтарилди (${n} та КО-2)</th><th class="r">${yhPul(jami)}</th><th colspan="4" class="r">Қолдиқ (қайтарилиши керак)</th><th class="r">${yhPul(q.qaytar - jami)}</th></tr></table>
-<div class="iz">«Кассада қолди» — ушбу КО-1 нақд пулидан барча КО-2 лар (шу ва бошқа мижозларга) олингандан кейинги қолдиқ. Ҳар бир КО-1 ўз шартномасига кирим сифатида ёзилган ва ўша ерда ҳисобга олинган; қайтариш аванс қайтариши бўлиб, даромад ҳам, харажат ҳам эмас.${bekor ? '<br><b>Бекор қилинган КО-2 лар</b> (имзоланмаган, рақами сақланади): ' + bekor + '.' : ''}</div>
+<div class="iz">«Кассада қолди» — ушбу КО-1 нақд пулидан барча КО-2 лар (шу ва бошқа мижозларга) олингандан кейинги қолдиқ. Ҳар бир КО-1 ўз шартномасига кирим сифатида ёзилган ва ўша ерда ҳисобга олинган; қайтариш аванс қайтариши бўлиб, даромад ҳам, харажат ҳам эмас.${oldingi.length ? '<br><b>Изоҳ:</b> ' + esc(oldingi.join(', ')) + ' — ' + esc(q.buyruq) + ' буйруғи асосида берилган деб ҳисобланади (бир кунда чиқарилган).' : ''}${bekor ? '<br><b>Бекор қилинган КО-2 лар</b> (имзоланмаган, рақами сақланади): ' + bekor + '.' : ''}</div>
 </body></html>`;
 }
 async function auditYasa(x, q, T, ishlatilgan, vaqt) {
@@ -122,4 +123,28 @@ async function kelishuvYasa(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq) {
   return PDF.yasa(kelishuvHtml(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol({ imzo: 'Харидор' })));
 }
 
-module.exports = { kelishuvHtml, kelishuvYasa, buyruqMatn, buyruqYasa, javobMatn, javobYasa, auditHtml, auditYasa };
+// ------------------------------------------------------------------ 5) БОШ БУХГАЛТЕР ХИЗМАТ ЁЗУВИ (юрист намунаси; бўш жойларни бухгалтер ўзи тўлдиради)
+function xizmatHtml(x, q, masul, t) {
+  const ch = w => '<span class="ch" style="width:' + w + 'mm"></span>';
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+@page{size:A4;margin:18mm 16mm 20mm 25mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:12.5pt;line-height:1.5;color:#000}
+.kimga{margin-left:50%;line-height:1.4;margin-bottom:8mm}.h{text-align:center;font-weight:bold;font-size:14pt;margin:0 0 1mm}.h2{text-align:center;margin-bottom:6mm}
+p{margin:0 0 3mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;border-bottom:.7pt solid #000;vertical-align:bottom}
+.imz{margin-top:12mm;line-height:2.2}</style></head><body>
+<div class="kimga">«ANGOR KARVON SAROY» МЧЖ директори<br>К.Ҳ. Ҳайдаровга</div>
+<div class="h">ХИЗМАТ ЁЗУВИ</div>
+<div class="h2">№${esc(x.no)}-сонли шартнома бўйича маблағни кассадан қайтариш тартиби тўғрисида</div>
+<p>Мен, ${esc(masul)}, ${esc(q.buyruq)}-сонли буйруқ ижроси юзасидан қуйидагиларни маълум қиламан:</p>
+<p>1. Жамиятнинг банк ҳисоб рақамида 2-картотека мавжуд бўлган ҳолатда кассага тушган нақд тушумни банкка топширмасдан, Харидорга авансни қайтариш учун сарфлашга қуйидаги норматив ҳужжат асосан <b>йўл қўйилади / йўл қўйилмайди</b> <i>(кераклисини тагига чизинг)</i>:</p>
+<p style="text-indent:0;margin-left:12mm">${ch(150)}<br>${ch(150)}<br><span style="font-size:10pt;color:#444">(норматив ҳужжат номи, санаси ва банди)</span></p>
+<p>2. Қайтариладиган маблағ Жамият учун харажат, мижоз учун даромад эмас; солиқ оқибати юзага келмайди.</p>
+<p>3. ${t ? esc(yhDmy(t.sana)) + ' даги ' + yhPul(t.summa).replace(/ /g, '\u00a0') + ' сўмлик тушум ' + esc(t.sana.slice(0, 4)) : '______ даги ______________ сўмлик тушум ______'} йил ҳисоботида ${ch(50)} (аванс / даромад) сифатида акс эттирилган. Даромад сифатида акс эттирилган бўлса, тузатиш ${ch(40)} муддатда киритилади.</p>
+<p>4. Қайтаришлар чиқим касса ордери (КО-2) билан расмийлаштирилади, манбалар (КО-1) ички аудит реестрида юритилади.</p>
+<div class="imz">Сана: «____» ______________ 20___ й.<br>${esc(masul.replace(/^(бош бухгалтер|бухгалтер)\s*/i, m => m.charAt(0).toUpperCase() + m.slice(1)))} &nbsp;&nbsp; ${ch(45)} <span style="font-size:10pt;color:#444">(имзо)</span></div>
+</body></html>`;
+}
+async function xizmatYasa(x, q, masul, t) {
+  return PDF.yasa(xizmatHtml(x, q, masul, t), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol()));
+}
+
+module.exports = { xizmatHtml, xizmatYasa, kelishuvHtml, kelishuvYasa, buyruqMatn, buyruqYasa, javobMatn, javobYasa, auditHtml, auditYasa };

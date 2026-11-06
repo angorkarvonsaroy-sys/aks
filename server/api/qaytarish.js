@@ -26,7 +26,8 @@ const kozgu = () => Promise.race([tetik.varaqlarYangila([QR, KQ]).catch(() => {}
 
 const QR = '05r_Qaytarish_qarorlari', KQ = '05q_Qaytarishlar', T05 = '05_Tolovlar', S3 = '03_Sotuv_shartnomalar', M2 = '02_Mijozlar';
 const QR_SARL = ['Qaror_ID', 'Shartnoma_№', 'Mijoz_ID', 'Mijoz_FISH', 'Dokon_ID', 'Jami_tolangan', 'Ushlab_qolinadi', 'Qaytariladi', 'Sabab', 'Qaror_sana', 'Kim', 'Vaqt', 'Holati', 'Yakun_vaqt', 'Izoh', 'Ariza_skan', 'Ariza_vaqt',
-  'Buyruq_№', 'Buyruq_sana', 'Muddat', 'Buyruq_PDF', 'Buyruq_skan', 'Buyruq_skan_vaqt', 'Javob_№', 'Javob_sana', 'Javob_PDF', 'Javob_skan', 'Javob_skan_vaqt', 'Uzaytirish'];   // AC — qo'shimcha kelishuvlar (JSON)   // R..AB — buyruq (QB) va direktor javobi (QJ), 06.11.2026 yurist
+  'Buyruq_№', 'Buyruq_sana', 'Muddat', 'Buyruq_PDF', 'Buyruq_skan', 'Buyruq_skan_vaqt', 'Javob_№', 'Javob_sana', 'Javob_PDF', 'Javob_skan', 'Javob_skan_vaqt', 'Uzaytirish',
+  'Ariza_ism', 'Xizmat_PDF', 'Xizmat_skan', 'Xizmat_vaqt', 'Kassa_ruxsat'];   // AC kelishuvlar (JSON); AD ariza yuklangandagi ism; AE..AH buxgalter xizmat yozuvi (yurist, 06.11.2026)   // R..AB — buyruq (QB) va direktor javobi (QJ), 06.11.2026 yurist
 const KQ_SARL = ['ID', 'KO2_№', 'Sana', 'Qaror_ID', 'Shartnoma_№', 'Mijoz_FISH', 'Summa', 'Manba', 'Oluvchi_FISH', 'Oluvchi_pasport', 'Kassir', 'Kim_kiritdi', 'Vaqt', 'Holati', 'PDF', 'Izoh', 'Skan', 'Skan_vaqt'];
 const KUT = 'Skan kutilmoqda';   // KO-2 saqlangan, mijoz imzolagan skani hali yuklanmagan
 const ILDIZ = env.hujjatPapka || '/opt/aks/hujjat';
@@ -80,7 +81,8 @@ function vt(v) { if (typeof v !== 'number' && !/^\d{5}(\.\d+)?$/.test(s(v))) ret
   return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
 const qarorOb = ({ qator, r }) => ({ qator, id: s(r[0]), no: s(r[1]), mid: s(r[2]), fish: s(r[3]), dokon: s(r[4]), jami: son(r[5]), ushlab: son(r[6]), qaytar: son(r[7]),
   sabab: s(r[8]), sana: iso(r[9]), kim: s(r[10]), vaqt: vt(r[11]), holati: s(r[12]), yakun: vt(r[13]), izoh: s(r[14]), ariza: s(r[15]), arizaVaqt: vt(r[16]),
-  buyruq: s(r[17]), buyruqSana: iso(r[18]), muddat: iso(r[19]), buyruqPdf: s(r[20]), buyruqSkan: s(r[21]), buyruqSkanVaqt: vt(r[22]), javob: s(r[23]), javobSana: iso(r[24]), javobPdf: s(r[25]), javobSkan: s(r[26]), javobSkanVaqt: vt(r[27]), kelishuv: (() => { try { return JSON.parse(s(r[28]) || '[]'); } catch (e) { return []; } })() });
+  buyruq: s(r[17]), buyruqSana: iso(r[18]), muddat: iso(r[19]), buyruqPdf: s(r[20]), buyruqSkan: s(r[21]), buyruqSkanVaqt: vt(r[22]), javob: s(r[23]), javobSana: iso(r[24]), javobPdf: s(r[25]), javobSkan: s(r[26]), javobSkanVaqt: vt(r[27]), kelishuv: (() => { try { return JSON.parse(s(r[28]) || '[]'); } catch (e) { return []; } })(),
+  arizaIsm: s(r[29]), xizmatPdf: s(r[30]), xizmatSkan: s(r[31]), xizmatVaqt: vt(r[32]), kassaRuxsat: s(r[33]) });
 const ko2Ob = ({ qator, r }) => ({ qator, id: s(r[0]), raqam: s(r[1]), sana: iso(r[2]), qarorId: s(r[3]), no: s(r[4]), fish: s(r[5]), summa: son(r[6]),
   manba: manbaOqi(r[7]), oluvchi: s(r[8]), pasport: s(r[9]), kassir: s(r[10]), kim: s(r[11]), vaqt: vt(r[12]), holati: s(r[13]) === 'Faol' && !s(r[16]) ? KUT : s(r[13]), pdf: s(r[14]), izoh: s(r[15]), skan: s(r[16]), skanVaqt: vt(r[17]) });   // skansiz «Faol» (qoidadan oldingi) — ham «Skan kutilmoqda»
 // «T1234:3000000; T1240:2000000» ⇄ [{ tid, summa }]
@@ -117,7 +119,7 @@ async function qaytarishHolat([kodSes]) {
     .filter(t => t.qoldiq > 0).sort((a, b) => iso(b.sana) < iso(a.sana) ? -1 : 1);
   return { qarorlar: H.qarorlar.map(q => ({ id: q.id, no: q.no, fish: q.fish, dokon: q.dokon, jami: q.jami, ushlab: q.ushlab, qaytar: q.qaytar, qaytarildi: q.qaytarildi, qoldiq: q.qoldiq,
     holati: q.holati, sabab: q.sabab, sana: dmy(q.sana), ariza: q.ariza, arizaVaqt: q.arizaVaqt, izoh: q.izoh,
-    buyruq: q.buyruq, buyruqSana: dmy(q.buyruqSana), muddat: dmy(q.muddat), buyruqSkan: q.buyruqSkan, buyruqSkanVaqt: q.buyruqSkanVaqt, javob: q.javob, javobSana: dmy(q.javobSana), javobSkan: q.javobSkan, javobSkanVaqt: q.javobSkanVaqt, kelishuv: q.kelishuv.map(k => ({ raqam: k.raqam, sana: dmy(k.sana), eski: dmy(k.eski), yangi: dmy(k.yangi), skan: k.skan, skanVaqt: k.skanVaqt })), muddatKun: q.muddat ? Math.round((Date.parse(q.muddat) - Date.parse(hozir().iso)) / 86400e3) : null, ko2: q.ko2.map(k => ({ id: k.id, raqam: k.raqam, sana: dmy(k.sana), summa: k.summa, holati: k.holati, izoh: k.izoh, skan: k.skan, skanVaqt: k.skanVaqt, kassir: k.kassir,
+    buyruq: q.buyruq, buyruqSana: dmy(q.buyruqSana), muddat: dmy(q.muddat), buyruqSkan: q.buyruqSkan, buyruqSkanVaqt: q.buyruqSkanVaqt, javob: q.javob, javobSana: dmy(q.javobSana), javobSkan: q.javobSkan, javobSkanVaqt: q.javobSkanVaqt, kelishuv: q.kelishuv.map(k => ({ raqam: k.raqam, sana: dmy(k.sana), eski: dmy(k.eski), yangi: dmy(k.yangi), skan: k.skan, skanVaqt: k.skanVaqt })), muddatKun: q.muddat ? Math.round((Date.parse(q.muddat) - Date.parse(hozir().iso)) / 86400e3) : null, xizmat: !!q.xizmatPdf, xizmatSkan: q.xizmatSkan, xizmatVaqt: q.xizmatVaqt, kassaRuxsat: q.kassaRuxsat, ko2: q.ko2.map(k => ({ id: k.id, raqam: k.raqam, sana: dmy(k.sana), summa: k.summa, holati: k.holati, izoh: k.izoh, skan: k.skan, skanVaqt: k.skanVaqt, kassir: k.kassir,
       manba: k.manba.map(m => { const t = H.T.find(z => z.tid === m.tid) || {}; return { tid: m.tid, summa: m.summa, no: t.no || '', fish: t.fish || '', sana: dmy(t.sana || '') }; }) })) })),
     manbalar, bugun: hozir().iso, kassir: await kassirStandart(H), xodimlar: await kassirRoyxat() };
 }
@@ -154,7 +156,7 @@ async function qaytarishQaror([kodSes, d0]) {
     if (!(qaytar > 0)) throw new S.Xato('Qaytariladigan summani kiriting.');
     if (qaytar > jami) throw new S.Xato('Qaytariladigan summa (' + pul(qaytar) + ') shu shartnomaga to\'langan jami summadan (' + pul(jami) + ') katta bo\'lishi mumkin emas.');
     const id = String(Math.max(0, ...H.qarorlar.map(q => +q.id || 0)) + 1), h = hozir();
-    await G.qatorQosh(env.aksBazaId, QR, [id, no, s(sh[4]), s(sh[20]), s(sh[5]), jami, jami - qaytar, qaytar, sabab, h.dmy, u.fish, h.dmyHm, 'Ochiq', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], env.googleKey);
+    await G.qatorQosh(env.aksBazaId, QR, [id, no, s(sh[4]), s(sh[20]), s(sh[5]), jami, jami - qaytar, qaytar, sabab, h.dmy, u.fish, h.dmyHm, 'Ochiq', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], env.googleKey);
     tg('↩ <b>Qaytarish qarori</b> ' + no + ' (' + esc(s(sh[20])) + '): qaytariladi <b>' + pul(qaytar) + '</b> so\'m' + (jami - qaytar ? ', ushlab qolinadi ' + pul(jami - qaytar) : ', ushlab qolinmaydi') + '.\nSabab: ' + esc(sabab) + '\n⏳ Mijoz imzolagan ariza skani yuklanmaguncha KO-2 yozilmaydi.');
     await kozgu();
     return { ok: true, id, no, jami, qaytar };
@@ -185,6 +187,8 @@ async function qaytarishKirit([kodSes, d0]) {
     if (!q.buyruqSkan) throw new S.Xato('Buyruq ' + q.buyruq + ' ning imzolangan skani yuklanmagan — avval yuklang.');
     if (!q.javob) throw new S.Xato('Avval direktorning arizaga JAVOBINI chiqaring («✉ Аризага жавоб») — mijoz «Танишдим, розиман» деб имзолайди.');
     if (!q.javobSkan) throw new S.Xato('Javob ' + q.javob + ' ning mijoz imzolagan skani yuklanmagan — avval yuklang.');
+    if (!q.xizmatSkan) throw new S.Xato('Bosh buxgalterning imzolangan XIZMAT YOZUVI skani yuklanmagan («📝 Хизмат ёзуви») — kassa orqali qaytarish ruxsati tasdiqlanmaguncha KO-2 yozilmaydi.');
+    if (q.kassaRuxsat === 'yoq') throw new S.Xato('Bosh buxgalter xizmat yozuvida kassadan naqd qaytarishga YO\'L QO\'YILMAYDI deb xulosa bergan — qaytarish faqat bank orqali. Yuristga ayting.');
     if (summa > q.qoldiq) throw new S.Xato('KO-2 summasi (' + pul(summa) + ') qaytarilishi kerak bo\'lgan qoldiqdan (' + pul(q.qoldiq) + ') katta.');
     for (const m of manba) {
       const t = H.T.find(z => z.tid === m.tid);
@@ -325,7 +329,7 @@ async function qaytarishArizaSkan([kodSes, id, sana, b64, sahifa]) {
   await varaqTayyor(QR, QR_SARL);
   const r = await HYk().yuklaYadro(u, { turi: 'QAYTARISH_ARIZA', sana, b64, sahifa, izoh: '№QR-' + q.id + ' · Пул қайтариш аризаси (мижоз имзоси билан), ' + pul(q.qaytar) + ' сўм' }, await shOb(q.no, q.fish));
   const h = hozir();
-  await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'P' + q.qator + ':Q' + q.qator, qiymat: [[r.nom, h.dmyHm]] }], env.googleKey);
+  await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'P' + q.qator + ':Q' + q.qator, qiymat: [[r.nom, h.dmyHm]] }, { varaq: QR, katak: 'AD' + q.qator, qiymat: [[(await oluvchiOl(q)).oluvchi]] }], env.googleKey);   // AD — ariza bosma qismidagi ism (keyin tuzatilsa dalolatnomada izoh)
   tg('📎 ' + q.no + ' (' + esc(q.fish) + ') — mijoz imzolagan qaytarish arizasi skani yuklandi. Endi KO-2 yozish mumkin.');
   await kozgu();
   return { ok: true, nom: r.nom };
@@ -359,6 +363,12 @@ async function skanTuzatKataklar(hj, sabab, fish, vaqt) {
       if (q.no !== hj.no || (b ? q.buyruqSkan : q.javobSkan) !== hj.nom) continue;
       Y.push({ varaq: QR, katak: (b ? 'V' : 'AA') + q.qator + ':' + (b ? 'W' : 'AB') + q.qator, qiymat: [['', '']] }, { varaq: QR, katak: 'O' + q.qator, qiymat: [[(q.izoh ? q.izoh + ' | ' : '') + (b ? 'Buyruq' : 'Javob') + ' skani bekor qilindi: ' + sabab + ' (' + fish + ', ' + vaqt + ')']] });
       xabar.push(q.no + ' — ' + (b ? q.buyruq : q.javob) + ' skani olib tashlandi; to\'g\'ri skan yuklanmaguncha yangi KO-2 yozilmaydi.');
+    }
+  } else if (hj.turi === 'QAYTARISH_XIZMAT') {
+    for (const q of (await jadval(QR, QR_SARL)).map(qarorOb)) {
+      if (q.no !== hj.no || q.xizmatSkan !== hj.nom) continue;
+      Y.push({ varaq: QR, katak: 'AF' + q.qator + ':AH' + q.qator, qiymat: [['', '', '']] }, { varaq: QR, katak: 'O' + q.qator, qiymat: [[(q.izoh ? q.izoh + ' | ' : '') + 'Xizmat yozuvi skani bekor qilindi: ' + sabab + ' (' + fish + ', ' + vaqt + ')']] });
+      xabar.push(q.no + ' — xizmat yozuvi skani olib tashlandi; to\'g\'ri skan yuklanmaguncha yangi KO-2 yozilmaydi.');
     }
   } else if (hj.turi === 'QAYTARISH_KELISHUV') {
     for (const q of (await jadval(QR, QR_SARL)).map(qarorOb)) {
@@ -597,11 +607,44 @@ async function muddatNazorat() {
   const H = await holatYig(); const bugun = hozir().iso; const L = [];
   H.qarorlar.filter(q => q.holati === 'Ochiq' && q.muddat && q.qoldiq > 0).forEach(q => {
     const kun = Math.round((Date.parse(q.muddat) - Date.parse(bugun)) / 86400e3);
-    if (kun <= 30) L.push({ no: q.no, fish: q.fish, muddat: q.muddat, kun, qoldiq: q.qoldiq });
+    // yurist (06.11.2026): 90 kun qolganda — har dushanba; 30 kun qolganda va o'tganda — har kuni
+    const dush = new Date(Date.parse(bugun)).getUTCDay() === 1;
+    if (kun <= 30 || (kun <= 90 && dush)) L.push({ no: q.no, fish: q.fish, muddat: q.muddat, kun, qoldiq: q.qoldiq });
   });
-  if (L.length) tg('⏰ <b>Qaytarish muddati</b>\n' + L.map(z => (z.kun < 0 ? '❗ O\'TGAN (' + (-z.kun) + ' kun)' : '⚠ ' + z.kun + ' kun qoldi') + ' — ' + z.no + ' ' + esc(z.fish) + ': qoldiq ' + pul(z.qoldiq) + ', muddat ' + dmy(z.muddat)).join('\n')
-    + '\nQoldiq bo\'lsa — ilovada «📅 Муддатни узайтириш» (qo\'shimcha kelishuv), aks holda mijoz foiz talab qila oladi (FK 327).');
+  if (L.length) tg('⏰ <b>Qaytarish muddati</b>\n' + L.map(z => (z.kun < 0 ? '❗ O\'TGAN (' + (-z.kun) + ' kun)' : (z.kun <= 30 ? '⚠ ' : '📅 ') + z.kun + ' kun qoldi') + ' — ' + z.no + ' ' + esc(z.fish) + ': qoldiq ' + pul(z.qoldiq) + ', muddat ' + dmy(z.muddat)).join('\n')
+    + '\nQoldiq bo\'lsa — pul topish yoki «📅 Муддатни узайтириш» (qo\'shimcha kelishuv, mijoz imzosi bilan). Mijoz imzolamasa muddat qat\'iy — keyin foiz talab qila oladi (FK 327).');
   return { soni: L.length, royxat: L.map(z => z.no + ' ' + z.kun) };
+}
+// 📝 Bosh buxgalter xizmat yozuvi (yurist namunasi) — PDF (bo'sh joylarni buxgalter qo'lda to'ldiradi) → imzolangan skan + kassa ruxsati (bor/yoq)
+async function qaytarishXizmat([kodSes, id]) {
+  await direktor(kodSes);
+  const { H, q } = await qarorTop(id);
+  if (!q.buyruq) throw new S.Xato('Avval buyruqni chiqaring — xizmat yozuvi buyruq ijrosi yuzasidan yoziladi.');
+  const x = await BYi().bekorShartnoma(q.no); if (!x) throw new S.Xato('Shartnoma topilmadi: ' + q.no);
+  const t = H.T.filter(z => z.no === q.no).sort((a, b) => a.sana < b.sana ? -1 : 1)[0] || null;
+  const pdf = await QH.xizmatYasa(x, q, await masulBuxgalter(), t);
+  const nom = 'Qaytarish_xizmat_yozuvi_' + q.no.replace(/\//g, '-') + '_' + q.buyruq.replace('/', '-') + '.pdf';
+  const srv = pdfSaqla(q.no, nom, pdf);
+  if (!q.xizmatPdf) await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'AE' + q.qator, qiymat: [[srv]] }], env.googleKey);
+  return { nom, b64: pdf.toString('base64') };
+}
+async function qaytarishXizmatSkan([kodSes, id, sana, b64, sahifa, ruxsat]) {
+  const u = await direktor(kodSes);
+  const { q } = await qarorTop(id);
+  if (q.xizmatSkan) throw new S.Xato('Xizmat yozuvi skani allaqachon yuklangan: ' + q.xizmatSkan + '.');
+  if (ruxsat !== 'bor' && ruxsat !== 'yoq') throw new S.Xato('Buxgalter xulosasini belgilang: kassadan naqd qaytarishga yo\'l qo\'yiladi yoki qo\'yilmaydi.');
+  const r = await HYk().yuklaYadro(u, { turi: 'QAYTARISH_XIZMAT', sana, b64, sahifa, izoh: 'Бош бухгалтер хизмат ёзуви — ' + q.buyruq + ' ижроси; кассадан нақд қайтаришга йўл ' + (ruxsat === 'bor' ? 'қўйилади' : 'ҚЎЙИЛМАЙДИ') }, await shOb(q.no, q.fish));
+  const h = hozir();
+  await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'AF' + q.qator + ':AH' + q.qator, qiymat: [[r.nom, h.dmyHm, ruxsat]] }], env.googleKey);
+  tg('📝 ' + q.no + ' (' + esc(q.fish) + ') — bosh buxgalter xizmat yozuvi skani yuklandi: kassadan naqd qaytarishga yo\'l ' + (ruxsat === 'bor' ? 'qo\'yiladi ✅' : 'QO\'YILMAYDI ❗ — KO-2 to\'xtatildi, faqat bank orqali'));
+  await kozgu(); return { ok: true, ruxsat };
+}
+async function qaytarishXizmatPdf([kodSes, id]) {
+  await direktor(kodSes);
+  const { q } = await qarorTop(id);
+  const HY = require('./hujjat_yoz');
+  if (q.xizmatSkan) { const f = HY.srvFayl(null, q.no, q.xizmatSkan); if (f) return { nom: 'Xizmat_yozuvi_' + q.no.replace(/\//g, '-') + '_IMZOLI.pdf', b64: f.bytes.toString('base64'), imzoli: true }; }
+  return qaytarishXizmat([kodSes, id]);
 }
 // 🧾 Ichki audit reestri — istalgan vaqtda, imzosiz
 async function qaytarishAudit([kodSes, id]) {
@@ -649,5 +692,5 @@ p{margin:0 0 3mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;bo
 }
 
 module.exports = { qaytarishHolat, qaytarishQaror, qaytarishKirit, qaytarishPdf, qaytarishBekor, qaytarishAriza, qaytarishQarorBekor, qaytarishArizaSkan, qaytarishSkan,
-  qaytarishBuyruq, qaytarishJavob, qaytarishBuyruqSkan, qaytarishJavobSkan, qaytarishHujjatPdf, qaytarishAudit, qaytarishMuddat, qaytarishMuddatSkan, qaytarishKelishuvPdf };
+  qaytarishBuyruq, qaytarishJavob, qaytarishBuyruqSkan, qaytarishJavobSkan, qaytarishHujjatPdf, qaytarishAudit, qaytarishMuddat, qaytarishMuddatSkan, qaytarishKelishuvPdf, qaytarishXizmat, qaytarishXizmatSkan, qaytarishXizmatPdf };
 module.exports._ichki = { manbaOqi, manbaYoz, iso, holatYig, ko2Pdf, QR, KQ, KUT, bekorAjrat, skanTuzatKataklar, muddatNazorat };

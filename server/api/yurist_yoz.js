@@ -333,6 +333,7 @@ async function yuristTasdiq(args) {
     let tg = null;
     if (i.holati === 'Tasdiq kutilmoqda') {
       if (ha) {
+        if (await require('../lib/qaytarish_blok').qaytarilmoqda(i.no)) throw new S.Xato(require('../lib/qaytarish_blok').SABAB(i.no));
         await ishYoz(i, [[3, bugun], [15, 'Faol'], [20, [1, bugun]], [30, u.fish + ', ' + vaqt]], [3, 21]);
         await tarixYoz(i, 'Direktor tasdiqladi — yuristga o\'tdi', u.fish, izoh, '');
         yuristgaXabar(u.kod, i, bugun).catch(e => console.error('yuristga xabar:', e.message));   // 24.10: yuristga darhol Telegram
