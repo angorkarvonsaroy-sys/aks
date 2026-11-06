@@ -245,7 +245,14 @@ async function tolovSaqlash(args) {
   const no = String(d.no || '').trim();
   const sn = (await shartnomalar([kodSes])).find(x => x.no === no);
   if (!sn) throw new S.Xato('Shartnoma topilmadi: ' + no);
-  if (sn.holati === 'Bekor qilindi' && !u.admin) throw new S.Xato('Bu shartnoma bekor qilingan. To\'lovni faqat direktor kirita oladi.');
+  // 06.11.2026: bekor qilingan shartnomaga to'lov — xodim kirita olmaydi; direktor faqat tasdiq oynasida alohida belgilasa (adashib tanlashdan himoya)
+  if (/bekor/i.test(sn.holati)) {
+    const all = await shartnomalar([kodSes]);
+    const faol = all.find(x => x.no !== no && !/bekor/i.test(x.holati) && x.fish === sn.fish && x.dokon === sn.dokon) || all.find(x => x.no !== no && !/bekor/i.test(x.holati) && x.fish === sn.fish);
+    const f = faol ? ' Mijozning faol shartnomasi: ' + faol.no + '.' : '';
+    if (!u.admin) throw new S.Xato('Bu shartnoma (' + no + ') bekor qilingan — to\'lov kiritilmaydi.' + f);
+    if (d.bekorRozi !== true) throw new S.Xato(no + ' bekor qilingan.' + f + ' Bekor shartnomaga kiritish uchun tasdiq oynasida alohida belgilang.');
+  }
   const summa = Math.round(Number(String(d.summa || '').replace(/[^\d]/g, '')));
   if (!summa || summa <= 0) throw new S.Xato('Summa noto\'g\'ri.');
   if (summa > 5000000000) throw new S.Xato('Summa juda katta — tekshiring.');
