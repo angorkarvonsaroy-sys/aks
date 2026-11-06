@@ -78,7 +78,7 @@ async function tahrirHolat([kodSes, no]) {
   const hud = oraliq(await V.qatorlar('08b_Hududlar'), 2, 210).map(z => xom(z.x, 2)).filter(x => x[0] && x[1]).map(x => [String(x[0]), String(x[1])]);
   return { ok: true, no: c.no, tur: c.tur, dokon: c.dokon, mid: c.mid, holati: c.holati, sana: String(c.sana || ''),
     kiritdi: c.kiritdi || '—', kiritildi: c.kiritildi || '', skan, mumkin, sabab, ogoh, admin: u.admin,
-    mijoz: { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] },
+    mijoz: { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], psana: r[9], pmuddat: r[10], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] },
     faoliyat: c.faoliyat, faoliyatlar, hud, boshqa: await tahrirBoshqa(c.mid, c.no) };
 }
 

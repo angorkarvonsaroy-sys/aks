@@ -102,6 +102,8 @@ async function yuklaYadro(u, d, sh) {
     await Promise.race([tetik.varaqlarYangila([HUJ]).catch(e => console.error('ko\'zgu (hujjat):', e.message)), new Promise(r => setTimeout(r, 15000))]);
     // fonda — Drive'ga (direktor hisobi, eski tizim orqali)
     driveGaKochir(u.kod, { id, no, fish: sh.fish, nom, rel, yol }).catch(e => console.error('Drive ko\'chirish:', e.message));
+    // 06.11.2026: «Shartnoma olmagan» shartnomaga imzolangan skan — holat o'zi «Aktiv» (lib/holat_skan.js), fonda
+    if (turi === 'SHARTNOMA' && sh.tur !== 'ijara') require('../lib/holat_skan').tuzat({ no, kim: u.fish }).catch(e => console.error('holat_skan:', e.message));
     const chiroyli = String(sh.fish || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 2).map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(' ');
     return { ok: true, no, fish: sh.fish, nom, papka: 'AKS TIZIM / 05 MIJOZ HUJJATLARI / ' + (noF + ' ' + chiroyli).trim(), kb: Math.round(bayt.length / 1024), url: '' };
   });

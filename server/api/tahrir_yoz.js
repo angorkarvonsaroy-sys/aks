@@ -32,9 +32,20 @@ const QD_MAYDON = { jshshir: 'JSHSHIR', ota: 'Otasining ismi', tel: 'Telefon raq
 const MZ = require('../lib/manzil');
 const MANZIL_K = ['mv', 'mt', 'mfy', 'kocha', 'uy', 'xon'];
 // 02_Mijozlar: maydon → [ustun (1 dan), nomi]
-const TAHRIR_02 = { fish: [3, 'F.I.Sh.'], tel: [5, 'Telefon'], tel2: [6, "Qo'shimcha telefon"], pasport: [7, 'Pasport'], jshshir: [12, 'JSHSHIR'],
+const TAHRIR_02 = { fish: [3, 'F.I.Sh.'], tel: [5, 'Telefon'], tel2: [6, "Qo'shimcha telefon"], pasport: [7, 'Pasport'], psana: [10, 'Pasport berilgan sana'], pmuddat: [11, 'Pasport amal qilish muddati'], jshshir: [12, 'JSHSHIR'],
   mv: [14, 'Viloyat'], mt: [15, 'Tuman'], mfy: [16, 'MFY'], kocha: [17, "Ko'cha"], uy: [18, 'Uy'], xon: [19, 'Xonadon'] };
 const s = v => String(v == null ? '' : v);
+// 06.11.2026: pasport sanasi va muddati ham tahrirlanadi (J, K — sana katagi, matn emas). Kiritish: yyyy-mm-dd yoki dd.mm.yyyy → dd.mm.yyyy
+const SANA_K = ['psana', 'pmuddat'];
+function sanaNorm(v) {
+  v = String(v == null ? '' : v).trim(); if (!v) return '';
+  const p = n => String(n).padStart(2, '0');
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v); if (m) return m[3] + '.' + m[2] + '.' + m[1];
+  m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(v); if (m) return p(m[1]) + '.' + p(m[2]) + '.' + m[3];
+  if (/^\d{5}(\.\d+)?$/.test(v)) { const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(+v) * 86400000); return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); }
+  return null;
+}
+const sanaIso = dmy => dmy.split('.').reverse().join('-');
 const S1 = x => s(x).replace(/\s+/g, ' ').trim();
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.error('ko\'zgu (tahrir):', e.message)), 15000);
@@ -116,12 +127,24 @@ async function tahrirQollash(kim, no, d, usul, o = {}) {
   if (/bekor/i.test(c.holati)) throw new S.Xato('Shartnoma «' + c.holati + '» holatida — tahrirlanmaydi.');
   const m = o.m || await mijozYangi(c.mid, v.m2);
   const r = m.r;
-  const joriy = { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] };
+  const joriy = { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], psana: sanaNorm(r[9]) || r[9], pmuddat: sanaNorm(r[10]) || r[10], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] };
   const yangi = {};
   if (d.fish !== undefined) { const f = S1(d.fish).toUpperCase(); const xt = K.ismTekshir(f, true, !/^direktor/.test(s(usul))); if (xt) throw new S.Xato(xt); yangi.fish = f; }   // 3 so'z + lotin shart (direktor istisno)
   if (d.tel !== undefined) { const t = K.telNorm(d.tel); const xt = K.telTekshir(t); if (xt) throw new S.Xato(xt); yangi.tel = K.telFmt(t); }
   if (d.tel2 !== undefined) { const t = K.telNorm(d.tel2); if (t && K.telTekshir(t)) throw new S.Xato('2-telefon noto\'g\'ri: ' + K.telTekshir(t)); yangi.tel2 = t ? K.telFmt(t) : ''; }
   if (d.pasport !== undefined) { const p = S1(d.pasport).toUpperCase().replace(/\s/g, ''); if (!/^[A-Z]{2}\d{7}$/.test(p)) throw new S.Xato('Pasport AB1234567 ko\'rinishida bo\'lishi kerak.'); yangi.pasport = p; }
+  for (const k of SANA_K) {
+    if (d[k] === undefined) continue;
+    const v = sanaNorm(d[k]); const nomi = TAHRIR_02[k][1];
+    if (v === null) throw new S.Xato(nomi + ' noto\'g\'ri — kun.oy.yil ko\'rinishida tanlang.');
+    if (!v) { if (S1(joriy[k])) throw new S.Xato(nomi + ' ni bo\'sh qoldirib bo\'lmaydi.'); continue; }
+    const iso = sanaIso(v);
+    if (iso < '1990-01-01' || iso > '2100-12-31') throw new S.Xato(nomi + ' noto\'g\'ri: ' + v);
+    if (k === 'psana' && iso > V.bugun()) throw new S.Xato('Pasport berilgan sana kelajakda bo\'lishi mumkin emas.');
+    yangi[k] = v;
+  }
+  { const ps = yangi.psana || sanaNorm(joriy.psana), pm = yangi.pmuddat || sanaNorm(joriy.pmuddat);
+    if ((yangi.psana || yangi.pmuddat) && ps && pm && sanaIso(pm) <= sanaIso(ps)) throw new S.Xato('Pasport amal qilish muddati berilgan sanadan keyin bo\'lishi kerak.'); }
   if (d.jshshir !== undefined) { const j = S1(d.jshshir).replace(/\D/g, ''); if (j && j.length !== 14) throw new S.Xato('JSHSHIR 14 raqam bo\'lishi kerak.'); yangi.jshshir = j; }
   ['mv', 'mt', 'mfy', 'kocha', 'uy', 'xon'].forEach(k => { if (d[k] !== undefined) yangi[k] = S1(d[k]); });
   // pasport/JSHSHIR boshqa mijozda bormi (o'z qatoridan tashqari)
@@ -137,14 +160,14 @@ async function tahrirQollash(kim, no, d, usul, o = {}) {
   return QY.qulf('tahrir', async () => {
     const vaqt = QY.hozir().dmyHm;
     try { await G.gid(env.aksBazaId, jv, env.googleKey); } catch (e) { const x = new Error('06j_Tahrir_jurnali varag\'i yo\'q'); x.yozilmadi = true; throw x; }   // tahrirVaraq_ yaratadi — eski tizimga
-    const log = [], kat = [];
+    const log = [], kat = [], sKat = [];
     const ozgar = Object.keys(yangi).filter(k => yangi[k] !== S1(joriy[k]));
     if (ozgar.length) {
       const F = (await G.oraliqOqi(env.aksBazaId, m2, 'A' + m.qator + ':S' + m.qator, env.googleKey, 'FORMULA'))[0] || [];
       for (const k of ozgar) {
         const fx = F[TAHRIR_02[k][0] - 1];
         if (typeof fx === 'string' && fx[0] === '=') { await matnKataklar(m2, kat); throw new S.Xato('02_Mijozlar «' + TAHRIR_02[k][1] + '» katagida formula bor — tegilmadi, direktorga ayting.'); }
-        kat.push({ qator: m.qator, ustun: TAHRIR_02[k][0], v: yangi[k] });
+        if (SANA_K.indexOf(k) >= 0) sKat.push({ varaq: m2, qator: m.qator, ustun: TAHRIR_02[k][0], iso: sanaIso(yangi[k]) }); else kat.push({ qator: m.qator, ustun: TAHRIR_02[k][0], v: yangi[k] });
         log.push([vaqt, c.no, c.tur === 'ijara' ? 'Ijara' : 'Sotuv', c.mid, TAHRIR_02[k][1], S1(joriy[k]) || '—', yangi[k] || '—', kim, usul]);
       }
       // 01.11.2026: manzil qismi o'zgarsa — Z «Toliq_manzil» ham yangidan yig'iladi (lib/manzil.js; jurnalga alohida yozilmaydi — qismlari yozilgan)
@@ -162,6 +185,7 @@ async function tahrirQollash(kim, no, d, usul, o = {}) {
     }
     if (!log.length) throw new S.Xato('Hech narsa o\'zgarmadi — qiymatlar avvalgisi bilan bir xil.');
     await matnKataklar(m2, kat);
+    if (sKat.length) { try { await G.sanaYoz(env.aksBazaId, sKat, env.googleKey); } catch (e) { throw yozilmadi(e); } }
     if (fKatak) { try { await G.yoz(env.aksBazaId, [{ varaq: s4, katak: 'S' + c.qator, qiymat: [[fYangi]] }], env.googleKey); } catch (e) { if (!kat.length) throw yozilmadi(e); throw e; } }
     await jurnalYoz(jv, log);
     return { ok: true, no: c.no, soni: log.length, ozgardi: log.map(x => ({ maydon: x[4], eski: x[5], yangi: x[6] })),
