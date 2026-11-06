@@ -99,7 +99,14 @@ async function qaytarishHolat([kodSes]) {
   return { qarorlar: H.qarorlar.map(q => ({ id: q.id, no: q.no, fish: q.fish, dokon: q.dokon, jami: q.jami, ushlab: q.ushlab, qaytar: q.qaytar, qaytarildi: q.qaytarildi, qoldiq: q.qoldiq,
     holati: q.holati, sabab: q.sabab, sana: dmy(q.sana), ko2: q.ko2.map(k => ({ id: k.id, raqam: k.raqam, sana: dmy(k.sana), summa: k.summa, holati: k.holati, izoh: k.izoh,
       manba: k.manba.map(m => { const t = H.T.find(z => z.tid === m.tid) || {}; return { tid: m.tid, summa: m.summa, no: t.no || '', fish: t.fish || '', sana: dmy(t.sana || '') }; }) })) })),
-    manbalar, bugun: hozir().iso };
+    manbalar, bugun: hozir().iso, kassir: await kassirStandart(H) };
+}
+
+// Kassir — qo'lda yozilmasin (06.11.2026): oxirgi KO-2 dagi kassir; bo'lmasa 07_Xodimlar da lavozimi buxgalter/kassir, ishlayotgan xodim
+async function kassirStandart(H) {
+  const ox = H.ko2.filter(k => k.kassir).pop(); if (ox) return ox.kassir;
+  const x = (await V.qatorlar('07_Xodimlar')).map(z => z.x).find(r => /buxgalter|бухгалтер|kassir|кассир/i.test(s(r[3])) && s(r[10]).trim() === 'Ishlayapti');
+  return x ? s(x[1]).trim() : '';
 }
 
 // ------------------------------------------------------------------ qaror: shartnoma bo'yicha qancha qaytariladi
