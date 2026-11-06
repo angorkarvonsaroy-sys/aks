@@ -5,6 +5,7 @@
 //   dr — 01_Dokonlar qatori (XOM qiymatlar — eski kod getValues bilan o'qigan: F maydon son, G baza son, R sotuv sh., S egasi)
 'use strict';
 const DS = require('./docs_shablon');
+const MI = require('./mijoz_imzo');
 const SP = require('./shablon_pdf');
 const SH = require('./sotuv_hujjat');
 const { NARX_JADVAL, narxHisob } = require('./narx');
@@ -68,6 +69,7 @@ async function ijaraHujjat(r, mr, dr, opt) {
   const sh = await DS.ol(shablonNom), m = sh.model, body = m.el;
   for (const k in T) DS.replaceText(body, '<<' + k + '>>', s(T[k]));
   if (m.footer) DS.replaceText(m.footer, '<<SH_RAQAM>>', s(r[0]));
+  MI.mijozQoida(m, { tur: 'shartnoma', imzo: 'Ижарачи', raqam: s(r[0]), rol: 'Ижарачи', ism: s(T.FISH) }).forEach(x => bosh.push(x));   // 06.11.2026: varaq raqami, har varaqda ijarachi imzosi, Ф.И.Ш. chizig'i
   const qolgan = DS.qolganBelgilar(body);
   const r2 = await SP.yasa(m);
   return { pdf: r2.pdf, bet: r2.bet, qolgan, bosh, nom: opt && opt.nom || '', sotilgan, shablon: { id: sh.id, nom: sh.nom, modifiedTime: sh.modifiedTime } };

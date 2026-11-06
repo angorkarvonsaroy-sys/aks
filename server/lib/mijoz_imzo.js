@@ -38,7 +38,7 @@ function fishChiziq(m, o) {
   let joy = null;
   t.rows.forEach(r => { const c = r.cells[r.cells.length - 1]; c.el.forEach((e, i) => { if (e.t === 'p' && /_{5,}/.test(DS.matn(e))) joy = { c, i, p: e }; }); });
   const ustun = t.rows.map(r => DS.xatboshilar(r.cells[r.cells.length - 1].el).map(z => DS.matn(z.p)).join('\n')).join('\n');
-  if (o.rol && o.ism && !new RegExp(o.rol).test(ustun) && ustun.indexOf(o.ism) < 0) return 'Ф.И.Ш. чизиғи қўйилмади: имзо жадвалининг ўнг устуни мижозники эмас';
+  if (o.rol && !new RegExp(o.rol, 'i').test(ustun) && !(o.ism && ustun.indexOf(o.ism) >= 0)) return 'Ф.И.Ш. чизиғи қўйилмади: имзо жадвалининг ўнг устуни мижозники эмас';
   const lr = [...joy.p.runs].reverse().find(r => r.x) || {};
   const sz = lr.sz || joy.p.sz || 11, font = lr.font || joy.p.font || SHRIFT;
   const enI = t.cols[t.cols.length - 1] || 200;
@@ -51,7 +51,9 @@ function fishChiziq(m, o) {
   const p0 = par([run('Ф.И.Ш. ', { c: null, sz, font }), run('(тўлиқ, ўз қўли билан):', { c: RANG, sz: sz - 2, font, i: true })], al, Object.assign({ before: Math.round(sz * 0.9), sz, font, c: null }, ind));
   const chiziq = () => par([run('_'.repeat(n), { c: null, sz, font })], al, Object.assign({ sz, font, c: null, lsPt: 26 }, ind));
   const p1 = p0, p2 = chiziq(), p3 = chiziq();
-  joy.c.el.splice(joy.i + 1, 0, p1, p2, p3);
+  let ix = joy.i; const kel = joy.c.el[ix + 1];
+  if (kel && kel.t === 'p' && /^\s*\/[^/]+\/\s*$/.test(DS.matn(kel))) ix++;   // «Имзо: ____» dan keyin «/Ф.И.Ш. қисқа/» qatori bo'lsa — undan keyin
+  joy.c.el.splice(ix + 1, 0, p1, p2, p3);
   t.rows.forEach(r => { r.cantSplit = true; });   // imzo bloki varaqlarga bo'linmaydi (rekvizitlar va imzolar bitta varaqda)
   for (let i = m.el.indexOf(t) - 1, k = 0; i >= 0 && k < 4 && m.el[i].t === 'p'; i--, k++) { m.el[i].keepNext = true; if (DS.matn(m.el[i]).trim()) break; }   // sarlavhasi jadvaldan ajralmaydi
   return null;
@@ -66,4 +68,17 @@ function mijozQoida(m, o) {
   return og;
 }
 
-module.exports = { kolontitul, fishChiziq, mijozQoida };
+// Chromium kolontituli — lib/docs_pdf.js (ijara bekor kelishuvi) va lib/xat_pdf.js (xatlar) uchun: page.pdf opsiyalari.
+// imzo berilsa — o'ngda «<imzo> имзоси: ____» (har varaqda). Kolontitul pastki hoshiyaga chiziladi (hoshiya ≥ 28 pt bo'lishi kerak).
+function chromKol(o) {
+  o = o || {};
+  const st = 'font-family:\'Liberation Serif\',\'Times New Roman\',serif;font-size:9pt;color:#555;';
+  const bet = 'Варақ <span class="pageNumber"></span> / <span class="totalPages"></span>';
+  const ich = o.imzo
+    ? `<div style="${st}width:100%;margin:0 ${o.ong || 40}pt 0 ${o.chap || 40}pt;display:flex;justify-content:space-between;align-items:flex-end">`
+      + `<span>${o.sarlavha ? o.sarlavha + '  ·  ' : ''}${bet}</span><span style="color:#000;font-size:10pt">${o.imzo} имзоси: ______________________</span></div>`
+    : `<div style="${st}width:100%;text-align:center">${bet}</div>`;
+  return { displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: ich };
+}
+
+module.exports = { kolontitul, fishChiziq, mijozQoida, chromKol };

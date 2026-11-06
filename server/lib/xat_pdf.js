@@ -207,7 +207,7 @@ async function xatChiqar(x, b, raqam, sanaIso, muddatIso, Q, oldin, ij, shosh) {
 async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor, opt = {}) {
   const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq }), '', { scale: 1 / KAT, skript: TEKISLA }); return { pdf, bet: betSoni(pdf) }; };
+  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq }), '', Object.assign({ scale: 1 / KAT, skript: TEKISLA }, require('./mijoz_imzo').chromKol())); return { pdf, bet: betSoni(pdf) }; };   // 06.11.2026: har varaq tagida «Варақ N / M»
   let ikkiBet = false, kk = 1;
   let r = await yasa(1);
   if (r.bet > 1) {

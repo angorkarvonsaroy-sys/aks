@@ -31,6 +31,7 @@ const QH = require('./qadam_hujjat')._ichki;
 const SY = require('./shartnoma_yoz')._ichki;
 const SH = require('../lib/sotuv_hujjat');
 const DS = require('../lib/docs_shablon');
+const MI = require('../lib/mijoz_imzo');
 const SP = require('../lib/shablon_pdf');
 const PDF = require('../lib/pdf');
 const fs = require('fs');
@@ -735,9 +736,12 @@ async function qtDocPdf(shablonNom, nom, T, tolovlar, qmK, rej) {
   }
   const qoy = el => { if (!el) return; for (const k in T) DS.replaceText(el, '<<' + SH.rx(k) + '>>', s(T[k])); };
   qoy(body); qoy(m.footer); qoy(m.header);
+  // 06.11.2026 (direktor): varaq raqami; kelishuv va solishtirmada har varaqda faqat Харидор imzosi; oxirgi imzoda Ф.И.Ш. chizig'i
+  const ogoh = MI.mijozQoida(m, /Qayta_ariza/.test(shablonNom) ? { tur: 'hujjat' } : { tur: 'shartnoma', imzo: 'Харидор', rol: 'Харидор', ism: s(T.FISH) });
+  ogoh.forEach(x => console.error('qayta ' + shablonNom + ': ' + x));
   const qolgan = DS.qolganBelgilar(body);
   const r = await SP.yasa(m);
-  return { nom: nom + '.pdf', pdf: r.pdf, bet: r.bet, qolgan, shablon: { id: sh.id, nom: sh.nom, modifiedTime: sh.modifiedTime } };
+  return { nom: nom + '.pdf', pdf: r.pdf, bet: r.bet, qolgan, ogoh, shablon: { id: sh.id, nom: sh.nom, modifiedTime: sh.modifiedTime } };
 }
 // 4 ta hujjatni yasash (bazaga yozmaydi): x — 06k loyihasi, e — eski shartnoma 03 qatori (displayValues), mr — 02 qatori, tolovlar — qtTolovlar
 async function hujjatlarYasa(x, e, mr, tolovlar, xr) {   // xr — eski 03 xom qatori (qo'shimcha maydon bilan bo'lsa shart)
@@ -803,4 +807,4 @@ async function qtArxivga(id, papka, N, kim) {
 }
 
 module.exports = { qaytaKor, qaytaOchiq, qaytaSkan, qaytaTekshiruvga, qaytaQaytar, qaytaLoyiha, qaytaIjrochi, qaytaTasdiq, qaytaHujjatlar, qaytaBekor };
-module.exports._ichki = { qmHolat, qmMoslash, narxBelgi, qtBelgilar, bekorYadro, koprik114, koprik16, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };
+module.exports._ichki = { qtDocPdf, qmHolat, qmMoslash, narxBelgi, qtBelgilar, bekorYadro, koprik114, koprik16, qtRows, qtShartnoma, qtTolovlar, qtTahlil, qtOgoh, qtHolat, qtJadval, qtOyQosh, qtFmt, qtKeyingiNo, hujjatBekor, manba, tasdiqYadro, loyihaQatorYoz, QT_VARAQ, VQ_ASL, QT_N, qtMijoz, qtBelgilar, qtDocPdf, hujjatlarYasa, qtIsoD, qtDmy, qtArxivga };

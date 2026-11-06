@@ -128,8 +128,8 @@ const TEKISLA = `(U => { document.querySelectorAll('p.j').forEach(p => {
   }
   ish.forEach(([s, w]) => { if (w) s.style.paddingRight = w + 'px'; });
 }); })(${XP.KAT})`;
-async function yasa(m) {
-  const pdf = await PDF.yasa(html(m), '', { scale: 1 / XP.KAT, printBackground: true, skript: SOZ + ';' + TEKISLA + ';' + betOxiri(m) });
+async function yasa(m, kol) {   // kol — lib/mijoz_imzo.js chromKol() (varaq raqami / mijoz imzosi kolontituli), ixtiyoriy
+  const pdf = await PDF.yasa(html(m), '', Object.assign({ scale: 1 / XP.KAT, printBackground: true, skript: SOZ + ';' + TEKISLA + ';' + betOxiri(m) }, kol || {}));
   return { pdf, bet: XP.betSoni(pdf) };
 }
 

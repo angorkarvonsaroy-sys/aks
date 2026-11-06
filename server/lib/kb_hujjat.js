@@ -10,6 +10,7 @@ const J = require('./jurnallar');
 const DM = require('./docs_model');
 const DP = require('./docs_pdf');
 const DX = require('./docs_docx');
+const MI = require('./mijoz_imzo');
 const { xatKirill } = require('./ism');
 
 const KB_VARAQ = '06m_Kelishuv_bekor';
@@ -191,6 +192,9 @@ async function kbHujjat(x, D) {
   const maydon = kbM2(x.maydon);
   const dokonNi = '«ANGOR KARVON SAROY» савдо мажмуасининг ' + (dk.blok || '—') + '-блоки, ' + (dk.qavat || '—') + '-қаватдаги № ' + (dk.nomer || x.dokon) + '-дўконни';
   const BO = '__________';
+  // 06.11.2026 (direktor): ijarachi imzosi ostida Ф.И.Ш. ni o'z qo'li bilan yozish joyi (ustun eni bo'ylab 2 chiziq); u — ijarachi ustuni (0 — chap, 1 — o'ng)
+  const fishQ = u => { const q = (c) => u ? ['', c] : [c, '']; const ch = '_'.repeat(43);
+    return [q(' '), q('Ф.И.Ш. (тўлиқ, ўз қўли билан):'), q(' '), q(ch), q(' '), q(ch)]; };
   const ijarachiPre = x.yur
     ? x.fishK + ' (СТИР: ' + (x.stir || BO) + ') номидан раҳбари ' + (x.rahbarK || BO)
     : 'Ўзбекистон Республикаси фуқароси ' + x.fishK + ' (паспорт серияси ва рақами: ' + (x.pasport || BO) + (x.iib ? ', ' + x.iib + ' томонидан ' + (x.pasSana ? kbSanaQ(x.pasSana) + ' санасида' : BO) + ' берилган' : '')
@@ -223,7 +227,7 @@ async function kbHujjat(x, D) {
   par('ТОМОНЛАРНИНГ МАНЗИЛЛАРИ ВА РЕКВИЗИТЛАРИ', { al: 'c', b: true, sz: 11, before: 8, after: 4 });
   const chap = [KB_MCHJ.nom, 'Манзил: ' + KB_MCHJ.manzil, 'Банк: ' + KB_MCHJ.bank, 'Ҳ/р: ' + KB_MCHJ.hr, 'МФО: ' + KB_MCHJ.mfo + '   СТИР: ' + KB_MCHJ.stir, 'Телефон: ' + KB_MCHJ.tel, 'Директор: ' + KB_MCHJ.dirQ];
   jadval([['ИЖАРАГА БЕРУВЧИ:', 'ИЖАРАЧИ:']].concat(chap.map((c, i) => [c, ijRek[i][1]]))
-    .concat([[' ', ' '], ['Имзо: ____________________', 'Имзо: ____________________']]), [245, 235], { sz: 10.5, qalin: r => r <= 1 });
+    .concat([[' ', ' '], ['Имзо: ____________________', 'Имзо: ____________________']]).concat(fishQ(1)), [245, 235], { sz: 10.5, qalin: r => r <= 1 });
   // ---------------- 2-VARAQ: DALOLATNOMA
   b.appendPageBreak();
   par('ДЎКОННИ ҚАБУЛ ҚИЛИШ-ТОПШИРИШ ДАЛОЛАТНОМАСИ', { al: 'c', b: true, sz: 13, after: 2 });
@@ -247,11 +251,11 @@ async function kbHujjat(x, D) {
     [x.yur ? x.fishK + ' раҳбари ' + (x.rahbarK ? kbQisqa(x.rahbarK) : BO) : x.fishK, KB_MCHJ.nom + ' директори ' + KB_MCHJ.dirQ],
     [' ', ' '],
     ['Имзо: ____________________', 'Имзо: ____________________']
-  ], [245, 235], { sz: 10.5, qalin: r => r === 0 });
+  ].concat(fishQ(0)), [245, 235], { sz: 10.5, qalin: r => r === 0 });
   if (D.xodim) { par(' ', { before: 10 }); par('Иштирок этди (Ижарага берувчи ходими): ____________________ ' + kbQisqa(D.xodim), { sz: 10.5 }); }
   const b0 = b.getChild(0);                          // DocumentApp.create boshida bo'sh paragraf qoldiradi
   if (b0.getType() === DM.ElementType.PARAGRAPH && !b0.asParagraph().getText().trim()) b0.removeFromParent();
-  const { pdf, bet } = await DP.yasa(model);
+  const { pdf, bet } = await DP.yasa(model, MI.chromKol({ imzo: 'Ижарачи', sarlavha: '№ ' + x.no + ' ижара шартномасини бекор қилиш', chap: 57, ong: 45 }));   // 06.11.2026: har varaqda raqam va ijarachi imzosi
   return { pdf, bet, docx: DX.yasa(model), model };
 }
 
