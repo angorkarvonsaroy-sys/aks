@@ -179,6 +179,8 @@ async function main() {
   require('./bekor_yoz')._ichki.boshla();   // Drive'ga ko'chmagan bekor qilish hujjatlari — har 15 daqiqada
   require('./yurist_aloqa')._ichki.boshla();   // Drive'ga ko'chmagan yurist aloqa xatlari — har 15 daqiqada
   require('./kb_yoz')._ichki.boshla();   // Drive'ga ko'chmagan kelishuv hujjatlari — har 15 daqiqada
+  // 06.11.2026: server ishga tushgach 3 daqiqadan keyin — «Shartnoma olmagan» + imzolangan skan → «Aktiv» (kunlik 06:40 ishini kutmasdan; bayroq vaqt_yondi:holat_skan)
+  setTimeout(() => require('../lib/bayroq').vaqt('holat_skan').then(y => y && require('../lib/holat_skan').tuzat()).catch(e => console.error('holat_skan (ishga tushganda):', e.message)), 3 * 60000).unref();
   require('../lib/vaqt').boshla();   // ⏰ vaqt bo'yicha ishlar (eski triggerlar o'rni) — har daqiqada tekshiriladi, bayroq vaqt_yondi:<nom>
   require('../lib/tg_poll').boshla();   // 📥 Telegram botdan yangiliklar (getUpdates) — bayroq yozuv_yondi:tg_kirish (aks-tg-kirish yoq); o'chiq bo'lsa 10 s da bir qaraydi
   console.log(`${new Date().toISOString()} AKS api ${VERSIYA} tinglayapti: 127.0.0.1:${env.appPort}`);
