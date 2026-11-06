@@ -116,7 +116,7 @@ async function bekorKechikkan(kod, opt = {}) {
   if (hafta(bugun) === 0) return { yuborilmadi: 'Yakshanba — xabar yuborilmaydi.' };
   const L = (await J.bekorJurnal())
     .filter(z => BEKOR_YOPIQ.indexOf(z.holati) < 0 && !(z.bSkan && z.xSkan))
-    .map(z => ({ s: z, k: bekorIshKun(z.sana, bugun), yoq: [!z.bSkan ? 'буйруқ скани' : '', !z.xSkan ? 'хабарнома скани' : ''].filter(Boolean).join(' ва ') }))
+    .map(z => ({ s: z, k: bekorIshKun(z.sana, bugun), yoq: [!z.bSkan ? 'буйруқ скани' : '', !z.xSkan ? (z.shablon === 'XARIDOR' ? 'далолатнома скани' : 'хабарнома скани') : ''].filter(Boolean).join(' ва ') }))
     .filter(z => z.k >= 1).sort((a, b) => b.k - a.k);
   if (!L.length) return { yuborilmadi: 'Kechikkan bekor hujjati yo\'q.' };
   const XD = await xodimlar(), Y = yuboruvchi(kod, opt, 'bekorKechikkanTekshir');

@@ -170,7 +170,8 @@ Object.assign(A, require('./yurist_aloqa'));
 Object.assign(A, require('./fayl'));
 // 💵🚶 tashrifTekshir, bugungiTashriflar (o'qish); tolovSaqlash, tashrifSaqlash — server o'zi yozadi (aks-yozuv-sinov yoqgandan keyin)
 Object.assign(A, require('./kassa'));
-Object.assign(A, require('./qaytarish'));   // ↩ KO-2 — mijozga pul qaytarish (06.11.2026, faqat direktor)
+Object.assign(A, require('./qaytarish'));
+Object.assign(A, require('./bekor_xaridor'));   // ✂ Xaridor tashabbusi bilan bekor qilish (06.11.2026, faqat direktor)   // ↩ KO-2 — mijozga pul qaytarish (06.11.2026, faqat direktor)
 // 🔁 qayta tuzish (Qayta.gs): qaytaKor, qaytaOchiq (o'qish); qaytaSkan, qaytaTekshiruvga, qaytaQaytar (yozuv — yozuv_yondi:qayta bo'lsa);
 //   qaytaLoyiha, qaytaIjrochi, qaytaTasdiq (2-bosqich — yana yozuv_yondi:qayta2 bo'lsa)
 //   qaytaHujjatlar (yozuv_yondi:qayta_hujjat), qaytaBekor (yozuv_yondi:qayta_bekor + Koprik ≥ 1.14)

@@ -168,7 +168,13 @@ async function bekorHolat([kodSes, no]) {
       yuklay: mas }, oxirgi, admin: u.admin };
   }
   const t = await bekorTekshir(u, no, BJ, await J.hujjatJurnal());
-  return { no, s: null, oxirgi, mumkin: t.ok, sabab: t.sabab || '', ogoh: t.ogoh || [], admin: u.admin };
+  // 06.11.2026: direktorga — «Xaridor tashabbusi bilan» (jarimasiz) yo'li mumkinmi (api/bekor_xaridor.js: qaytarish qoldig'i 0)
+  let xaridor = null;
+  if (u.admin && /^27\//.test(no) && !hamma.some(z => BEKOR_YOPIQ.indexOf(z.holati) < 0)) {
+    try { const q = await require('./bekor_xaridor')._ichki.tekshir(no, BJ); xaridor = { mumkin: q.mumkin, sabab: q.sabab || '', tolangan: q.x ? q.x.tolangan : 0, qaytarildi: q.Q ? q.Q.qaytarildi : 0, qoldiq: q.Q ? q.Q.qoldiq : 0 }; }
+    catch (e) { xaridor = { mumkin: false, sabab: e.message }; }
+  }
+  return { no, s: null, oxirgi, mumkin: t.ok, sabab: t.sabab || '', ogoh: t.ogoh || [], admin: u.admin, xaridor };
 }
 
 // ------------------------------------------------------------------ 🗂 hujjatNazorat (Hujjat.gs) — nusxasi yuklanmagan shartnomalar, arxiv holati

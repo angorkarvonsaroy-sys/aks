@@ -13,7 +13,7 @@ const HUJJAT_TURLARI = [
   ['XAT_KIRUVCHI', 'Kiruvchi xat (ariza)'], ['POCHTA', 'Pochta kvitansiyasi'], ['DALOLATNOMA', 'Dalolatnoma'],
   ['XAT_OLDIM', 'Xat topshirildi (mijoz imzosi)'], ['YOZISHMA', 'Yozishma skrinshoti (SMS/Telegram)'], ['DAVO', "Da'vo arizasi"], ['SUD_AJRIM', 'Sud ajrimi (ish yuritishga qabul)'],
   ['SUD_QARORI', 'Sud qarori'], ['IJRO_VARAQASI', 'Ijro varaqasi'], ['MIB', 'MIB hujjati'], ['SUD', 'Sud hujjati (boshqa)'],
-  ['BEKOR_BUYRUQ', 'Бекор қилиш буйруғи'], ['BEKOR_XABARNOMA', 'Бекор қилиш хабарномаси'], ['BOSHQA', 'Boshqa']];
+  ['BEKOR_BUYRUQ', 'Бекор қилиш буйруғи'], ['BEKOR_XABARNOMA', 'Бекор қилиш хабарномаси'], ['BEKOR_DALOLATNOMA', 'Ўзаро ҳисоб-китоб далолатномаси (бекор қилиш)'], ['BOSHQA', 'Boshqa']];
 
 // Undiruv.gs undCheklov_: undiruvchi (shartnoma tuzmaydigan) — faqat o'z portfeli
 const undCheklov = u => (!u.admin && u.huquq.includes('undiruv') && !u.huquq.includes('shartnoma')) ? u.fish : '';

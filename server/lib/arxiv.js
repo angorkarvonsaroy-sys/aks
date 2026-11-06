@@ -209,7 +209,7 @@ const ISH = {
     for (const id of eski) { const e = await savatga(id, '07 BEKOR QILISH'); if (!e.meniki) boshqa.push(id); }
     if (boshqa.length) eskiFon('koprikBekorSaqla', kod, [{ eski: boshqa }]);
     if (!m.bB64) return { ok: true };
-    const nomOk = n => /^Bekor_(buyruq|xabarnoma)_[^\/\\]{3,160}$/.test(s(n));
+    const nomOk = n => /^Bekor_(buyruq|xabarnoma|dalolatnoma)_[^\/\\]{3,160}$/.test(s(n));   // 06.11: dalolatnoma — Xaridor tashabbusi bilan bekor qilish
     if (!nomOk(m.bNom) || !nomOk(m.xNom) || !m.xB64) throw new Error('Bekor hujjati nomi noto\'g\'ri.');
     const papka = ['07 BEKOR QILISH', yilOl(m.yil)];
     const bp = await saqla(papka, m.bNom + '.pdf', bayt(m.bB64)), xp = await saqla(papka, m.xNom + '.pdf', bayt(m.xB64));

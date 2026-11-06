@@ -467,6 +467,15 @@ async function bekorTasdiq(args) {
     if (!z.bSkan) yoq.push('imzolangan buyruq skani');
     if (!z.xSkan) yoq.push('yetkazilgan xabarnoma skani');
     if (yoq.length) throw new S.Xato('Tasdiqlash uchun yetishmayapti: ' + yoq.join(', ') + '. Xodim ikkala skanini yuklagach tugma yashil bo\'ladi.');
+    return tasdiqQollash(u, z, izoh, vaqt);
+  });
+  await kut(tetik.varaqlarYangila(BEKOR_VARAQLAR).catch(e => console.error('ko\'zgu (bekor tasdiq):', e.message)), 20000);
+  return r;
+}
+// Tasdiqning yadrosi (06.11.2026 ajratildi — «Xaridor tashabbusi bilan» bekor qilish (api/bekor_xaridor.js) ham shuni ishlatadi):
+// 03 N / 04 C «Bekor qilindi», 01_Dokonlar bo'shatiladi, 06h G/AA/AB/AC. qosh — qo'shimcha kataklar (masalan 03 O bekor sanasi, T izoh)
+async function tasdiqQollash(u, z, izoh, vaqt, qosh) {
+  {
     const x = await bekorShartnoma(z.no);
     if (!x) throw new S.Xato('Shartnoma topilmadi: ' + z.no);
     const ogoh = [], D = [], eski = { dokon: x.dokon };
@@ -493,11 +502,10 @@ async function bekorTasdiq(args) {
     D.push({ varaq: BEK, katak: 'AA' + z.qator + ':AB' + z.qator, qiymat: [[u.fish, vaqt]] });
     D.push({ varaq: BEK, katak: 'AC' + z.qator, qiymat: [[JSON.stringify(eski)]] });
     if (izoh) D.push({ varaq: BEK, katak: 'AD' + z.qator, qiymat: [[(z.izoh ? z.izoh + ' | ' : '') + 'Tasdiq izohi: ' + izoh]] });
+    (qosh || []).forEach(k => D.push(k));
     await G.yoz(env.aksBazaId, D, env.googleKey);
-    return { ok: true, natija: z.no + ' bekor qilindi, do\'kon ' + x.dokon + ' bo\'shatildi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '') };
-  });
-  await kut(tetik.varaqlarYangila(BEKOR_VARAQLAR).catch(e => console.error('ko\'zgu (bekor tasdiq):', e.message)), 20000);
-  return r;
+    return { ok: true, natija: z.no + ' bekor qilindi, do\'kon ' + x.dokon + ' bo\'shatildi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : ''), x, ogoh };
+  }
 }
 
 async function bekorQaytarish(args) {
@@ -539,4 +547,4 @@ async function bekorQaytarish(args) {
 }
 
 module.exports = { bekorKirit, bekorQaytaYasa, bekorBuyruqSkan, bekorXabarnomaSkan, qadamBekorKirit, bekorTasdiq, bekorQaytarish };
-module.exports._ichki = { bekorShartnoma, bekorXatlar, bekorTekshir, bekorJurnalYangi, bekorKeyingi, hujjatYasa, qatorYoz, driveGa, koprik19, koprik110, boshla, saqla, koprikVerTozala: () => { kv = { ver: '', t: 0 }; } };
+module.exports._ichki = { bekorShartnoma, bekorXatlar, bekorTekshir, bekorJurnalYangi, bekorKeyingi, hujjatYasa, qatorYoz, driveGa, navbatga, koprik19, koprik110, boshla, saqla, tasdiqQollash, holatYoz, bekorSkanOldin, bekorSkanSana, bekorSh, kat, BEKOR_VARAQLAR, koprikVerTozala: () => { kv = { ver: '', t: 0 }; } };
