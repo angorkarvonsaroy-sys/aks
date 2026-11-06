@@ -233,6 +233,12 @@ async function qaytarishPdf([kodSes, id]) {
     const pdf = await ko2Pdf({ raqam: k.raqam, sana: k.sana, oluvchi: k.oluvchi, pasport: k.pasport, summa: k.summa, q, oldin: 0, qoldiq: 0, manba: k.manba, kassir: k.kassir, izoh: b.izoh, bekor: b.bekor || 'sababi yozilmagan' });
     return { nom: (f ? path.basename(f, '.pdf') : k.raqam.replace(/\//g, '-')) + '_BEKOR.pdf', b64: pdf.toString('base64') };
   }
+  // Tasdiqlangan (Faol) KO-2 — imzosiz blanka emas, mijoz imzolagan SKAN beriladi (06.11.2026, direktor)
+  if (k.holati === 'Faol' && k.skan) {
+    const sk = require('./hujjat_yoz').srvFayl(null, k.no, k.skan);
+    if (sk) return { nom: k.raqam.replace(/\//g, '-') + '_' + k.no.replace(/\//g, '-') + '_IMZOLI.pdf', b64: sk.bytes.toString('base64'), imzoli: true };
+    throw new S.Xato(k.raqam + ' — imzolangan skan serverda topilmadi (' + k.skan + '). «📎 Hujjatlar» dan oching yoki menga xabar bering.');
+  }
   // Imzolanmagan (skan kutilmoqda) KO-2: mijoz kartasida ism/pasport tuzatilgan bo'lsa — PDF o'sha raqam bilan qayta yasaladi
   if (k.holati === KUT) {
     const q = H.qarorlar.find(x => x.id === k.qarorId);
