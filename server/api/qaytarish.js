@@ -72,10 +72,14 @@ async function jadval(nom, sarl) {
   catch (e) { if (/Unable to parse range|not found/i.test(e.message)) return []; throw e; }
   return X.slice(1).map((r, i) => ({ qator: i + 2, r: sarl.map((_, k) => r[k] == null ? '' : r[k]) })).filter(z => s(z.r[0]).trim());
 }
+// Vaqt kataklari (dd.mm.yyyy HH:MM) Sheets da sana-son bo'lib saqlanadi — o'qishda matnga qaytariladi
+function vt(v) { if (typeof v !== 'number' && !/^\d{5}(\.\d+)?$/.test(s(v))) return s(v);
+  const d = new Date(Math.round((Number(v) - 25569) * 86400e3)), p = n => String(n).padStart(2, '0');
+  return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); }
 const qarorOb = ({ qator, r }) => ({ qator, id: s(r[0]), no: s(r[1]), mid: s(r[2]), fish: s(r[3]), dokon: s(r[4]), jami: son(r[5]), ushlab: son(r[6]), qaytar: son(r[7]),
-  sabab: s(r[8]), sana: iso(r[9]), kim: s(r[10]), vaqt: s(r[11]), holati: s(r[12]), yakun: s(r[13]), izoh: s(r[14]), ariza: s(r[15]), arizaVaqt: s(r[16]) });
+  sabab: s(r[8]), sana: iso(r[9]), kim: s(r[10]), vaqt: vt(r[11]), holati: s(r[12]), yakun: vt(r[13]), izoh: s(r[14]), ariza: s(r[15]), arizaVaqt: vt(r[16]) });
 const ko2Ob = ({ qator, r }) => ({ qator, id: s(r[0]), raqam: s(r[1]), sana: iso(r[2]), qarorId: s(r[3]), no: s(r[4]), fish: s(r[5]), summa: son(r[6]),
-  manba: manbaOqi(r[7]), oluvchi: s(r[8]), pasport: s(r[9]), kassir: s(r[10]), kim: s(r[11]), vaqt: s(r[12]), holati: s(r[13]) === 'Faol' && !s(r[16]) ? KUT : s(r[13]), pdf: s(r[14]), izoh: s(r[15]), skan: s(r[16]), skanVaqt: s(r[17]) });   // skansiz «Faol» (qoidadan oldingi) — ham «Skan kutilmoqda»
+  manba: manbaOqi(r[7]), oluvchi: s(r[8]), pasport: s(r[9]), kassir: s(r[10]), kim: s(r[11]), vaqt: vt(r[12]), holati: s(r[13]) === 'Faol' && !s(r[16]) ? KUT : s(r[13]), pdf: s(r[14]), izoh: s(r[15]), skan: s(r[16]), skanVaqt: vt(r[17]) });   // skansiz «Faol» (qoidadan oldingi) — ham «Skan kutilmoqda»
 // «T1234:3000000; T1240:2000000» ⇄ [{ tid, summa }]
 function manbaOqi(v) { return s(v).split(';').map(x => /^\s*T?(\d+)\s*:\s*(\d+)/.exec(x)).filter(Boolean).map(m => ({ tid: m[1], summa: +m[2] })); }
 const manbaYoz = L => L.map(x => 'T' + x.tid + ':' + Math.round(x.summa)).join('; ');
@@ -93,6 +97,8 @@ async function tolovlar() {
 async function holatYig() {
   const [Q, K, T] = await Promise.all([jadval(QR, QR_SARL), jadval(KQ, KQ_SARL), tolovlar()]);
   const qarorlar = Q.map(qarorOb), ko2 = K.map(ko2Ob).filter(k => k.holati !== 'Bekor');
+  try { const M = {}; (await V.qatorlar('02_Mijozlar')).forEach(({ r }) => { if (s(r[0]).trim()) M[s(r[0]).trim()] = s(r[2]).trim(); });
+    qarorlar.forEach(q => { if (M[q.mid]) q.fish = M[q.mid]; }); } catch (e) { /* ko'zgu bo'lmasa — qarordagi ism */ }
   const ishlatilgan = {}; ko2.forEach(k => k.manba.forEach(m => { ishlatilgan[m.tid] = (ishlatilgan[m.tid] || 0) + m.summa; }));
   qarorlar.forEach(q => { q.ko2 = K.map(ko2Ob).filter(k => k.qarorId === q.id); q.qaytarildi = q.ko2.filter(k => k.holati !== 'Bekor').reduce((a, k) => a + k.summa, 0); q.qoldiq = q.qaytar - q.qaytarildi; });
   return { qarorlar, ko2, ishlatilgan, T };
