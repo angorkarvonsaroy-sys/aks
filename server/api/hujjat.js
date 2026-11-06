@@ -14,7 +14,7 @@ const HUJJAT_TURLARI = [
   ['XAT_OLDIM', 'Xat topshirildi (mijoz imzosi)'], ['YOZISHMA', 'Yozishma skrinshoti (SMS/Telegram)'], ['DAVO', "Da'vo arizasi"], ['SUD_AJRIM', 'Sud ajrimi (ish yuritishga qabul)'],
   ['SUD_QARORI', 'Sud qarori'], ['IJRO_VARAQASI', 'Ijro varaqasi'], ['MIB', 'MIB hujjati'], ['SUD', 'Sud hujjati (boshqa)'],
   ['BEKOR_BUYRUQ', 'Бекор қилиш буйруғи'], ['BEKOR_XABARNOMA', 'Бекор қилиш хабарномаси'], ['BEKOR_DALOLATNOMA', 'Ўзаро ҳисоб-китоб далолатномаси (бекор қилиш)'],
-  ['QAYTARISH_ARIZA', 'Пул қайтариш аризаси (мижоз имзоли)'], ['QAYTARISH_BUYRUQ', 'Маблағни қайтариш буйруғи (имзоланган)'], ['QAYTARISH_JAVOB', 'Аризага жавоб (мижоз имзоли)'], ['KO2_IMZO', 'КО-2 чиқим ордери (мижоз имзоли)'], ['BOSHQA', 'Boshqa']];   // 06.11.2026: ↩ qaytarish isbotlari — faqat «Moliya → Qaytarish» dan yuklanadi
+  ['QAYTARISH_ARIZA', 'Пул қайтариш аризаси (мижоз имзоли)'], ['QAYTARISH_BUYRUQ', 'Маблағни қайтариш буйруғи (имзоланган)'], ['QAYTARISH_JAVOB', 'Аризага жавоб (мижоз имзоли)'], ['QAYTARISH_KELISHUV', 'Муддатни узайтириш келишуви (мижоз имзоли)'], ['KO2_IMZO', 'КО-2 чиқим ордери (мижоз имзоли)'], ['BOSHQA', 'Boshqa']];   // 06.11.2026: ↩ qaytarish isbotlari — faqat «Moliya → Qaytarish» dan yuklanadi
 
 // Undiruv.gs undCheklov_: undiruvchi (shartnoma tuzmaydigan) — faqat o'z portfeli
 const undCheklov = u => (!u.admin && u.huquq.includes('undiruv') && !u.huquq.includes('shartnoma')) ? u.fish : '';

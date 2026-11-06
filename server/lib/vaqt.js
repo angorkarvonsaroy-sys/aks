@@ -127,6 +127,8 @@ const ISHLAR = [
   { nom: 'kechki_hisobot', fn: 'kechkiHisobotYubor', tavsif: '🏢 Guruhga kunlik/haftalik/oylik hisobot (kechkiHisobotYubor)', har: 'kun:20:00', eski: 'kechkiHisobotYubor — har kuni 20:00', ish: (kod, opt) => KX.kechkiHisobot(kod, opt) },
   { nom: 'baza_solishtir', fn: 'bazaSolishtir', tavsif: '🗄 Baza: server hisobi ↔ Google jadval, har qator (farq bo\'lsa direktorga)', har: 'kun:03:00', eski: 'yo\'q — yangi ish', ish: (kod, opt) => require('./baza_kunlik').bazaSolishtir(kod, opt) },
   { nom: 'zaxira_kunlik', fn: 'zaxiraKunlik', tavsif: '💾 AKS_BAZA kunlik zaxira nusxasi (zaxiraKunlik)', har: 'kun:02:00', eski: 'zaxiraKunlik — har kecha 02:00', ish: (kod, opt) => KX.zaxiraKunlik(kod, opt) },
+  { nom: 'qaytarish_muddat', fn: 'qaytarishMuddatNazorat', tavsif: '⏰ Pul qaytarish muddati nazorati — 30 kun qolganda/o\'tganda direktorga (06.11.2026)', har: 'kun:09:10', eski: 'yo\'q — yangi ish (06.11)',
+    ish: () => require('../api/qaytarish')._ichki.muddatNazorat() },
   { nom: 'holat_skan', fn: 'holatSkan', tavsif: '✅ «Shartnoma olmagan» + imzolangan skan → «Aktiv» (06.11.2026 qarori)', har: 'kun:06:40', eski: 'yo\'q — yangi ish (06.11)',
     ish: (kod, opt) => require('./holat_skan').tuzat({ quruq: !!(opt && opt.quruq) }).then(r => ({ soni: (r.L || []).length, shartnomalar: (r.L || []).map(x => x.no), band: !!r.band })) },
   { nom: 'server_nusxa', fn: 'serverNusxa', tavsif: '🗄 Server fayllari «SERVER NUSXA» ga — uzilib qolsa davom ettirish (serverNusxa)', har: 'daq:60', eski: 'yo\'q — yangi ish (03.11)', ish: (kod, opt) => require('./arxiv').nusxaKerak(kod, opt) },

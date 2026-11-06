@@ -29,7 +29,7 @@ function buyruqMatn(x, q, muddatIso, masul) {
   K.push('Низони судгача ҳал қилиш, Харидор билан муносабатларни сақлаш ва Жамият обрўсини ҳимоя қилиш мақсадида, ' + BAND + 'га ҳамда Ўзбекистон Республикаси фуқаролик қонунчилигига мувофиқ,');
   B.push('Харидор томонидан тўланган ' + yhPul(q.qaytar) + ' сўм Жамият кассасидан нақд пулда, бўлиб-бўлиб, ҳар сафар чиқим касса ордери (КО-2) расмийлаштирилиб, Харидорнинг имзоси билан қайтарилсин.');
   B.push('Шартноманинг 3.3.2-бандида назарда тутилган 15 фоиз миқдоридаги сумма ушлаб қолинмасин; қайтариладиган маблағдан жарима ва бошқа суммалар чегирилмасин.');
-  B.push('Қолдиқ сумма ' + yhSoz(muddatIso) + 'га қадар тўлиқ қайтарилсин.');
+  B.push('Қолдиқ сумма ' + yhSoz(muddatIso) + 'га қадар, Жамият кассасига нақд пул тушишига қараб, бўлиб-бўлиб қайтарилсин. Қайтариш суръати кассадаги нақд тушумга боғлиқ; муддат ичида қайтарилган суммага фоиз, пеня ва зарар ҳисобланмасин. Зарурат бўлса муддат Харидор билан ёзма қўшимча келишув асосида узайтирилсин.');
   B.push('Маблағ тўлиқ қайтарилгунга қадар Шартнома амалда қолсин; маблағ тўлиқ қайтарилгач Шартномани Харидор ташаббуси билан бекор қилиш тўғрисида алоҳида буйруқ чиқарилсин ва томонлар ўртасида ўзаро ҳисоб-китоб далолатномаси имзолансин.');
   B.push('Бухгалтерия ҳар бир қайтарилган сумманинг манбаи (кирим касса ордери) ва қолдиғини ички ҳисобда юритсин; чиқим касса ордерлари Шартнома иш материалларига тикилсин.');
   B.push('Харидорга ушбу буйруқ асосида ёзма жавоб юборилсин ва буйруқ нусхаси топширилсин.');
@@ -61,7 +61,7 @@ p{margin:0 0 3mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;bo
 <p>1. Шартнома бўйича тўланган <b>${yhPul(q.qaytar)}</b> (${esc(SH.sozBilan(q.qaytar))}) сўм Жамият кассасидан нақд пулда, бўлиб-бўлиб қайтарилади; ҳар бир олинган сумма учун чиқим касса ордери расмийлаштирилади ва Сиз томонингиздан имзоланади.</p>
 <p>2. Шартноманинг 3.3.2-бандида назарда тутилган 15 фоиз миқдоридаги сумма ушлаб қолинмайди.</p>
 <p>3. Маблағ тўлиқ қайтарилгунга қадар Шартнома амалда қолади; маблағ тўлиқ қайтарилгач Шартнома Сизнинг ташаббусингиз билан бекор қилинади ва томонлар ўртасида ўзаро ҳисоб-китоб далолатномаси имзоланади.</p>
-<p>4. Қолдиқ сумма <b>${esc(yhSoz(muddatIso))}</b>га қадар тўлиқ қайтарилади. Ушбу муддат ичида қайтариладиган маблағга фоиз, пеня ва зарар ҳисобланмайди.</p>
+<p>4. Қолдиқ сумма <b>${esc(yhSoz(muddatIso))}</b>га қадар, Жамият кассасига нақд пул тушишига қараб, бўлиб-бўлиб қайтарилади. Қайтариш суръати кассадаги нақд тушумга боғлиқ бўлиб, муддат ичида қайтарилган сумма учун фоиз, пеня ва зарар ҳисобланмайди. Зарурат бўлса муддат томонларнинг ёзма қўшимча келишуви билан узайтирилади.</p>
 <p>5. Қайтариш Шартноманинг 5-бўлимида назарда тутилган тартиб ўрнига Жамиятнинг ихтиёрий қарори билан амалга оширилмоқда.</p>
 <div class="imz">Директор &nbsp;&nbsp; <span class="ch" style="width:50mm"></span> &nbsp;&nbsp; К.Ҳ. Ҳайдаров</div>
 <div class="roz"><b>Танишдим, розиман.</b> &nbsp; «____» ______________ 20___ йил &nbsp;&nbsp; Имзо: <span class="ch" style="width:45mm"></span><br>
@@ -100,4 +100,27 @@ async function auditYasa(x, q, T, ishlatilgan, vaqt) {
   return PDF.yasa(auditHtml(x, q, T, ishlatilgan, vaqt), '', Object.assign({ format: 'A4', landscape: true, preferCSSPageSize: true, printBackground: true }, MI.chromKol()));
 }
 
-module.exports = { buyruqMatn, buyruqYasa, javobHtml, javobYasa, auditHtml, auditYasa };
+// ------------------------------------------------------------------ 4) МУДДАТНИ УЗАЙТИРИШ — ҚЎШИМЧА КЕЛИШУВ (бир варақ, икки томон имзолайди)
+function kelishuvHtml(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+@page{size:A4;margin:18mm 16mm 20mm 25mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:12.5pt;line-height:1.45;color:#000}
+.h{text-align:center;font-weight:bold;font-size:14pt;margin:4mm 0 1mm}.h2{text-align:center;font-size:11.5pt;margin-bottom:5mm}.rq{display:flex;justify-content:space-between;margin-bottom:5mm}
+p{margin:0 0 3mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;border-bottom:.7pt solid #000;vertical-align:bottom}.k{font-size:10pt;color:#444}
+table{width:100%;border-collapse:collapse;margin-top:9mm}td{width:50%;vertical-align:top;padding:0 3mm;line-height:2.1}</style></head><body>
+<div class="h">ҚЎШИМЧА КЕЛИШУВ № ${esc(raqam)}</div>
+<div class="h2">№${esc(x.no)}-сонли шартнома бўйича тўланган маблағни қайтариш муддатини узайтириш тўғрисида</div>
+<div class="rq"><span>Ангор тумани</span><span>${esc(yhSoz(sanaIso))}</span></div>
+<p>${BH.bekorJamiyat(x)} номидан директор К.Ҳ. Ҳайдаров ва фуқаро <b>${esc(x.fishK)}</b> (кейинги ўринларда – Харидор) қуйидагилар тўғрисида келишиб олдилар:</p>
+<p>1. Жамият директорининг ${esc(yhDmy(q.buyruqSana))} даги ${esc(q.buyruq)}-сонли буйруғи ва ${esc(yhDmy(q.javobSana))} даги ${esc(q.javob)}-сонли жавобида белгиланган қолдиқ маблағни қайтариш муддати (${esc(yhDmy(eskiIso))}) <b>${esc(yhSoz(yangiIso))}</b>га қадар узайтирилади.</p>
+<p>2. Ушбу келишув имзоланган кунга қолдиқ <b>${yhPul(qoldiq)}</b> (${esc(SH.sozBilan(qoldiq))}) сўмни ташкил этади. Қолдиқ Жамият кассасидан нақд пулда, кассага нақд тушумга қараб, бўлиб-бўлиб, ҳар сафар чиқим касса ордери билан қайтарилади.</p>
+<p>3. Узайтирилган муддат ичида қайтариладиган маблағга фоиз, пеня ва зарар ҳисобланмайди. Харидор муддат узайтирилишига розилик билдиради ва шу муносабат билан Жамиятга нисбатан даъвоси йўқ.</p>
+<p>4. Шартнома маблағ тўлиқ қайтарилгунга қадар амалда қолади; қолган шартлар ўзгармайди. Келишув икки нусхада тузилди, бири Харидорга топширилди.</p>
+<table><tr><td><b>Жамият:</b><br>Директор<br><span class="ch" style="width:50mm"></span> К.Ҳ. Ҳайдаров</td>
+<td><b>Харидор:</b><br>Имзо: <span class="ch" style="width:45mm"></span><br>Ф.И.Ш. <span class="k">(тўлиқ, ўз қўли билан)</span>:<br><span class="ch" style="width:75mm"></span></td></tr></table>
+</body></html>`;
+}
+async function kelishuvYasa(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq) {
+  return PDF.yasa(kelishuvHtml(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol({ imzo: 'Харидор' })));
+}
+
+module.exports = { kelishuvHtml, kelishuvYasa, buyruqMatn, buyruqYasa, javobHtml, javobYasa, auditHtml, auditYasa };
