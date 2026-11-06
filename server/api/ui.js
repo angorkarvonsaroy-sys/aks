@@ -219,6 +219,7 @@ function sahifa(user, kod, bilet) {
     "JSON.stringify(String((typeof bilet!=='undefined'&&bilet)||''))": JSON.stringify(bilet || ''),
     "include('Xarita')": xaritaMatn(),
     'ism': esc(user.fish), 'muallif': esc(MUALLIF), 'yil': String(new Date().getFullYear()),
+    'versiya': (/<!--\s*(v27\.\d+)/.exec(matn) || [])[1] || '',   // 06.11.2026: ilova versiyasi — Index.html boshidagi birinchi «<!-- v27.NN» izohidan (pastki yozuvda ko'rinadi)
   };
   let html = matn.replace(/<\?(!?)=\s*([\s\S]*?)\s*\?>/g, (m, raw, ifoda) => {
     if (ifoda in qiymat) return qiymat[ifoda];
