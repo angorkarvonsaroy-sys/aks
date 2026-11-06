@@ -61,6 +61,8 @@ async function tekshir(no, BJ) {
 // ISBOT QOIDASI: qaror — mijoz arizasi skani, har KO-2 — mijoz imzolagan skan (05q «Faol»)
 function isbotYoq(q) {
   if (!q.ariza) return 'Qaytarish qaroriga mijoz imzolagan ARIZA skani yuklanmagan — «Moliya → ↩ Qaytarish» da yuklang.';
+  if (!q.buyruqSkan) return 'Mablag\'ni qaytarish buyrug\'i' + (q.buyruq ? ' ' + q.buyruq + ' ning imzolangan skani yuklanmagan' : ' chiqarilmagan') + ' — «Moliya → ↩ Qaytarish» da.';
+  if (!q.javobSkan) return 'Direktorning arizaga javobi' + (q.javob ? ' ' + q.javob + ' ning mijoz imzolagan skani yuklanmagan' : ' chiqarilmagan') + ' — «Moliya → ↩ Qaytarish» da.';
   const kut = q.ko2.filter(k => k.holati === QT.KUT);
   return kut.length ? kut.length + ' ta KO-2 ning mijoz imzolagan skani yuklanmagan (' + kut.map(k => k.raqam).join(', ') + ') — «Moliya → ↩ Qaytarish» da yuklang.' : '';
 }
