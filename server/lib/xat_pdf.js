@@ -141,10 +141,15 @@ function xatHtml(o) {
   const imzo = '<p class="dir">Директор<span class="n">______________________</span>&#8203;<span class="f">Ҳайдаров К.Ҳ.</span></p>'
     + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
     + '<p class="k9" style="margin-bottom:0">' + (asl ? esc(asl) : '<br>') + '</p>';
+  // o.rozilik — mijoz «танишдим, розиман» bloki (imzodan keyin; qaytarish javobi, 06.11.2026)
+  const roz = o.rozilik ? '<div style="margin-top:' + z(10) + 'pt;border-top:0.75pt solid #000;padding-top:' + z(4) + 'pt;font-size:' + z(11) + 'pt;line-height:' + (z(11) * 1.95).toFixed(2) + 'pt;break-inside:avoid">'
+    + '<b>' + esc(o.rozilik) + '</b><br>«____» ______________ ' + o.yil + ' йил &nbsp;&nbsp; Имзо: ____________________<br>'
+    + 'Ф.И.Ш. <span style="font-size:' + z(9) + 'pt">(тўлиқ, ўз қўли билан)</span>: _______________________________________________<br>'
+    + '______________________________________________________________________________</div>' : '';
   const havola = o.havola ? '<p style="font-size:' + z(10) + 'pt;line-height:' + (z(10) * 1.15).toFixed(3) + 'pt;margin-top:' + z(2) + 'pt;margin-bottom:0;text-align:left">' + esc(o.havola) + '</p>' : '';
   return kattalashtir('<!doctype html><html><head><meta charset="utf-8"><style>' + CSS + '</style></head><body>' + shapka()
     + '<p class="no">№ ' + esc(o.raqam) + '&#8203;<span class="o">' + esc(o.sanaMatn) + '</span></p>' + havola
-    + html + imzo + '</body></html>');
+    + html + imzo + roz + '</body></html>');
 }
 // Chromium chop etishda matn tayanch chizig'ini butun px ga (0,75 pt) yaxlitlaydi — qatorlar 12 / 12,75 pt sakraydi (Docs'da 12,65 tekis).
 // Shuning uchun sahifa ichi 4 barobar kattalikda teriladi va PDF scale 0,25 bilan chiqariladi: qadam 0,19 pt ga tushadi.
@@ -207,12 +212,12 @@ async function xatChiqar(x, b, raqam, sanaIso, muddatIso, Q, oldin, ij, shosh) {
 async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor, opt = {}) {
   const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq }), '', Object.assign({ scale: 1 / KAT, skript: TEKISLA }, require('./mijoz_imzo').chromKol())); return { pdf, bet: betSoni(pdf) }; };   // 06.11.2026: har varaq tagida «Варақ N / M»
+  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq, rozilik: opt.rozilik }), '', Object.assign({ scale: 1 / KAT, skript: TEKISLA }, require('./mijoz_imzo').chromKol(opt.kol))); return { pdf, bet: betSoni(pdf) }; };   // 06.11.2026: har varaq tagida «Варақ N / M»
   let ikkiBet = false, kk = 1;
   let r = await yasa(1);
   if (r.bet > 1) {
-    if ((await yasa(1, true)).bet > 1) ikkiBet = true;   // 2-betga kamida 3 qator o'tadi — kichraytirilmaydi
-    else for (const k of [0.95, 0.9, 0.85]) { r = await yasa(k); kk = k; if (r.bet <= 1) break; }
+    if (!opt.rozilik && (await yasa(1, true)).bet > 1) ikkiBet = true;   // 2-betga kamida 3 qator o'tadi — kichraytirilmaydi
+    else for (const k of [0.95, 0.9, 0.85].concat(opt.rozilik ? [0.8, 0.76] : [])) { r = await yasa(k); kk = k; if (r.bet <= 1) break; }   // mijoz rozilik bloki matndan ajralmasin
   }
   return { pdf: r.pdf, bet: r.bet, ikkiBet, k: kk };   // k — Word nusxasi ham shu o'lchamda (lib/bekor_word.js)
 }

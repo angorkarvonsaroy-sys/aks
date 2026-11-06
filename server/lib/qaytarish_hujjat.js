@@ -45,39 +45,30 @@ async function buyruqYasa(x, q, raqam, sanaIso, muddatIso, masul) {
   return Object.assign({ matn: M, k: kk }, r);
 }
 
-// ------------------------------------------------------------------ 2) ДИРЕКТОРНИНГ АРИЗАГА ЖАВОБИ (A4, бир варақ; мижоз «Танишдим, розиман» деб имзолайди)
-function javobHtml(x, q, raqam, sanaIso, buyruqRaqam, buyruqSana, muddatIso, k) {
-  k = k || 1; const f = n => (n * k).toFixed(2);   // bir varaqqa sig'masa — kichraytiriladi (javobYasa)
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-@page{size:A4;margin:${f(15)}mm 16mm 18mm 25mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:${f(12.5)}pt;line-height:${(1.45 - (1 - k)).toFixed(2)};color:#000}
-.sh{text-align:center;font-weight:bold;font-size:12.5pt;line-height:1.3}.sh small{font-weight:normal;font-size:10pt}
-.rq{display:flex;justify-content:space-between;margin:${f(6)}mm 0 ${f(5)}mm}.kimga{margin-left:50%;line-height:1.35;margin-bottom:${f(6)}mm}
-p{margin:0 0 ${f(3)}mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;border-bottom:.7pt solid #000;vertical-align:bottom}.k{font-size:10pt;color:#444}
-.imz{margin-top:${f(8)}mm;line-height:2.2;break-inside:avoid}.roz{margin-top:${f(8)}mm;border-top:.7pt solid #000;padding-top:3mm;line-height:2.3;break-inside:avoid}</style></head><body>
-<div class="sh">«ANGOR KARVON SAROY» МАСЪУЛИЯТИ ЧЕКЛАНГАН ЖАМИЯТИ<br><small>СТИР 308 489 492 · Сурхондарё вилояти, Ангор тумани · тел. +998 95-557-88-88</small></div>
-<div class="rq"><span>${esc(yhSoz(sanaIso))}</span><span>№ ${esc(raqam)}</span></div>
-<div class="kimga">Фуқаро <b>${esc(x.fishK)}</b>га<br>${x.manzil ? 'Манзил: ' + esc(x.manzil) + '<br>' : ''}${x.tel ? 'Тел.: ' + esc(x.tel) : ''}</div>
-<p>Ҳурматли ${esc(x.fishK)}!</p>
-<p>Сизнинг ${esc(BH.shSanaDa(x))} тузилган №${esc(x.no)}-сонли шартнома (${esc(dokonMatn(x))}) бўйича тўлаган маблағингизни қайтариш тўғрисидаги ${esc(yhDmy(q.arizaSana || q.sana))} даги аризангиз кўриб чиқилди.</p>
-<p>Жамият директорининг ${esc(yhDmy(buyruqSana))} даги ${esc(buyruqRaqam)}-сонли буйруғига мувофиқ Сизга қуйидагиларни маълум қиламиз:</p>
-<p>1. Шартнома бўйича тўланган <b>${yhPul(q.qaytar)}</b> (${esc(SH.sozBilan(q.qaytar))}) сўм Жамият кассасидан нақд пулда, бўлиб-бўлиб қайтарилади; ҳар бир олинган сумма учун чиқим касса ордери расмийлаштирилади ва Сиз томонингиздан имзоланади.</p>
-<p>2. Шартноманинг 3.3.2-бандида назарда тутилган 15 фоиз миқдоридаги сумма ушлаб қолинмайди.</p>
-<p>3. Маблағ тўлиқ қайтарилгунга қадар Шартнома амалда қолади; маблағ тўлиқ қайтарилгач Шартнома Сизнинг ташаббусингиз билан бекор қилинади ва томонлар ўртасида ўзаро ҳисоб-китоб далолатномаси имзоланади.</p>
-<p>4. Қолдиқ сумма <b>${esc(yhSoz(muddatIso))}</b>га қадар, Жамият кассасига нақд пул тушишига қараб, бўлиб-бўлиб қайтарилади. Қайтариш суръати кассадаги нақд тушумга боғлиқ бўлиб, муддат ичида қайтарилган сумма учун фоиз, пеня ва зарар ҳисобланмайди. Зарурат бўлса муддат томонларнинг ёзма қўшимча келишуви билан узайтирилади.</p>
-<p>5. Қайтариш Шартноманинг 5-бўлимида назарда тутилган тартиб ўрнига Жамиятнинг ихтиёрий қарори билан амалга оширилмоқда.</p>
-<div class="imz">Директор &nbsp;&nbsp; <span class="ch" style="width:50mm"></span> &nbsp;&nbsp; К.Ҳ. Ҳайдаров</div>
-<div class="roz"><b>Танишдим, розиман.</b> &nbsp; «____» ______________ 20___ йил &nbsp;&nbsp; Имзо: <span class="ch" style="width:45mm"></span><br>
-Ф.И.Ш. <span class="k">(тўлиқ, ўз қўли билан)</span>: <span class="ch" style="width:110mm"></span><br>
-<span class="ch" style="width:100%"></span></div>
-</body></html>`;
+// ------------------------------------------------------------------ 2) ДИРЕКТОРНИНГ АРИЗАГА ЖАВОБИ — РАСМИЙ БЛАНКАДА (06.11.2026)
+// Chiquvchi xat tartibi (lib/devon_xat.js, Devon.gs devonXatYasa_): № va sana → «… даги аризангизга» → kimga (manzil, F.I.Sh. qalin) → mavzu → murojaat →
+// matn → «Ҳурмат билан,» → Директор / Ижрочи; bir varaq qoidasi — xat_pdf.blankaYasa. «Асл нусхасини олдим» o'rnida — mijozning rozilik bloki.
+function javobMatn(x, q, buyruqRaqam, buyruqSana, muddatIso) {
+  return [
+    'Сизнинг ' + BH.shSanaDa(x) + ' тузилган №' + x.no + '-сонли шартнома (' + dokonMatn(x) + ') бўйича тўлаган маблағингизни қайтариш тўғрисидаги аризангиз кўриб чиқилди.',
+    'Жамият директорининг ' + yhSozDa(buyruqSana) + 'ги ' + buyruqRaqam + '-сонли буйруғига мувофиқ Сизга қуйидагиларни маълум қиламиз:',
+    '1. Шартнома бўйича тўланган ' + yhPul(q.qaytar).replace(/ /g, ' ') + ' (' + SH.sozBilan(q.qaytar) + ') сўм Жамият кассасидан нақд пулда, бўлиб-бўлиб қайтарилади; ҳар бир олинган сумма учун чиқим касса ордери расмийлаштирилади ва Сиз томонингиздан имзоланади.',
+    '2. Шартноманинг 3.3.2-бандида назарда тутилган 15 фоиз миқдоридаги сумма ушлаб қолинмайди.',
+    '3. Маблағ тўлиқ қайтарилгунга қадар Шартнома амалда қолади; маблағ тўлиқ қайтарилгач Шартнома Сизнинг ташаббусингиз билан бекор қилинади ва томонлар ўртасида ўзаро ҳисоб-китоб далолатномаси имзоланади.',
+    '4. Қолдиқ сумма ' + yhSoz(muddatIso) + 'га қадар, Жамият кассасига нақд пул тушишига қараб, бўлиб-бўлиб қайтарилади. Қайтариш суръати кассадаги нақд тушумга боғлиқ бўлиб, муддат ичида қайтарилган сумма учун фоиз, пеня ва зарар ҳисобланмайди. Зарурат бўлса муддат томонларнинг ёзма қўшимча келишуви билан узайтирилади.',
+    '5. Қайтариш Шартноманинг 5-бўлимида назарда тутилган тартиб ўрнига Жамиятнинг ихтиёрий қарори билан амалга оширилмоқда.'
+  ].join('\n');
 }
-async function javobYasa(x, q, raqam, sanaIso, buyruqRaqam, buyruqSana, muddatIso) {
-  let pdf;   // mijoz imzosi bloki alohida varaqqa tushmasin — bitta varaqqa sig'guncha kichraytiriladi
-  for (const k of [1, 0.95, 0.9, 0.86, 0.82]) {
-    pdf = await PDF.yasa(javobHtml(x, q, raqam, sanaIso, buyruqRaqam, buyruqSana, muddatIso, k), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol()));
-    if (XP.betSoni(pdf) <= 1) break;
-  }
-  return pdf;
+// ij — ijrochi { ism, tel } (api/xat_chiqar ijrochi)
+async function javobYasa(x, q, raqam, sanaIso, buyruqRaqam, buyruqSana, muddatIso, ij) {
+  const DX = require('./devon_xat');
+  const oluvchi = (x.manzil ? [x.manzil + 'да яшовчи'] : []).concat([x.fishK + 'га']);
+  const B = DX.bloklar(oluvchi, javobMatn(x, q, buyruqRaqam, buyruqSana, muddatIso),
+    { tur: 'mijoz', mavzu: 'Тўланган маблағни қайтариш тўғрисида', murojaat: 'Ҳурматли ' + XP.xatIsmOtasi(x.fishK) });
+  const havola = DX.sanaSoz(yhDmy(q.arizaSana || q.sana)) + 'даги аризангизга';
+  const r = await XP.blankaYasa(B, { '{{Ундирувчи}}': (ij && ij.ism) || '', '{{Ундирувчи_тел}}': (ij && ij.tel) || '+998 95-557-88-88' }, raqam, sanaIso, false,
+    { havola, aslYoq: true, rozilik: 'Хат асл нусхасини олдим, мазмуни билан танишдим, розиман.', kol: { imzo: 'Харидор' } });
+  return r.pdf;
 }
 
 // ------------------------------------------------------------------ 3) ИЧКИ АУДИТ РЕЕСТРИ (имзосиз, мижозга берилмайди)
@@ -131,4 +122,4 @@ async function kelishuvYasa(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq) {
   return PDF.yasa(kelishuvHtml(x, q, raqam, sanaIso, eskiIso, yangiIso, qoldiq), '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol({ imzo: 'Харидор' })));
 }
 
-module.exports = { kelishuvHtml, kelishuvYasa, buyruqMatn, buyruqYasa, javobHtml, javobYasa, auditHtml, auditYasa };
+module.exports = { kelishuvHtml, kelishuvYasa, buyruqMatn, buyruqYasa, javobMatn, javobYasa, auditHtml, auditYasa };

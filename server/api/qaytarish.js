@@ -451,7 +451,9 @@ async function buyruqPdfYasa(q, x, raqam, sanaIso, muddat) {
   return QH.buyruqYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, sanaIso, muddat, await masulBuxgalter());
 }
 async function javobPdfYasa(q, x, raqam, sanaIso) {
-  return QH.javobYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, sanaIso, q.buyruq, q.buyruqSana, q.muddat);
+  const dir = (await V.qatorlar('07_Xodimlar')).map(z => z.x).find(r => /direktor|директор/i.test(s(r[3])) && s(r[10]).trim() === 'Ishlayapti');
+  const ij = dir ? await require('./xat_chiqar')._ichki.ijrochi(s(dir[1]).trim()).catch(() => null) : null;   // javob xatini direktor yozadi (07_Xodimlar)
+  return QH.javobYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, sanaIso, q.buyruq, q.buyruqSana, q.muddat, ij);
 }
 async function qarorTop(id) {
   const H = await holatYig(); const q = H.qarorlar.find(x => x.id === s(id));
