@@ -254,5 +254,43 @@ th{background:#eee;font-weight:bold}.q{margin:2.6mm 0;display:flex;gap:3mm}.q b.
   return PDF.yasa(html, '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol()));
 }
 
-module.exports = { qaytarishHolat, qaytarishQaror, qaytarishKirit, qaytarishPdf, qaytarishBekor };
+// ------------------------------------------------------------------ 📄 MIJOZ ARIZASI (06.11.2026, direktor): tizim chiqaradi, mijoz tagida Ф.И.Ш. ni qo'lda yozadi,
+// imzolaydi va «Юқоридаги ариза менинг сўзларим билан тўғри ёзилган» deb tasdiqlaydi. Qarordan OLDIN ham chiqadi (summa — qaror bo'lsa qarordagi, aks holda jami to'langan).
+async function qaytarishAriza([kodSes, no0]) {
+  await direktor(kodSes);
+  const no = s(no0).trim();
+  if (!/^27\/\d+$/.test(no)) throw new S.Xato('Sotuv shartnomasi raqamini kiriting (27/…).');
+  const sh = (await V.qatorlar(S3)).map(z => z.x).find(r => s(r[0]).trim() === no);
+  if (!sh) throw new S.Xato('Shartnoma topilmadi: ' + no);
+  const mj = (await V.qatorlar(M2)).map(z => z.x).find(r => s(r[0]).trim() === s(sh[4]).trim()) || [];
+  const H = await holatYig();
+  const q = H.qarorlar.filter(x => x.no === no && x.holati !== 'Bekor').pop();
+  const tolangan = H.T.filter(t => t.no === no).reduce((a, t) => a + t.summa, 0);
+  const summa = q ? q.qaytar : tolangan;
+  if (!(summa > 0)) throw new S.Xato(no + ' bo\'yicha to\'lov topilmadi — qaytariladigan summa yo\'q.');
+  const KR = v => { try { return require('../lib/ism').xatKirill(s(v)); } catch (e) { return s(v); } };
+  const fish = KR(s(mj[2] || sh[20]).trim());
+  const pas = [s(mj[6]).replace(/\s/g, ''), s(mj[8]) ? s(mj[8]) + ' ИИБ' : '', iso(mj[9]) ? dmy(iso(mj[9])) + ' да берилган' : ''].filter(Boolean).join(', ');
+  const SOZ = SH.sozBilan(summa);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+@page{size:A4;margin:18mm 16mm 20mm 25mm}*{box-sizing:border-box}body{margin:0;font-family:'Liberation Serif','Times New Roman',serif;font-size:13pt;line-height:1.45;color:#000}
+.kimga{margin-left:52%;font-size:12.5pt;line-height:1.4}.h{text-align:center;font-size:16pt;font-weight:bold;letter-spacing:2px;margin:12mm 0 6mm}
+p{margin:0 0 3mm;text-align:justify;text-indent:12mm}.ch{display:inline-block;border-bottom:.7pt solid #000;vertical-align:bottom}.k{font-size:10pt;color:#444}
+.imz{margin-top:12mm;line-height:2.4}</style></head><body>
+<div class="kimga">«ANGOR KARVON SAROY» МЧЖ<br>директори К.Ҳ.&nbsp;Ҳайдаровга<br>фуқаро <b>${esc(fish)}</b>дан<br>
+Манзил: ${esc(s(mj[25]) || '________________________')}<br>Паспорт: ${esc(pas || '________________________')}<br>Тел.: ${esc(s(mj[4]) || '________________')}</div>
+<div class="h">АРИЗА</div>
+<p>Мен, ${esc(fish)}, Сиз раҳбарлик қилаётган «ANGOR KARVON SAROY» МЧЖ билан ${esc(dmy(iso(sh[2])))} санада тузилган, ${esc(s(sh[5]))} рақамли савдо дўкони бўйича №${esc(no)}-сонли шартномани ўз ташаббусим билан бекор қилишни ва шартнома бўйича тўлаган <b>${pul(summa)}</b> (${esc(SOZ)}) сўм маблағимни менга қайтаришни сўрайман.</p>
+<p>Маблағни Жамият кассасидан нақд пулда, бўлиб-бўлиб олишга розиман. Ҳар бир олган суммам учун чиқим касса ордерига имзо қўяман.</p>
+<p>Маблағ тўлиқ қайтарилгач, ушбу шартнома бўйича Жамиятга нисбатан ҳеч қандай моддий ва бошқа даъвом бўлмайди.</p>
+<div class="imz">«____» ______________ 20___ йил &nbsp;&nbsp;&nbsp; Имзо: <span class="ch" style="width:55mm"></span><br>
+Ф.И.Ш. <span class="k">(тўлиқ, ўз қўли билан)</span>: <span class="ch" style="width:105mm"></span><br>
+<span class="ch" style="width:165mm"></span><br>
+Юқоридаги ариза менинг сўзларим билан тўғри ёзилган.<br>Имзо: <span class="ch" style="width:55mm"></span></div>
+</body></html>`;
+  const pdf = await PDF.yasa(html, '', Object.assign({ format: 'A4', preferCSSPageSize: true, printBackground: true }, MI.chromKol()));
+  return { nom: 'Ariza_qaytarish_' + no.replace(/\//g, '-') + '_' + (s(mj[2] || sh[20]).split(/\s+/)[0] || 'Mijoz') + '.pdf', mime: 'application/pdf', b64: pdf.toString('base64') };
+}
+
+module.exports = { qaytarishHolat, qaytarishQaror, qaytarishKirit, qaytarishPdf, qaytarishBekor, qaytarishAriza };
 module.exports._ichki = { manbaOqi, manbaYoz, iso, holatYig, ko2Pdf, QR, KQ };
