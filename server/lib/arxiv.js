@@ -35,7 +35,11 @@ const SINOV = { rclone: null };   // sinovda almashtiriladi: (args, kirish) → 
 function rc(args, opt = {}) {
   if (SINOV.rclone) return SINOV.rclone(args, opt.kirish);
   return new Promise((ok, yoq) => {
-    const p = spawn('rclone', ['--config', RCONF, '--drive-root-folder-id', env.arxivPapka, '--retries', '2', '--low-level-retries', '5'].concat(args), { stdio: ['pipe', 'pipe', 'pipe'] });
+    // 07.11.2026: Drive «rateLimitExceeded» (24 soatda 12 xato) — so'rovlar sur'ati cheklanadi: soniyasiga ≤ 3 so'rov, har so'rov orasida ≥ 200 ms,
+    // nusxada bir vaqtda 2 fayl / 4 tekshiruv. Xato bo'lsa rclone o'zi kutib qayta urinadi (low-level-retries 10).
+    const sekin = args[0] === 'copy' ? ['--transfers', '2', '--checkers', '4'] : [];
+    const p = spawn('rclone', ['--config', RCONF, '--drive-root-folder-id', env.arxivPapka, '--retries', '3', '--low-level-retries', '10',
+      '--tpslimit', '3', '--tpslimit-burst', '3', '--drive-pacer-min-sleep', '200ms', '--drive-pacer-burst', '50'].concat(sekin, args), { stdio: ['pipe', 'pipe', 'pipe'] });
     const out = []; let err = '';
     const t = setTimeout(() => p.kill('SIGKILL'), opt.ms || 120000);
     p.stdout.on('data', d => out.push(d));

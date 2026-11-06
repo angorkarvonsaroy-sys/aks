@@ -45,7 +45,7 @@ fi
 # 01.11: rclone boshqa foydalanuvchi nomidan ishlaydi — /var/backups/aks u uchun yopiq. Shuning uchun fayl root tomonidan stdin orqali beriladi (rclone rcat).
 AKONF=/opt/aks/rclone.conf
 APAPKA=$(grep -E '^ARXIV_PAPKA=' /opt/aks/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' "); APAPKA=${APAPKA:-1xJGD7CpL5qdHoTEvPfikmedl58FpOkGC}
-ARC() { sudo -u aks -H timeout 300 rclone --config "$AKONF" --drive-root-folder-id "$APAPKA" "$@"; }
+ARC() { sudo -u aks -H timeout 300 rclone --config "$AKONF" --drive-root-folder-id "$APAPKA" --tpslimit 3 --drive-pacer-min-sleep 200ms --low-level-retries 10 "$@"; }   # 07.11: Drive rateLimitExceeded
 ERRF=$(mktemp); YER=""; XAT=""
 if [ -z "${ZAXIRA_TASHQI:-}" ] && [ -s "$AKONF" ]; then
   if ARC rcat "aksarxiv:98 SERVER BAZASI/$(basename "$OUT")" <"$OUT" 2>"$ERRF"; then
