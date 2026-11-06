@@ -16,6 +16,8 @@ const { redis } = require('../lib/db');
 const PDF = require('../lib/pdf');
 const SH = require('../lib/sotuv_hujjat');
 const MI = require('../lib/mijoz_imzo');
+const tetik = require('../lib/kozgu_tetik');
+const kozgu = () => Promise.race([tetik.varaqlarYangila([QR, KQ]).catch(() => {}), new Promise(r => setTimeout(r, 15000))]);   // 📊 Hisobot darhol ko'rsin
 
 const QR = '05r_Qaytarish_qarorlari', KQ = '05q_Qaytarishlar', T05 = '05_Tolovlar', S3 = '03_Sotuv_shartnomalar', M2 = '02_Mijozlar';
 const QR_SARL = ['Qaror_ID', 'Shartnoma_№', 'Mijoz_ID', 'Mijoz_FISH', 'Dokon_ID', 'Jami_tolangan', 'Ushlab_qolinadi', 'Qaytariladi', 'Sabab', 'Qaror_sana', 'Kim', 'Vaqt', 'Holati', 'Yakun_vaqt', 'Izoh'];
@@ -119,6 +121,7 @@ async function qaytarishQaror([kodSes, d0]) {
     const id = String(Math.max(0, ...H.qarorlar.map(q => +q.id || 0)) + 1), h = hozir();
     await G.qatorQosh(env.aksBazaId, QR, [id, no, s(sh[4]), s(sh[20]), s(sh[5]), jami, jami - qaytar, qaytar, sabab, h.dmy, u.fish, h.dmyHm, 'Ochiq', '', ''], env.googleKey);
     tg('↩ <b>Qaytarish qarori</b> ' + no + ' (' + esc(s(sh[20])) + '): qaytariladi <b>' + pul(qaytar) + '</b> so\'m' + (jami - qaytar ? ', ushlab qolinadi ' + pul(jami - qaytar) : ', ushlab qolinmaydi') + '.\nSabab: ' + esc(sabab));
+    await kozgu();
     return { ok: true, id, no, jami, qaytar };
   });
 }
@@ -177,6 +180,7 @@ async function qaytarishKirit([kodSes, d0]) {
       + 'Manba: ' + manba.map(m => { const t = H.T.find(z => z.tid === m.tid); return '№' + m.tid + ' ' + esc(t.fish) + ' (' + t.no + ') — ' + pul(m.summa); }).join('; ') + '\n'
       + 'Qaytarildi: ' + pul(oldin + summa) + ' / ' + pul(q.qaytar) + ' · qoldiq <b>' + pul(qoldiq) + '</b>'
       + (qoldiq === 0 ? '\n✅ To\'liq qaytarildi — endi shartnomani «Xaridor tashabbusi bilan» bekor qilish mumkin.' : ''));
+    await kozgu();
     return { ok: true, id, raqam, summa, qoldiq, nom, b64: pdf.toString('base64') };
   });
 }
@@ -204,6 +208,7 @@ async function qaytarishBekor([kodSes, id, sabab0]) {
     if (q && q.holati === 'Yakunlandi') D.push({ varaq: QR, katak: 'M' + q.qator + ':N' + q.qator, qiymat: [['Ochiq', '']] });
     await G.yoz(env.aksBazaId, D, env.googleKey);
     tg('✖ <b>' + k.raqam + '</b> bekor qilindi (' + esc(k.fish) + ', ' + pul(k.summa) + ' so\'m). Sabab: ' + esc(sabab));
+    await kozgu();
     return { ok: true, raqam: k.raqam };
   });
 }

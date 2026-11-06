@@ -55,8 +55,15 @@ async function hisobotHisobla(bosh, oxir) {
     buf.soni++; buf.jami += num(r[3]);
     if (/MUDDATI O'TDI/i.test(s(r[11]))) { buf.muddatiOtgan++; buf.muddatiOtganSumma += num(r[3]); }
   });
+  // 06.11.2026: ↩ mijozga qaytarilgan pul (KO-2, 05q_Qaytarishlar «Faol») — kassa chiqimi; naqd qoldiq = naqd tushum − KO-2
+  const qay = { soni: 0, jami: 0, royxat: [] };
+  (await V.qatorlar('05q_Qaytarishlar')).forEach(({ x: r }) => {
+    if (r[0] == null || r[0] === '' || s(r[13]) !== 'Faol' || !ichida(r[2])) return;
+    qay.soni++; qay.jami += num(r[6]); qay.royxat.push(s(r[1]) + ' · ' + s(r[4]) + ' · ' + s(r[5]) + ' · ' + s(r[10]));
+  });
+  qay.naqdTushum = tol.shakl['Naqt'] || 0; qay.naqdQoldi = qay.naqdTushum - qay.jami;
   const dok = await dokonlar();
-  return { bosh, oxir, tol, sot, ij, tash, buf, dok };
+  return { bosh, oxir, tol, sot, ij, tash, buf, dok, qay };
 }
 // 01_Dokonlar: 2..641-qatorlar, Z ustuni (holat); bo'sh katak — «Bo'sh». Eski kod aynan 640 qator o'qiydi (bo'sh qatorlar ham sanaladi).
 async function dokonlar() {
@@ -78,7 +85,7 @@ async function hisobotMalumot([kodSes, davr]) {
   const bugun = V.bugun();
   const [b, o, nom] = davrChegara(davr, bugun);
   const h = await hisobotHisobla(b, o); h.nom = nom;
-  if (!u.admin) delete h.buf;
+  if (!u.admin) { delete h.buf; delete h.qay; }   // KO-2 — faqat direktor
   const Y = await KR.yopiqlar(u);   // yashirin shartnomalar ro'yxatlardan olinadi; jami summalar o'zgarmaydi
   if (Y.size) { const no = t => String(t).split(' · ')[0].trim();
     h.tol.katta = h.tol.katta.filter(x => !Y.has(String(x[1]).trim()));
