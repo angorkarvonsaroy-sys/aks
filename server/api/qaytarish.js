@@ -187,11 +187,7 @@ async function qaytarishKirit([kodSes, d0]) {
       const qol = t.summa - (H.ishlatilgan[m.tid] || 0);
       if (m.summa > qol) throw new S.Xato('To\'lov №' + m.tid + ' (' + t.fish + ', ' + pul(t.summa) + ') pulidan faqat ' + pul(qol) + ' so\'m qolgan — ' + pul(m.summa) + ' berib bo\'lmaydi.');
     }
-    // oluvchi — shartnoma egasi (02_Mijozlar), pasport ma'lumoti bilan
-    const sh = (await V.qatorlar(S3)).map(z => z.r).find(r => s(r[0]).trim() === q.no) || [];
-    const mj = (await V.qatorlar(M2)).map(z => z.r).find(r => s(r[0]).trim() === s(sh[4] || q.mid).trim()) || [];
-    const oluvchi = s(mj[2] || q.fish).trim();
-    const pasport = [s(mj[6]).replace(/\s/g, ''), s(mj[8]) ? s(mj[8]) + ' ИИБ' : '', s(mj[9]) ? s(mj[9]) + ' да берилган' : ''].filter(Boolean).join(', ');
+    const { oluvchi, pasport } = await oluvchiOl(q);
     const K = await jadval(KQ, KQ_SARL);
     const yil = sana.slice(0, 4);
     const tartib = Math.max(0, ...K.map(z => { const m = /^KO2-(\d{4})\/(\d+)$/.exec(s(z.r[1])); return m && m[1] === yil ? +m[2] : 0; })) + 1;
@@ -218,6 +214,13 @@ async function qaytarishKirit([kodSes, d0]) {
 }
 
 // ------------------------------------------------------------------ KO-2 PDF (qayta yuklab olish) va bekor qilish
+// oluvchi — shartnoma egasi (02_Mijozlar, joriy holati), pasport ma'lumoti bilan
+async function oluvchiOl(q) {
+  const sh = (await V.qatorlar(S3)).map(z => z.r).find(r => s(r[0]).trim() === q.no) || [];
+  const mj = (await V.qatorlar(M2)).map(z => z.r).find(r => s(r[0]).trim() === s(sh[4] || q.mid).trim()) || [];
+  return { oluvchi: s(mj[2] || q.fish).trim(),
+    pasport: [s(mj[6]).replace(/\s/g, ''), s(mj[8]) ? s(mj[8]) + ' ИИБ' : '', s(mj[9]) ? s(mj[9]) + ' да берилган' : ''].filter(Boolean).join(', ') };
+}
 async function qaytarishPdf([kodSes, id]) {
   await direktor(kodSes);
   const H = await holatYig();
@@ -229,6 +232,22 @@ async function qaytarishPdf([kodSes, id]) {
     const b = bekorAjrat(k.izoh);
     const pdf = await ko2Pdf({ raqam: k.raqam, sana: k.sana, oluvchi: k.oluvchi, pasport: k.pasport, summa: k.summa, q, oldin: 0, qoldiq: 0, manba: k.manba, kassir: k.kassir, izoh: b.izoh, bekor: b.bekor || 'sababi yozilmagan' });
     return { nom: (f ? path.basename(f, '.pdf') : k.raqam.replace(/\//g, '-')) + '_BEKOR.pdf', b64: pdf.toString('base64') };
+  }
+  // Imzolanmagan (skan kutilmoqda) KO-2: mijoz kartasida ism/pasport tuzatilgan bo'lsa — PDF o'sha raqam bilan qayta yasaladi
+  if (k.holati === KUT) {
+    const q = H.qarorlar.find(x => x.id === k.qarorId);
+    const j = q ? await oluvchiOl(q) : null;
+    if (j && (j.oluvchi !== k.oluvchi || j.pasport !== k.pasport)) {
+      const oldin = q.ko2.filter(x => x.holati !== 'Bekor' && (+x.id) < (+k.id)).reduce((a, x) => a + x.summa, 0);
+      const pdf = await ko2Pdf({ raqam: k.raqam, sana: k.sana, oluvchi: j.oluvchi, pasport: j.pasport, summa: k.summa, q, oldin, qoldiq: q.qaytar - oldin - k.summa, manba: k.manba, kassir: k.kassir, izoh: k.izoh });
+      const noF = k.no.replace(/\//g, '-'), nom = k.raqam.replace(/\//g, '-') + '_' + noF + '.pdf';
+      fs.mkdirSync(path.join(ILDIZ, noF), { recursive: true });
+      fs.writeFileSync(path.join(ILDIZ, noF, nom), pdf, { mode: 0o640 });
+      await G.yoz(env.aksBazaId, [{ varaq: KQ, katak: 'F' + k.qator, qiymat: [[q.fish]] }, { varaq: KQ, katak: 'I' + k.qator + ':J' + k.qator, qiymat: [[j.oluvchi, j.pasport]] }, { varaq: KQ, katak: 'O' + k.qator, qiymat: [['SRV:' + noF + '/' + nom]] }], env.googleKey);
+      const u = await direktor(kodSes); driveGa(u.kod, { no: q.no, fish: q.fish, nom, pdf });
+      await kozgu();
+      return { nom, b64: pdf.toString('base64'), yangilandi: true };
+    }
   }
   if (!f || !fs.existsSync(f)) throw new S.Xato('KO-2 fayli serverda topilmadi: ' + k.raqam);
   return { nom: path.basename(f), b64: fs.readFileSync(f).toString('base64') };
