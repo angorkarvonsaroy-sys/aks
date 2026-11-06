@@ -437,6 +437,22 @@ function keyingi(Q, kalit, seriya, yil) {
   const t = Q.filter(q => s(q[kalit]).indexOf(seriya + '-' + yil + '/') === 0).reduce((m, q) => Math.max(m, Number(s(q[kalit]).split('/')[1]) || 0), 0) + 1;
   return seriya + '-' + yil + '/' + ('000' + t).slice(-4);
 }
+// Buyruqdagi ijro uchun mas'ul — 07_Xodimlar: lavozimi buxgalter, ishlayapti (bosh buxgalter birinchi); ism — C (FISH_toliq), bo'lmasa B kirillda.
+// (06.11.2026 xato: oxirgi KO-2 kassiri — direktor — «бухгалтер» deb yozilib qolgan edi)
+async function masulBuxgalter() {
+  const L = (await V.qatorlar('07_Xodimlar')).map(z => z.x).filter(r => /buxgalter|бухгалтер/i.test(s(r[3])) && s(r[10]).trim() === 'Ishlayapti')
+    .sort((a, b) => (/bosh|бош/i.test(s(b[3])) ? 1 : 0) - (/bosh|бош/i.test(s(a[3])) ? 1 : 0));
+  if (!L.length) return 'бош бухгалтер';
+  const r = L[0], ism = s(r[2]).trim() || require('../lib/ism').xatKirill(s(r[1]).trim());
+  return (/bosh|бош/i.test(s(r[3])) ? 'бош бухгалтер ' : 'бухгалтер ') + ism;
+}
+// Imzolanmagan buyruq/javob — PDF bazadagi joriy ma'lumot bilan, O'SHA raqam va sana bilan qayta yasaladi (KO-2 dagi qoida kabi)
+async function buyruqPdfYasa(q, x, raqam, sanaIso, muddat) {
+  return QH.buyruqYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, sanaIso, muddat, await masulBuxgalter());
+}
+async function javobPdfYasa(q, x, raqam, sanaIso) {
+  return QH.javobYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, sanaIso, q.buyruq, q.buyruqSana, q.muddat);
+}
 async function qarorTop(id) {
   const H = await holatYig(); const q = H.qarorlar.find(x => x.id === s(id));
   if (!q) throw new S.Xato('Qaytarish qarori topilmadi.');
@@ -447,21 +463,18 @@ async function qarorTop(id) {
 async function qaytarishBuyruq([kodSes, id, muddat]) {
   const u = await direktor(kodSes);
   return qulf('qaror', async () => {
-    const { H, q } = await qarorTop(id);
+    const { q } = await qarorTop(id);
     if (q.buyruq) throw new S.Xato('Buyruq allaqachon chiqarilgan: ' + q.buyruq + '. Xato bo\'lsa — skanini «📎 Hujjatlar → ✎ Tuzatish» bilan bekor qiling va menga ayting.');
     if (!q.ariza) throw new S.Xato('Avval mijoz imzolagan ariza skanini yuklang — buyruq ariza asosida chiqariladi.');
     if (!sanaOk(muddat)) throw new S.Xato('Qoldiqni qaytarish muddatini tanlang.');
     const h = hozir(); if (muddat <= h.iso) throw new S.Xato('Muddat bugundan keyin bo\'lishi kerak.');
     const x = await BYi().bekorShartnoma(q.no); if (!x) throw new S.Xato('Shartnoma topilmadi: ' + q.no);
-    const masul = await kassirStandart(H); const xodim = masul ? (await kassirRoyxat()).find(z => z.fish === masul) : null;
     const raqam = keyingi(await jadval(QR, QR_SARL).then(Q => Q.map(z => ({ b: s(z.r[17]) }))), 'b', 'QB', h.iso.slice(0, 4));
-    const b = await QH.buyruqYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, h.iso, muddat,
-      xodim ? (/bosh|бош/i.test(xodim.lavozim) ? 'бош бухгалтер ' : 'бухгалтер ') + require('../lib/ism').xatKirill(xodim.fish) : '');
+    const b = await buyruqPdfYasa(q, x, raqam, h.iso, muddat);
     const nom = 'Qaytarish_buyruq_' + q.no.replace(/\//g, '-') + '_' + raqam.replace('/', '-') + '.pdf';
     const srv = pdfSaqla(q.no, nom, b.pdf);
     await varaqTayyor(QR, QR_SARL);
     await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'R' + q.qator + ':U' + q.qator, qiymat: [[raqam, h.dmy, dmy(muddat), srv]] }], env.googleKey);
-    driveGa(u.kod, { no: q.no, fish: q.fish, nom, pdf: b.pdf });
     tg('📜 <b>' + raqam + '</b> — ' + q.no + ' (' + esc(q.fish) + ') bo\'yicha mablag\'ni qaytarish buyrug\'i chiqarildi. Muddat: ' + dmy(muddat) + '. ⏳ Imzolangan skan kutilmoqda.');
     await kozgu();
     return { ok: true, raqam, nom, b64: b.pdf.toString('base64'), bet: b.bet };
@@ -477,11 +490,10 @@ async function qaytarishJavob([kodSes, id]) {
     const x = await BYi().bekorShartnoma(q.no); if (!x) throw new S.Xato('Shartnoma topilmadi: ' + q.no);
     const h = hozir();
     const raqam = keyingi(await jadval(QR, QR_SARL).then(Q => Q.map(z => ({ j: s(z.r[23]) }))), 'j', 'QJ', h.iso.slice(0, 4));
-    const pdf = await QH.javobYasa(x, { qaytar: q.qaytar, sana: q.sana, arizaSana: qarorArizaSana(q) }, raqam, h.iso, q.buyruq, q.buyruqSana, q.muddat);
+    const pdf = await javobPdfYasa(q, x, raqam, h.iso);
     const nom = 'Qaytarish_javob_' + q.no.replace(/\//g, '-') + '_' + raqam.replace('/', '-') + '.pdf';
     const srv = pdfSaqla(q.no, nom, pdf);
     await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'X' + q.qator + ':Z' + q.qator, qiymat: [[raqam, h.dmy, srv]] }], env.googleKey);
-    driveGa(u.kod, { no: q.no, fish: q.fish, nom, pdf });
     tg('✉ <b>' + raqam + '</b> — ' + q.no + ' (' + esc(q.fish) + ') ga direktorning arizaga javobi chiqarildi (muddat ' + dmy(q.muddat) + ', foizsiz). ⏳ Mijoz imzolagan skan kutilmoqda.');
     await kozgu();
     return { ok: true, raqam, nom, b64: pdf.toString('base64') };
@@ -519,6 +531,14 @@ async function qaytarishHujjatPdf([kodSes, id, tur]) {
   if (!raqam) throw new S.Xato('Hujjat hali chiqarilmagan.');
   const HY = require('./hujjat_yoz');
   if (sk) { const f = HY.srvFayl(null, q.no, sk); if (f) return { nom: raqam.replace('/', '-') + '_IMZOLI.pdf', b64: f.bytes.toString('base64'), imzoli: true }; }
+  // imzolanmagan — joriy ma'lumot bilan o'sha raqam/sana bilan qayta yasaladi va serverdagi nusxa almashtiriladi
+  const x = await BYi().bekorShartnoma(q.no);
+  if (x) {
+    const pdf = tur === 'buyruq' ? (await buyruqPdfYasa(q, x, q.buyruq, q.buyruqSana, q.muddat)).pdf : await javobPdfYasa(q, x, q.javob, q.javobSana);
+    const nom = (tur === 'buyruq' ? 'Qaytarish_buyruq_' : 'Qaytarish_javob_') + q.no.replace(/\//g, '-') + '_' + raqam.replace('/', '-') + '.pdf';
+    pdfSaqla(q.no, nom, pdf);
+    return { nom, b64: pdf.toString('base64'), yangilandi: true };
+  }
   const f = HY.srvFayl(srv); if (!f) throw new S.Xato('Fayl serverda topilmadi: ' + srv);
   return { nom: f.nom, b64: f.bytes.toString('base64') };
 }
@@ -540,7 +560,6 @@ async function qaytarishMuddat([kodSes, id, yangi]) {
     const srv = pdfSaqla(q.no, nom, pdf);
     const K = q.kelishuv.concat([{ raqam, sana: h.iso, eski: q.muddat, yangi, pdf: srv, skan: '', skanVaqt: '', qoldiq: q.qoldiq }]);
     await G.yoz(env.aksBazaId, [{ varaq: QR, katak: 'AC' + q.qator, qiymat: [[JSON.stringify(K)]] }], env.googleKey);
-    driveGa(u.kod, { no: q.no, fish: q.fish, nom, pdf });
     tg('📅 <b>' + raqam + '</b> — ' + q.no + ' (' + esc(q.fish) + ') muddatni uzaytirish kelishuvi: ' + dmy(q.muddat) + ' → ' + dmy(yangi) + ', qoldiq ' + pul(q.qoldiq) + '. ⏳ Mijoz imzolagan skan kutilmoqda.');
     await kozgu();
     return { ok: true, raqam, nom, b64: pdf.toString('base64') };
