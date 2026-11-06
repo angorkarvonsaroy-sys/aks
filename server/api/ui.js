@@ -129,8 +129,8 @@ var SAQLA=['AKS TIZIM','Telegram','Gmail','AKS'];
 function lk(t){ // lotin → kirill (xato/izoh matnlari uchun, sodda)
   var Q=[]; t=t.replace(/[^\\s()]+@[^\\s()]+/g,function(m){ Q.push(m); return '\\u0003'+(Q.length-1)+'\\u0004'; });   // pochta manzili o'girilmaydi
   SAQLA.forEach(function(w,i){ t=t.split(w).join('\\u0001'+i+'\\u0002'); });
-  var D=[["O'",'Ў'],["o'",'ў'],["G'",'Ғ'],["g'",'ғ'],['Sh','Ш'],['sh','ш'],['SH','Ш'],['Ch','Ч'],['ch','ч'],['CH','Ч'],['Yo','Ё'],['yo','ё'],['Yu','Ю'],['yu','ю'],['Ya','Я'],['ya','я'],['Ye','Е'],['ye','е']];
-  t=t.replace(/[ʻʼ‘’]/g,"'");
+  var D=[["O'",'Ў'],["o'",'ў'],["G'",'Ғ'],["g'",'ғ'],['Sh','Ш'],['sh','ш'],['SH','Ш'],['Ch','Ч'],['ch','ч'],['CH','Ч'],['YO','Ё'],['Yo','Ё'],['yo','ё'],['YU','Ю'],['Yu','Ю'],['yu','ю'],['YA','Я'],['Ya','Я'],['ya','я'],['YE','Е'],['Ye','Е'],['ye','е']];
+  t=t.replace(/[ʻʼ‘’\\u0060]/g,"'");   // u0060 — orqa tirnoq (bazada G va O dan keyin ko'p)
   D.forEach(function(d){ t=t.split(d[0]).join(d[1]); });
   t=t.replace(/(^|[^A-Za-zЀ-ӿ])([Ee])/g,function(m,a,b){ return a+(b==='E'?'Э':'э'); });
   var M={a:'а',b:'б',d:'д',e:'е',f:'ф',g:'г',h:'ҳ',i:'и',j:'ж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'қ',r:'р',s:'с',t:'т',u:'у',v:'в',x:'х',y:'й',z:'з',c:'ц',w:'в'};
