@@ -529,6 +529,11 @@ async function qaytarishJavobSkan([kodSes, id, sana, b64, sahifa]) {
 async function qaytarishHujjatPdf([kodSes, id, tur]) {
   await direktor(kodSes);
   const { q } = await qarorTop(id);
+  if (tur === 'ariza') {   // mijoz imzolagan ariza skani (v27.86)
+    const f = q.ariza ? require('./hujjat_yoz').srvFayl(null, q.no, q.ariza) : null;
+    if (!f) throw new S.Xato('Imzolangan ariza skani serverda topilmadi' + (q.ariza ? ': ' + q.ariza : '') + '.');
+    return { nom: 'Ariza_' + q.no.replace(/\//g, '-') + '_IMZOLI.pdf', b64: f.bytes.toString('base64'), imzoli: true };
+  }
   const sk = tur === 'buyruq' ? q.buyruqSkan : q.javobSkan, srv = tur === 'buyruq' ? q.buyruqPdf : q.javobPdf, raqam = tur === 'buyruq' ? q.buyruq : q.javob;
   if (!raqam) throw new S.Xato('Hujjat hali chiqarilmagan.');
   const HY = require('./hujjat_yoz');
