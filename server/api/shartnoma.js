@@ -64,6 +64,9 @@ async function bugungiTolovlar([kodSes]) {
   const Y = await KR.yopiqlar(u);
   const royxat = v.filter(r => String(r[10]).indexOf(bugun) === 0 && (u.admin || r[9] === u.fish) && !Y.has(String(r[2]).trim()))
     .map(r => ({ id: r[0], sana: r[1], no: r[2], summa: Number(String(r[3]).replace(/[^\d]/g, '')), shakl: r[4], fish: r[13], kim: r[9], vaqt: String(r[10]).slice(11, 16) }));
+  // ↩ naqd to'lov pulidan KO-2 bilan mijozga qaytarilgani (06.11.2026)
+  const KX = await require('../lib/ko2_xarita').ko2Xarita();
+  royxat.forEach(x => { const k = KX.manba[String(x.id).trim()]; if (k) x.ko2 = k.map(z => ({ raqam: z.raqam, olindi: z.olindi, fish: z.fish, no: z.no, holati: z.holati })); });
   return { royxat: royxat.reverse(), jami: royxat.reduce((s, x) => s + x.summa, 0) };
 }
 

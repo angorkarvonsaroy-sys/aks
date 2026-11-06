@@ -88,8 +88,12 @@ async function mijozKarta([kodSes, mid]) {
       xarita: V.matn(x0[25]) || '', hujjat: r[26] || '', narx: num(r[6]) }); });
   // to'lovlar
   const T = [];
-  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || V.matn(x0[12]).trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
+  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || V.matn(x0[12]).trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ id: String(x[0]).trim(), sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
   T.reverse();
+  // ↩ KO-2 (06.11.2026): mijozga qaytarilganlar va to'lov pulidan boshqa mijozga berilganlar
+  const KX = await require('../lib/ko2_xarita').ko2Xarita();
+  T.forEach(t => { const k = KX.manba[t.id]; if (k) t.ko2 = k.map(z => ({ raqam: z.raqam, olindi: z.olindi, fish: z.fish, no: z.no, holati: z.holati })); });
+  const QK = [].concat(...Object.keys(NO).map(no => KX.shartnoma[no] || []));
   // xatlar, hujjatlar, undiruv, yurist
   const X = (await J.xatJurnal()).filter(h => NO[h.no]).map(h => ({ raqam: h.raqam, no: h.no, sana: h.sana, shablon: h.shablon, bosqich: h.bosqich, holati: h.holati, yetSana: h.yetSana, kim: h.kim })).reverse();
   const H = (await J.hujjatJurnal()).filter(h => NO[h.no]).map(h => ({ id: h.id, no: h.no, turi: h.turi, sana: h.sana, nom: h.nom, kim: h.kim, vaqt: h.vaqt, holati: h.holati, faylId: h.faylId })).reverse();
@@ -109,7 +113,7 @@ async function mijozKarta([kodSes, mid]) {
     { turi: 'DALOLATNOMA', nom: 'Qabul-topshirish dalolatnomasi', bor: bor[s.no + '|DALOLATNOMA'] || null }] }));
   // topshiriqlar
   const TP = (await J.topRows()).filter(t => (NO[t.no] || t.mid === mid) && !YO[t.no]).map(J.topKor).reverse();
-  return { ok: true, mijoz, shartnomalar: SH, dokonlar: DK, nazorat, pasportQolgan: pQ, topshiriqlar: TP.slice(0, 40), tolovlar: T.slice(0, 60), xatlar: X, hujjatlar: H, chora: U.slice(0, 60), yurist: Y, tashriflar: TS.slice(0, 40),
+  return { ok: true, mijoz, shartnomalar: SH, dokonlar: DK, nazorat, pasportQolgan: pQ, topshiriqlar: TP.slice(0, 40), tolovlar: T.slice(0, 60), qaytarishlar: QK, xatlar: X, hujjatlar: H, chora: U.slice(0, 60), yurist: Y, tashriflar: TS.slice(0, 40),
     jami: { shartnoma: SH.length, faol: faol.length, qiymat: faol.reduce((a, s) => a + (s.qiymat || 0), 0), qarz: faol.reduce((a, s) => a + (s.jami || 0), 0), asosiy: faol.reduce((a, s) => a + (s.asosiy || 0), 0), qoshimcha: faol.reduce((a, s) => a + (s.qoshimcha || 0), 0),
       muddati: faol.reduce((a, s) => a + (s.muddati || 0), 0), tolangan: SH.reduce((a, s) => a + (s.tolangan || 0), 0), tolovSoni: T.length, oxirgiTolov: T[0] || null },
     admin: u.admin, huquq: u.huquq };
