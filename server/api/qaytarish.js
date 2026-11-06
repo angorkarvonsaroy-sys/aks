@@ -99,7 +99,7 @@ async function qaytarishHolat([kodSes]) {
   return { qarorlar: H.qarorlar.map(q => ({ id: q.id, no: q.no, fish: q.fish, dokon: q.dokon, jami: q.jami, ushlab: q.ushlab, qaytar: q.qaytar, qaytarildi: q.qaytarildi, qoldiq: q.qoldiq,
     holati: q.holati, sabab: q.sabab, sana: dmy(q.sana), ko2: q.ko2.map(k => ({ id: k.id, raqam: k.raqam, sana: dmy(k.sana), summa: k.summa, holati: k.holati, izoh: k.izoh,
       manba: k.manba.map(m => { const t = H.T.find(z => z.tid === m.tid) || {}; return { tid: m.tid, summa: m.summa, no: t.no || '', fish: t.fish || '', sana: dmy(t.sana || '') }; }) })) })),
-    manbalar, bugun: hozir().iso, kassir: await kassirStandart(H) };
+    manbalar, bugun: hozir().iso, kassir: await kassirStandart(H), xodimlar: await kassirRoyxat() };
 }
 
 // Kassir — qo'lda yozilmasin (06.11.2026): oxirgi KO-2 dagi kassir; bo'lmasa 07_Xodimlar da lavozimi buxgalter/kassir, ishlayotgan xodim
@@ -107,6 +107,13 @@ async function kassirStandart(H) {
   const ox = H.ko2.filter(k => k.kassir).pop(); if (ox) return ox.kassir;
   const x = (await V.qatorlar('07_Xodimlar')).map(z => z.x).find(r => /buxgalter|бухгалтер|kassir|кассир/i.test(s(r[3])) && s(r[10]).trim() === 'Ishlayapti');
   return x ? s(x[1]).trim() : '';
+}
+// Pulni bergan xodim — tanlash ro'yxati: 07_Xodimlar, ishlayotganlar; buxgalter/kassir birinchi
+async function kassirRoyxat() {
+  const kas = r => /buxgalter|бухгалтер|kassir|кассир/i.test(s(r[3])) ? 0 : 1;
+  return (await V.qatorlar('07_Xodimlar')).map(z => z.x).filter(r => s(r[1]).trim() && s(r[10]).trim() === 'Ishlayapti')
+    .sort((a, b) => kas(a) - kas(b) || s(a[1]).localeCompare(s(b[1])))
+    .map(r => ({ fish: s(r[1]).trim(), lavozim: s(r[3]).trim() }));
 }
 
 // ------------------------------------------------------------------ qaror: shartnoma bo'yicha qancha qaytariladi
