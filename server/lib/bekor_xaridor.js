@@ -53,7 +53,7 @@ function dalolatnomaHtml(x, Q, raqam, dRaqam, sanaIso, m) {
     + '<tr class="j"><td colspan="3">Жами қайтарилган</td><td class="r">' + yhPul(Q.qaytarildi) + '</td></tr>';
   const pas = [m.pasport, m.iib ? m.iib + ' томонидан берилган' : '', m.psana ? yhDmy(m.psana) : ''].filter(Boolean).join(', ');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@page{size:A4;margin:13mm 14mm 20mm 20mm}*{box-sizing:border-box}body{margin:0;font-family:'Liberation Serif','Times New Roman',serif;font-size:11pt;line-height:1.25;color:#000}
+@page{size:A4;margin:13mm 14mm 20mm 20mm}*{box-sizing:border-box}body{margin:0;padding-right:1mm;font-family:'Liberation Serif','Times New Roman',serif;font-size:11pt;line-height:1.25;color:#000}
 h1{text-align:center;font-size:12.5pt;margin:0 0 1mm;line-height:1.2}.ost{text-align:center;font-size:10.5pt;margin:0 0 3mm}
 .r2{display:flex;justify-content:space-between;margin:0 0 3mm}p{margin:0 0 1.6mm;text-align:justify;text-indent:8mm}
 h2{font-size:11pt;margin:2mm 0 1mm}table{width:100%;border-collapse:collapse;margin:1mm 0 2mm;page-break-inside:auto}tr{page-break-inside:avoid}

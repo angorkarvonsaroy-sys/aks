@@ -56,10 +56,12 @@ async function hisobotHisobla(bosh, oxir) {
     if (/MUDDATI O'TDI/i.test(s(r[11]))) { buf.muddatiOtgan++; buf.muddatiOtganSumma += num(r[3]); }
   });
   // 06.11.2026: ↩ mijozga qaytarilgan pul (KO-2, 05q_Qaytarishlar «Faol») — kassa chiqimi; naqd qoldiq = naqd tushum − KO-2
-  const qay = { soni: 0, jami: 0, royxat: [] };
+  // «Skan kutilmoqda» ham chiqim (pul berilgan, isbot hali yuklanmagan) — alohida sanaladi va ogohlantiriladi
+  const qay = { soni: 0, jami: 0, royxat: [], kutSoni: 0, kutJami: 0 };
   (await V.qatorlar('05q_Qaytarishlar')).forEach(({ x: r }) => {
-    if (r[0] == null || r[0] === '' || s(r[13]) !== 'Faol' || !ichida(r[2])) return;
-    qay.soni++; qay.jami += num(r[6]); qay.royxat.push(s(r[1]) + ' · ' + s(r[4]) + ' · ' + s(r[5]) + ' · ' + s(r[10]));
+    const hl = s(r[13]); if (r[0] == null || r[0] === '' || (hl !== 'Faol' && hl !== 'Skan kutilmoqda') || !ichida(r[2])) return;
+    qay.soni++; qay.jami += num(r[6]); qay.royxat.push(s(r[1]) + ' · ' + s(r[4]) + ' · ' + s(r[5]) + ' · ' + s(r[10]) + (hl === 'Faol' ? '' : ' · ⏳ skan yo\'q'));
+    if (hl !== 'Faol') { qay.kutSoni++; qay.kutJami += num(r[6]); }
   });
   qay.naqdTushum = tol.shakl['Naqt'] || 0; qay.naqdQoldi = qay.naqdTushum - qay.jami;
   const dok = await dokonlar();

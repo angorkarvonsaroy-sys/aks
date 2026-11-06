@@ -48,6 +48,7 @@ async function tekshir(no, BJ) {
   if (tolangan > 0) {
     if (!q) return { mumkin: false, sabab: 'Shartnomaga ' + XP.pul(tolangan) + ' so\'m to\'langan — avval «💰 Moliya → ↩ Qaytarish (KO-2)» da qaytarish qarorini oching va pulni to\'liq qaytaring.', x, Q };
     if (q.holati !== 'Yakunlandi' || Q.qoldiq !== 0) return { mumkin: false, sabab: 'Qaytarish tugallanmagan: qaytarildi ' + XP.pul(Q.qaytarildi) + ' / ' + XP.pul(Q.qaytar) + ', qoldiq ' + XP.pul(Q.qoldiq) + ' so\'m. Qoldiq 0 bo\'lgach bekor qilish ochiladi.', x, Q };
+    const isbot = isbotYoq(q); if (isbot) return { mumkin: false, sabab: isbot, x, Q };
     if (Q.ushlab > 0) return { mumkin: false, sabab: 'Qarorda ' + XP.pul(Q.ushlab) + ' so\'m ushlab qolingan — «Xaridor tashabbusi bilan» yo\'li faqat to\'liq qaytarilganda (jarimasiz). Ushlab qolish bo\'lsa — bir tomonlama bekor qilish tartibi.', x, Q };
   }
   const skan = (await HY.yangiQatorlar('06d_Hujjatlar', 'O')).some(r => s(r.r[1]) === no && s(r.r[5]) === 'SHARTNOMA' && s(r.r[13]) === 'Faol');
@@ -56,6 +57,12 @@ async function tekshir(no, BJ) {
   const m = { pasport: s(mj[6]).replace(/\s/g, ''), iib: [s(mj[7]), s(mj[8])].filter(Boolean).join(', '), psana: QT.iso(mj[9]), manzil: x.manzil, tel: x.tel };
   x.tolangan = tolangan;
   return { mumkin: true, x, Q, m };
+}
+// ISBOT QOIDASI: qaror — mijoz arizasi skani, har KO-2 — mijoz imzolagan skan (05q «Faol»)
+function isbotYoq(q) {
+  if (!q.ariza) return 'Qaytarish qaroriga mijoz imzolagan ARIZA skani yuklanmagan — «Moliya → ↩ Qaytarish» da yuklang.';
+  const kut = q.ko2.filter(k => k.holati === QT.KUT);
+  return kut.length ? kut.length + ' ta KO-2 ning mijoz imzolagan skani yuklanmagan (' + kut.map(k => k.raqam).join(', ') + ') — «Moliya → ↩ Qaytarish» da yuklang.' : '';
 }
 async function bekorXaridorHolat([kodSes, no]) {
   await direktor(kodSes);
@@ -135,6 +142,7 @@ async function bekorXaridorYakun(args) {
     const q = H.qarorlar.filter(x => x.no === z.no && x.holati !== 'Bekor').pop();
     const tolangan = H.T.filter(t => t.no === z.no).reduce((a, t) => a + t.summa, 0);
     if (tolangan > 0 && !(q && q.holati === 'Yakunlandi' && q.qoldiq === 0)) throw new S.Xato('Qaytarish tugallanmagan (qoldiq ' + XP.pul(q ? q.qoldiq : tolangan) + ' so\'m) — avval pulni to\'liq qaytaring.');
+    if (tolangan > 0) { const isbot = isbotYoq(q); if (isbot) throw new S.Xato(isbot); }
     const h = hozir();
     const sh = (await V.qatorlar(S3)).find(y => s(y.r[0]).trim() === z.no);
     const qosh = [];

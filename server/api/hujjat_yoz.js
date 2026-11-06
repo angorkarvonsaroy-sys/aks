@@ -263,10 +263,11 @@ async function hujjatTuzat(args) {
     const bugun = V.bugun().split('-').reverse().join('.');
     if (!(u.admin || (h.kim === u.fish && String(h.vaqt).indexOf(bugun) === 0))) throw new S.Xato('Bu hujjatni tuzata olmaysiz: o\'zingiz yuklagan hujjatni faqat o\'sha kuni tuzatish mumkin. Keyin — faqat direktor.');
     const vaqt = hozirHm();
-    const [x, b] = await Promise.all([xatKataklar(h, sabab, u.fish, vaqt), bekKataklar(h, sabab, u.fish, vaqt)]);
-    try { await G.yoz(env.aksBazaId, tuzatKataklar(HUJ, h, sabab, u.fish, vaqt).concat(x.Y, b.Y), env.googleKey); }
+    const [x, b, q] = await Promise.all([xatKataklar(h, sabab, u.fish, vaqt), bekKataklar(h, sabab, u.fish, vaqt),
+      require('./qaytarish')._ichki.skanTuzatKataklar(h, sabab, u.fish, vaqt)]);   // ↩ KO-2 / ariza skani — bog'lanish uziladi
+    try { await G.yoz(env.aksBazaId, tuzatKataklar(HUJ, h, sabab, u.fish, vaqt).concat(x.Y, b.Y, q.Y), env.googleKey); }
     catch (e) { if (e instanceof G.RuxsatYoq) { yoq = true; return null; } throw e; }
-    return { h, xat: [x.matn, b.matn].filter(Boolean).join(' '), varaqlar: [HUJ].concat(x.Y.length ? [XAT, UND] : [], b.Y.length ? [BEK] : []) };
+    return { h, xat: [x.matn, b.matn, q.matn].filter(Boolean).join(' '), varaqlar: [HUJ].concat(x.Y.length ? [XAT, UND] : [], b.Y.length ? [BEK] : [], q.varaqlar) };
   });
   if (yoq) { const r = await koprik.chaqir('hujjatTuzat', u.kod, [id, sabab0]); await tetik.yangilaKut(20000); return r; }   // hech narsa yozilmagan
   driveBekor(u.kod, w.h.faylId, 'BEKOR_' + w.h.id + '_' + w.h.nom);

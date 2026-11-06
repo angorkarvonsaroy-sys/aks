@@ -69,8 +69,8 @@ async function hisob09b(bosh, oxir) {
     h.ijara += x.ij; h.sotuv += x.sv; h.qiymat += x.qiy; h.tushum += x.jami; h.yangi += x.yangi; if (x.jami) h.kunlar[k] = x.jami; });
   h.undirilgan = h.tushum - h.yangi;
   // 06.11.2026: ↩ mijozga qaytarilgan pul (KO-2) — guruh hisobotida alohida qator (faqat bo'lsa)
-  h.qaytarildi = 0; h.qaytSoni = 0;
-  try { (await V.qatorlar('05q_Qaytarishlar')).forEach(({ x: r }) => { const d = V.iso(r[2]); if (r[0] == null || r[0] === '' || String(r[13] || '') !== 'Faol' || !d || d < bosh || d > oxir) return; h.qaytarildi += Math.round(Number(r[6]) || 0); h.qaytSoni++; }); } catch (e) { }
+  h.qaytarildi = 0; h.qaytSoni = 0; h.qaytKut = 0;   // qaytKut — «Skan kutilmoqda» (pul berilgan, imzoli skan yuklanmagan)
+  try { (await V.qatorlar('05q_Qaytarishlar')).forEach(({ x: r }) => { const d = V.iso(r[2]), hl = String(r[13] || ''); if (r[0] == null || r[0] === '' || (hl !== 'Faol' && hl !== 'Skan kutilmoqda') || !d || d < bosh || d > oxir) return; h.qaytarildi += Math.round(Number(r[6]) || 0); h.qaytSoni++; if (hl !== 'Faol') h.qaytKut++; }); } catch (e) { }
   h.bosh_ = h.mijoz + h.ijara + h.sotuv + h.tushum + h.qaytarildi === 0;
   return h;
 }
@@ -86,7 +86,7 @@ function bloklar(h) {
     if (h.yangi) L.push('   🆕 Yangi shartnoma bo\'yicha — ' + pulTG(h.yangi));
     if (h.undirilgan) L.push('   📥 Undirilgan qarzdorlik — ' + pulTG(h.undirilgan));
     L.push(''); }
-  if (h.qaytarildi) { L.push('↩ <b>MIJOZGA QAYTARILDI (KO-2) — ' + pulTG(h.qaytarildi) + ' so\'m</b> (' + h.qaytSoni + ' ta)'); L.push(''); }
+  if (h.qaytarildi) { L.push('↩ <b>MIJOZGA QAYTARILDI (KO-2) — ' + pulTG(h.qaytarildi) + ' so\'m</b> (' + h.qaytSoni + ' ta)' + (h.qaytKut ? ' · ⚠ ' + h.qaytKut + ' tasining imzoli skani yuklanmagan' : '')); L.push(''); }
   return L;
 }
 async function kunlikMatn(bugun) {
