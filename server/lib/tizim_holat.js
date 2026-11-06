@@ -149,14 +149,46 @@ async function xatolar() {
   return { n: 'Xatolar (24 soat) — xodimga chiqqan ogohlantirishlar ham shu yerda', Q, info: true };
 }
 
+// ------------------------------------------------------------------ 🗄 Baza ko'chishi — 3-bosqichga tayyorlik (07.11.2026)
+// baza_yuklashlar: har kecha 03:00 (baza_solishtir) natijasi — server hisobi ↔ Google hisobi. Mezon (BAZA_KOCHIRISH_REJA 2a):
+// ketma-ket kamida 14 kecha 0 farq va 0 to'xtash → 3.2 (ikki tomonlama yozish) yoqishga tayyor.
+const KERAK_KECHA = 14;
+async function bazaKochish() {
+  const Q = [];
+  let ikki = false; try { ikki = await require('./ikki_yozuv').yoqilganmi(); } catch (e) { }
+  const R = (await q(`SELECT id, boshlandi, holat, ms, xato_matn, hisobot->'solishtir' sol, hisobot->'ikki' ikki
+                       FROM baza_yuklashlar WHERE boshlandi > now() - interval '30 days' ORDER BY id DESC`)).rows;
+  // har kunga oxirgi yurish (kechasi 03:00 dagisi yoki qo'lda yuritilgani)
+  const kun = {}; R.forEach(r => { const k = new Date(new Date(r.boshlandi).getTime() + 5 * 3600e3).toISOString().slice(0, 10); if (!kun[k]) kun[k] = r; });
+  const K = Object.keys(kun).sort().reverse().map(k => ({ k, r: kun[k] }));
+  const farqi = r => r.holat !== 'ok' ? null : r.ikki ? Number((r.ikki.jami || {}).ikki || 0) + Number((r.sol || {}).farq || 0) : Number((r.sol || {}).farq || 0);
+  let ketma = 0; for (const z of K) { if (z.r.holat === 'ok' && farqi(z.r) === 0) ketma++; else break; }
+  const bosh = K.length ? K[K.length - 1].k : null;
+  Q.push({ b: ikki ? IN : ketma >= KERAK_KECHA ? OK : IN, m: ikki ? '3-bosqich (ikki tomonlama yozish) YONIQ — har kecha katakma-katak tekshiriladi'
+      : ketma >= KERAK_KECHA ? '✔ 3-bosqichga TAYYOR: ketma-ket ' + ketma + ' kecha 0 farq (kerak — ' + KERAK_KECHA + ')'
+      : '3-bosqichga hali erta: ketma-ket ' + ketma + ' kecha 0 farq, kerak — ' + KERAK_KECHA + ' (yana ' + (KERAK_KECHA - ketma) + ' kecha)',
+    i: 'Har kecha 03:00 da server hisobi Google jadval bilan har katak bo\'yicha solishtiriladi' + (bosh ? '; jurnal ' + bosh.split('-').reverse().join('.') + ' dan' : '') });
+  if (!K.length) Q.push({ b: OG, m: 'Oxirgi 30 kunda solishtirish yurmagan', i: 'vaqt ishi «baza_solishtir» yoqilganmi — «Amallar va vaqt bo\'yicha ishlar» bo\'limida' });
+  for (const { k, r } of K.slice(0, 16)) {
+    const kunM = k.split('-').reverse().join('.');
+    if (r.holat === 'ishlayapti') { Q.push({ b: IN, m: kunM + ' — yurmoqda / tugamagan' }); continue; }
+    if (r.holat !== 'ok') { Q.push({ b: XT, m: kunM + ' — TO\'XTADI', i: s(r.xato_matn).slice(0, 200) }); continue; }
+    const f = farqi(r), sol = r.sol || {};
+    const ust = (sol.ustunlar || []).map(u => u.varaq + ' ' + u.harf + ' (' + u.farq + ')').slice(0, 5).join(', ');
+    Q.push({ b: f ? OG : OK, m: kunM + ' — ' + (f ? f + ' katakda FARQ' : '0 farq') + (sol.katak ? ' · ' + Number(sol.katak).toLocaleString('ru-RU').replace(/ /g, ' ') + ' katak' : '') + (r.ms ? ' · ' + (r.ms / 1000).toFixed(1) + ' s' : ''),
+      i: f ? (ust || 'ikki tomonlama tekshiruvda farq') : '' });
+  }
+  return { n: 'Baza ko\'chishi — 3-bosqichga tayyorlik', Q };
+}
+
 // hammasi — bo'limlar parallel, har biri vaqt chegarasi bilan
 async function yig(opt = {}) {
   const t0 = Date.now();
-  const B = [['Server', () => server(opt.versiya || 'dev')], ['Baza va zaxira', baza], ['Drive arxivi', arxiv], ['Eski tizimdan mustaqillik', () => eski(opt.kod)], ['Amallar va vaqt bo\'yicha ishlar', ishlar], ['Xatolar (24 soat)', xatolar]];
+  const B = [['Server', () => server(opt.versiya || 'dev')], ['Baza va zaxira', baza], ['Baza ko\'chishi', bazaKochish], ['Drive arxivi', arxiv], ['Eski tizimdan mustaqillik', () => eski(opt.kod)], ['Amallar va vaqt bo\'yicha ishlar', ishlar], ['Xatolar (24 soat)', xatolar]];
   const R = await Promise.all(B.map(([n, f]) => vaqtli(Promise.resolve().then(f), 40000, n).catch(e => ({ n, Q: [{ b: XT, m: 'Bo\'limni yig\'ib bo\'lmadi', i: s(e.message).slice(0, 200) }] }))));
   R.forEach(b => { b.b = b.info ? IN : eng(...b.Q.map(z => z.b)); });
   const umumiy = eng(...R.filter(b => !b.info).map(b => b.b));
   return { vaqt: new Date(), ms: Date.now() - t0, umumiy, B: R };
 }
 
-module.exports = { yig, _ichki: { server, baza, arxiv, eski, ishlar, xatolar, eng, oldin } };
+module.exports = { yig, _ichki: { server, baza, bazaKochish, arxiv, eski, ishlar, xatolar, eng, oldin } };
