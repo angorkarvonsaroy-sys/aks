@@ -18,6 +18,9 @@ const BEKOR_BAND = { YANGI_TAYYOR: '3.3.1 ва 4.1-бандлари', YANGI_QURI
 // ------------------------------------------------------------------ Yurhujjat.gs yordamchilari
 function yhSoz(iso) { iso = s(iso); if (!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso || '—'; return iso.slice(0, 4) + ' йил ' + Number(iso.slice(8, 10)) + ' ' + XAT_OY[Number(iso.slice(5, 7)) - 1]; }
 function yhSozDa(iso) { const t = yhSoz(iso); return /^\d{4} йил/.test(t) ? t + 'да' : t; }
+// Shartnoma sanasi (06.11.2026): qog'ozdagi sana bazadagidan farq qilsa (03 T izohi, 9.7-band) — qog'ozdagisi yoziladi va izoh qo'shiladi
+const shSanaDa = x => yhSozDa(x.qogozSana && x.qogozSana !== x.sana ? x.qogozSana : x.sana);
+const shSanaIzoh = x => x.qogozSana && x.qogozSana !== x.sana ? ' (Шартноманинг 9.7-бандига кўра унинг шартлари ' + yhSoz(x.sana) + 'дан амал қилади)' : '';
 const yhPul = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[  ,]/g, ' ');
 function yhDmy(v) { v = s(v); return /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10).split('-').reverse().join('.') : v; }
 function yhIso(v) { v = s(v).trim(); if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10); if (/^\d{2}\.\d{2}\.\d{4}/.test(v)) return v.slice(0, 10).split('.').reverse().join('-'); return ''; }
@@ -64,9 +67,9 @@ function buyruqMatn(x, X, P, raqam, sanaIso) {
     K.push(jam + ' ва ' + x.fishK + ' (кейинги ўринларда – Ижарачи) ўртасида ' + yhSozDa(x.sana) + ' ' + dm + 'дан фойдаланиш тўғрисида №' + x.no + '-сонли ижара шартномаси (кейинги ўринларда – Шартнома) тузилган.');
     K.push('Ижарачи томонидан Шартноманинг 6.2-бандида назарда тутилган мажбуриятлар бузилган. ' + X.jumla);
   } else {
-    K.push(jam + ' ва фуқаро ' + x.fishK + ' (кейинги ўринларда – Мижоз) ўртасида ' + yhSozDa(x.sana)
+    K.push(jam + ' ва фуқаро ' + x.fishK + ' (кейинги ўринларда – Мижоз) ўртасида ' + shSanaDa(x)
       + (/^ESKI/.test(x.shablon) ? ' Ангор туманидаги савдо мажмуаси қурилишида улушли иштирок этиш тўғрисида' : ' ' + dm + 'ни муддатли тўлов шартларида сотиш тўғрисида')
-      + ' №' + x.no + '-сонли шартнома (кейинги ўринларда – Шартнома) тузилган'
+      + ' №' + x.no + '-сонли шартнома (кейинги ўринларда – Шартнома) тузилган' + shSanaIzoh(x)
       + (/^ESKI/.test(x.shablon) ? ' бўлиб, унга асосан Мижозга ' + dm + ' ажратилган' : '')
       + '. Шартноманинг умумий қиймати ' + yhPul(x.qiymat) + ' сўмни ташкил этади.');
     K.push(yhSozDa(sanaIso) + 'ги ҳолатга Мижоз томонидан Шартнома бўйича '
@@ -94,9 +97,9 @@ function xabarnomaMatn(x, X, P, raqam, sanaIso) {
     PA.push('Сиз билан «ANGOR KARVON SAROY» МЧЖ (кейинги ўринларда – Жамият) ўртасида ' + yhSozDa(x.sana) + ' ' + dm + 'дан фойдаланиш тўғрисида №' + x.no + '-сонли ижара шартномаси (кейинги ўринларда – Шартнома) тузилган.');
     PA.push('Сиз томонингиздан Шартноманинг 6.2-бандида назарда тутилган мажбуриятлар бузилган. ' + X.jumla);
   } else {
-    PA.push('Сиз билан ' + bekorJamiyat(x) + ' ўртасида ' + yhSozDa(x.sana)
+    PA.push('Сиз билан ' + bekorJamiyat(x) + ' ўртасида ' + shSanaDa(x)
       + (/^ESKI/.test(x.shablon) ? ' Ангор туманидаги савдо мажмуаси қурилишида улушли иштирок этиш тўғрисида' : ' ' + dm + 'ни муддатли тўлов шартларида сотиш тўғрисида')
-      + ' №' + x.no + '-сонли шартнома (кейинги ўринларда – Шартнома) тузилган'
+      + ' №' + x.no + '-сонли шартнома (кейинги ўринларда – Шартнома) тузилган' + shSanaIzoh(x)
       + (/^ESKI/.test(x.shablon) ? ' бўлиб, унга асосан Сизга ' + dm + ' ажратилган' : '') + '.');
     PA.push(yhSozDa(sanaIso) + 'ги ҳолатга Шартнома бўйича '
       + (x.tolangan ? 'жами ' + yhPul(x.tolangan) + ' сўм тўлангани ҳолда қарздорлик' : 'бирорта тўлов амалга оширилмаган бўлиб, қарздорлик') + ' қуйидагича:');
@@ -198,4 +201,4 @@ async function buyruqYasa(x, X, P, raqam, sanaIso) {
   return Object.assign({ matn: M, k: kk }, r);
 }
 
-module.exports = { buyruqMatn, xabarnomaMatn, xabarnomaBloklar, buyruqHtml, buyruqYasa, xabarnomaYasa, bekorPul, bekorPulBand, bekorJamiyat, yhSoz, yhSozDa, yhPul, yhDmy, yhIso, BEKOR_BAND, xatKirill };
+module.exports = { shSanaDa, shSanaIzoh, buyruqMatn, xabarnomaMatn, xabarnomaBloklar, buyruqHtml, buyruqYasa, xabarnomaYasa, bekorPul, bekorPulBand, bekorJamiyat, yhSoz, yhSozDa, yhPul, yhDmy, yhIso, BEKOR_BAND, xatKirill };

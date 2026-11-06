@@ -116,6 +116,9 @@ async function bekorShartnoma(no) {
     x = { tur: 'sotuv', qator: q.qator, no, sana: isoV(r3[2]), turi: s(r3[3]), mid: s(r3[4]), dokon: s(r3[5]), maydon: Number(r3[6]) || 0, holati: s(r3[13]), notarial: isoV(r3[15]),
       undiruvchi: s(r3[17]).trim(), fish: s(r3[20]), qiymat: Number(r3[22]) || 0, tolangan: Number(r3[27]) || 0, asosiy: Number(r3[28]) || 0, qoshimcha: Number(r3[29]) || 0,
       jami: Number(r3[30]) || 0, muddati: Number(r3[31]) || 0, kechikkan: Number(r3[32]) || 0, masul: '' };
+    // 03 T izohida «Qog'ozda imzolangan sana: dd.mm.yyyy» bo'lsa (27/311–313, 9.7-band) — hujjatlarda qog'ozdagi sana yoziladi (06.11.2026)
+    const qs = /Qog'ozda imzolangan sana:\s*(\d{2})\.(\d{2})\.(\d{4})/.exec(s(r3[19]));
+    if (qs) x.qogozSana = qs[3] + '-' + qs[2] + '-' + qs[1];
   }
   // bekorMijozQosh_ (02_Mijozlar, 26 ustun)
   const m = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => xom(z.x, 26)).find(z => s(z[0]) === s(x.mid));
