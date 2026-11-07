@@ -176,7 +176,11 @@ alQoy();
 if(!ket){
   g('yk').style.display='none'; ekran('fk');
   if(XATO) xab(XATO);
-  var st=lsO('aks_tel'); if(st){ g('tel').value=st; g('tel2').value=st; }
+  // 07.11.2026: telefon yozilayotganda o'zi formatlanadi — «99 594 44 74» (998 bilan boshlansa — tashlanadi)
+  function telF(v){ var d=rq(v); if(d.length>9&&d.indexOf('998')===0) d=d.slice(3); d=d.slice(0,9);
+    return [d.slice(0,2),d.slice(2,5),d.slice(5,7),d.slice(7,9)].filter(function(x){return x;}).join(' '); }
+  ['tel','tel2'].forEach(function(id){ var el=g(id); el.addEventListener('input',function(){ var v=telF(el.value); if(v!==el.value) el.value=v; }); });
+  var st=lsO('aks_tel'); if(st){ g('tel').value=telF(st); g('tel2').value=telF(st); }
   g('kir').onclick=kirish; g('yub').onclick=yubor;
   g('par').addEventListener('keydown',function(e){ if(e.key==='Enter') kirish(); });
   g('tel').addEventListener('keydown',function(e){ if(e.key==='Enter') g('par').focus(); });
