@@ -139,7 +139,7 @@ function xatHtml(o) {
   const ij = 'Ижрочи: ' + s(o.q['{{Ундирувчи}}']) + ', тел.: ' + s(o.q['{{Ундирувчи_тел}}']);
   const asl = o.aslYoq ? '' : 'Асл нусхасини олдим: ___________ (имзо) ___________________ (Ф.И.Ш.) «___» ________ ' + o.yil + ' й.';
   const imzo = '<p class="dir">Директор<span class="n">______________________</span>&#8203;<span class="f">Ҳайдаров К.Ҳ.</span></p>'
-    + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
+    + '<p class="k9"><br></p><p class="k9"><br></p>' + (o.sinov || o.ijrochiYoq ? '' : '<p class="k9"><br></p><p class="k9">' + esc(ij) + '</p>')   // ijrochiYoq — ishonchnoma kabi hujjatlarda «Ижрочи» qatori yo'q   // bo'sh qator — <br> (PDF matnida ortiqcha belgi yo'q, eski xatdagidek)
     + '<p class="k9" style="margin-bottom:0">' + (asl ? esc(asl) : '<br>') + '</p>';
   // o.rozilik — mijoz «танишдим, розиман» bloki (imzodan keyin; qaytarish javobi, 06.11.2026)
   const roz = o.rozilik ? '<div style="margin-top:' + z(10) + 'pt;border-top:0.75pt solid #000;padding-top:' + z(4) + 'pt;font-size:' + z(11) + 'pt;line-height:' + (z(11) * 1.95).toFixed(2) + 'pt;break-inside:avoid">'
@@ -212,7 +212,7 @@ async function xatChiqar(x, b, raqam, sanaIso, muddatIso, Q, oldin, ij, shosh) {
 async function blankaYasa(bloklar, q, raqam, sanaIso, qoshimchaBor, opt = {}) {
   const yil = sanaIso.slice(0, 4);
   const sanaMatn = '«' + sanaIso.slice(8, 10) + '» ' + XAT_OY[Number(sanaIso.slice(5, 7)) - 1] + ' ' + yil + ' йил';
-  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq, rozilik: opt.rozilik }), '', Object.assign({ scale: 1 / KAT, skript: TEKISLA }, require('./mijoz_imzo').chromKol(opt.kol))); return { pdf, bet: betSoni(pdf) }; };   // 06.11.2026: har varaq tagida «Варақ N / M»
+  const yasa = async (k, sinov) => { const pdf = await PDF.yasa(xatHtml({ bloklar, q, qoshimchaBor, yil, raqam, sanaMatn, k, sinov, havola: opt.havola, aslYoq: opt.aslYoq, rozilik: opt.rozilik, ijrochiYoq: opt.ijrochiYoq }), '', Object.assign({ scale: 1 / KAT, skript: TEKISLA }, require('./mijoz_imzo').chromKol(opt.kol))); return { pdf, bet: betSoni(pdf) }; };   // 06.11.2026: har varaq tagida «Варақ N / M»
   let ikkiBet = false, kk = 1;
   let r = await yasa(1);
   if (r.bet > 1) {
