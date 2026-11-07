@@ -9,6 +9,16 @@ const { q, redis } = require('./db');
 const BQ = require('./bayroq');
 
 const s = v => String(v == null ? '' : v);
+// 07.11.2026 (direktor): xato matni ekranda qisqa, tushunarli — rclone/Google'ning xom JSON dumi («links: [ { description: … } ] ]») ko'rsatilmaydi
+function xatoQisqa(m) {
+  m = s(m).replace(/\s+/g, ' ').trim(); if (!m) return '';
+  const pre = (/^([a-z_]+(?: [a-z]+)?)(?: \(\d+\))?:/i.exec(m) || [])[1];   // «rclone copy (1):» → «rclone copy»
+  const p = pre ? pre + ': ' : '';
+  if (/userRateLimitExceeded|rateLimitExceeded/.test(m)) return p + 'Google Drive so\'rov chegarasi (rateLimitExceeded)';
+  if (/storageQuotaExceeded|quotaExceeded/.test(m)) return p + 'Google Drive joy chegarasi (quotaExceeded)';
+  if (/fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up/.test(m)) return p + 'tarmoq uzilishi (' + (/fetch failed|E[A-Z_]+|socket hang up/.exec(m) || [''])[0] + ')';
+  return m.replace(/[\[\]{}]+/g, ' ').replace(/\s+/g, ' ').replace(/\s*,\s*,/g, ',').trim().slice(0, 140);
+}
 const OK = '✅', OG = '⚠', XT = '✖', IN = 'ℹ';
 const soat = ms => ms / 3600000;
 const sana = d => d ? new Date(d).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—';
@@ -63,7 +73,7 @@ async function baza() {
     const z = JSON.parse(fs.readFileSync('/opt/aks/holat/zaxira_tashqi.json', 'utf8'));
     if (z.baza_vaqt) Q.push({ b: soat(Date.now() - new Date(z.baza_vaqt).getTime()) > 26 ? OG : OK, m: 'Server bazasi zaxirasi (har kecha 03:00): ' + sana(z.baza_vaqt) + ' (' + oldin(z.baza_vaqt) + ')', i: s(z.baza) + ' · ' + mb(z.hajm) });
     else Q.push({ b: OG, m: 'Server bazasi zaxirasi: fayl topilmadi' });
-    Q.push({ b: !z.ok ? XT : soat(Date.now() - new Date(z.vaqt).getTime()) > 26 ? OG : OK, m: 'Shifrlangan nusxa Drive\'ga (har kecha 03:30): ' + (z.ok ? sana(z.vaqt) + ' (' + oldin(z.vaqt) + ')' : 'XATO — ' + sana(z.vaqt)), i: s(z.matn) });
+    Q.push({ b: !z.ok ? XT : soat(Date.now() - new Date(z.vaqt).getTime()) > 26 ? OG : OK, m: 'Shifrlangan nusxa Drive\'ga (har kecha 03:30): ' + (z.ok ? sana(z.vaqt) + ' (' + oldin(z.vaqt) + ')' : 'XATO — ' + sana(z.vaqt)), i: s(z.matn).replace(/\s*\(birinchi yo'l xatosi: ([\s\S]*)\)\s*$/, (m0, x) => ' (birinchi urinish: ' + xatoQisqa(x) + ' — qayta urinishda o\'tdi)') });
   } catch (e) { Q.push({ b: IN, m: 'Server bazasi zaxirasi: holat fayli hali yo\'q', i: 'kechasi 03:30 dagi zaxiradan keyin paydo bo\'ladi' }); }
   return { n: 'Baza va zaxira', Q };
 }
@@ -85,10 +95,10 @@ async function arxiv() {
       const z = (await q(`SELECT vaqt, ok, left(xato, 160) xato FROM rpc_jurnal WHERE qayerda = 'arxiv' AND fn = $1 ORDER BY id DESC LIMIT 1`, [fn])).rows[0];
       const zo = (await q(`SELECT max(vaqt) t FROM rpc_jurnal WHERE qayerda = 'arxiv' AND fn = $1 AND ok`, [fn])).rows[0].t;
       if (!z) { Q.push({ b: on ? OG : IN, m: nom + ': hali bo\'lmagan' }); continue; }
-      Q.push({ b: !zo || soat(Date.now() - new Date(zo).getTime()) > 26 ? OG : z.ok ? OK : OG, m: nom + ': ' + (zo ? sana(zo) + ' (' + oldin(zo) + ')' : 'muvaffaqiyatlisi yo\'q'), i: z.ok ? '' : 'oxirgi urinish xato: ' + s(z.xato) });
+      Q.push({ b: !zo || soat(Date.now() - new Date(zo).getTime()) > 26 ? OG : z.ok ? OK : OG, m: nom + ': ' + (zo ? sana(zo) + ' (' + oldin(zo) + ')' : 'muvaffaqiyatlisi yo\'q'), i: z.ok ? '' : 'oxirgi urinish xato: ' + xatoQisqa(z.xato) });
     }
     const x = (await q(`SELECT count(*)::int n, (array_agg(fn || ': ' || left(xato, 120) ORDER BY id DESC))[1] x FROM rpc_jurnal WHERE qayerda = 'arxiv' AND NOT ok AND vaqt > now() - interval '24 hours'`)).rows[0];
-    Q.push({ b: x.n ? OG : OK, m: 'Arxiv xatolari (24 soat): ' + x.n, i: x.n ? 'oxirgisi — ' + s(x.x) : '' });
+    Q.push({ b: x.n ? OG : OK, m: 'Arxiv xatolari (24 soat): ' + x.n, i: x.n ? 'oxirgisi — ' + xatoQisqa(x.x) : '' });
   } catch (e) { Q.push({ b: IN, m: 'Arxiv jurnali: ' + e.message }); }
   return { n: 'Drive arxivi', Q };
 }
@@ -144,7 +154,7 @@ async function xatolar() {
     const R = (await q(`SELECT fn, qayerda, count(*)::int n, max(vaqt) t, (array_agg(left(xato, 140) ORDER BY id DESC))[1] x FROM rpc_jurnal
                         WHERE NOT ok AND vaqt > now() - interval '24 hours' GROUP BY 1, 2 ORDER BY count(*) DESC LIMIT 10`)).rows;
     if (!R.length) Q.push({ b: OK, m: 'Oxirgi 24 soatda xato yo\'q' });
-    R.forEach(r => Q.push({ b: IN, m: r.fn + ' ×' + r.n + ' (' + r.qayerda + ', ' + oldin(r.t) + ')', i: s(r.x) }));
+    R.forEach(r => Q.push({ b: IN, m: r.fn + ' ×' + r.n + ' (' + r.qayerda + ', ' + oldin(r.t) + ')', i: xatoQisqa(r.x) }));
   } catch (e) { Q.push({ b: IN, m: e.message }); }
   return { n: 'Xatolar (24 soat) — xodimga chiqqan ogohlantirishlar ham shu yerda', Q, info: true };
 }
@@ -191,4 +201,4 @@ async function yig(opt = {}) {
   return { vaqt: new Date(), ms: Date.now() - t0, umumiy, B: R };
 }
 
-module.exports = { yig, _ichki: { server, baza, bazaKochish, arxiv, eski, ishlar, xatolar, eng, oldin } };
+module.exports = { yig, _ichki: { xatoQisqa, server, baza, bazaKochish, arxiv, eski, ishlar, xatolar, eng, oldin } };
