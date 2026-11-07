@@ -120,7 +120,7 @@ function bloklarDocx(bloklar, xRaqam, sanaIso, ij, k, opt = {}) {
       left: o.left || 0, firstLine: o.ind ? 28.35 : 0, sz: z(o.sz || 11), b: o.b });
   });
   const havola = opt.havola ? P({ matn: opt.havola, jc: 'left', before: z(2), after: 0, line: 240, left: 0, firstLine: 0, sz: z(10), b: false }) : '';
-  return blankaQur(h, xRaqam, sanaIso, ij, false, { havola, aslYoq: opt.aslYoq });
+  return blankaQur(h, xRaqam, sanaIso, ij, false, { havola, aslYoq: opt.aslYoq, ijrochiYoq: opt.ijrochiYoq });
 }
 // blanka nusxasi: shapka, chiziq, № va sana, matn («Директор» dan oldin), imzo bloki — h — matn xatboshilari (Google eksporti shaklida)
 // opt — { havola (tayyor xatboshi XML, № qatoridan keyin), aslYoq }
@@ -157,7 +157,8 @@ function blankaQur(h, xRaqam, sanaIso, ij, jadvalUslubi, opt = {}) {
   const D = qoldi.findIndex(e => e === E[di]);
   for (let i = D + 1; i < qoldi.length; i++) {
     const t = matnOf(qoldi[i]);
-    if (/^\s*Ижрочи/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>)Ижрочи:[^<]*(<\/w:t>)/, (m, a, b) => a + esc('Ижрочи: ' + s(ij.ism) + ', тел.: ' + s(ij.tel)) + b);
+    if (/^\s*Ижрочи/.test(t) && opt.ijrochiYoq) qoldi[i] = qoldi[i].replace(/<w:r [\s\S]*<\/w:r>/, R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr></w:r>');   // ishonchnoma — Ижрочи yo'q, bo'sh qator (muhr joyi)
+    else if (/^\s*Ижрочи/.test(t)) qoldi[i] = qoldi[i].replace(/(<w:t[^>]*>)Ижрочи:[^<]*(<\/w:t>)/, (m, a, b) => a + esc('Ижрочи: ' + s(ij.ism) + ', тел.: ' + s(ij.tel)) + b);
     else if (/^\s*Асл нусхасини/.test(t)) qoldi[i] = opt.aslYoq
       ? qoldi[i].replace(/<w:r [\s\S]*<\/w:r>/, R0 + '<w:rPr><w:rtl w:val="0"/></w:rPr></w:r>')   // devonAslOchir_: matni o'chirilgan bo'sh xatboshi
       : qoldi[i].replace(/(<w:t[^>]*>[^<]*?)\d{4} й\.([^<]*<\/w:t>)/, (m, a, b) => a + yil + ' й.' + b);
