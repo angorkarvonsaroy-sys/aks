@@ -112,18 +112,20 @@ async function jadvalHisob([kodSes, d]) {
   return { narx: n.narx, manba: n.manba, qiymat, oylik: oy > 0 ? (jadval.find(j => j.t === 1) || {}).summa : 0, foiz: qiymat ? boshl / qiymat : 0, sovga: sovga(boshl, oy), jadval };
 }
 
-// 🚶 bugungiTashriflarHammasi (TashrifUmumiy.gs v16.5) — bugungi barcha tashriflar (kim yozgani bilan)
-async function bugungiTashriflarHammasi([kodSes]) {
+// 🚶 bugungiTashriflarHammasi (TashrifUmumiy.gs v16.5) — tashriflar ro'yxati (kim yozgani bilan)
+// 07.11.2026 (direktor, v27.94): istalgan kun yoki oraliq — [kod, dan, gacha] (yyyy-mm-dd). Berilmasa — bugun (avvalgidek).
+// Avval faqat oxirgi 300 qator o'qilardi — eski sanalar chiqmasdi; endi butun jurnal (ko'zgudan, tez).
+const isoOl = v => { const m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(String(v || '').trim()); return m ? m[3] + '-' + m[2] + '-' + m[1] : ''; };
+async function bugungiTashriflarHammasi([kodSes, dan, gacha]) {
   await S.ruxsat(kodSes, 'tashrif');
+  const bugun = V.bugun(), IZ = /^\d{4}-\d{2}-\d{2}$/;
+  let d1 = IZ.test(String(dan || '')) ? String(dan) : bugun, d2 = IZ.test(String(gacha || '')) ? String(gacha) : d1;
+  if (d2 < d1) { const t = d1; d1 = d2; d2 = t; }
+  if ((new Date(d2) - new Date(d1)) / 864e5 > 366) throw new S.Xato('Oraliq 1 yildan oshmasin');
   const R = aOxiri(await V.qatorlar('01b_Tashrif_jurnali'));
-  if (!R.length) return { royxat: [] };
-  const last = R[R.length - 1].n;
-  const bugun = V.bugun().split('-').reverse().join('.');
-  const from = Math.max(2, last - 300);
-  const v = oraliq(R, from, last - from + 1).map(z => kor(z.r, 17));
-  const royxat = v.filter(r => r[0] && r[1] === bugun)   // 📞 turi — 01b Q «Murojaat_turi» (bo'sh = Tashrif)
-    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], vaqt: String(r[9]).slice(11, 16), turi: r[16].trim() === 'Telefon' ? 'Telefon' : 'Tashrif' }));
-  return { royxat: royxat.reverse() };
+  const royxat = R.filter(z => z.n >= 2).map(z => kor(z.r, 17)).filter(r => { const i = r[0] && isoOl(r[1]); return i && i >= d1 && i <= d2; })   // 📞 turi — 01b Q «Murojaat_turi» (bo'sh = Tashrif)
+    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], sana: String(r[1]).slice(0, 10), vaqt: String(r[9]).slice(11, 16), turi: r[16].trim() === 'Telefon' ? 'Telefon' : 'Tashrif' }));
+  return { royxat: royxat.reverse(), dan: d1, gacha: d2, bugun };
 }
 
 module.exports = { shartnomaBoshlang, bugungiTolovlar, jadvalHisob, bugungiTashriflarHammasi };
