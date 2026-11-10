@@ -23,6 +23,7 @@
 //   ijro_tanla   — ijroTekshiruvTanla (09:30): lib/ijro_kun.js — tasodifiy tekshiruv (10 + 06p); oyning 1-kuni — ijroOylik.
 //   skan_naz     — skanNazTekshir_ (har 10 daqiqada; eski tgTugmaPoll ichida edi): lib/tg_ishlar.js — yangi shartnoma skanlari yurist/direktorga (ixtiyoriy nazorat).
 //   tq_kechki    — tqKechki_ (20:05; eski tgTugmaPoll ichida edi): lib/tg_ishlar.js — direktorga «⚖ Yurist bugun» xulosasi.
+//   mijoz_eslatma — (10:00, 10.11.2026 yangi): lib/mijoz_bot.js — mijozlar botiga ulangan mijozlarga to'lov eslatmalari (TG_MIJOZ_TOKEN bo'lmasa hech narsa qilmaydi).
 //   baza_solishtir — (03:00, 01.11.2026 yangi): lib/baza_kunlik.js — «baza» ni ko'zgudan quradi va har qatorni Google hisobi bilan solishtiradi;
 //                    farq yoki to'xtash bo'lsa — direktorga Telegram, bo'lmasa jim (baza ko'chirishi 2a-bosqichi).
 'use strict';
@@ -129,6 +130,8 @@ const ISHLAR = [
   { nom: 'zaxira_kunlik', fn: 'zaxiraKunlik', tavsif: '💾 AKS_BAZA kunlik zaxira nusxasi (zaxiraKunlik)', har: 'kun:02:00', eski: 'zaxiraKunlik — har kecha 02:00', ish: (kod, opt) => KX.zaxiraKunlik(kod, opt) },
   { nom: 'qaytarish_muddat', fn: 'qaytarishMuddatNazorat', tavsif: '⏰ Pul qaytarish muddati nazorati — 30 kun qolganda/o\'tganda direktorga (06.11.2026)', har: 'kun:09:10', eski: 'yo\'q — yangi ish (06.11)',
     ish: () => require('../api/qaytarish')._ichki.muddatNazorat() },
+  { nom: 'mijoz_eslatma', fn: 'mijozEslatma', tavsif: '🤝 Mijozlarga to\'lov eslatmasi — mijozlar boti (3 kun oldin, to\'lov kuni, dushanba — muddati o\'tgan; yakshanba yo\'q)', har: 'kun:10:00', eski: 'yo\'q — yangi ish (10.11)',
+    ish: (kod, opt) => require('./mijoz_bot').eslatma(kod, opt) },
   { nom: 'holat_skan', fn: 'holatSkan', tavsif: '✅ «Shartnoma olmagan» + imzolangan skan → «Aktiv» (06.11.2026 qarori)', har: 'kun:06:40', eski: 'yo\'q — yangi ish (06.11)',
     ish: (kod, opt) => require('./holat_skan').tuzat({ quruq: !!(opt && opt.quruq) }).then(r => ({ soni: (r.L || []).length, shartnomalar: (r.L || []).map(x => x.no), band: !!r.band })) },
   { nom: 'server_nusxa', fn: 'serverNusxa', tavsif: '🗄 Server fayllari «SERVER NUSXA» ga — uzilib qolsa davom ettirish (serverNusxa)', har: 'daq:60', eski: 'yo\'q — yangi ish (03.11)', ish: (kod, opt) => require('./arxiv').nusxaKerak(kod, opt) },

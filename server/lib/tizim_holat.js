@@ -147,6 +147,18 @@ async function ishlar() {
   return { n: 'Amallar va vaqt bo\'yicha ishlar', Q };
 }
 
+// ------------------------------------------------------------------ 5b. 🤝 mijozlar boti (10.11.2026) — ma'lumot bo'limi
+async function mijozBot() {
+  const h = await require('./mijoz_bot').holat(); const Q = [];
+  if (!h.bor) Q.push({ b: IN, m: 'Mijozlar boti hali ulanmagan', i: 'ulash: serverda aks-mijoz-bot (BotFather kaliti yashirin so\'raladi)' });
+  else {
+    const jim = !h.tirik || Date.now() - h.tirik > 5 * 60000;
+    Q.push({ b: jim ? OG : OK, m: 'Mijozlar boti ' + (jim ? 'xabarlarni o\'qimayapti' : 'ishlayapti'), i: h.xato ? 'oxirgi xato: ' + xatoQisqa(h.xato) : '' });
+    Q.push({ b: IN, m: 'Botga ulangan mijozlar: ' + h.mijozlar, i: h.toxtagan ? 'botni to\'xtatganlar: ' + h.toxtagan : '' });
+  }
+  return { n: 'Mijozlar boti', Q, info: !h.bor };
+}
+
 // ------------------------------------------------------------------ 6. xatolar (24 soat) — ma'lumot uchun (xodimga chiqqan ogohlantirishlar ham kiradi)
 async function xatolar() {
   const Q = [];
@@ -194,7 +206,7 @@ async function bazaKochish() {
 // hammasi — bo'limlar parallel, har biri vaqt chegarasi bilan
 async function yig(opt = {}) {
   const t0 = Date.now();
-  const B = [['Server', () => server(opt.versiya || 'dev')], ['Baza va zaxira', baza], ['Baza ko\'chishi', bazaKochish], ['Drive arxivi', arxiv], ['Eski tizimdan mustaqillik', () => eski(opt.kod)], ['Amallar va vaqt bo\'yicha ishlar', ishlar], ['Xatolar (24 soat)', xatolar]];
+  const B = [['Server', () => server(opt.versiya || 'dev')], ['Baza va zaxira', baza], ['Baza ko\'chishi', bazaKochish], ['Drive arxivi', arxiv], ['Eski tizimdan mustaqillik', () => eski(opt.kod)], ['Amallar va vaqt bo\'yicha ishlar', ishlar], ['Mijozlar boti', mijozBot], ['Xatolar (24 soat)', xatolar]];
   const R = await Promise.all(B.map(([n, f]) => vaqtli(Promise.resolve().then(f), 40000, n).catch(e => ({ n, Q: [{ b: XT, m: 'Bo\'limni yig\'ib bo\'lmadi', i: s(e.message).slice(0, 200) }] }))));
   R.forEach(b => { b.b = b.info ? IN : eng(...b.Q.map(z => z.b)); });
   const umumiy = eng(...R.filter(b => !b.info).map(b => b.b));

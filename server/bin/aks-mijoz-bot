@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 🤝 MIJOZLAR BOTI (direktor qarori 10.11.2026). Ishlatish:
+#   aks-mijoz-bot          — BotFather bergan kalitni so'raydi (yozilgani ekranda ko'rinmaydi, chatga yozilmaydi), /opt/aks/.env ga
+#                            TG_MIJOZ_TOKEN qilib yozadi va botni tekshiradi. Xodimlar boti (TG_TOKEN) ga TEGILMAYDI. Serverni qayta yoqish shart emas.
+#   aks-mijoz-bot holat    — bot ulanganmi, nechta mijoz ulangan, oxirgi xabarlar
+#   aks-mijoz-bot eslatma  — bugungi eslatmalar ro'yxati (QURUQ — hech kimga yuborilmaydi)
+set -euo pipefail
+ENV=/opt/aks/.env
+if [ "${1:-}" = "" ]; then
+  read -rsp "BotFather bergan kalitni qo'ying (Ctrl+V yoki sichqonchaning o'ng tugmasi) va Enter bosing — ekranda ko'rinmaydi: " P; echo
+  P=$(printf '%s' "$P" | tr -d ' \r\t\n')
+  if ! printf '%s' "$P" | grep -Eq '^[0-9]{6,12}:[A-Za-z0-9_-]{30,}$'; then echo "⛔ Bu bot kalitiga o'xshamaydi (ko'rinishi: raqamlar:harflar). Hech narsa saqlanmadi — qaytadan urinib ko'ring."; exit 1; fi
+  ESKI=$(sed -n 's/^[[:space:]]*TG_TOKEN[[:space:]]*=[[:space:]]*//p' "$ENV" | tail -1 | tr -d "\"'")
+  if [ "$P" = "$ESKI" ]; then echo "⛔ Bu — XODIMLAR botining kaliti. Mijozlar uchun BotFather'da ALOHIDA yangi bot oching. Hech narsa saqlanmadi."; exit 1; fi
+  T=$(mktemp); grep -vE '^[[:space:]]*TG_MIJOZ_TOKEN[[:space:]]*=' "$ENV" > "$T" || true
+  printf 'TG_MIJOZ_TOKEN=%s\n' "$P" >> "$T"
+  cat "$T" > "$ENV"; rm -f "$T"; unset P
+  echo "✅ Saqlandi. Bot tekshirilmoqda…"
+fi
+cd /opt/aks/app && exec sudo -u aks -H node bin/mijoz_bot.js "${1:-tekshir}"

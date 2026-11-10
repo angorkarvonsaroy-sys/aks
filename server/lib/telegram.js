@@ -19,23 +19,24 @@ function bolak(m) { if (m.length <= TG_MAX) return [m]; const B = []; let b = ''
 
 // Telegram API chaqiruvi (JSON yoki multipart). Qaytaradi result; xato — Error('Telegram xabar yuborilmadi: …') (eski tgYuborChat_ matni)
 async function api(metod, tana, fayl, opt) {
-  if (!bor()) throw new Error('TG_TOKEN yo\'q (serverda Telegram o\'chiq).');
-  opt = opt || {}; const t0 = Date.now(); let oxirgi;
+  opt = opt || {}; const tok = opt.token || env.tgToken;   // 10.11.2026: opt.token — mijozlar boti (lib/mijoz_bot.js, TG_MIJOZ_TOKEN); xodimlar boti o'zgarmagan
+  if (!tok) throw new Error('TG_TOKEN yo\'q (serverda Telegram o\'chiq).');
+  const t0 = Date.now(); let oxirgi; const jn = opt.nom ? opt.nom + ':' + metod : metod;
   for (let u = 0; u < 3; u++) {
     try {
       let r;
       if (fayl) { const fd = new FormData(); Object.keys(tana).forEach(k => { if (tana[k] != null) fd.append(k, typeof tana[k] === 'object' ? JSON.stringify(tana[k]) : String(tana[k])); });
         fd.append(fayl.maydon || 'document', new Blob([fayl.bayt], { type: fayl.mime || 'application/pdf' }), fayl.nom || 'fayl.pdf');
-        r = await fetch('https://api.telegram.org/bot' + env.tgToken + '/' + metod, { method: 'POST', body: fd, signal: AbortSignal.timeout(60000) }); }
-      else r = await fetch('https://api.telegram.org/bot' + env.tgToken + '/' + metod, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tana), signal: AbortSignal.timeout(opt.muddat || 30000) });
+        r = await fetch('https://api.telegram.org/bot' + tok + '/' + metod, { method: 'POST', body: fd, signal: AbortSignal.timeout(60000) }); }
+      else r = await fetch('https://api.telegram.org/bot' + tok + '/' + metod, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tana), signal: AbortSignal.timeout(opt.muddat || 30000) });
       const j = await r.json().catch(() => ({ ok: false, description: 'javob tushunarsiz (' + r.status + ')' }));
-      if (j.ok) { if (!opt.jurnalsiz) jurnal(metod, Date.now() - t0, true); return j.result; }
+      if (j.ok) { if (!opt.jurnalsiz) jurnal(jn, Date.now() - t0, true); return j.result; }
       oxirgi = new Error('Telegram xabar yuborilmadi: ' + (j.description || r.status));
       if (!(r.status === 429 || r.status >= 500) || opt.urinishsiz) break;
       await new Promise(z => setTimeout(z, j.parameters && j.parameters.retry_after ? j.parameters.retry_after * 1000 : 2000 * (u + 1)));
     } catch (e) { oxirgi = new Error('Telegram: ' + e.message); if (opt.urinishsiz) break; await new Promise(z => setTimeout(z, 1500 * (u + 1))); }
   }
-  jurnal(metod, Date.now() - t0, false, oxirgi.message); throw oxirgi;
+  jurnal(jn, Date.now() - t0, false, oxirgi.message); throw oxirgi;
 }
 // tgYuborChat_(chat, matn, klav): HTML, uzun — bo'laklab (klaviatura — oxirgi bo'lakka). Qaytaradi oxirgi xabar message_id
 async function chat(id, matn, klav) {

@@ -233,7 +233,7 @@ async function qarzOl(no) {
   try {
     const z = (await V.qatorlar(T03)).find(q => s(q.x[0]) === no); if (!z) return null;
     const r = await G.qatorOqi(env.aksBazaId, T03, z.n, 'AF', env.googleKey);
-    return s(r[0]) === no ? { qarz: num(r[30]), muddati: num(r[31]) } : null;
+    return s(r[0]) === no ? { qarz: num(r[30]), muddati: num(r[31]), asosiy: num(r[28]), qoshimcha: num(r[29]) } : null;
   } catch (e) { console.error('qarz (03):', e.message); return null; }
 }
 
@@ -287,6 +287,8 @@ async function tolovSaqlash(args) {
   const [, q] = await Promise.all([kut(tetik.varaqlarYangila([T05, T03]).catch(e => console.error('ko\'zgu (to\'lov):', e.message)), 15000), qarzOl(no)]);
   let yangi = q;
   if (!yangi) { const x = (await shartnomalar([kodSes])).find(z => z.no === no); yangi = x ? { qarz: x.qarz, muddati: x.muddati } : null; }
+  // 10.11.2026 (direktor): mijozning o'ziga Telegram — to'lov qabul qilindi + qolgan qarzi (lib/mijoz_bot.js). Kutilmaydi: xabar ketmasa ham to'lov saqlangan.
+  if (!/bekor/i.test(sn.holati)) require('../lib/mijoz_bot').tolovXabar({ no, summa, sana: sanaStr, shakl, yangi: q }).catch(e => console.error('mijoz bot (to\'lov):', e.message));
   return { ok: true, no, fish: sn.fish, summa, shakl, sana: sanaStr, qarz: yangi ? yangi.qarz : null, muddati: yangi ? yangi.muddati : null };
 }
 
