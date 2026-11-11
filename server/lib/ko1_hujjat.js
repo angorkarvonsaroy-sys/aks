@@ -1,5 +1,5 @@
 // AKS TIZIM — 🧾 KIRIM KASSA ORDERI (KO-1) varag'i (11.11.2026, direktor): loyihadagi ko1_generator.py bilan AYNAN bir xil ko'rinish —
-// shapka, jadval, kesish chizig'i, kvitansiya, 40 mm muhr (faqat KO-1 da muhr bor), «Мижозга эслатма» bloki. A4, 1 bet.
+// shapka, jadval, kesish chizig'i, kvitansiya, 40 mm muhr (faqat KO-1 da va faqat direktor chiqarganda), «Мижозга эслатма» bloki. A4, 1 bet.
 // «Мижозга эслатма» qoidasi: shartnoma qiymati va jami to'langan KO'RSATILMAYDI — faqat qarz (асосий / шундан муддати ўтган /
 // қўшимча майдон (bo'lsa) / жами), oylik to'lov, to'lov kuni, jadval tugashi; tugashiga 31 kundan kam qolsa — ogohlantirish.
 // Qarz to'liq yopilsa — yashil «якунланди» bloki (bu holda qiymat va jami to'langan ko'rsatiladi). Bazaga hech narsa yozmaydi.
@@ -162,6 +162,7 @@ ${qm}      <div><div class="yorl">Жами қарздорлик</div><div class=
 ${satr}${mot}    <div class="imzo-qator">Мурожаат учун: «ANGOR KARVON SAROY» МЧЖ &nbsp;·&nbsp; директор — Ҳайдаров Камолиддин</div>
   </div>`;
 }
+// o.muhr (11.11.2026, direktor): muhr FAQAT direktor chiqargan varaqda bosiladi; boshqa xodim chiqarsa — muhr joyi bo'sh (qo'lda bosiladi, «М.Ў.» yozilmaydi)
 // o: { raqam, sana (iso), fish (bazadagi), mid, tel, no, shSana (iso), blok, qavat, dokon, maydon, summa, asos (tayyor matn yoki null),
 //      asosiy, motgan, qoshimcha, jami, tolangan, umumiy, oylik, tolovKuni, tugash (iso) }
 function html(o) {
@@ -264,7 +265,7 @@ function html(o) {
       &nbsp; Кассир: <span class="toldir">${nb2}</span>
     </div>
 
-${MUHR}
+${o.muhr ? MUHR : ''}
   </div>
 
 ${ogoh}

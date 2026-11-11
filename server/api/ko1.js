@@ -5,6 +5,7 @@
 //   Eski bazadan ko'chirilgan («Migratsiya») to'lovlarga raqam BERILMAYDI — qog'ozdagi eski raqam bilan chalkashmasin; varaqda raqam joyi bo'sh qoladi.
 // Qarz — ORDER SANASIDAGI holat: jami to'langan (03 AB) dan shu sanadan KEYINGI to'lovlar ayiriladi; asosiy = MAX(0, W − to'langan),
 //   qo'shimcha = MAX(0, Y − MAX(0, to'langan − W)), muddati o'tgan = MIN(asosiy, MAX(0, jadval(≤sana) − to'langan)) — 03 AC/AD/AF formulalari bilan bir xil.
+// Muhr — FAQAT direktor (admin) chiqarganda varaqqa bosiladi; boshqa xodim chiqargan KO-1 da muhr joyi bo'sh (direktor qarori 11.11.2026).
 // «Асос» — to'lovda saqlangan maqsad (tolovMaqsad yozgan matn); bo'lmasa umumiy matn. Faqat naqd; bekor qilingan shartnomaga chiqarilmaydi.
 'use strict';
 const S = require('./sessiya');
@@ -105,12 +106,12 @@ async function ko1Chiqar([kodSes, id0]) {
   const a = KH.asosMatn(t.maqsad, t.kim);
   if (a.qolda) ogoh.push('To\'lovdagi maqsad qo\'lda yozilgan — «Асос» qatoriga umumiy matn qo\'yildi.');
   if (q.keyingi > 0) ogoh.push('Shu sanadan keyin yana to\'lov bor — eslatmadagi qarz ' + t.sana.split('-').reverse().join('.') + ' holatiga hisoblandi.');
-  const o = { raqam, sana: t.sana, fish: s(M.mj[2]) || s(M.sh[20]), mid: butun(M.sh[4]), tel: M.mj[4], no: t.no, shSana: V.iso(M.sh[2]) || '',
+  const o = { muhr: !!u.admin, raqam, sana: t.sana, fish: s(M.mj[2]) || s(M.sh[20]), mid: butun(M.sh[4]), tel: M.mj[4], no: t.no, shSana: V.iso(M.sh[2]) || '',
     blok: M.dokon.blok, qavat: M.dokon.qavat, dokon: M.dokon.nr, maydon: M.dokon.maydon, summa: t.summa, asos: a.matn,
     asosiy: q.asosiy, motgan: q.motgan, qoshimcha: q.qoshimcha, jami: q.jami, tolangan: q.tolangan, umumiy: q.umumiy, oylik: q.oylik, tolovKuni: q.tolovKuni, tugash: q.tugash };
   const pdf = await KH.pdf(o);
   const nom = 'KO-1_' + (raqam ? raqam.replace(/[^\wА-Яа-я-]+/g, '-') + '_' : '') + t.no.replace(/\//g, '-') + '_' + t.sana.split('-').reverse().join('-') + '.pdf';
-  return { ok: true, id, raqam: raqam || '', nom, b64: pdf.toString('base64'), ogoh };
+  return { ok: true, id, raqam: raqam || '', muhr: o.muhr, nom, b64: pdf.toString('base64'), ogoh };
 }
 
 module.exports = { ko1Chiqar };
