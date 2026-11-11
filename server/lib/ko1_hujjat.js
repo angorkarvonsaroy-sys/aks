@@ -78,6 +78,8 @@ const CSS = `  :root{
 
   .muhr{position:absolute;right:5mm;bottom:3mm;width:40mm;height:40mm;
         transform:rotate(-12deg);opacity:.88}
+  .mu{position:absolute;right:5mm;bottom:3mm;width:40mm;height:40mm;display:flex;align-items:center;justify-content:center;
+      font-size:12pt;color:#6B7580;letter-spacing:1.5px}
   .muhr text{font-family:"DejaVu Sans","Liberation Sans",Arial,sans-serif;fill:var(--pechat);font-weight:700}
   .ogoh{margin-top:4.5mm;border:1px solid var(--oltin);border-left:3px solid var(--oltin);
         background:#FFFCF4;padding:3mm 4mm}
@@ -162,7 +164,7 @@ ${qm}      <div><div class="yorl">Жами қарздорлик</div><div class=
 ${satr}${mot}    <div class="imzo-qator">Мурожаат учун: «ANGOR KARVON SAROY» МЧЖ &nbsp;·&nbsp; директор — Ҳайдаров Камолиддин</div>
   </div>`;
 }
-// o.muhr (11.11.2026, direktor): muhr FAQAT direktor chiqargan varaqda bosiladi; boshqa xodim chiqarsa — muhr joyi bo'sh (qo'lda bosiladi, «М.Ў.» yozilmaydi)
+// o.muhr (11.11.2026, direktor): muhr FAQAT direktor chiqargan varaqda bosiladi; boshqa xodim chiqarsa — muhr o'rnida «М.Ў.» belgisi turadi (muhr qo'lda bosiladi)
 // o: { raqam, sana (iso), fish (bazadagi), mid, tel, no, shSana (iso), blok, qavat, dokon, maydon, summa, asos (tayyor matn yoki null),
 //      asosiy, motgan, qoshimcha, jami, tolangan, umumiy, oylik, tolovKuni, tugash (iso) }
 function html(o) {
@@ -265,7 +267,7 @@ function html(o) {
       &nbsp; Кассир: <span class="toldir">${nb2}</span>
     </div>
 
-${o.muhr ? MUHR : ''}
+${o.muhr ? MUHR : '    <div class="mu">М.Ў.</div>'}
   </div>
 
 ${ogoh}

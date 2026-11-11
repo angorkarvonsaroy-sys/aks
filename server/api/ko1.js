@@ -5,7 +5,7 @@
 //   Eski bazadan ko'chirilgan («Migratsiya») to'lovlarga raqam BERILMAYDI — qog'ozdagi eski raqam bilan chalkashmasin; varaqda raqam joyi bo'sh qoladi.
 // Qarz — ORDER SANASIDAGI holat: jami to'langan (03 AB) dan shu sanadan KEYINGI to'lovlar ayiriladi; asosiy = MAX(0, W − to'langan),
 //   qo'shimcha = MAX(0, Y − MAX(0, to'langan − W)), muddati o'tgan = MIN(asosiy, MAX(0, jadval(≤sana) − to'langan)) — 03 AC/AD/AF formulalari bilan bir xil.
-// Muhr — FAQAT direktor (admin) chiqarganda varaqqa bosiladi; boshqa xodim chiqargan KO-1 da muhr joyi bo'sh (direktor qarori 11.11.2026).
+// Muhr — FAQAT direktor (admin) chiqarganda varaqqa bosiladi; boshqa xodim chiqargan KO-1 da muhr o'rnida «М.Ў.» belgisi (direktor qarori 11.11.2026).
 // «Асос» — to'lovda saqlangan maqsad (tolovMaqsad yozgan matn); bo'lmasa umumiy matn. Faqat naqd; bekor qilingan shartnomaga chiqarilmaydi.
 'use strict';
 const S = require('./sessiya');
