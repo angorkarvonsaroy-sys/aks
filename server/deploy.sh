@@ -20,6 +20,12 @@ chown -R aks:aks "$APP"
 cd "$APP"
 sudo -u aks -H npm install --omit=dev --no-audit --no-fund --loglevel=error
 
+# 2a0. KO-1 (kirim kassa orderi) varag'i shrifti — DejaVu (11.11.2026). Bo'lmasa fonda o'rnatiladi; o'rnatilguncha varaq Liberation shrifti bilan chiqadi.
+if [ ! -d /usr/share/fonts/truetype/dejavu ] || ! ls /usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf >/dev/null 2>&1; then
+  systemctl is-active -q aks-shrift-ornat 2>/dev/null || systemd-run --unit=aks-shrift-ornat --collect --quiet \
+    bash -c 'export DEBIAN_FRONTEND=noninteractive; ( apt-get update -q; apt-get install -y -q fonts-dejavu-core fonts-dejavu-extra; fc-cache -f ) >>/var/log/aks-pdf-ornat.log 2>&1' \
+    || echo "!!! DejaVu shriftini o'rnatish boshlanmadi"
+fi
 # 2a. PDF yasash (reyestr PDF): eski tizim kabi Chromium (playwright-core → chromium-headless-shell, /opt/aks/pw) + Liberation shriftlari
 #     + pdftotext (sinov uchun). Alohida jarayonda o'rnatiladi — bir necha daqiqa olsa ham kod yangilanishi kutmaydi; bor bo'lsa hech narsa qilinmaydi.
 if ! ls -d /opt/aks/pw/chromium_headless_shell-* >/dev/null 2>&1 || ! command -v pdftotext >/dev/null || [ ! -d /usr/share/fonts/truetype/liberation ]; then

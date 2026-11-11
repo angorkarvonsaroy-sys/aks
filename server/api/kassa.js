@@ -289,7 +289,7 @@ async function tolovSaqlash(args) {
   if (!yangi) { const x = (await shartnomalar([kodSes])).find(z => z.no === no); yangi = x ? { qarz: x.qarz, muddati: x.muddati } : null; }
   // 10.11.2026 (direktor): mijozning o'ziga Telegram — to'lov qabul qilindi + qolgan qarzi (lib/mijoz_bot.js). Kutilmaydi: xabar ketmasa ham to'lov saqlangan.
   if (!/bekor/i.test(sn.holati)) require('../lib/mijoz_bot').tolovXabar({ no, summa, sana: sanaStr, shakl, yangi: q }).catch(e => console.error('mijoz bot (to\'lov):', e.message));
-  return { ok: true, no, fish: sn.fish, summa, shakl, sana: sanaStr, qarz: yangi ? yangi.qarz : null, muddati: yangi ? yangi.muddati : null };
+  return { ok: true, id: w.id, no, fish: sn.fish, summa, shakl, sana: sanaStr, qarz: yangi ? yangi.qarz : null, muddati: yangi ? yangi.muddati : null };
 }
 
 // ---------------------------------------------------------------- 🧾 tolovMaqsad (11.11.2026, direktor): «To'lov maqsadi» matni — shartnoma tanlanganda o'zi to'ladi
