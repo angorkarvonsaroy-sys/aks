@@ -91,8 +91,10 @@ async function ko1Chiqar([kodSes, id0]) {
   if (q.eski) { await kut(tetik.varaqlarYangila([T05, T03]).catch(() => {}), 15000); const M2 = await malumot(id); if (M2 && M2.sh) { M = M2; q = qarzHisob(M, V.bugun()); } }
 
   // raqam
+  // 05 F da raqam emas, izoh turgan bo'lsa («Кирим ордери асосида» — raqamsiz matn) — u order raqami sifatida yozilmaydi va ustidan ham yozilmaydi
   let raqam = t.hujjat;
-  if (!raqam) {
+  if (raqam && !/\d/.test(raqam)) { ogoh.push('To\'lovning «hujjat raqami» katagida raqam emas, matn turibdi («' + raqam + '») — order raqami berilmadi. Katakni bo\'shatsangiz, dastur raqamni o\'zi beradi.'); raqam = ''; }
+  else if (!raqam) {
     if (/^migratsiya/i.test(t.kim)) ogoh.push('Eski bazadan ko\'chirilgan to\'lov — order raqami berilmadi (qog\'ozdagi raqamni qo\'lda yozing).');
     else if (!(await BQ.yozuv('tolov'))) ogoh.push('Serverda yozish o\'chirilgan — order raqami berilmadi.');
     else {
