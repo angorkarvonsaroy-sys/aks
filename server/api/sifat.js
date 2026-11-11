@@ -19,7 +19,7 @@ const SIFAT_OQISH = ['xodimBosh', 'topMening', 'topXodimlar', 'pinTirik', 'qadam
   'devonBoshlang', 'devonFayl', 'devonChiqimOl', 'devonIjroHolat',
   'hujjatBoshlang', 'hujjatlarRoyxati', 'hujjatNazorat',
   'mijozQidir', 'mijozKarta', 'mijozKartaPdf',
-  'shartnomaBoshlang', 'shartnomalar', 'bugungiTolovlar', 'jadvalHisob', 'bugungiTashriflarHammasi', 'tashrifTekshir',
+  'shartnomaBoshlang', 'shartnomalar', 'bugungiTolovlar', 'jadvalHisob', 'bugungiTashriflarHammasi', 'tashrifTekshir', 'tolovMaqsad',
   'xatBoshlang', 'xatPdf', 'xatNazorat', 'yuristBoshlang', 'yuristIsh', 'yuristHolat', 'yuristXat', 'yhAloqaFayl',
   'undBoshlang', 'undMijoz', 'qadamBoshlang', 'qadamMijoz', 'qadamNazorat', 'qadamTarix', 'qadamFayl', 'qadamYuristYol', 'ijroKorish', 'taminotBoshlang', 'taminotSvodOl',
   'reyestrIjara', 'reyestrSotuv', 'reyestrPdf', 'reyestrExcel', 'reyestrSotuvPdf', 'reyestrSotuvExcel', 'hisobotMalumot', 'hisobotPdf',

@@ -292,5 +292,60 @@ async function tolovSaqlash(args) {
   return { ok: true, no, fish: sn.fish, summa, shakl, sana: sanaStr, qarz: yangi ? yangi.qarz : null, muddati: yangi ? yangi.muddati : null };
 }
 
-module.exports = { tashrifTekshir, bugungiTashriflar, tashrifSaqlash, tolovSaqlash };
-module.exports._ichki = { jurnalHolat, jurnalQator, jurnalFormat, matnBelgi, hozirDmyHms, F05, F01b, T05, T01b, telNorm, telFmt, telTekshir, ismTekshir, Q01b, turiOf, ustunQTayyor };
+// ---------------------------------------------------------------- 🧾 tolovMaqsad (11.11.2026, direktor): «To'lov maqsadi» matni — shartnoma tanlanganda o'zi to'ladi
+// «<F.I.Sh>нинг «Ангор Карвон Сарой» савдо мажмуасидан <блок> блок, <қават>-қават, <№>-рақамли дўконни сотиб олиш учун <давр> (<№>-сонли шартнома)»
+// Davr — 03b jadvalidan: jami to'langan (03 AB) dan boshlab shu summa qaysi qatorlarni yopsa — o'sha oylar (eng eski to'lanmagan oydan).
+// Boshlang'ich qatori (Tartib 0) → «бошланғич тўлов»; jadval tugagan → «қолган қарзни тўлаш»; asosiy qarz yopilib qo'shimcha maydon
+// qarziga o'tsa → «дўконнинг қўшимча майдони (X м²) учун тўлов». Summa hali yozilmagan bo'lsa — birinchi to'lanmagan oy.
+const OYLAR = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+function oyDavr(sanalar) {
+  const o = iso => ({ y: iso.slice(0, 4), n: OYLAR[Number(iso.slice(5, 7)) - 1] || '' });
+  const a = o(sanalar[0]), b = o(sanalar[sanalar.length - 1]);
+  if (sanalar.length === 1 || (a.y === b.y && a.n === b.n)) return a.y + ' йил ' + a.n + ' ойи тўлови';
+  if (a.y === b.y) return a.y + ' йил ' + a.n + '–' + b.n + ' ойлари тўлови';
+  return a.y + ' йил ' + a.n + ' – ' + b.y + ' йил ' + b.n + ' ойлари тўлови';
+}
+function maqsadDavr(sh, jad, summa) {   // sh: {tolangan, asosiy, qoshimcha, qoshM, boshl}; jad: [{t, sana, summa, kum}] (tartiblangan)
+  const Q = [];
+  let qolgan = summa > 0 ? summa : 1;
+  const asosiyQism = Math.min(qolgan, sh.asosiy);
+  if (asosiyQism > 0) {
+    const bosh = sh.tolangan, oxir = sh.tolangan + asosiyQism;
+    const qatorlar = jad.filter(j => j.kum > bosh + 1000 && j.kum - j.summa < oxir);
+    const oylar = qatorlar.filter(j => j.t > 0).map(j => j.sana);
+    if (qatorlar.some(j => j.t === 0)) Q.push('бошланғич тўлов');
+    if (oylar.length) Q.push(oyDavr(oylar));
+    if (!qatorlar.length) Q.push(jad.length ? 'қолган қарзни тўлаш' : (sh.boshl > sh.tolangan ? 'бошланғич тўлов' : 'шартнома бўйича тўлов'));
+    qolgan -= asosiyQism;
+  }
+  if (qolgan > 0 && sh.qoshimcha > 0) Q.push('қўшимча майдони' + (sh.qoshM > 0 ? ' (' + String(sh.qoshM).replace('.', ',') + ' м²)' : '') + ' учун тўлов');
+  if (!Q.length) Q.push(sh.jami > 0 ? 'қолган қарзни тўлаш' : 'шартнома бўйича тўлов');
+  return Q;
+}
+async function tolovMaqsad([kodSes, d]) {
+  await S.ruxsat(kodSes, 'tolov');
+  const no = String(d && d.no || '').trim();
+  const summa = Math.round(Number(String(d && d.summa || '').replace(/[^\d]/g, ''))) || 0;
+  const [S3, D1, J3] = await Promise.all([V.qatorlar(T03), V.qatorlar('01_Dokonlar'), V.qatorlar('03b_Tolov_jadvali')]);
+  const r = S3.find(({ x }) => String(x[0] == null ? '' : x[0]).trim() === no);
+  if (!r) throw new S.Xato('Shartnoma topilmadi: ' + no);
+  const x = r.x, st = v => String(v == null ? '' : v).trim();
+  const dokonId = st(x[5]), dk = D1.find(({ x: y }) => st(y[0]) === dokonId), b = dokonId.split('-');
+  const raqam = v => { const n = Number(v); return isNaN(n) || v === '' ? st(v) : String(n); };
+  const blok = dk ? st(dk.x[2]) : (b[0] || ''), qavat = dk ? raqam(dk.x[3]) : (b[1] || ''), nr = dk ? raqam(dk.x[4]) : (b.slice(2).join('-') || '');
+  const sh = { tolangan: V.son(x[27]), asosiy: V.son(x[28]), qoshimcha: V.son(x[29]), jami: V.son(x[30]), qoshM: Number(x[23]) || 0, boshl: V.son(x[9]) };
+  const jad = J3.filter(({ x: y }) => st(y[1]) === no).map(({ x: y }) => ({ t: Number(y[2]) || 0, sana: V.iso(y[3]) || '', summa: V.son(y[4]), kum: V.son(y[5]) }))
+    .filter(j => j.sana).sort((a, c) => a.t - c.t || (a.sana < c.sana ? -1 : a.sana > c.sana ? 1 : 0));
+  const Q = maqsadDavr(sh, jad, summa);
+  const fish = require('../lib/ism').xatKirill(st(x[20]));
+  const dokon = (blok ? blok + ' блок, ' : '') + (qavat ? qavat + '-қават, ' : '') + (nr ? nr + '-рақамли ' : '') + 'дўкон';
+  const qosh = Q.filter(q => /қўшимча майдони/.test(q)), asos = Q.filter(q => !/қўшимча майдони/.test(q));
+  const parts = [];
+  if (asos.length) parts.push(dokon + 'ни сотиб олиш учун ' + asos.join(' ва '));
+  if (qosh.length) parts.push((asos.length ? 'ва шу дўкон' : dokon) + 'нинг ' + qosh.join(' ва '));
+  const matn = fish + 'нинг «Ангор Карвон Сарой» савдо мажмуасидан ' + parts.join(' ') + ' (' + no + '-сонли шартнома)';
+  return { matn, davr: Q };
+}
+
+module.exports = { tashrifTekshir, bugungiTashriflar, tashrifSaqlash, tolovSaqlash, tolovMaqsad };
+module.exports._ichki = { maqsadDavr, oyDavr, jurnalHolat, jurnalQator, jurnalFormat, matnBelgi, hozirDmyHms, F05, F01b, T05, T01b, telNorm, telFmt, telTekshir, ismTekshir, Q01b, turiOf, ustunQTayyor };
