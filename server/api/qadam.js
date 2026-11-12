@@ -197,6 +197,12 @@ function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn, KT, bugun) {
     if (holat === 'kutadi') qoldi++;
     if (holat === 'kutish') kutishN++;
     const sms = tr.tur !== 'aloqa' ? '' : tr.sms ? tr.sms : smsT;
+    // 12.11.2026: SMS tartibi — faqat SMS so'raydigan qadam: bugun SMS yuborilgan yoki 3 kun o'tmagan bo'lsa — bugun majburiy emas (ijro minusi yo'q)
+    if (holat === 'kutadi' && tr.chora.length === 1 && tr.chora[0] === 'СМС/Телеграм' && x.smsHol) {
+      const sh = P.SMS_ISTISNO.indexOf(sms) >= 0 ? x.smsHol.istisno : x.smsHol.oddiy;
+      if (!sh.mumkin) { holat = 'info'; majburiy = false; qoldi--;
+        izoh = x.smsHol.bugun ? 'Bugun SMS yuborilgan' + (x.smsHol.ox.vaqt ? ' (' + x.smsHol.ox.vaqt + ')' : '') + ' — kuniga 1 ta.'
+          : 'Oxirgi SMS ' + qdDmy(x.smsHol.ox.sana) + ' — keyingisi ' + qdDmy(sh.keyingi) + ' dan (ikki SMS orasida ' + P.SMS_ORALIQ_KUN + ' kun).'; } }
     qadam.push({ k, t: b.t, d: b.d, tur: tr.tur, chora: tr.chora || [], holat, izoh, majburiy, maydon: tr.maydon || '', raqam: tr.raqam || '', seriya: /[Mm]aydon farqi/.test(b.t) ? 'QM' : 'AS', sms }); });
   const ob = (top0 || []).find(t => /^olib\|/.test(String(t.kalit || '')) && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda') && qdTeng(t.kimga, fish));
   if (ob) { const kut = ob.holati === 'Tekshiruvda';
@@ -241,7 +247,7 @@ function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn, KT, bugun) {
     muddati: x.muddati, jami: x.jami, asosiy: x.asosiy, qoshimcha: x.qoshimcha, oylik: x.oylik, kechikkan: x.kechikkan, jimKun: x.jimKun, davoKun: x.davoKun, oxirgiTolov: x.oxirgiTolov || null, sekin: x.sekin || null,
     xavf, yuRad: x.yuRad || null,
     oxirgi: x.oxirgi, vada: x.vada, xat: x.xat, skan: x.skan, davoQolgan: x.davoQolgan, davoOtgan: x.davoOtgan, davoShosh: !!x.davoShosh,
-    faqatYurist: !!(x.davoOtgan && M), xatKech, farq: x.farq || 0, sms: smsT,
+    faqatYurist: !!(x.davoOtgan && M), xatKech, farq: x.farq || 0, sms: smsT, smsHol: x.smsHol || null,
     guruh: QD_GURUH[gi][0], guruhNom: nom, guruhN: gi,
     qadam, top: top0.filter(t => qdTeng(t.kimga, fish)).map(t => ({ id: t.id, sarlavha: t.sarlavha, izoh: t.izoh, qoida: t.qoida, muddat: t.muddat, holati: t.holati, kechikkan: t.kechikkan,
       avto: /^(davo|vada|tolov|xat|skan|bekor|bufer|talab|hj|skanq|skanu|skanz)$/.test(t.qoida) || (t.qoida === 'yutop' && qdYuHj(t)), qolda: /^(qayta|devon)\|/.test(t.kalit), isbotMaj: t.isbotMaj || '', tasdiqchi: TS.topTasdiqchi(t) })),
@@ -497,7 +503,7 @@ async function qadamNazorat([kodSes]) {
     const koch = oldin.length === 0 ? { erkin: true } : oldin.length === 1 ? { erkin: false, chek: U.kunQosh(asos, UND_MUHLAT_KUN) } : { tugagan: true };
     L.push({ no: x.no, fish: x.fish, mid: x.mid, dokon: x.dokon, tel: String(x.tel || '').split(',').map(t => t.trim()).filter(Boolean), manzil: x.manzil,
       muddati: x.muddati, qoshimcha: x.qoshimcha, jami: x.jami, farq: x.farq || 0, vada: x.vada, tur: n.tur, kerak: n.kerak, qilindi: n.qilindi, vaqt: n.vaqt,
-      bugunAloqa: x.bugunAloqa || [], bugunSms: !!x.bugunSms, javobsizKun: x.javobsizKun || 0, bosqich, qoldi, xatMuddat: ox ? ox.muddat : '', yurist, koch,
+      bugunAloqa: x.bugunAloqa || [], bugunSms: !!x.bugunSms, smsHol: x.smsHol || null, javobsizKun: x.javobsizKun || 0, bosqich, qoldi, xatMuddat: ox ? ox.muddat : '', yurist, koch,
       sms: n.kerak === 'eslatma0' ? 'vada0' : n.kerak === 'eslatma1' ? 'vada1' : n.tur === 'xat' ? (qoldi !== null && qoldi < 0 ? 'nazorat2' : 'nazorat') : '' }); });
   const dar = z => z.kerak && !z.qilindi ? (/^eslatma/.test(z.kerak) ? 0 : 1) : z.kerak ? 2 : 3;
   L.sort((a, b) => (dar(a) - dar(b)) || ((a.qoldi === null ? 999 : a.qoldi) - (b.qoldi === null ? 999 : b.qoldi)) || (b.muddati - a.muddati));
@@ -886,4 +892,4 @@ async function ijroKorish([kodSes, d]) {
 module.exports = { qadamBoshlang, qadamMijoz, qadamJamoa, qadamNazorat, qadamSudKarta, qadamYuristYol, qadamTarix, qadamFayl, qadamTgTel, qadamTalabHolat, ijroKorish, qadamKutish };
 // ichki (amal emas): XodimBosh uchun — qadamXulosa_ (Qadam.gs)
 async function qadamXulosa(kod, fish, bugun) { const H = (await qdHisob(kod, [fish], bugun || V.bugun()))[fish]; return Object.assign({ maqsad: QD_MAQSAD }, H.son); }
-module.exports._ichki = { qadamXulosa, qdSnap, ijroTrigger, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };
+module.exports._ichki = { qdMijoz, qadamXulosa, qdSnap, ijroTrigger, qdHisob, qdTur, qdXatNom, ijroKun, ijroTopKun, ijroFoiz, ijroYig, ijroPog, QD_MAQSAD, QD_KUN, QD_OY, IJRO_KS, xatMuhlat, xatIshKun, xatYangiQoida };

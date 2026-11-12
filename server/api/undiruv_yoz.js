@@ -52,6 +52,19 @@ async function undYoz(args) {
   const mazmun = t(d.mazmun);
   if (mazmun.length < 10) throw new S.Xato('Suhbat mazmunini yozing (kamida 10 belgi): nima dedi, nima kelishildi.');
   const bugun = V.bugun();
+  // 💬 SMS tartibi (12.11.2026, direktor): kuniga 1 ta, ikki SMS orasida 3 kun; va'da eslatmalari / buzilgan va'da — istisno (faqat kuniga 1). Direktor — cheklovsiz.
+  if (d.chora === 'СМС/Телеграм' && !u.admin && !/^SMS yuborilmadi/i.test(mazmun)) {
+    const P = require('../lib/portfel');
+    const JN = (await J.undJurnal()).filter(j => j.no === x.no);
+    const sh = P.smsHolat(JN, bugun);
+    if (sh.ox) {
+      const T = await U.undTolovlar();
+      const vada = JN.filter(j => j.vadaSana).pop(); if (vada) vada.vadaNatija = P.vadaNatija(vada, T, bugun);
+      const ist = P.smsVadaIstisno(vada, bugun), q = ist ? sh.istisno : sh.oddiy, dmy = v => String(v).split('-').reverse().join('.');
+      if (!q.mumkin) throw new S.Xato(sh.bugun ? 'Bu mijozga bugun SMS yuborilgan' + (sh.ox.vaqt ? ' (' + sh.ox.vaqt + ')' : '') + ' — kuniga 1 ta SMS. Kerak bo\'lsa qo\'ng\'iroq qiling.'
+        : 'Oxirgi SMS ' + dmy(sh.ox.sana) + ' da yuborilgan — ikki SMS orasida ' + P.SMS_ORALIQ_KUN + ' kun bo\'lishi kerak, keyingisi ' + dmy(q.keyingi) + ' dan. Kerak bo\'lsa qo\'ng\'iroq qiling.');
+    }
+  }
   let vs = '', vsum = '';
   if (d.vadaSana || d.vadaSumma) {
     if (d.natija !== 'Боғланилди') throw new S.Xato('Va\'da faqat «Боғланилди» natijasida yoziladi.');

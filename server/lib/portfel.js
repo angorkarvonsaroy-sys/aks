@@ -21,6 +21,25 @@ const XAT_DAVO_KUN = 1095, XAT_DAVO_OGOH = 90;
 const YU_TOLOV_KUN = 90, YU_TOLOV_ULUSH = 0.7;
 
 const kun = U.kun, qosh = U.kunQosh;
+
+// 💬 SMS tartibi (12.11.2026, direktor): bir mijozga KUNIGA 1 ta SMS; ikki SMS orasida kamida 3 KUN (10.11 dagi SMS dan keyin — 13.11 dan).
+// Istisno (3 kun oralig'i qo'llanmaydi, kuniga 1 ta qoladi): va'da eslatmalari (bir kun oldin — vada1, va'da kuni — vada0) va va'da buzilgan / qisman to'langan holat.
+// Hisobga olinadi — jurnaldagi yuborilgan SMS; «SMS yuborilmadi …» va tizim o'zi yuborgan «Telegramda yuborildi …» (xat PDF) hisoblanmaydi.
+const SMS_ORALIQ_KUN = 3, SMS_ISTISNO = ['vada0', 'vada1', 'buzildi', 'qisman'];
+const smsHaqiqiy = j => j.chora === 'СМС/Телеграм' && !/^SMS yuborilmadi/i.test(s(j.mazmun)) && !/^Telegramda yuborildi/.test(s(j.mazmun));
+function smsHolat(my, bugun) {
+  const L = (my || []).filter(smsHaqiqiy), ox = L[L.length - 1] || null;
+  if (!ox) return { ox: null, bugun: false, oddiy: { mumkin: true, keyingi: '' }, istisno: { mumkin: true, keyingi: '' } };
+  const bg = ox.sana === bugun, farq = kun(ox.sana, bugun), k3 = qosh(ox.sana, SMS_ORALIQ_KUN);
+  const od = !bg && farq >= SMS_ORALIQ_KUN;
+  return { ox: { sana: ox.sana, vaqt: ox.vaqt || '' }, bugun: bg, oddiy: { mumkin: od, keyingi: od ? '' : k3 }, istisno: { mumkin: !bg, keyingi: bg ? qosh(bugun, 1) : '' } };
+}
+// va'da istisnosi bormi (server tekshiruvi uchun): vada — oxirgi va'da yozuvi (vadaNatija hisoblangan)
+function smsVadaIstisno(vada, bugun) {
+  if (!vada) return false;
+  if (vada.vadaNatija === 'Вадада') return vada.vadaSana === bugun || vada.vadaSana === qosh(bugun, 1);
+  return vada.vadaNatija === 'Вадасини бузди' || vada.vadaNatija === 'Қисман тўлади';
+}
 const s = v => String(v == null ? '' : v);
 
 // ------------------------------------------------------------------ Xat.gs: xatShartnomalar_
@@ -268,6 +287,7 @@ async function undPortfel(filtr, kod) {
     x.bosqichBosh = ox ? ox.yet : qosh(bugun, -30);
     x.bugunAloqa = my.filter(j => j.sana === bugun && UND_ALOQA.indexOf(j.chora) >= 0).map(j => ({ chora: j.chora, natija: j.natija, vaqt: j.vaqt }));
     x.bugunSms = my.some(j => j.sana === bugun && j.chora === 'СМС/Телеграм');
+    x.smsHol = smsHolat(my, bugun);   // 12.11.2026: SMS tartibi (kuniga 1, oraliq 3 kun)
     const jk = {}; for (let i = my.length - 1; i >= 0; i--) { const j = my[i];
       if (j.chora === 'Ташриф (манзилига бориб)' || j.chora === 'Офисда суҳбат' || ((j.chora === 'Телефон' || j.chora === 'СМС/Телеграм') && j.natija && j.natija !== 'Боғланиб бўлмади')) break;
       if (j.chora === 'Телефон' && j.natija === 'Боғланиб бўлмади' && new Date(j.sana + 'T12:00:00Z').getUTCDay() !== 0) jk[j.sana] = 1; }
@@ -285,5 +305,5 @@ async function undPortfel(filtr, kod) {
   return { royxat: L, bugun };
 }
 
-module.exports = { undPortfel, xatShartnomalar, xatKeyingi, xatDavo, yuMezon, yuHimoya, yuFaolSet, undNazorat, undXavf, undBuyruq, vadaNatija,
+module.exports = { smsHolat, smsVadaIstisno, smsHaqiqiy, SMS_ORALIQ_KUN, SMS_ISTISNO, undPortfel, xatShartnomalar, xatKeyingi, xatDavo, yuMezon, yuHimoya, yuFaolSet, undNazorat, undXavf, undBuyruq, vadaNatija,
   UND_JIM_KUN, UND_DAVO_KUN, UND_DAVO_OGOH, UND_ALOQA };
