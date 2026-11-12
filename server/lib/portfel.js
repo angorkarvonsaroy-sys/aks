@@ -7,6 +7,8 @@
 const V = require('./varaq');
 const J = require('./jurnallar');
 const U = require('./undiruv_yordam');
+const EK = require('./eslatma_kun');   // 12.11.2026: eslatma kalendari (3 kun oldin, 2 kun oldin, o'sha kuni; yakshanba → dushanba)
+const SZ = require('./sozlama');
 const X = require('./xat_yordam');
 
 const UND_ALOQA = ['Телефон', 'Ташриф (манзилига бориб)', 'Офисда суҳбат'];
@@ -23,9 +25,9 @@ const YU_TOLOV_KUN = 90, YU_TOLOV_ULUSH = 0.7;
 const kun = U.kun, qosh = U.kunQosh;
 
 // 💬 SMS tartibi (12.11.2026, direktor): bir mijozga KUNIGA 1 ta SMS; ikki SMS orasida kamida 3 KUN (10.11 dagi SMS dan keyin — 13.11 dan).
-// Istisno (3 kun oralig'i qo'llanmaydi, kuniga 1 ta qoladi): va'da eslatmalari (bir kun oldin — vada1, va'da kuni — vada0) va va'da buzilgan / qisman to'langan holat.
+// Istisno (3 kun oralig'i qo'llanmaydi, kuniga 1 ta qoladi): va'da va grafik eslatmalari (3 kun oldin, 2 kun oldin, o'sha kuni — lib/eslatma_kun.js) va va'da buzilgan / qisman to'langan holat.
 // Hisobga olinadi — jurnaldagi yuborilgan SMS; «SMS yuborilmadi …» va tizim o'zi yuborgan «Telegramda yuborildi …» (xat PDF) hisoblanmaydi.
-const SMS_ORALIQ_KUN = 3, SMS_ISTISNO = ['vada0', 'vada1', 'buzildi', 'qisman'];
+const SMS_ORALIQ_KUN = 3, SMS_ISTISNO = ['vada3', 'vada2', 'vada1', 'vada0', 'grafik3', 'grafik2', 'grafik0', 'birga', 'birga0', 'buzildi', 'qisman'];
 const smsHaqiqiy = j => j.chora === 'СМС/Телеграм' && !/^SMS yuborilmadi/i.test(s(j.mazmun)) && !/^Telegramda yuborildi/.test(s(j.mazmun));
 function smsHolat(my, bugun) {
   const L = (my || []).filter(smsHaqiqiy), ox = L[L.length - 1] || null;
@@ -176,15 +178,17 @@ function undXavf(x, my, bugun) {
   return R;
 }
 function undNazorat(x, bugun) {
+  // 12.11.2026: «Nazorat» — 1) va'da / grafik eslatmasi (x.esl, lib/eslatma_kun.js): qo'ng'iroq HAM SMS majburiy (ikkalasi bo'lsa — bajarildi);
+  //   2) faol va'da (eslatma kuni emas) — kuzatuv; 3) xat yetkazilgan — har kuni qo'ng'iroq. Yakshanba ham chiqadi (ijroga kirmaydi), bajarilmagan eslatma — dushanbaga.
   const M = Number(x.muddati) > 100000, Q = Number(x.qoshimcha) > 100000;
   if (x.tolovSoni === 0 && x.boshOtgan && x.jami > 0) return null;
-  const ertaga = qosh(bugun, 1);
-  const yakshanba = new Date(bugun + 'T12:00:00Z').getUTCDay() === 0;
-  const bA = x.bugunAloqa || [], qilindi = bA.length > 0, vaqt = qilindi ? bA[0].vaqt : '';
-  if (x.davoOtgan && M) return (x.yuSorov || x.talabnoma || x.oxirgiXat) ? { tur: 'yurist', kerak: '', qilindi, vaqt } : null;
+  const bA = x.bugunAloqa || [], aloqa = bA.length > 0, sms = !!x.bugunSmsBor, vaqt = aloqa ? bA[0].vaqt : '';
+  if (x.davoOtgan && M) return (x.yuSorov || x.talabnoma || x.oxirgiXat) ? { tur: 'yurist', kerak: '', qilindi: aloqa, aloqa, sms, vaqt } : null;
+  const e = x.esl;
+  if (e) return { tur: e.manba, kerak: e.manba + e.kun, esl: e, kochdi: !!e.kochdi, qilindi: aloqa && sms, aloqa, sms, vaqt };
   const v = x.vada;
-  if (v && v.natija === 'Вадада' && v.sana >= bugun && (M || Q)) return { tur: 'vada', kerak: yakshanba ? '' : v.sana === bugun ? 'eslatma0' : v.sana === ertaga ? 'eslatma1' : '', qilindi, vaqt };
-  if (x.oxirgiXat && (M || (Q && x.oxirgiXat.qm))) return { tur: 'xat', kerak: yakshanba ? '' : 'qongiroq', qilindi, vaqt };
+  if (v && v.natija === 'Вадада' && v.sana >= bugun && (M || Q)) return { tur: 'vada', kerak: '', qilindi: aloqa, aloqa, sms, vaqt };
+  if (x.oxirgiXat && (M || (Q && x.oxirgiXat.qm))) return { tur: 'xat', kerak: 'qongiroq', qilindi: aloqa, aloqa, sms, vaqt };
   return null;
 }
 function undBuyruq(x) {
@@ -217,11 +221,15 @@ function undBuyruq(x) {
   if (x.buzilgan && M) q('Va\'da buzildi — bugun qo\'ng\'iroq qiling');
   else if (x.qisman && M) sq('Va\'daning bir qismini to\'ladi — qolganiga yangi sana oling');
   if (x.u4 && x.u4.ok && !x.yuSorov) y('Yuristga o\'tkazishni so\'rang');
-  if (!bekor && !eski && !davo && x.kAS) {
+  // 12.11.2026 (C): faol va'da muddati tugaguncha xat chiqarish (va undan oldingi SMS/qo'ng'iroq sharti) vazifasi chiqmaydi; va'da buzilsa — navbat darhol qaytadi.
+  //   Da'vo muddati (yuqorida) va allaqachon chiqarilgan xatni yetkazish — to'xtamaydi.
+  if (!bekor && !eski && !davo && x.vadaFaol && ((x.kAS && (x.kAS.mumkin || x.kAS.yetishmaydi)) || (x.kQM && (x.kQM.mumkin || x.kQM.yetishmaydi))))
+    k('Faol va\'da ' + String(x.vada.sana).split('-').reverse().join('.') + ' gacha — xat navbati to\'xtatildi (va\'da buzilsa, darhol qaytadi)');
+  if (!bekor && !eski && !davo && !x.vadaFaol && x.kAS) {
     if (x.kAS.mumkin) sq(x.kAS.bosqich === 3 ? 'Talabnomani chiqaring' : x.kAS.bosqich + '-xatni chiqaring');
     else if (x.kAS.yetishmaydi) x.kAS.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
-  if (!bekor && !eski && x.kQM) {
+  if (!bekor && !eski && !x.vadaFaol && x.kQM) {
     if (x.kQM.mumkin) sq(x.kQM.bosqich === 1 ? 'Maydon farqi bildirishnomasini chiqaring' : x.kQM.bosqich === 2 ? 'Maydon farqi ogohlantirish xatini chiqaring' : 'Maydon farqi talabnomasini chiqaring');
     else if (x.kQM.yetishmaydi) x.kQM.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
@@ -237,7 +245,13 @@ function undBuyruq(x) {
 // ------------------------------------------------------------------ undPortfel_ (kod — xodim kodi: xat zanjirini bir martalik ko'chirishda ko'prik uchun)
 async function undPortfel(filtr, kod) {
   const bugun = V.bugun();
-  const [UJ, T, XJ, HJ, YF, SH, XSL] = await Promise.all([J.undJurnal(), U.undTolovlar(), J.xatJurnal(), J.hujjatJurnal(), yuFaolSet(), U.undShartnomalar(), xatShartnomalar(bugun)]);
+  const [UJ, T, XJ, HJ, YF, SH, XSL, J3, MB] = await Promise.all([J.undJurnal(), U.undTolovlar(), J.xatJurnal(), J.hujjatJurnal(), yuFaolSet(), U.undShartnomalar(), xatShartnomalar(bugun),
+    V.qatorlar('03b_Tolov_jadvali'), SZ.ol('mijoz_bot').catch(() => null)]);
+  // 12.11.2026: grafik eslatmasi uchun — to'lov jadvali va mijozlar botiga ulangan mijozlar (ulanganlarga grafik eslatmasini bot yuboradi)
+  const JD = {}; J3.forEach(({ x }) => { const no = s(x[1]).trim(), sana = V.iso(x[3]); if (!no || !sana) return; (JD[no] = JD[no] || []).push({ sana, summa: V.son(x[4]), kum: V.son(x[5]) }); });
+  Object.keys(JD).forEach(no => JD[no].sort((a, b) => a.sana < b.sana ? -1 : a.sana > b.sana ? 1 : a.kum - b.kum));
+  const BOT = new Set(); if (MB && MB.chats) Object.keys(MB.chats).forEach(c => { const z = MB.chats[c]; if (!z.toxta) (z.mids || []).forEach(m => BOT.add(s(m))); });
+  const kecha = qosh(bugun, -1), dushanba = EK.hafta(bugun) === 1;
   const Z = await X.xatZanjirBelgila(XSL, XJ, bugun, kod);   // Xat.gs v25.7: yopilgan zanjirlar belgilanadi, keyin o'qiladi
   UJ.forEach(j => { j.vadaNatija = vadaNatija(j, T, bugun); });
   const H = HJ.filter(h => h.holati === 'Faol');
@@ -288,6 +302,9 @@ async function undPortfel(filtr, kod) {
     x.bugunAloqa = my.filter(j => j.sana === bugun && UND_ALOQA.indexOf(j.chora) >= 0).map(j => ({ chora: j.chora, natija: j.natija, vaqt: j.vaqt }));
     x.bugunSms = my.some(j => j.sana === bugun && j.chora === 'СМС/Телеграм');
     x.smsHol = smsHolat(my, bugun);   // 12.11.2026: SMS tartibi (kuniga 1, oraliq 3 kun)
+    x.bugunSmsBor = my.some(j => j.sana === bugun && j.chora === 'СМС/Телеграм' && !/^Telegramda yuborildi/.test(s(j.mazmun)));   // eslatma: SMS urinishi (ketmadi ham)
+    x.botda = BOT.has(s(x.mid));
+    Object.defineProperty(x, 'jadval', { value: JD[x.no] || [], enumerable: false });
     const jk = {}; for (let i = my.length - 1; i >= 0; i--) { const j = my[i];
       if (j.chora === 'Ташриф (манзилига бориб)' || j.chora === 'Офисда суҳбат' || ((j.chora === 'Телефон' || j.chora === 'СМС/Телеграм') && j.natija && j.natija !== 'Боғланиб бўлмади')) break;
       if (j.chora === 'Телефон' && j.natija === 'Боғланиб бўлмади' && new Date(j.sana + 'T12:00:00Z').getUTCDay() !== 0) jk[j.sana] = 1; }
@@ -300,6 +317,9 @@ async function undPortfel(filtr, kod) {
     x.xavf = undXavf(x, my, bugun);
     x.kAS = xs ? xatKeyingi(xs, Xm, bugun, my, false, 'AS', Z) : null;
     x.kQM = (xs && xs.qoshimcha > 100000) ? xatKeyingi(xs, Xm, bugun, my, false, 'QM', Z) : null;
+    x.vadaFaol = EK.vadaFaol(x.vada, bugun);
+    const kechaB = dushanba && my.some(j => j.sana === kecha && UND_ALOQA.indexOf(j.chora) >= 0) && my.some(j => j.sana === kecha && j.chora === 'СМС/Телеграм' && !/^Telegramda yuborildi/.test(s(j.mazmun)));
+    x.esl = EK.bugungi({ vada: x.vada, jadval: x.jadval, tolangan: x.tolangan, asosiy: x.asosiy, grafik: !x.botda, kechaBajarildi: kechaB }, bugun);
     x.buyruq = undBuyruq(x);
   });
   return { royxat: L, bugun };

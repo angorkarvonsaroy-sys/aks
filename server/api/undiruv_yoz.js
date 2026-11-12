@@ -60,7 +60,12 @@ async function undYoz(args) {
     if (sh.ox) {
       const T = await U.undTolovlar();
       const vada = JN.filter(j => j.vadaSana).pop(); if (vada) vada.vadaNatija = P.vadaNatija(vada, T, bugun);
-      const ist = P.smsVadaIstisno(vada, bugun), q = ist ? sh.istisno : sh.oddiy, dmy = v => String(v).split('-').reverse().join('.');
+      // 12.11.2026: va'da / grafik eslatma oynasi (to'lov kuni 0..3 kun ichida) ham istisno — lib/eslatma_kun.js
+      const EK = require('../lib/eslatma_kun');
+      const jad = (await V.qatorlar('03b_Tolov_jadvali')).filter(({ x: y }) => String(y[1] == null ? '' : y[1]).trim() === x.no && V.iso(y[3]))
+        .map(({ x: y }) => ({ sana: V.iso(y[3]), summa: V.son(y[4]), kum: V.son(y[5]) })).sort((a, b) => a.sana < b.sana ? -1 : a.sana > b.sana ? 1 : a.kum - b.kum);
+      const oyna = EK.smsOyna({ vada: vada ? { natija: vada.vadaNatija, sana: vada.vadaSana } : null, jadval: jad, tolangan: x.tolangan, asosiy: x.asosiy }, bugun);
+      const ist = P.smsVadaIstisno(vada, bugun) || oyna, q = ist ? sh.istisno : sh.oddiy, dmy = v => String(v).split('-').reverse().join('.');
       if (!q.mumkin) throw new S.Xato(sh.bugun ? 'Bu mijozga bugun SMS yuborilgan' + (sh.ox.vaqt ? ' (' + sh.ox.vaqt + ')' : '') + ' — kuniga 1 ta SMS. Kerak bo\'lsa qo\'ng\'iroq qiling.'
         : 'Oxirgi SMS ' + dmy(sh.ox.sana) + ' da yuborilgan — ikki SMS orasida ' + P.SMS_ORALIQ_KUN + ' kun bo\'lishi kerak, keyingisi ' + dmy(q.keyingi) + ' dan. Kerak bo\'lsa qo\'ng\'iroq qiling.');
     }

@@ -72,6 +72,7 @@ function tolanmagan(sh, shart) {
   return null;
 }
 const keyingi = (sh, bugun) => tolanmagan(sh, j => j.sana > bugun);
+const jadvalGacha = (sh, sana) => sh.jadval.reduce((m, j) => j.sana <= sana ? Math.max(m, j.kum) : m, 0);   // shu sanagacha jadval kumulyativi
 const jadvalOxiri = sh => sh.jadval.length ? sh.jadval[sh.jadval.length - 1].sana : '';
 
 // ---------------------------------------------------------------- matnlar (kirill — hujjatlardagidek)
@@ -103,6 +104,11 @@ function holatMatn(fish, L, bugun) {
 const qachon = n => n === 0 ? 'бугун' : n === 1 ? 'эртага' : n + ' кундан кейин';
 function eslatmaMatn(fish, sh, e) {
   const bosh = 'Ҳурматли ' + esc(xatKirill(fish)) + '!\n' + sarlavha(sh) + '\n\n';
+  if (e.tur === 'birga') return '📅 <b>Тўлов эслатмаси</b>\n\n' + bosh + 'Шартнома графиги бўйича <b>' + dmy(e.sana) + '</b> гача (' + qachon(e.kun) + ') <b>' + pul(e.summa) + ' сўм</b> тўлашингиз шарт.\n'
+    + 'Сиз <b>' + dmy(e.vada.sana) + '</b> куни <b>' + pul(e.vada.summa) + ' сўм</b> тўлашга ваъда бергансиз.\n\nВаъдани бажариш билан бирга график бўйича тўловни ҳам амалга оширишингизни сўраймиз.'
+    + '\nЖами қарздорлик: ' + pul(sh.jami) + ' сўм' + IMZO;
+  if (e.tur === 'vada') return '🤝 <b>Тўлов ваъдаси ҳақида эслатма</b>\n\n' + bosh + 'Сиз <b>' + dmy(e.sana) + '</b> куни <b>' + pul(e.summa) + ' сўм</b> тўлашга ваъда бергансиз — '
+    + (e.kun === 0 ? '<b>бугун тўлов кунингиз</b>.' : qachon(e.kun) + '.') + '\nИлтимос, унутманг.\nЖами қарздорлик: ' + pul(sh.jami) + ' сўм' + IMZO;
   if (e.tur === 'hafta') return '⚠️ <b>Муддати ўтган қарз ҳақида эслатма</b>\n\n' + bosh + 'Муддати ўтган қарз: <b>' + pul(sh.muddati) + ' сўм</b>\nЖами қарздорлик: ' + pul(sh.jami) + ' сўм\n\n'
     + 'Қарзни имкон қадар тезроқ тўлашингизни сўраймиз. Тўлаб бўлган бўлсангиз — узр, ушбу хабарни эътиборсиз қолдиринг.' + IMZO;
   const avval = Math.max(0, sh.muddati - (e.kun === 0 ? e.summa : 0));   // to'lov kuni jadval qatori 03 AF «muddati o'tgan» ga kirib bo'lgan
@@ -130,16 +136,40 @@ async function bloklandi(chat, e) {   // mijoz botni to'xtatgan/bloklagan — qa
 // ---------------------------------------------------------------- ⏰ eslatmalar (lib/vaqt.js mijoz_eslatma — har kuni 10:00)
 // Yakshanba — yo'q. Shanba kuni yakshanbaga to'g'ri keladigan eslatmalar ham yuboriladi (to'lov kuni yakshanba → «эртага»; 3 kun oldin → «4 кундан кейин»).
 // Bitta shartnomaga kuniga ko'pi bilan bitta xabar: to'lov kuni > 3 kun oldin > haftalik (dushanba, muddati o'tgan). Pul qaytarilayotgan shartnoma — yo'q.
+// 12.11.2026 (direktor): eslatma kunlari — 3 kun oldin, 2 kun oldin, o'sha kuni (grafik ham, va'da ham). YAKSHANBA ham yuboriladi;
+// SHANBA kuni yakshanbaga tushadiganlari ham oldindan (1 va 4 kun) yuboriladi — yakshanba kuni yana o'z kunida ketadi («ikkalasi ham»).
+// Faol va'da bo'lsa: va'da kunlarida — va'da eslatmasi; grafik kuni ham yaqin (0..3 kun) bo'lsa — BIRLASHGAN («grafik bo'yicha ... shart, va'dangiz ..., grafikni ham bajaring»);
+// va'da grafik qarzini to'liq yopsa — faqat va'da. Dushanbalik «muddati o'tgan» xabari faol va'dada ketmaydi. Va'da yozilgan kunning o'zida — yo'q.
+async function vadalar(bugun) {
+  const J = require('./jurnallar'), U = require('./undiruv_yordam'), P = require('./portfel');
+  const [UJ, T] = await Promise.all([J.undJurnal(), U.undTolovlar()]);
+  const R = {}; UJ.forEach(j => { if (j.vadaSana) R[j.no] = j; });   // jurnal sana bo'yicha tartiblangan — oxirgisi qoladi
+  const O = {}; Object.keys(R).forEach(no => { const j = R[no]; O[no] = { sana: j.vadaSana, summa: j.vadaSumma, yozildi: j.sana, natija: P.vadaNatija(j, T, bugun) }; });
+  return O;
+}
+const kunFarq = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
 async function eslatmaRoyxat(bugun) {
-  const hk = new Date(bugun + 'T00:00:00Z').getUTCDay(); if (hk === 0) return [];
+  const hk = new Date(bugun + 'T00:00:00Z').getUTCDay();
   const { MJ, SH } = await M.malumot(); const h = await holatOl();
   const ulangan = {}; Object.keys(h.chats).forEach(c => { if (!h.chats[c].toxta) (h.chats[c].mids || []).forEach(m => { (ulangan[m] = ulangan[m] || []).push(c); }); });
+  if (!Object.keys(ulangan).length) return [];
   const QB = {}; (await require('./qaytarish_blok').ochiqQarorlar()).forEach(x => { QB[x.no] = 1; });
-  const kunlar = hk === 6 ? [0, 1, 3, 4] : [0, 3], L = [];
-  SH.forEach(sh => { const C = ulangan[sh.mid]; if (!C || !(sh.jami > 1000) || QB[sh.no]) return;
-    let e = null;
-    for (const n of kunlar) { const d = kunQosh(bugun, n), j = tolanmagan(sh, x => x.sana === d); if (j && j.summa > 1000) { e = { tur: n <= 1 ? 'kun' : 'oldin', kun: n, sana: j.sana, summa: j.summa }; break; } }
-    if (!e && hk === 1 && sh.muddati > 1000) e = { tur: 'hafta', kun: 0, sana: bugun, summa: sh.muddati };
+  const VD = await vadalar(bugun);
+  const kunlar = hk === 6 ? [0, 1, 2, 3, 4] : [0, 2, 3], L = [];
+  SH.forEach(sh => { const C = ulangan[sh.mid]; if (!C || QB[sh.no]) return;
+    const v = VD[sh.no], vf = !!(v && v.natija === 'Вадада' && v.sana >= bugun);
+    let e = null, gE = null;
+    if (sh.jami > 1000) for (const n of kunlar) { const d = kunQosh(bugun, n), j = tolanmagan(sh, x => x.sana === d); if (j && j.summa > 1000) { gE = { tur: n <= 1 ? 'kun' : 'oldin', kun: n, sana: j.sana, summa: j.summa }; break; } }
+    if (vf) {
+      const nV = kunFarq(bugun, v.sana), vK = kunlar.indexOf(nV) >= 0 && v.yozildi !== bugun && v.summa > 1000;
+      const g = keyingi(sh, kunQosh(bugun, -1)), gJami = g ? Math.max(0, Math.min(jadvalGacha(sh, g.sana) - sh.tolangan, sh.asosiy > 0 ? sh.asosiy : 1e15)) : 0;
+      const yopadi = !!(g && v.summa >= gJami - 1000 && v.sana <= g.sana), nG = g ? kunFarq(bugun, g.sana) : 99;
+      if (g && !yopadi && nG >= 0 && nG <= 3 && (vK || gE)) e = { tur: 'birga', kun: gE ? gE.kun : nG, sana: g.sana, summa: gJami, vada: { sana: v.sana, summa: v.summa } };
+      else if (vK) e = { tur: 'vada', kun: nV, sana: v.sana, summa: v.summa };
+    } else {
+      e = gE;
+      if (!e && hk === 1 && sh.muddati > 1000) e = { tur: 'hafta', kun: 0, sana: bugun, summa: sh.muddati };
+    }
     if (e) C.forEach(chat => L.push({ chat, sh, e, fish: (MJ[sh.mid] || {}).fish || '' })); });
   return L;
 }
@@ -148,7 +178,7 @@ async function eslatma(kod, opt) {
   const bugun = (opt && opt.bugun) || V.bugun(), L = await eslatmaRoyxat(bugun); let n = 0, takror = 0, xato = 0;
   if (opt && opt.quruq) return { quruq: true, soni: L.length, royxat: L.map(x => x.sh.no + ' ' + x.e.tur + ' ' + x.e.sana) };
   for (const x of L) {
-    const k = 'mb:esl:' + x.chat + ':' + x.sh.no + ':' + x.e.tur + ':' + x.e.sana;
+    const k = 'mb:esl:' + x.chat + ':' + x.sh.no + ':' + x.e.tur + ':' + x.e.sana + ':' + x.e.kun;   // kun — 3/2/0 (shanba: 4/1) alohida xabar
     if (!(await redis.set(k, '1', 'EX', 10 * 86400, 'NX'))) { takror++; continue; }   // server qayta yoqilsa ham ikki marta ketmaydi
     try { await M.yubor(x.chat, eslatmaMatn(x.fish, x.sh, x.e)); n++; } catch (e) { xato++; await redis.del(k).catch(() => {}); await bloklandi(x.chat, e); }
     await uxla(60);

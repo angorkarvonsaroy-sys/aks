@@ -10,7 +10,7 @@
 //                 eski tizimning o'zi — ko'prik topHozir). Direktor kodi bilan (Telegram / koprikSkanNaz uchun eski tizim sessiyasi).
 //   top_ertalab — topErtalab (08:30): har xodimga bugungi ochiq topshiriqlari (Telegram — koprikTgChat); 10 Google'dan yangi.
 //   top_kechki  — topKechki (20:10): direktorga kun yakuni — kim nechta bajardi / qoldi / muddati o'tgan (tgYubor_ — koprikTgYubor).
-//   und_ertalab — undErtalabYubor (09:00, yakshanbadan tashqari): lib/ertalab.js — undiruvchilarga ertalabki topshiriq, 07c_Ertalab_svod, direktorga svod.
+//   und_ertalab — undErtalabYubor (09:00, 12.11.2026 dan yakshanba ham): lib/ertalab.js — undiruvchilarga ertalabki topshiriq, 07c_Ertalab_svod, direktorga svod.
 //   mon_eslatma — monEslatmaYubor (09:10, yakshanbadan tashqari): lib/ertalab.js — skansiz yangi shartnomalar eslatmasi.
 //   xat_kechikkan   — xatKechikkanTekshir (17:00): lib/kechikkan.js — yetkazilmagan ogohlantirish xatlari (direktorga, mas'ulga).
 //   bekor_kechikkan — bekorKechikkanTekshir (17:15): lib/kechikkan.js — bekor qilish skanlari kechikkan (xodimga, ≥2 ish kuni — direktorga).
@@ -130,7 +130,7 @@ const ISHLAR = [
   { nom: 'zaxira_kunlik', fn: 'zaxiraKunlik', tavsif: '💾 AKS_BAZA kunlik zaxira nusxasi (zaxiraKunlik)', har: 'kun:02:00', eski: 'zaxiraKunlik — har kecha 02:00', ish: (kod, opt) => KX.zaxiraKunlik(kod, opt) },
   { nom: 'qaytarish_muddat', fn: 'qaytarishMuddatNazorat', tavsif: '⏰ Pul qaytarish muddati nazorati — 30 kun qolganda/o\'tganda direktorga (06.11.2026)', har: 'kun:09:10', eski: 'yo\'q — yangi ish (06.11)',
     ish: () => require('../api/qaytarish')._ichki.muddatNazorat() },
-  { nom: 'mijoz_eslatma', fn: 'mijozEslatma', tavsif: '🤝 Mijozlarga to\'lov eslatmasi — mijozlar boti (3 kun oldin, to\'lov kuni, dushanba — muddati o\'tgan; yakshanba yo\'q)', har: 'kun:10:00', eski: 'yo\'q — yangi ish (10.11)',
+  { nom: 'mijoz_eslatma', fn: 'mijozEslatma', tavsif: '🤝 Mijozlarga to\'lov va va\'da eslatmasi — mijozlar boti (3 kun oldin, 2 kun oldin, o\'sha kuni; yakshanba ham, shanba — yakshanbaniki ham; dushanba — muddati o\'tgan)', har: 'kun:10:00', eski: 'yo\'q — yangi ish (10.11)',
     ish: (kod, opt) => require('./mijoz_bot').eslatma(kod, opt) },
   { nom: 'holat_skan', fn: 'holatSkan', tavsif: '✅ «Shartnoma olmagan» + imzolangan skan → «Aktiv» (06.11.2026 qarori)', har: 'kun:06:40', eski: 'yo\'q — yangi ish (06.11)',
     ish: (kod, opt) => require('./holat_skan').tuzat({ quruq: !!(opt && opt.quruq) }).then(r => ({ soni: (r.L || []).length, shartnomalar: (r.L || []).map(x => x.no), band: !!r.band })) },

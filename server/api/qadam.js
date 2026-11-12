@@ -45,8 +45,17 @@ const QD_SMS_MATN = {
   qm3: 'Hurmatli {ism}! {no}-shartnoma bo\'yicha qo\'shimcha maydon uchun {summa} so\'m bo\'yicha talabnoma tayyorlanmoqda. Tel: {tel}',
   buzildi: 'Hurmatli {ism}! {sana} ga {summa} so\'m to\'lashni va\'da bergan edingiz, to\'lov kelmadi. Iltimos, bugun to\'lang. Tel: {tel}',
   qisman: 'Hurmatli {ism}! {sana} ga {summa} so\'m va\'da bergan edingiz, {tolandi} so\'m to\'ladingiz. Qolgan {qoldi} so\'mni to\'lang. Tel: {tel}',
+  // 12.11.2026: va'da va grafik eslatmalari — 3 kun oldin, 2 kun oldin, o'sha kuni (lib/eslatma_kun.js)
+  vada3: 'Hurmatli {ism}! {sana} kuni {summa} so\'m to\'lashni va\'da bergansiz — 3 kun qoldi. Unutmang. ANGOR KARVON SAROY, tel: {tel}',
+  vada2: 'Hurmatli {ism}! 2 kundan keyin ({sana}) {summa} so\'m to\'lov kuningiz — va\'dangizni unutmang. ANGOR KARVON SAROY, tel: {tel}',
   vada1: 'Hurmatli {ism}! Ertaga ({sana}) {summa} so\'m to\'lashni va\'da bergansiz. ANGOR KARVON SAROY, tel: {tel}',
-  vada0: 'Hurmatli {ism}! Bugun ({sana}) {summa} so\'m to\'lov kuningiz. ANGOR KARVON SAROY, tel: {tel}',
+  vada0: 'Hurmatli {ism}! Bugun ({sana}) {summa} so\'m to\'lash kuningiz — va\'dangizni bajaring. ANGOR KARVON SAROY, tel: {tel}',
+  grafik3: 'Hurmatli {ism}! {no}-shartnoma bo\'yicha navbatdagi to\'lov {sana} — {summa} so\'m. 3 kun qoldi. ANGOR KARVON SAROY, tel: {tel}',
+  grafik2: 'Hurmatli {ism}! {no}-shartnoma: 2 kundan keyin ({sana}) {summa} so\'m to\'lov kuningiz. Unutmang. ANGOR KARVON SAROY, tel: {tel}',
+  grafik0: 'Hurmatli {ism}! {no}-shartnoma: bugun ({sana}) {summa} so\'m to\'lov kuningiz. ANGOR KARVON SAROY, tel: {tel}',
+  // birlashgan (faol va'da + grafik kuni yaqin) — direktor tasdiqlagan matn (12.11.2026); {gsana}/{gsumma} — grafik bo'yicha shu sanagacha jami, {vsana}/{vsumma} — va'da
+  birga: 'Hurmatli {ism}! {no}: {gsana} gacha grafik bo\'yicha {gsumma} so\'m to\'lashingiz shart. Va\'dangiz: {vsana} da {vsumma}. Grafikni ham bajaring. ANGOR KARVON SAROY',
+  birga0: 'Hurmatli {ism}! {no}: bugun grafik bo\'yicha {gsumma} so\'m to\'lov kuni. Va\'dangiz: {vsana} da {vsumma}. Grafikni ham bajaring. ANGOR KARVON SAROY',
   nazorat: 'Hurmatli {ism}! {no}-shartnoma bo\'yicha xatimizdagi to\'lov muddati {sana}. Qarzingiz {summa} so\'m. Iltimos, o\'z vaqtida to\'lang. Tel: {tel}',
   nazorat2: 'Hurmatli {ism}! {no}-shartnoma bo\'yicha xatimizdagi to\'lov muddati o\'tdi. Qarzingiz {summa} so\'m. Iltimos, bugun to\'lang. Tel: {tel}' };
 // Ijro.gs
@@ -287,8 +296,8 @@ async function qdHisob(kod, fishlar, bugun, XD) {
     o.kutilmoqda = o.hamma.filter(m => m.kutishda.length).map(m => ({ no: m.no, fish: m.fish, dokon: m.dokon, kutish: m.kutishda }));   // v2.2
     const NZ = o.L.map(x => ({ x, n: P.undNazorat(x, bugun) })).filter(z => z.n);
     const nzK = NZ.filter(z => z.n.kerak);
-    o.nazorat = { jami: NZ.length, kerak: nzK.length, qilinmadi: nzK.filter(z => !z.n.qilindi).length, eslatma: nzK.filter(z => /^eslatma/.test(z.n.kerak)).length,
-      qilinmaganlar: nzK.filter(z => !z.n.qilindi).map(z => ({ no: z.x.no, fish: z.x.fish, kerak: z.n.kerak })) };
+    o.nazorat = { jami: NZ.length, kerak: nzK.length, qilinmadi: nzK.filter(z => !z.n.qilindi).length, eslatma: nzK.filter(z => /^(vada|grafik|birga)\d$/.test(z.n.kerak)).length,
+      qilinmaganlar: nzK.filter(z => !z.n.qilindi).map(z => ({ no: z.x.no, fish: z.x.fish, kerak: z.n.kerak, yoq: (z.n.kerak === 'qongiroq' || z.n.aloqa ? '' : 'qo\'ng\'iroq') + (/^(vada|grafik|birga)/.test(z.n.kerak) && !z.n.sms ? (z.n.aloqa ? '' : ' + ') + 'SMS' : '') })) };
     const navbat = o.hamma.filter(m => !m.tugadi && !m.yopildi && m.qoldi > 0);
     const snap = await qdSnap(kod, f, bugun, navbat.map(m => m.no), o.hamma.filter(m => m.tugadi).map(m => m.no));
     o.hamma.forEach(m => { m.navbatda = !!snap[m.no]; });
@@ -504,8 +513,9 @@ async function qadamNazorat([kodSes]) {
     L.push({ no: x.no, fish: x.fish, mid: x.mid, dokon: x.dokon, tel: String(x.tel || '').split(',').map(t => t.trim()).filter(Boolean), manzil: x.manzil,
       muddati: x.muddati, qoshimcha: x.qoshimcha, jami: x.jami, farq: x.farq || 0, vada: x.vada, tur: n.tur, kerak: n.kerak, qilindi: n.qilindi, vaqt: n.vaqt,
       bugunAloqa: x.bugunAloqa || [], bugunSms: !!x.bugunSms, smsHol: x.smsHol || null, javobsizKun: x.javobsizKun || 0, bosqich, qoldi, xatMuddat: ox ? ox.muddat : '', yurist, koch,
-      sms: n.kerak === 'eslatma0' ? 'vada0' : n.kerak === 'eslatma1' ? 'vada1' : n.tur === 'xat' ? (qoldi !== null && qoldi < 0 ? 'nazorat2' : 'nazorat') : '' }); });
-  const dar = z => z.kerak && !z.qilindi ? (/^eslatma/.test(z.kerak) ? 0 : 1) : z.kerak ? 2 : 3;
+      esl: n.esl || null, kochdi: !!n.kochdi, aloqa: !!n.aloqa, smsBor: !!n.sms,
+      sms: /^birga\d$/.test(n.kerak) ? (n.kerak === 'birga0' ? 'birga0' : 'birga') : /^(vada|grafik|birga)\d$/.test(n.kerak) ? n.kerak : n.tur === 'xat' ? (qoldi !== null && qoldi < 0 ? 'nazorat2' : 'nazorat') : '' }); });
+  const dar = z => z.kerak && !z.qilindi ? (z.kochdi ? -1 : /^(vada|grafik|birga)\d$/.test(z.kerak) ? 0 : 1) : z.kerak ? 2 : 3;   // ↩ yakshanbadan qolgan — boshida
   L.sort((a, b) => (dar(a) - dar(b)) || ((a.qoldi === null ? 999 : a.qoldi) - (b.qoldi === null ? 999 : b.qoldi)) || (b.muddati - a.muddati));
   const K = L.filter(z => z.kerak);
   return { ok: true, bugun, royxat: L, son: { jami: L.length, kerak: K.length, qilindi: K.filter(z => z.qilindi).length, qilinmadi: K.filter(z => !z.qilindi).length },

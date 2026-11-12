@@ -5,6 +5,7 @@
 //   monEslatma  — Monitoring.gs monEslatmaYubor (09:10, yakshanbadan tashqari): skansiz yangi shartnomalar — tuzgan xodimga eslatma, direktorga svod.
 // Matnlar eski kod bilan aynan. opt.quruq — hech narsa yubormaydi/yozmaydi, xabarlar va 07c qatorlarini qaytaradi (aks-vaqt sinov).
 'use strict';
+const EK = require('./eslatma_kun');
 const G = require('./google');
 const env = require('./env');
 const V = require('./varaq');
@@ -61,12 +62,14 @@ async function ertalabYoz(varaq, bugunIso, rows) {
 // ------------------------------------------------------------------ undErtalabYubor
 async function undErtalab(kod, opt = {}) {
   const bugun = V.bugun();
-  if (hafta(bugun) === 0) return { yuborilmadi: 'Yakshanba — topshiriq yuborilmaydi.' };
+  // 12.11.2026: yakshanba ham yuboriladi (yakshanba — oddiy ish kuni, faqat ixtiyoriy; bajarilmagan eslatma dushanbaga o'tadi)
   const MON = require('../api/monitoring')._ichki;
   const XD = await MON.monXodimlarRoyxat();
-  const U = XD.filter(x => x.ishlayapti && x.huquq.indexOf('undiruv') >= 0 && x.huquq.indexOf('admin') < 0);
   const adm = XD.filter(x => x.ishlayapti && x.huquq.indexOf('admin') >= 0 && x.tg).map(x => x.tg);
   const Pf = await P.undPortfel(() => true, kod);
+  // 12.11.2026 (E): direktorga biriktirilgan mijozlar bo'lsa — unga ham o'z ro'yxati (07c svodga yozilmaydi)
+  const U = XD.filter(x => x.ishlayapti && ((x.huquq.indexOf('undiruv') >= 0 && x.huquq.indexOf('admin') < 0)
+    || (x.huquq.indexOf('admin') >= 0 && Pf.royxat.some(z => z.undiruvchi === x.fish))));
   const sana = dmy(bugun) + ', ' + H_KUNLAR_K[hafta(bugun)];
   const svod = [], yoz = [], xabarlar = [];
   for (const x of U) {
@@ -81,19 +84,26 @@ async function undErtalab(kod, opt = {}) {
     const M = ['☀️ <b>Ertalabki topshiriq</b> — ' + sana, '<b>' + x.ism + '</b>, portfelingizda ' + L.length + ' ta mijoz, muddati o\'tgan qarz ' + pul(muddati) + ' so\'m.', ''];
     const royxat = (sarl, R) => { if (!R.length) return; M.push(sarl + ' (' + R.length + ')'); R.forEach(t => M.push('• ' + t)); M.push(''); };
     const NZ = L.map(z => ({ z, n: P.undNazorat(z, bugun) })).filter(o => o.n);
-    const vE = NZ.filter(o => o.n.kerak === 'eslatma0' || o.n.kerak === 'eslatma1');
-    if (vE.length) { M.push('🔔 <b>Va\'da eslatmasi</b> — qo\'ng\'iroq qilib eslating (' + vE.length + ')');
-      vE.forEach(o => M.push('• <b>' + o.z.no + '</b> ' + qisqaIsm(o.z.fish) + ' — ' + (o.n.kerak === 'eslatma0' ? 'BUGUN' : 'ertaga') + ' ' + pul(o.z.vada.summa) + ' so\'m')); M.push(''); }
+    // 12.11.2026: va'da va grafik eslatmalari — 3 kun oldin, 2 kun oldin, o'sha kuni; qo'ng'iroq HAM SMS; ↩ yakshanbadan qolgani — boshida
+    const qator = o => { const e = o.n.esl;
+      return '• ' + (o.n.kochdi ? '↩ ' : '') + '<b>' + o.z.no + '</b> ' + qisqaIsm(o.z.fish) + ' — '
+        + (e.manba === 'birga' ? 'va\'da ' + dmy(e.vada.sana) + ' ' + pul(e.vada.summa) + ' + grafik ' + dmy(e.sana) + ' gacha ' + pul(e.summa) + ' so\'m (' + EK.KUN_MATN(e.kun) + ')'
+          : EK.KUN_MATN(e.kun) + ' (' + dmy(e.sana) + ') ' + pul(e.summa) + ' so\'m') + (o.n.kochdi ? ' · yakshanbadan qolgan' : ''); };
+    const eT = (a, b) => (b.n.kochdi ? 1 : 0) - (a.n.kochdi ? 1 : 0) || a.n.esl.kun - b.n.esl.kun;
+    const vE = NZ.filter(o => o.n.esl && (o.n.esl.manba === 'vada' || o.n.esl.manba === 'birga')).sort(eT), gE = NZ.filter(o => o.n.esl && o.n.esl.manba === 'grafik').sort(eT);
+    if (vE.length) { M.push('🔔 <b>Va\'da eslatmasi</b> — qo\'ng\'iroq qiling VA SMS yuboring (' + vE.length + ')'); vE.forEach(o => M.push(qator(o))); M.push(''); }
+    if (gE.length) { M.push('📅 <b>To\'lov kuni eslatmasi</b> (botga ulanmagan mijozlar) — qo\'ng\'iroq VA SMS (' + gE.length + ')'); gE.forEach(o => M.push(qator(o))); M.push(''); }
     const nQ = NZ.filter(o => o.n.kerak === 'qongiroq').length;
     if (nQ) { M.push('📋 <b>Nazoratda</b>: ' + nQ + ' ta xat olgan mijozga bugun qo\'ng\'iroq qilish shart (ilovada «📋 Nazoratdagi mijozlar»).'); M.push(''); }
     royxat('🔴 <b>BUGUN</b>', q); royxat('🟡 <b>Ish bor</b>', sa);
     if (y.length) { M.push('🟢 <b>Yuristga tayyor</b>: ' + y.join(', ')); M.push(''); }
-    if (!q.length && !sa.length) M.push('✅ Bugun shoshilinch ish yo\'q. Portfelni ilovada ko\'rib chiqing.');
+    if (!q.length && !sa.length && !vE.length && !gE.length && !nQ) M.push('✅ Bugun shoshilinch ish yo\'q. Portfelni ilovada ko\'rib chiqing.');
     M.push('Ishlarni bajarib, har birini «Undiruv jurnali»ga yozing. 17:00 da yetkazilmagan xatlar tekshiriladi.');
     let holat;
     if (!x.tg) holat = '❌ Telegramga ulanmagan — topshiriq bormadi';
     else if (opt.quruq) { holat = '(quruq) ' + bolak(M).length + ' xabar'; xabarlar.push({ kimga: x.fish, matn: M.join('\n') }); }
     else { try { const n = await tgBolibYubor(kod, x.tg, M); holat = '✅ yuborildi' + (n > 1 ? ' (' + n + ' xabar)' : ''); } catch (e) { holat = '❌ yuborilmadi: ' + e.message; } }
+    if (x.huquq.indexOf('admin') >= 0) continue;   // direktorning o'z ro'yxati — svodga va 07c ga yozilmaydi
     svod.push('<b>' + x.fish + '</b> — 🔴 ' + q.length + ' · 🟡 ' + sa.length + ' · 🟢 ' + y.length + ' · ' + holat);
     yoz.push({ fish: x.fish, q: q.length, s: sa.length, y: y.length, n: L.length, muddati, holat });
   }
