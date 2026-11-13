@@ -193,14 +193,20 @@ async function skanYukla(u, i0, m) {
 }
 
 // ------------------------------------------------------------------ keyingi bosqich (hujjat bilan)
+// 14.11.2026 (direktor qarori): QABUL QILINMAGAN ISHDA SUDGA ARIZA KIRITILMAYDI. Avval qabul so'ralardi, lekin majbur qilinmasdi: yurist qabul tugmasini
+// bosmasdan ariza raqami va skanini saqlasa, ish 2-bosqichga o'tib, qabul talabi o'zi yo'qolardi — hujjatlarni kim, qachon tekshirgani tarixda qolmasdi.
+const QABUL_AVVAL = 'Avval ishni qabul qiling: hujjatlarni tekshirib, «✅ Qabul qildim — hujjatlar to\'liq» yoki «⚠ Kamchilik bor» tugmasini bosing. Sudga ariza shundan keyin kiritiladi.';
 async function yuristKeyingi(args) {
   const [kodSes, id, d0] = args; const d = d0 || {};
   const u = await S.ruxsat(kodSes, 'yurist');
+  { const im = (await J.yuIshlar()).find(z => String(z.id) === String(id));          // eski tizimga ketadigan yo'ldan OLDIN ham tekshiriladi
+    if (im && Q.yuQabulKerakmi(im, (await Q.yuQabulMap())[String(im.id)])) throw new S.Xato(QABUL_AVVAL); }
   if (d.b64 && !(await faylMumkin(u.kod))) return eskiTizim('yuristKeyingi', u, args.slice(1));
   return bajar('yuristKeyingi', u, args.slice(1), async () => {
     const bugun = V.bugun();
     const i0 = await ishYangi(id);
     if (i0.holati !== 'Faol' && i0.holati !== 'Kelishuv') throw new S.Xato('Bu ish holati: ' + i0.holati + '.');
+    if (Q.yuQabulKerakmi(i0, (await Q.yuQabulMap())[String(i0.id)])) throw new S.Xato(QABUL_AVVAL);   // Google'dan yangi o'qilgan qator bo'yicha
     let tartib = i0.tartib, tanlandi = false;
     if (i0.bosqich === 1 || (i0.bosqich === 2 && !tartib)) {
       tartib = d.tartib === 'Buyruq' ? 'Buyruq' : d.tartib === 'Davo' ? 'Davo' : ''; tanlandi = true;
@@ -385,4 +391,4 @@ async function yuristXat(args) {
 }
 
 module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat, yuristXat };
-module.exports._ichki = { faylMumkin, skanYukla };
+module.exports._ichki = { faylMumkin, skanYukla, QABUL_AVVAL };

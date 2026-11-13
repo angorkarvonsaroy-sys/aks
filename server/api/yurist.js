@@ -64,11 +64,14 @@ async function yuTarixOl(id) {
     .map(r => ({ vaqt: r[0], voqea: r[3], kim: r[4], izoh: r[5], hujjat: r[6] }));
 }
 
+// 📥 Ishni qabul qilish kerakmi: yuristga yangi o'tgan (1-bosqich), qabul yozuvi yo'q, qoida kuchga kirgan kundan (YU_QABUL_BOSH) keyin o'tkazilgan.
+// 14.11.2026 (direktor qarori): qabul qilinmagan ishda sudga ariza kiritib bo'lmaydi — shu shart yurist_yoz.js yuristKeyingi da ham tekshiriladi.
+const yuQabulKerakmi = (i, q) => !!i && i.holati === 'Faol' && i.bosqich === 1 && !!i.topshirilgan && i.topshirilgan >= YU_QABUL_BOSH && !q;
 function yuKorinish(i, x, bugun, K) {
   x = x || {}; const T = yuTrek(i);
   let kechikdi = 0, eslatma = '', chegara = '', yuMas = false, pauza = 0;
   const q = (K.Q || {})[String(i.id)] || null;
-  const qabulKerak = i.holati === 'Faol' && i.bosqich === 1 && !!i.topshirilgan && i.topshirilgan >= YU_QABUL_BOSH && !q;
+  const qabulKerak = yuQabulKerakmi(i, q);
   const shosh = (Number(x.muddati) || 0) > 0 && (Number(x.davoKun != null ? x.davoKun : x.kechikkan) || 0) >= 1095 - 90;
   if (qabulKerak) {
     chegara = yuIshKun(i.topshirilgan, YU_QABUL_KUN); yuMas = true; eslatma = 'qabul qilish muddati ' + yuDmy(chegara);
@@ -151,4 +154,4 @@ async function yuristIsh([kodSes, id]) {
 
 module.exports = { yuristBoshlang, yuristIsh };
 // yozadigan amallar (yurist_yoz.js) uchun umumiy qoidalar — amal emas
-module.exports.Q = { YU_TREK, YU_FAOL, YU_QARORLAR, YU_SUD, YU_TOP_TUR, yuTrek, yuKeyingiB, yuDmy, yuQabulMap, yuKorinish, yuKesh };
+module.exports.Q = { YU_TREK, YU_FAOL, YU_QARORLAR, YU_SUD, YU_TOP_TUR, yuTrek, yuKeyingiB, yuDmy, yuQabulMap, yuKorinish, yuKesh, yuQabulKerakmi };
