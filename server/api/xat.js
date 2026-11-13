@@ -16,7 +16,7 @@ function xatKorinish(h, u, bugun, bugunDmy) {
   const tk = String(h.tek || '').split('|');
   return { raqam: h.raqam, sana: h.sana, bosqich: h.bosqich, seriya: X.xatSeriya(h.shablon), holati: h.holati, muddat: h.muddat, skan: h.skan, usul: h.usul, yetSana: h.yetSana, pochta: h.pochta, kim: h.kim,
     tek: tk[0] || '', tekIzoh: tk[0] === 'Rad' ? (tk[3] || '') + ' (' + (tk[2] || '') + ', ' + (tk[1] || '') + ')' : tk[0] === 'Tasdiqlandi' ? (tk[2] || '') + ', ' + (tk[1] || '') : '',
-    kechikdi: X.xatKechikkan(h, bugun), eskirgan: xatEskirgan(h, bugun),
+    kechikdi: X.xatKechikkan(h, bugun), eskirgan: xatEskirgan(h, bugun), tizimBekor: h.holati === 'Bekor' && String(h.izoh || '').indexOf('TIZIM BEKOR QILDI') >= 0,
     bekorMumkin: h.holati !== 'Bekor' && (u.admin || xatEskirgan(h, bugun) || (h.kim === u.fish && h.holati === 'Tayyorlandi' && h.vaqt.indexOf(bugunDmy) === 0)) };
 }
 // hujjatTopShartnoma_: direktor shu xodimga bergan ochiq topshiriqlardagi shartnomalar

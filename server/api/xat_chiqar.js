@@ -145,10 +145,11 @@ function boshla() { const t = setInterval(() => qolganlarniKochir().catch(() => 
 
 // ------------------------------------------------------------------ xatTayyorla
 async function xatTayyorla(args) {
-  const [kodSes, no, seriya0] = args;
+  const [kodSes, no, seriya0, sabab0] = args;
   const seriya = seriya0 === 'QM' ? 'QM' : 'AS';
+  const qSabab = s(sabab0 || '').replace(/\s+/g, ' ').trim();   // 13.11.2026: tizim bekor qilgan xat o'rniga chiqarilganda — nega yetkazilmagani
   const u = await S.ruxsat(kodSes, 'xat');
-  if (!(await serverda(u.kod))) return eskiTizim('xatTayyorla', u, args.slice(1));
+  if (!(await serverda(u.kod))) return eskiTizim('xatTayyorla', u, args.slice(1, 3));
   const r = await QY.qulf('xat', async () => {
     const bugunIso = V.bugun();
     const x = (await P.xatShartnomalar(bugunIso)).find(z => z.no === s(no));
@@ -157,6 +158,7 @@ async function xatTayyorla(args) {
     const [Jx, UJ, Z] = await Promise.all([XI.xatlarYangi(XAT_V), J.undJurnal(), X.xatZanjir(u.kod)]);
     const k = P.xatKeyingi(x, Jx, bugunIso, UJ, !!u.admin, seriya, Z);
     if (!k.mumkin) throw new S.Xato(k.sabab);
+    if (k.qayta && !u.admin && qSabab.length < 10) throw new S.Xato('Oldingi xat ' + k.qayta.raqam + ' (' + k.qayta.sana + ') muddatida mijozga yetkazilmagani uchun tizim bekor qilgan. Yangisini chiqarish uchun nega yetkazilmaganini yozing (kamida 10 belgi).');
     const sh = seriya === 'QM' ? x.qm : x.shablon;
     const b = k.bosqich, oldin = Jx.filter(h => h.no === x.no && h.holati === 'Yuborildi' && X.xatSeriya(h.shablon) === seriya);
     const yil = bugunIso.slice(0, 4), raqam = keyingiRaqam(Jx, yil);
@@ -173,7 +175,7 @@ async function xatTayyorla(args) {
     const f = await XP.xatChiqar(Object.assign({}, x, { shablon: sh }), b, raqam, bugunIso, muddatIso, Q, oldin, await ijrochi(u.fish), shosh);
     const fl = saqla(yil, f.nom, f.pdf);
     await qatorYoz(XAT_V, [raqam, d(bugunIso), x.no, x.mid, x.fish, x.dokon, sh, b, Q.asosiy, Q.muddati, Q.qoshimcha, Q.jami, d(muddatIso), 'Tayyorlandi', fl.id,
-      '', '', '', '', u.fish, hozir().dmyHms, shosh ? 'Shoshilinch tartib (da\'vo muddati)' : '', '']);
+      '', '', '', '', u.fish, hozir().dmyHms, [shosh ? 'Shoshilinch tartib (da\'vo muddati)' : '', k.qayta ? 'Qayta chiqarildi: ' + k.qayta.raqam + ' o\'rniga (u muddatida yetkazilmadi)' + (qSabab ? ' — sabab: ' + qSabab : '') : ''].filter(Boolean).join(' | '), '']);
     const kochish = driveGa(u.kod, { raqam, rel: fl.rel, yil, nom: f.nom }).catch(() => null);
     return { kochish, javob: { raqam, bosqich: b, seriya, nom: f.nom, b64: f.pdf.toString('base64'), muddat: d(muddatIso), url: '', ogoh: XP.ismOgoh(x.fish).concat(XP.betOgoh(f.bet, f.ikkiBet)) } };
   });
@@ -269,7 +271,7 @@ async function qadamXatChiqar(args) {
   const [kodSes, d0] = args; const dd = d0 || {};
   const u = await S.ruxsat(kodSes, 'undiruv');
   if (!(await serverda(u.kod))) return eskiTizim('qadamXatChiqar', u, args.slice(1));
-  const r = await xatTayyorla([kodSes, s(dd.no || ''), dd.seriya === 'QM' ? 'QM' : 'AS']);
+  const r = await xatTayyorla([kodSes, s(dd.no || ''), dd.seriya === 'QM' ? 'QM' : 'AS', s(dd.sabab || '')]);
   const m = await require('./qadam').qadamMijoz([kodSes, dd.no]);
   m.xat = { raqam: r.raqam, bosqich: r.bosqich, seriya: r.seriya, nom: r.nom, b64: r.b64, muddat: r.muddat, ogoh: r.ogoh || [] }; return m;
 }

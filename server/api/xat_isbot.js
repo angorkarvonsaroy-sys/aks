@@ -92,9 +92,21 @@ async function undXatYozIch(varaq, h, usul, sana, fish, x) {
 }
 
 // ------------------------------------------------------------------ xatYuborildi_ (umumiy qism)
-async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla) {
+async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla, kechSabab0, XJ) {
   const raqam = h.raqam;
-  if (h.holati !== 'Tayyorlandi') throw new S.Xato('Bu xat holati: ' + h.holati + '. Isbot faqat «Tayyorlandi» holatidagi xatga yuklanadi.');
+  // 13.11.2026: muddatida yetkazilmagan deb TIZIM bekor qilgan xat (lib/xat_tizim_bekor.js) — xodim «vaqtida yetkazganman» desa, isbotini KECHIKISH SABABI bilan yuklaydi.
+  //   Shartlar: shu shartnomada undan keyin yangi xat chiqarilmagan; yetkazilgan sana xatdagi to'lov muddatidan kech emas. Isbotni yurist tekshiradi (avvalgidek);
+  //   rad etilsa — xat «Tayyorlandi»ga qaytadi va tizim uni keyingi yurishda yana bekor qiladi.
+  const XB = require('../lib/xat_tizim_bekor');
+  const kech = XB.tizimBekor(h), kechSabab = s(kechSabab0 || '').replace(/\s+/g, ' ').trim();
+  if (kech) {
+    const qt = XB.qaytaXat(XJ || await xatlarYangi(XAT_V), h.no, X.xatSeriya(h.shablon));
+    if (!qt || qt.raqam !== raqam) throw new S.Xato('Bu xat o\'rniga yangi xat chiqarilgan — eski xatga isbot yuklanmaydi.');
+    if (kechSabab.length < 10) throw new S.Xato('Nega isbot kechikib yuklanayotganini yozing (kamida 10 belgi) — yurist shunga qarab tekshiradi.');
+    const md = X.xatIso(h.muddat);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(sana || '')) && /^\d{4}-\d{2}-\d{2}$/.test(md) && sana > md) throw new S.Xato('Xat to\'lov muddati (' + h.muddat + ') o\'tgandan keyin yetkazilgan bo\'lsa — bu isbot qabul qilinmaydi: yangi xat chiqaring.');
+  }
+  if (h.holati !== 'Tayyorlandi' && !kech) throw new S.Xato('Bu xat holati: ' + h.holati + '. Isbot faqat «Tayyorlandi» holatidagi xatga yuklanadi.');
   if (usul !== 'qol' && usul !== 'pochta') throw new S.Xato('Yetkazish usulini tanlang.');
   const pochtaNo = s(pochtaNo0 || '').replace(/\s+/g, '').toUpperCase();
   if (usul === 'pochta' && pochtaNo.length < 5) throw new S.Xato('Pochta jo\'natma raqamini yozing (masalan RB191625837UZ) — sudda xat юборилганлигининг исботи шу рақам.');
@@ -104,7 +116,12 @@ async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla
   const r = await yukla({ no: h.no, turi: usul === 'pochta' ? 'POCHTA' : 'XAT_OLDIM', sana, b64, sahifa, xatRaqam: raqam,
     izoh: raqam + ' · ' + bosq + ' · ' + (usul === 'pochta' ? 'почта ' + pochtaNo + ' (имзоланган нусха + квитанция)' : 'қўлма-қўл (мижоз имзоси билан)') });
   const tek = !/top№\d+/.test(s(h.izoh));   // v26.0: direktor talabnoma topshirig'i xati — direktor tekshiradi
-  await xatKataklar(XAT_V, h, { nom: r.nom, usul, sana, pochta: pochtaNo, tek, vaqt: hozir().isoHm, fish: u.fish });
+  await xatKataklar(XAT_V, h, { nom: r.nom, usul, sana, pochta: pochtaNo, tek: tek || kech, vaqt: hozir().isoHm, fish: u.fish });
+  if (kech) {   // yurist va direktor ko'rishi uchun: qachon chiqarilgan, muddati, isbot qachon yuklangan va nega kechikkan
+    const d5 = new Date(Date.now() + 5 * 3600 * 1000), p2 = n => String(n).padStart(2, '0'), hz = p2(d5.getUTCDate()) + '.' + p2(d5.getUTCMonth() + 1) + '.' + d5.getUTCFullYear() + ' ' + p2(d5.getUTCHours()) + ':' + p2(d5.getUTCMinutes());
+    const iz = (h.izoh ? h.izoh + ' | ' : '') + 'KECH ISBOT: xat ' + h.sana + ' da chiqarilgan, muddati ' + h.muddat + '; isbot ' + hz + ' da yuklandi (' + u.fish + ') — sabab: ' + kechSabab;
+    try { await G.yoz(env.aksBazaId, [{ varaq: XAT_V, katak: 'V' + h.qator, qiymat: [[iz]] }], env.googleKey); } catch (e) { console.error('kech isbot izohi yozilmadi:', e.message); }
+  }
   try { const x = (await U.undShartnomalar()).find(z => z.no === h.no); if (x) await undXatYoz(UND_V, h, usul === 'pochta' ? 'почта' : 'қўлма-қўл', sana, u.fish, x); }
   catch (e) { console.error('undXatYozuv_ (server):', e.message); }
   const tg = [];
@@ -124,23 +141,24 @@ async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla
       }
     } catch (e) { console.error('topTalabTekshir_ (server):', e.message); top = top || ''; }
   }
-  if (tek) tg.push(['koprikXatTasdiqTg', raqam]);
+  if (tek || kech) tg.push(['koprikXatTasdiqTg', raqam]);
   if (tg.length) HY._ichki.driveKeyin(s(h.no).replace(/\//g, '-') + '/' + r.nom, async () => { for (const [fn, a] of tg) { try { await koprik.chaqir(fn, u.kod, [a]); } catch (e) { console.error(fn + ' (xat isbot):', e.message); } } });
   await yangila([XAT_V, UND_V].concat(top ? [TOP_V] : []));
-  return { ok: true, raqam, top, tek };
+  return { ok: true, raqam, top, tek: tek || kech, kech };
 }
 
 // ------------------------------------------------------------------ amallar
 async function xatYuborildi(args) {
-  const [kodSes, raqam, usul, sana, b64, sahifa, pochtaNo] = args;
+  const [kodSes, raqam, usul, sana, b64, sahifa, pochtaNo, kechSabab] = args;
   const u = await S.ruxsat(kodSes, 'xat');
-  if (!(await serverda(u.kod))) return eskiTizim('xatYuborildi', u, args.slice(1));
-  const h = (await xatlarYangi(XAT_V)).find(z => z.raqam === raqam);
+  if (!(await serverda(u.kod))) return eskiTizim('xatYuborildi', u, args.slice(1, 7));
+  const XJ0 = await xatlarYangi(XAT_V);
+  const h = XJ0.find(z => z.raqam === raqam);
   if (!h) throw new S.Xato('Xat topilmadi: ' + raqam);
   const ch = (!u.admin && u.huquq.indexOf('undiruv') >= 0) ? u.fish : '';   // xatEgasi_(u, x, ss) — topshiriq bo'yicha ham
   if (ch) { const x = (await P.xatShartnomalar(V.bugun())).find(z => z.no === h.no);
     if (!x || x.undiruvchi !== ch) { if (!(x && (await topTopshiriqlar(u.fish))[x.no])) throw new S.Xato('Bu shartnoma sizning portfelingizda emas.'); } }
-  try { return await yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo, d => HY.hujjatYukla([kodSes, d])); }
+  try { return await yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo, d => HY.hujjatYukla([kodSes, d]), kechSabab, XJ0); }
   catch (e) { if (e.yozilmadi) throw new S.Xato('Isbot yuklandi, lekin xat holati yozilmadi — direktorga ayting (' + e.message + ').'); throw e; }
 }
 async function topOl(u, topId) {   // xatTopOl_

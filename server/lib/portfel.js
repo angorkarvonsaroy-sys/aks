@@ -103,12 +103,17 @@ function xatKeyingi(x, XJ, bugunIso, UJ, adm, seriya, Z) {
   const dv = seriya === 'AS' ? xatDavo(x, yub.length) : null;
   if (dv && dv.shosh) {
     if (yub.some(h => h.bosqich === 3)) return { mumkin: false, sabab: 'Talabnoma yuborilgan — navbat: yuristga o\'tkazish.' };
-    return { mumkin: true, bosqich: 3, shoshilinch: true, davoQolgan: dv.qolgan, kun: dv.kun, kerak: dv.kerak };
+    const qt = require('./xat_tizim_bekor').qaytaXat(XJ, x.no, seriya);
+    return Object.assign({ mumkin: true, bosqich: 3, shoshilinch: true, davoQolgan: dv.qolgan, kun: dv.kun, kerak: dv.kerak }, qt ? { qayta: qt } : {});
   }
   if (seriya === 'QM' && !(x.qoshimcha > X.XAT_MIN_QARZ)) return { mumkin: false, sabab: 'Qo\'shimcha maydon qarzi yo\'q (yoki 100 000 so\'mdan kam).' };
   if (yub.length) { const m = X.xatIso(yub[yub.length - 1].muddat);
     if (bugunIso <= m) return { mumkin: false, sabab: 'Oldingi xatda berilgan to\'lov muddati (' + yub[yub.length - 1].muddat + ') hali o\'tmagan.' }; }
   const b = yub.length + 1;
+  // 13.11.2026: oldingi xat muddatida yetkazilmagani uchun TIZIM bekor qilgan bo'lsa (lib/xat_tizim_bekor.js) — o'sha bosqich xati yangidan chiqariladi,
+  //   xat oldidan aloqa sharti qayta so'ralmaydi (u birinchi chiqarishda bajarilgan); chiqarishda sabab yoziladi (api/xat_chiqar.js).
+  const qayta = require('./xat_tizim_bekor').qaytaXat(XJ, x.no, seriya);
+  if (qayta) return { mumkin: true, bosqich: b, qayta };
   if (!adm && !x.qaytarish) {   // 13.11.2026: pul qaytarilayotgan shartnomada xatdan oldingi qo'ng'iroq/SMS/tashrif sharti so'ralmaydi
     let dan, izoh;
     if (b === 1) { dan = qosh(bugunIso, -XAT_CHORA_KUN); izoh = 'so\'nggi ' + XAT_CHORA_KUN + ' kunda'; }
@@ -211,7 +216,8 @@ function undBuyruq(x) {
   const davo = !QB && !bekor && M && (x.davoOtgan || x.davoShosh);
   const faqatYurist = davo && x.davoOtgan;
   if (bekor) q('Boshlang\'ich to\'lov muddati o\'tdi, to\'lov yo\'q — shartnomani bekor qilish uchun direktorga kiriting');
-  if (eski) x.xatEskirgan.forEach(h => q('Xat ' + h.raqam + ' — to\'lov muddati ' + h.muddat + ' da o\'tgan, yetkazmang: sababini yozib bekor qiling'));
+  // 13.11.2026: muddati o'tgan xatni endi TIZIM o'zi bekor qiladi (har 30 daqiqada, lib/xat_tizim_bekor.js) — undiruvchiga «bekor qiling» vazifasi berilmaydi
+  if (eski) x.xatEskirgan.forEach(h => k('Xat ' + h.raqam + ' — to\'lov muddati ' + h.muddat + ' da o\'tgan: tizim uni yarim soat ichida o\'zi bekor qiladi, keyin yangisi tavsiya qilinadi'));
   if (x.xatKechikdi > 0) q('Xat ' + x.xatKechikdi + ' kundan beri yetkazilmagan — darhol yetkazing va isbotini yuklang');
   else if (x.xatOchiq) q('Xatni bugun yetkazing va isbotini yuklang');
   if (davo) {
@@ -235,11 +241,13 @@ function undBuyruq(x) {
   if (!QB && !bekor && !eski && !davo && x.vadaFaol && ((x.kAS && (x.kAS.mumkin || x.kAS.yetishmaydi)) || (x.kQM && (x.kQM.mumkin || x.kQM.yetishmaydi))))
     k('Faol va\'da ' + String(x.vada.sana).split('-').reverse().join('.') + ' gacha — xat navbati to\'xtatildi (va\'da buzilsa, darhol qaytadi)');
   if (!bekor && !eski && !davo && (QB || !x.vadaFaol) && x.kAS) {
-    if (x.kAS.mumkin) sq(x.kAS.bosqich === 3 ? 'Talabnomani chiqaring' : x.kAS.bosqich + '-xatni chiqaring');
+    if (x.kAS.mumkin && x.kAS.qayta) q('Xat ' + x.kAS.qayta.raqam + ' (' + x.kAS.qayta.sana + ') muddatida mijozga topshirilmadi — tizim bekor qildi. Yangisini chiqaring');
+    else if (x.kAS.mumkin) sq(x.kAS.bosqich === 3 ? 'Talabnomani chiqaring' : x.kAS.bosqich + '-xatni chiqaring');
     else if (x.kAS.yetishmaydi) x.kAS.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
   if (!bekor && !eski && (QB || !x.vadaFaol) && x.kQM) {
-    if (x.kQM.mumkin) sq(x.kQM.bosqich === 1 ? 'Maydon farqi bildirishnomasini chiqaring' : x.kQM.bosqich === 2 ? 'Maydon farqi ogohlantirish xatini chiqaring' : 'Maydon farqi talabnomasini chiqaring');
+    if (x.kQM.mumkin && x.kQM.qayta) q('Maydon farqi xati ' + x.kQM.qayta.raqam + ' (' + x.kQM.qayta.sana + ') muddatida mijozga topshirilmadi — tizim bekor qildi. Yangisini chiqaring');
+    else if (x.kQM.mumkin) sq(x.kQM.bosqich === 1 ? 'Maydon farqi bildirishnomasini chiqaring' : x.kQM.bosqich === 2 ? 'Maydon farqi ogohlantirish xatini chiqaring' : 'Maydon farqi talabnomasini chiqaring');
     else if (x.kQM.yetishmaydi) x.kQM.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
   if (!QB && !bekor && (M || Number(x.qoshimcha) > 100000) && x.javobsizKun >= UND_JAVOBSIZ_KUN) sq('Uyiga boring — ' + x.javobsizKun + ' kundan beri telefonga javob bermayapti');

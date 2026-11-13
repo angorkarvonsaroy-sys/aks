@@ -29,7 +29,8 @@ const IJRO_TUR = {
   tashrif: ['Uyiga borish isbotsiz (rasm yo\'q)', 'o\'rta'], top: ['Topshiriq muddati o\'tdi', 'yengil'],
   otkaz: ['«Bugun qila olmayman» kuniga 3 tadan ko\'p', 'yengil'], soxta: ['Tasodifiy tekshiruvda tasdiqlanmadi', 'og\'ir'],
   tasdiq: ['Isbotni muddatida tekshirmadi', 'yengil'], yuqabul: ['Yuristga o\'tgan ishni muddatida qabul qilmadi', 'yengil'],
-  yubosqich: ['Sud ishini muddatida yuritmadi (yurist bosqichi)', 'o\'rta'], isbotrad: ['Xat isboti tekshiruvda qaytarildi', 'o\'rta'] };
+  yubosqich: ['Sud ishini muddatida yuritmadi (yurist bosqichi)', 'o\'rta'], isbotrad: ['Xat isboti tekshiruvda qaytarildi', 'o\'rta'],
+  xatbekor: ['Xatni muddatida yetkazmadi — tizim bekor qildi', 'o\'rta'] };   // 13.11.2026 (lib/xat_tizim_bekor.js)
 const IJRO_ZINA = [1, 3, 5], IJRO_OGIR_BALL = 3;
 
 const s = v => String(v == null ? '' : v);

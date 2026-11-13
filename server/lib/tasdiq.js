@@ -73,7 +73,8 @@ function xatTasdiqItem(h, sh, HJ) {
   const muddat = vaqt ? topIshKun(vaqt, shosh ? TOP_TASDIQ_SHOSH : TOP_TASDIQ_KUN) : '';
   const bos = (X.xatSeriya(h.shablon) === 'QM' ? X.XAT_BOSQICH_QM : X.XAT_BOSQICH)[h.bosqich] || (h.bosqich + '-xat');
   const it = { k: 'x' + h.raqam, tur: 'xat', id: h.raqam, raqam: h.raqam, no: h.no, sarlavha: h.raqam + ' — ' + bos, nomi: '✉ Xat isboti: ' + h.raqam + ' (' + bos + ')', kim,
-    dalil: (h.usul || '') + (h.pochta ? ' № ' + h.pochta : '') + (h.yetSana ? ', ' + h.yetSana : ''), vaqt, muddat, kech: !!(muddat && muddat < topHozirIso()), shosh,
+    dalil: (h.usul || '') + (h.pochta ? ' № ' + h.pochta : '') + (h.yetSana ? ', ' + h.yetSana : '')
+      + ((m => m ? ' · ⚠ ' + m[0] : '')(/KECH ISBOT:[^|]*/.exec(String(h.izoh || '')))), vaqt, muddat,   // 13.11.2026: kechikib yuklangan isbot — sanalar va sabab tekshiruvchiga ko'rinadi kech: !!(muddat && muddat < topHozirIso()), shosh,
     tasdiqchi: 'yurist', fayl: hj ? [{ hj: String(hj.id) }] : [], rad: 'xat', tgx: h.tgx || '' };
   it.caption = tasdiqCaption(it); return it;
 }
