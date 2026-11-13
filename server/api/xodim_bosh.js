@@ -201,7 +201,8 @@ async function xodimBosh([kodSes]) {
     try {
       (await oqi('06f_Yurist_tarix', 7)).filter(r => r[0] && xodimTeng(r[4], u.fish)).slice(-60).forEach(r => {
         const vq = xbVaqt(r[0]), voqea = st(r[3]).trim() || 'Yuridik ish', no = st(r[2]).trim();
-        yoz(vq, '⚖', voqea, no || ('ish ' + st(r[1])), { t: 'bolim', v: 'yurist' }, 'yu' + st(r[1]) + '|' + vq.srt,
+        // 14.11.2026: «Ochish» aynan shu ishni ochadi (id, no) — avval faqat umumiy ro'yxat ochilardi; bitta ish ro'yxatda bir marta (oxirgi amali bilan)
+        yoz(vq, '⚖', voqea, no || ('ish ' + st(r[1])), { t: 'bolim', v: 'yurist', id: st(r[1]), no }, 'yu' + st(r[1]),
           '⚖ ' + voqea + (no ? ' — ' + no : ''), 'yurist');
       });
     } catch (e) { }
@@ -229,8 +230,9 @@ async function xodimBosh([kodSes]) {
     kpi.push({ k: 'jim', nom: '30+ kun aloqa yo\'q', q: qd.jim, iz: 'portfel ' + qd.portfel + ' ta', cls: qd.jim ? 's' : '', och: { t: 'bolim', v: 'qadam' } });
     kpi.push({ k: 'kech', nom: "Muddati o'tgan topshiriq", q: tk.kechikkan, iz: tk.kechikkan ? 'darhol bajaring' : 'hammasi vaqtida ✅', cls: tk.kechikkan ? 'q' : '', och: { t: 'topshiriq' } });
   } else {
-    kpi.push({ k: 'kech', nom: "Muddati o'tgan ishlar", q: tk.kechikkan, iz: tk.kechikkan ? 'darhol bajaring' : 'hammasi vaqtida ✅', cls: tk.kechikkan ? 'q' : '', och: { t: 'topshiriq' } });
-    kpi.push({ k: 'bugun', nom: 'Bugun bajarish kerak', q: tk.bugun, iz: tk.tekshiruv ? tk.tekshiruv + ' ta tekshiruvda' : 'muddati bugun', cls: '', och: { t: 'topshiriq' } });
+    // 14.11.2026: bu ikki katak faqat 📌 topshiriqlarni sanaydi — nomi ham shunday (yuristda tepada «5 ta muddati o'tgan», katakda «0 — hammasi vaqtida» chiqardi)
+    kpi.push({ k: 'kech', nom: "Muddati o'tgan topshiriqlar", q: tk.kechikkan, iz: tk.kechikkan ? 'darhol bajaring' : 'hammasi vaqtida ✅', cls: tk.kechikkan ? 'q' : '', och: { t: 'topshiriq' } });
+    kpi.push({ k: 'bugun', nom: 'Bugungi topshiriqlar', q: tk.bugun, iz: tk.tekshiruv ? tk.tekshiruv + ' ta tekshiruvda' : 'muddati bugun', cls: '', och: { t: 'topshiriq' } });
   }
   if (bor('devon')) rol.push({ k: 'devon', nom: 'Ijrodagi kirim xatlar', q: dv.ijroda, iz: dv.yaqin ? 'eng yaqini — ' + (dv.yaqin === bugun ? 'bugun' : dv.yaqin < bugun ? 'muddati o\'tdi' : dmy(dv.yaqin)) : (dv.yuborilmagan ? dv.yuborilmagan + ' ta chiquvchi xat yuborilmagan' : 'ijroda xat yo\'q'), cls: dv.yaqin && dv.yaqin <= kun(XB_IJRO_KUN) ? 's' : '', och: { t: 'bolim', v: 'devon' } });
   if (bor('tolov')) rol.push({ k: 'kiritdim', nom: 'Bugun kiritdim', q: bor('tashrif') ? tolov.bugun + ' / ' + tash.bugun : tolov.bugun, iz: bor('tashrif') ? "to'lov / tashrif" : "to'lov · kecha " + tolov.kecha, cls: '', och: { t: 'bolim', v: 'tolov' } });

@@ -20,7 +20,7 @@ const SIFAT_OQISH = ['taqiqRuxsatHolat', 'xodimBosh', 'topMening', 'topXodimlar'
   'hujjatBoshlang', 'hujjatlarRoyxati', 'hujjatNazorat',
   'mijozQidir', 'mijozKarta', 'mijozKartaPdf',
   'shartnomaBoshlang', 'shartnomalar', 'bugungiTolovlar', 'jadvalHisob', 'bugungiTashriflarHammasi', 'tashrifTekshir', 'tolovMaqsad',
-  'xatBoshlang', 'xatPdf', 'xatNazorat', 'yuristBoshlang', 'yuristIsh', 'yuristHolat', 'yuristXat', 'yhAloqaFayl',
+  'xatBoshlang', 'xatPdf', 'xatNazorat', 'yuristBoshlang', 'yuristIsh', 'yuristXat', 'yhAloqaFayl', 'ilovaXato',   // 14.11.2026: yuristHolat olib tashlandi — u YOZADI (kelishuv / yopish), ko'rish rejimida xodim nomidan saqlanib ketardi
   'undBoshlang', 'undMijoz', 'qadamBoshlang', 'qadamMijoz', 'qadamNazorat', 'qadamTarix', 'qadamFayl', 'qadamYuristYol', 'ijroKorish', 'taminotBoshlang', 'taminotSvodOl',
   'reyestrIjara', 'reyestrSotuv', 'reyestrPdf', 'reyestrExcel', 'reyestrSotuvPdf', 'reyestrSotuvExcel', 'hisobotMalumot', 'hisobotPdf',
   'qaytaOchiq', 'qaytaLoyiha', 'qaytaKor', 'qaytaHujjatlar', 'kbHolat', 'kbFayl', 'ijaraImzosizHolat', 'bekorHolat', 'bekorFayl', 'tahrirHolat',

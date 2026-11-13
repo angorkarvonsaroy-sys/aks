@@ -23,7 +23,7 @@ const FAOL_SEK = 20 * 60;            // oxirgi 20 daqiqada ishlagan xodimlar isi
 const OQISH = new Set(('qadamBoshlang qadamMijoz qadamNazorat qadamTarix qadamJamoa qadamYuristYol qadamSudKarta qadamTalabHolat qadamTgTel ' +
   'xodimBosh boshMalumot devonDirektor kbDirektor taminotDirektor sifatXodimlar sifatAsosiy bekorDirektor bekorHolat ' +
   'ijaraImzosizRoyxat ijaraImzosizHolat topRoyxat topMening topHozir topXodimlar tqRoyxat tasdiqRoyxat undBoshlang undMijoz ' +
-  'xatBoshlang xatNazorat hujjatBoshlang hujjatNazorat hujjatlarRoyxati yuristBoshlang yuristHolat yuristIsh monBoshlang ' +
+  'xatBoshlang xatNazorat hujjatBoshlang hujjatNazorat hujjatlarRoyxati yuristBoshlang yuristIsh monBoshlang ' +
   'shartnomalar shartnomaBoshlang reyestrSotuv reyestrIjara hisobotMalumot bugungiTolovlar bugungiTashriflarHammasi ' +
   'devonBoshlang devonIjroHolat devonChiqimOl taminotBoshlang taminotSvodOl qaytaOchiq qaytaKor qaytaHujjatlar ijroKorish kbHolat tahrirHolat ' +
   'mijozKarta jadvalHisob').split(/\s+/));

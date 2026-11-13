@@ -205,6 +205,9 @@ Object.assign(A, require('./top_avto'));
 // 📊 Ta'sischi hisoboti (ТАҲЛИЛИЙ МАЪЛУМОТ, 1-илова) — qo'lda yuritilgan Svodniy_hisobotlar jadvalining o'rni. Faqat o'qiydi.
 Object.assign(A, require('./tasischi'));
 
+// ⚠️ ilovaXato — ekrandagi (brauzerdagi) dastur xatosi direktorga Telegram orqali (lib/xato_ogoh.js yuborIlova). Hech narsa yozmaydi.
+Object.assign(A, require('./ilova_xato'));
+
 // amal bo'lmagan eksportlar (Q, _ichki, ro'yxatlar) RPC ga chiqmasin
 for (const k of Object.keys(A)) if (typeof A[k] !== 'function') delete A[k];
 

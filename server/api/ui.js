@@ -20,6 +20,16 @@ const SHIM = `<script>
 /* AKS TIZIM — server ko'prigi: google.script.run → /api/rpc (Index.html kodi o'zgarmaydi) */
 (function(){
   window.AKS_SRV=1;   // Index.html: faqat serverdagi imkoniyatlar (masalan, 👁 skan) shu bilan yoqiladi
+  window.AKS_V='__AKS_V__';
+  /* 14.11.2026: EKRANDAGI dastur xatosi direktorga boradi (ilovaXato → lib/xato_ogoh.js). Bir sahifa ochilishida ko'pi bilan 5 ta; server o'zi ham cheklaydi. */
+  var MATN="Dasturda nosozlik chiqdi. Direktorga xabar yuborildi — sahifani yangilab, qayta urinib ko'ring.";
+  var OXK='', XS=0;
+  function ilovaXato(fn,e,kod){ try{ if(XS>=5) return; XS++;
+      var oyna=''; try{ var B=document.querySelectorAll('[id^=bolim-]'); for(var i=0;i<B.length;i++){ if(B[i].getClientRects().length){ oyna=B[i].id.slice(6); break; } } }catch(x){}
+      var joy=String((e&&e.stack)||'').split('\\n').slice(1,4).join(' | ').split(location.origin).join('');
+      fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:'ilovaXato',args:[(typeof kod==='string'&&kod)||OXK,{fn:String(fn||''),nom:String((e&&e.name)||''),xabar:String((e&&e.message)||e),joy:joy,talqin:window.AKS_V||'',oyna:oyna}]})}).catch(function(){});
+    }catch(x){} }
+  window.addEventListener('error',function(ev){ try{ var e=ev&&ev.error; var f=String(ev.filename||''); if(!e||!(e instanceof Error)||(f&&f.indexOf(location.origin)!==0)) return; ilovaXato('',e,OXK);   /* begona skript (kengaytma) xatosi hisobga olinmaydi */ }catch(x){} });
   function run(ok,yoq,uo){
     return new Proxy({},{get:function(_,k){
       if(k==='withSuccessHandler') return function(f){return run(f,yoq,uo);};
@@ -28,10 +38,16 @@ const SHIM = `<script>
       if(typeof k!=='string') return undefined;
       return function(){
         var args=Array.prototype.slice.call(arguments);
+        if(typeof args[0]==='string'&&args[0]) OXK=args[0];
         fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:k,args:args})})
           .then(function(r){return r.json();})
-          .then(function(j){ if(j&&j.ok){ if(ok) ok(j.r,uo); } else { var e=new Error((j&&j.xato)||'Server xatosi'); if(yoq) yoq(e,uo); else console.error(e); } })
-          .catch(function(e){ var x=new Error('Server bilan aloqa yo\\'q: '+e.message); if(yoq) yoq(x,uo); else console.error(x); });
+          .then(function(j){
+            if(j&&j.ok){ if(ok){ try{ ok(j.r,uo); }
+              catch(e){ /* 14.11.2026: javobni EKRANGA CHIZAYOTGAN kod xato berdi — bu aloqa uzilishi emas: direktorga xabar, xodimga tushunarli matn */
+                console.error(e); ilovaXato(k,e,args[0]); var x=new Error(MATN); x.aksIlova=1;   /* Index.html: xato tutuvchisi yo'q chaqiruvda shu belgi bo'yicha ekranga chiqaradi */
+                if(yoq){ try{ yoq(x,uo); }catch(e2){ console.error(e2); } } else if(typeof toast==='function'){ try{ toast(MATN,true); }catch(e3){} } } } }
+            else { var e=new Error((j&&j.xato)||'Server xatosi'); if(yoq){ try{ yoq(e,uo); }catch(e4){ console.error(e4); ilovaXato(k,e4,args[0]); } } else console.error(e); }
+          },function(e){ var x=new Error("Server bilan aloqa yo'q. Internetni tekshirib, qayta urinib ko'ring."); if(yoq){ try{ yoq(x,uo); }catch(e5){ console.error(e5); } } else console.error(x); });
       };
     }});
   }
@@ -234,7 +250,7 @@ function sahifa(user, kod, bilet) {
     console.warn('Index.html: noma\'lum shablon ifodasi:', ifoda.slice(0, 80));
     return '';
   });
-  html = html.replace(/<head>/i, '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">' + PWA_BOSH + SHIM);
+  html = html.replace(/<head>/i, '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">' + PWA_BOSH + SHIM.replace('__AKS_V__', qiymat.versiya));
   if (user.admin) html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, HOLAT_TUGMA(kod) + '</body>');   // 03.11: faqat direktorga — 🛠 Tizim holati
   return html;
 }
