@@ -31,6 +31,9 @@ function qaytaXat(XJ, no, seriya) {
 // dep — sinov uchun: { xatlar, yoz, ijro, direktor, qulf, bugun }
 async function bekorQil(kod, opt = {}, dep = {}) {
   const bugun = dep.bugun || V.bugun();
+  // Tunda yurmaydi: bekor qilish bilan birga xodimga «qoidabuzarlik qayd etildi» Telegrami ketadi — yarim tunda emas, ish vaqtida borsin (08:00–20:00, Toshkent).
+  const soat = dep.soat != null ? dep.soat : new Date(Date.now() + 5 * 3600 * 1000).getUTCHours();
+  if (!opt.quruq && !opt.majburiy && (soat < 8 || soat >= 20)) return { yuborilmadi: 'Tungi vaqt — muddati o\'tgan xatlar ertalab 08:00 dan bekor qilinadi.' };
   const qulf = dep.qulf || require('../api/qadam_yoz')._ichki.qulf;
   const natija = await qulf('xat', async () => {
     const XJ = dep.xatlar ? await dep.xatlar() : await require('../api/xat_isbot')._ichki.xatlarYangi(XAT_V);
