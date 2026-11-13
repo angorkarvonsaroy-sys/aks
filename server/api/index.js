@@ -74,7 +74,9 @@ fastify.get('/tizim-holati/qism', async (req, reply) => {
 // ---------- ilova sifatida o'rnatish fayllari (manifest, belgi, sw)
 const OCHIQ = { 'manifest.json': 'application/manifest+json', 'sw.js': 'text/javascript; charset=utf-8',
   'icon-192.png': 'image/png', 'icon-512.png': 'image/png', 'favicon.png': 'image/png',
-  'icon-maskable-192.png': 'image/png', 'icon-maskable-512.png': 'image/png' };   // 07.11.2026: Android dumaloq belgi uchun chetida joy qoldirilgan nusxa
+  'icon-maskable-192.png': 'image/png', 'icon-maskable-512.png': 'image/png',
+  // 13.11.2026: QR-kod va PDF ko'rish kutubxonalari o'z serverimizdan (avval cdnjs.cloudflare.com dan — u ochilmasa ilova sahifasi kutib qolardi). public/KUTUBXONALAR.txt
+  'qrcode.min.js': 'text/javascript; charset=utf-8', 'pdf.min.js': 'text/javascript; charset=utf-8', 'pdf.worker.min.js': 'text/javascript; charset=utf-8' };   // 07.11.2026: Android dumaloq belgi uchun chetida joy qoldirilgan nusxa
 const ochiqFayl = {};
 for (const f of Object.keys(OCHIQ)) { try { ochiqFayl[f] = require('fs').readFileSync(__dirname + '/../public/' + f); } catch (e) {} }
 // 🔐 ilova sahifasini qulflash uchun OCHIQ kalit (sir emas; maxfiy qismi faqat serverda — aks-index-kalit, deploy.sh 6a)

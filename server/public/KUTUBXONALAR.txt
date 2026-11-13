@@ -1,0 +1,14 @@
+AKS TIZIM — tashqi kutubxonalar (13.11.2026 dan o'z serverimizdan beriladi; avval cdnjs.cloudflare.com dan olinardi)
+
+qrcode.min.js        — QRCode.js 1.0.0, (c) davidshimjs, MIT litsenziyasi. Manba: npm «qrcodejs» 1.0.0.
+                       sha256 c541ef06327885a8415bca8df6071e14189b4855336def4f36db54bde8484f36
+pdf.min.js           — PDF.js 3.11.174, (c) Mozilla Foundation, Apache-2.0. Manba: npm «pdfjs-dist» 3.11.174 (build/pdf.min.js).
+                       sha256 5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946
+pdf.worker.min.js    — PDF.js 3.11.174 (build/pdf.worker.min.js).
+                       sha256 feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b
+
+MIT litsenziyasi (QRCode.js): Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished
+to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
