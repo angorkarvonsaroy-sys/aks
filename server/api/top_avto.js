@@ -61,23 +61,24 @@ async function topCtx(kod, bugun) {
   // shartnoma → mijoz, ijara ma'lumotlari, bekorlar
   const mid = {}, bekorNo = {}, ijOylik = {}, bepul = [], mijozShar = {};
   aOxiri(R3).forEach(({ r }) => { const no = s(r[0]).trim(); if (!no) return; mid[no] = s(r[4]).trim();
-    if (/bekor/i.test(s(r[13]))) bekorNo[no] = 1; else (mijozShar[mid[no]] = mijozShar[mid[no]] || []).push({ no, kim: s(r[17]) }); });
+    // 13.11.2026: YAKUNLANGAN (to'liq to'langan) shartnoma ham «faol» emas — bunday mijozga «pasportini yangilang» topshirig'i berilmaydi, borlari o'zi yopiladi
+    if (/bekor/i.test(s(r[13]))) bekorNo[no] = 1; else if (!/yakun/i.test(s(r[13]))) (mijozShar[mid[no]] = mijozShar[mid[no]] || []).push({ no, kim: s(r[17]) }); });
   aOxiri(R4).forEach(({ x }) => { const no = s(x[0]).trim(); if (!no) return; mid[no] = s(x[5]).trim(); ijOylik[no] = Number(x[14]) || 0;
     const bek = /bekor/i.test(s(x[2])); if (bek) { bekorNo[no] = 1; return; }
     (mijozShar[mid[no]] = mijozShar[mid[no]] || []).push({ no, kim: s(x[20]) });
     const bt = isoX(x[28]); if (bt && bt >= bugun && (new Date(bt + 'T12:00:00Z') - d0) / 86400000 <= 30 && !(Number(x[14]) > 0))
       bepul.push({ no, fish: s(x[23]), tugash: dmy(bt), qolgan: Math.round((new Date(bt + 'T12:00:00Z') - d0) / 86400000), kim: s(x[20]) }); });
   // pasport (faqat faol shartnomasi borlar)
-  const pasport = [];
-  aOxiri(R2).forEach(({ x }) => { const m = s(x[0]).trim(); if (!m || !mijozShar[m] || typeof x[10] !== 'number') return;
+  const pasport = [], pasMuddat = {};   // pasMuddat — pasporti hamon eskirgan mijozlar (shartnomasi faol bo'lmasa ham): topshiriq nega yopilganini to'g'ri yozish uchun
+  aOxiri(R2).forEach(({ x }) => { const m = s(x[0]).trim(); if (!m || typeof x[10] !== 'number') return;
     const mud = isoX(x[10]); if (!mud) return;
-    const q = Math.round((new Date(mud + 'T12:00:00Z') - d0) / 86400000); if (q <= 30 && q > -3650) { const sh = mijozShar[m][0]; pasport.push({ mid: m, fish: s(x[2]), muddat: dmy(mud), qolgan: q, no: sh.no, kim: sh.kim || (PN[sh.no] || {}).undiruvchi || '' }); } });
+    const q = Math.round((new Date(mud + 'T12:00:00Z') - d0) / 86400000); if (q <= 30 && q > -3650) { pasMuddat[m] = 1; if (!mijozShar[m]) return; const sh = mijozShar[m][0]; pasport.push({ mid: m, fish: s(x[2]), muddat: dmy(mud), qolgan: q, no: sh.no, kim: sh.kim || (PN[sh.no] || {}).undiruvchi || '' }); } });
   // bufer
   const bufer = [];
   // 05b L (Muddat_holati) — ko'ringan matndan emas, xom qiymatdan (02.11.2026, 3-bosqichga tayyorgarlik)
   aOxiri(R5).forEach(({ r, x }) => { if (r[0] && s(r[6]) === 'Буферда' && /MUDDATI O'TDI/i.test(s(x[11]))) bufer.push({ id: s(r[0]), sana: s(r[1]), no: s(r[2]), summa: Number(s(r[3]).replace(/\s/g, '').replace(',', '.')) || 0 }); });
   const qaytBlok = {}; (await require('../lib/qaytarish_blok').ochiqQarorlar()).forEach(q => { qaytBlok[q.no] = true; });   // pul qaytarilayotganlar — yuristga tavsiya yo'q
-  return { mlM, qaytBlok, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, bufer,
+  return { mlM, qaytBlok, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -91,7 +92,7 @@ function topHal(t, ctx, hozir) {
     if (q === 'tolov' && !(Number(x.muddati) > 0)) return 'qarz to\'landi'; if (q === 'vada' && x.vada && x.vada.natija && x.vada.natija !== 'Вадада') return 'va\'da natijasi: ' + x.vada.natija; return ''; }
   if (q === 'xat') { const h = ctx.X.find(z => z.raqam === id); return !h ? 'xat topilmadi' : h.holati !== 'Tayyorlandi' ? 'xat holati: ' + h.holati : ''; }
   if (q === 'bekor') { const sr = ctx.B.find(z => String(z.id) === id); return !sr ? 'so\'rov yopilgan' : sr.hujjatKechikdi ? '' : 'skanlar yuklandi'; }
-  if (q === 'pasport') return hozir[t.kalit] ? '' : 'pasport yangilandi';
+  if (q === 'pasport') return hozir[t.kalit] ? '' : (ctx.pasMuddat && ctx.pasMuddat[id] ? 'mijozning faol shartnomasi qolmadi (yakunlangan yoki bekor qilingan)' : 'pasport yangilandi');
   if (q === 'bepul') return ctx.bekorNo[id] ? 'shartnoma bekor qilingan' : (ctx.ijOylik[id] > 0 ? 'pullik ijara kiritildi' : '');
   if (q === 'bufer') return hozir[t.kalit] ? '' : 'buferdan chiqarildi';
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
