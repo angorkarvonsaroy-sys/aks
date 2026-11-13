@@ -104,6 +104,7 @@ fastify.get('/:fayl', async (req, reply) => {
 });
 
 // ---------- amallar
+const XO = require('../lib/xato_ogoh');   // ⚠️ kutilmagan dastur xatosi → direktorga Telegram (13.11.2026)
 fastify.post('/api/rpc', async (req, reply) => {
   const b = req.body || {};
   const fn = String(b.fn || '').replace(/[^A-Za-z0-9_]/g, '');
@@ -137,6 +138,8 @@ fastify.post('/api/rpc', async (req, reply) => {
     jurnal(fn, typeof A[fn] === 'function' ? 'server' : 'koprik', Date.now() - t0, false, xato);
     if (!(e instanceof S.Xato)) console.error(new Date().toISOString(), fn, 'XATO:', xato);
     reply.code(200);
+    // 13.11.2026: dastur xatosi (TypeError va b.) — direktorga darhol Telegram, xodimga inglizcha matn o'rniga tushunarli xabar (lib/xato_ogoh.js)
+    if (XO.dasturmi(e)) { console.error(e.stack); XO.yubor(fn, e, args[0]).catch(() => {}); return { ok: false, xato: XO.MATN }; }
     return { ok: false, xato };
   }
 });

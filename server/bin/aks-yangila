@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # AKS TIZIM — GitHub'dagi yangi kodni olib, o'rnatish. Taymer har daqiqada chaqiradi.
-# Qo'lda: aks-yangila majburiy   (yangi kod bo'lmasa ham qayta o'rnatadi)
+# Qo'lda: aks-yangila majburiy   (yangi kod bo'lmasa ham qayta o'rnatadi; tutun sinovi QAYTA o'tkaziladi)
+#        aks-yangila sinovsiz   (tutun sinovisiz o'rnatadi — faqat sinovning o'zi adashgan bo'lsa)
 set -uo pipefail
 REPO=/opt/aks/repo
 LOG=/var/log/aks-deploy.log
@@ -16,9 +17,16 @@ git reset -q --hard origin/main
 YANGI=$(git rev-parse HEAD)
 ORNATILGAN=$(cat /opt/aks/app/.versiya 2>/dev/null || echo yoq)
 
-if [ "$YANGI" != "$ORNATILGAN" ] || [ "${1:-}" = "majburiy" ]; then
+# 🧪 tutun sinovidan o'tmagan versiya (deploy.sh /opt/aks/.sinov_yiqildi ga yozadi) har daqiqada qayta sinalmaydi — tuzatilgan versiya kutiladi.
+YIQILGAN=$(cat /opt/aks/.sinov_yiqildi 2>/dev/null || echo yoq)
+REJIM=${1:-}
+if [ -z "$REJIM" ] && [ "$YANGI" = "$YIQILGAN" ]; then exit 0; fi
+
+if [ "$YANGI" != "$ORNATILGAN" ] || [ "$REJIM" = "majburiy" ] || [ "$REJIM" = "sinovsiz" ]; then
+  if [ "$REJIM" = "sinovsiz" ]; then export AKS_SINOVSIZ=1; fi
   if bash "$REPO/server/deploy.sh" >>"$LOG" 2>&1; then
-    echo "$(date '+%F %T') OK: $(git log -1 --format='%h %s')" >>"$LOG"
+    if [ "$(cat /opt/aks/app/.versiya 2>/dev/null)" = "$YANGI" ]; then echo "$(date '+%F %T') OK: $(git log -1 --format='%h %s')" >>"$LOG"
+    else echo "$(date '+%F %T') !!! O'RNATILMADI — tutun sinovidan o'tmadi: $(git log -1 --format='%h %s')" >>"$LOG"; fi
   else
     echo "$(date '+%F %T') !!! O'RNATISHDA XATO ($(git log -1 --format='%h')) — yuqoridagi qatorlarga qarang" >>"$LOG"
     exit 1

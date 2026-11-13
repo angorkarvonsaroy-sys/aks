@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# AKS TIZIM — 🧪 TUTUN SINOVI (13.11.2026, direktor qarori): yangi kod o'rnatilishidan OLDIN tekshiriladi. deploy.sh chaqiradi.
+#   1) ilova sahifasi (Index.html, Xarita.html) skriptlari sintaksisi;
+#   2) server kodi: har fayl sintaksisi + har bir xodim nomidan asosiy o'qish amallari (sinov/tutun.js — hech narsa yozmaydi);
+#   3) dastur xatosi chiqsa — ishlab turgan ESKI kod ham xuddi shunday sinaladi: faqat YANGI paydo bo'lgan xato to'xtatadi.
+# Ishlatish: aks-tutun [REPO] [APP]      Chiqish kodi: 0 — o'rnatilsin (o'tdi yoki sinab bo'lmadi); 2 — o'rnatilmasin.
+# Qo'lda:    aks-tutun                   — hozir GitHub'dan olingan kodni tekshirib, natijani ko'rsatadi (hech narsa o'rnatmaydi).
+set -uo pipefail
+REPO=${1:-/opt/aks/repo}; APP=${2:-/opt/aks/app}
+YANGI="$REPO/server"; SIN="$YANGI/sinov"
+FOYD=${AKS_TUTUN_FOYD-aks}; KALIT=${AKS_INDEX_KALIT:-/opt/aks/index.key}
+[ -f "$SIN/tutun.js" ] || { echo "  tutun: sinov fayli yo'q — o'tkazib yuborildi"; exit 0; }
+command -v node >/dev/null 2>&1 || { echo "  tutun: node topilmadi — o'tkazib yuborildi"; exit 0; }
+T=$(mktemp -d /tmp/aks-tutun.XXXXXX 2>/dev/null) || { echo "  tutun: vaqtinchalik papka ochilmadi — o'tkazib yuborildi"; exit 0; }
+chmod 755 "$T"; trap 'rm -rf "$T"' EXIT
+VER=$(git -C "$REPO" log -1 --format='%h %s' 2>/dev/null | cut -c1-120)
+nomidan() { if [ -n "$FOYD" ] && [ "$(id -un)" != "$FOYD" ]; then sudo -u "$FOYD" -H "$@"; else "$@"; fi; }
+xabar() { chmod 644 "$T/xabar.txt" 2>/dev/null; [ -f "$APP/lib/telegram.js" ] && nomidan env NODE_PATH="$APP/node_modules" timeout 60 node "$SIN/tutun_xabar.js" --ildiz "$APP" --versiya "$VER" --matn-fayl "$T/xabar.txt" || true; }
+
+# 1) ilova sahifalari
+SAHIFA=(); YP="$T/yopiq"; mkdir -m 700 "$YP"   # ochilgan sahifa faqat shu jarayon o'qiy oladigan papkada turadi va darhol o'chiriladi
+for f in Index Xarita; do
+  ENC="$REPO/yopiq/$f.html.age"
+  { [ -f "$ENC" ] && [ -f "$KALIT" ] && command -v age >/dev/null 2>&1; } || continue
+  if age -d -i "$KALIT" -o "$YP/$f.html" "$ENC" 2>/dev/null && [ -s "$YP/$f.html" ]; then SAHIFA+=("$YP/$f.html"); fi
+done
+if [ "${#SAHIFA[@]}" -gt 0 ]; then
+  node "$SIN/index_tekshir.js" "${SAHIFA[@]}" >"$T/sahifa.txt" 2>&1; K=$?
+  cat "$T/sahifa.txt"
+  if [ "$K" = "2" ]; then
+    { echo "Ilova sahifasida sintaksis xatosi:"; grep '✗' "$T/sahifa.txt" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | head -5; } >"$T/xabar.txt"
+    xabar; exit 2
+  fi
+fi
+rm -rf "$YP"
+
+# 2) server kodi — yangi
+yur() { nomidan env NODE_PATH="$APP/node_modules" timeout 220 node "$SIN/tutun.js" --ildiz "$1" >"$2" 2>&1; }
+yur "$YANGI" "$T/yangi.txt"; K=$?
+grep -E '^tutun:|^  ✗' "$T/yangi.txt" | sed 's/^/  /' | head -20
+if ! grep -q '^TUTUN_JSON:' "$T/yangi.txt"; then
+  echo "  tutun: natija olinmadi (chiqish kodi $K) — sinab bo'lmadi, o'rnatish davom etadi"; tail -5 "$T/yangi.txt" | sed 's/^/    /'; exit 0
+fi
+[ "$K" = "0" ] && { echo "  tutun: o'tdi ✅"; exit 0; }
+
+# 3) dastur xatosi bor — ishlab turgan eski kod bilan solishtiramiz
+if [ -f "$APP/api/amallar.js" ]; then yur "$APP" "$T/eski.txt"; else : >"$T/eski.txt"; fi
+node "$SIN/tutun_solishtir.js" "$T/eski.txt" "$T/yangi.txt" "$T/xabar.txt"; K=$?
+if [ "$K" = "2" ]; then xabar; exit 2; fi
+exit 0

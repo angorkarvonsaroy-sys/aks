@@ -10,6 +10,24 @@ echo "=== $(date '+%F %T') o'rnatish: $(git -C "$REPO" log -1 --format='%h %s') 
 
 command -v rsync >/dev/null || apt-get install -y -q rsync >/dev/null
 
+# 0. 🧪 TUTUN SINOVI (13.11.2026, direktor qarori) — yangi kod O'RNATILISHIDAN OLDIN tekshiriladi (bin/aks-tutun):
+#    sahifa skriptlari sintaksisi, server fayllari sintaksisi, har xodim nomidan asosiy o'qish amallari (hech narsa yozilmaydi).
+#    Yangi paydo bo'lgan dastur xatosi chiqsa — hech narsa almashtirilmaydi: tizim ESKI versiyada ishlab turaveradi, direktorga Telegram ketadi.
+#    Shu versiya qayta-qayta sinalmasin deb /opt/aks/.sinov_yiqildi ga yoziladi (aks-yangila shunga qarab kutadi); keyingi (tuzatilgan) versiya odatdagidek sinaladi.
+#    Sinovni chetlab o'tish (faqat ataylab): commit matnida [sinovsiz] yoki qo'lda «aks-yangila sinovsiz». «aks-yangila majburiy» sinovni QAYTA o'tkazadi.
+BOSH=$(git -C "$REPO" rev-parse HEAD); YIQ=/opt/aks/.sinov_yiqildi
+if [ "${AKS_SINOVSIZ:-}" = "1" ]; then echo "  tutun sinovi: «aks-yangila sinovsiz» — o'tkazib yuborildi"; rm -f "$YIQ"
+elif git -C "$REPO" log -1 --format=%B | grep -q '\[sinovsiz\]'; then echo "  tutun sinovi: [sinovsiz] — o'tkazib yuborildi"; rm -f "$YIQ"
+else
+  TUT=0; bash "$REPO/server/bin/aks-tutun" "$REPO" "$APP" || TUT=$?
+  if [ "$TUT" = "2" ]; then
+    echo "$BOSH" >"$YIQ"
+    echo "!!! TUTUN SINOVI O'TMADI — yangi kod O'RNATILMADI, eski versiya ishlab turibdi ($(cat "$APP/.versiya" 2>/dev/null | cut -c1-7))"
+    exit 0
+  fi
+  rm -f "$YIQ"
+fi
+
 
 # 1. kodni ilova papkasiga ko'chirish (node_modules saqlanadi)
 mkdir -p "$APP"
@@ -76,6 +94,7 @@ install -m 755 "$APP/bin/aks-index-kalit" /usr/local/bin/aks-index-kalit
 install -m 755 "$APP/bin/aks-pochta" /usr/local/bin/aks-pochta
 install -m 755 "$APP/bin/aks-xodimlar" /usr/local/bin/aks-xodimlar
 install -m 755 "$APP/bin/aks-mijoz-bot" /usr/local/bin/aks-mijoz-bot
+install -m 755 "$APP/bin/aks-tutun" /usr/local/bin/aks-tutun
 cp "$APP"/systemd/*.service "$APP"/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable -q --now aks-yangila.timer aks-kozgu.timer aks-skan.timer aks-sana.timer aks-zaxira.timer
