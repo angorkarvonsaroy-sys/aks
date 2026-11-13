@@ -55,8 +55,12 @@ const PWA_BOSH = `
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <script>
-(function(){ try{ var k=new URLSearchParams(location.search).get('k'); if(k){ localStorage.setItem('aks_k',k);
-    var mn=document.getElementById('aksMan'); if(mn) mn.href='/manifest.json?k='+encodeURIComponent(k); } }catch(e){}   // 25.10: yorliq kod bilan o'rnatilsin
+(function(){ try{ var QS=new URLSearchParams(location.search), k=QS.get('k'); if(k){ localStorage.setItem('aks_k',k);
+    var mn=document.getElementById('aksMan'); if(mn) mn.href='/manifest.json?k='+encodeURIComponent(k);
+    // 13.11.2026: kirish kaliti manzil satrida ko'rinib turmasin (ekran rasmi, yelka osha qarash) — kalit brauzer xotirasiga SAQLANGANI tasdiqlangach
+    // manzil «/» ga almashtiriladi; sahifa yangilansa «/» → saqlangan kalit bilan o'zi qayta ochiladi. Boshqa parametr bo'lsa (👁 ko'rish rejimi va h.k.) — tegilmaydi.
+    var boshqa=false; QS.forEach(function(v,n){ if(n!=='k') boshqa=true; });
+    if(!boshqa&&localStorage.getItem('aks_k')===k&&window.history&&history.replaceState) history.replaceState(null,'','/'); } }catch(e){}   // 25.10: yorliq kod bilan o'rnatilsin
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); })();
 </script>`;
 
