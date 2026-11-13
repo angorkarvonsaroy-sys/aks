@@ -208,7 +208,7 @@ async function xodimBosh([kodSes]) {
     } catch (e) { }
     return c; }, { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0, royxat: [] });
   if (bor('yurist') && !adm) {
-    if (yu.qabul) dq('#B42318', '<b>⚖ ' + yu.qabul + ' ta ish qabul qilinmagan</b> — 1 ish kuni ichida hujjatlarni tekshirib qabul qiling yoki kamchilik bilan qaytaring', { t: 'bolim', v: 'yurist' }, 0);
+    if (yu.qabul) dq('#B42318', '<b>⚖ ' + yu.qabul + ' ta ish qabul qilinmagan</b> — 1 ish kuni ichida hujjatlarni tekshirib qabul qiling; kamchilik bo\'lsa «Kamchilik bor» deb belgilang', { t: 'bolim', v: 'yurist' }, 0);
     if (yu.kech) dq('#B42318', '<b>⚖ ' + yu.kech + ' ta ishda mening navbatim kechikdi</b> — sud bosqichini yuriting', { t: 'bolim', v: 'yurist' }, 1);
   }
 

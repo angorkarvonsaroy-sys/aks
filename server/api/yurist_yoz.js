@@ -141,20 +141,36 @@ async function yuristMajlis(args) {
 }
 
 // ------------------------------------------------------------------ holat: kelishuv / shartnoma bekor / undirib bo'lmadi
+// 14.11.2026 (direktor qarori): KELISHUV MUDDATI MAJBURIY — ishni kelishuvga o'tkazishda va muddatni uzaytirishda «qachongacha» sanasi (bugundan keyin) shart.
+// Sana o'tsa ish yuristning navbatiga qaytadi (yurist.js yuKelMap / yuKorinish). Toza funksiya — sinovda alohida tekshiriladi.
+function kelTekshir(amal, holati, sabab, muddat, bugun) {
+  const muddatTek = () => { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(muddat || ''))) throw new S.Xato('Kelishuv muddatini tanlang: mijoz qachongacha to\'laydi.');
+    if (muddat <= bugun) throw new S.Xato('Kelishuv muddati bugundan keyingi sana bo\'lishi kerak.'); };
+  if (amal === 'kelishuv' && holati !== 'Kelishuv') {            // kelishuvga o'tkazish (kelishuvdan chiqarish — «buzildi» — sana talab qilmaydi)
+    if (String(sabab || '').length < 10) throw new S.Xato('Kelishuv shartlarini yozing (kamida 10 belgi): mijoz qancha to\'laydi.');
+    muddatTek(); }
+  if (amal === 'kelishuv_uzaytir') {
+    if (holati !== 'Kelishuv') throw new S.Xato('Bu ish kelishuvda emas (holati: ' + holati + ').');
+    if (String(sabab || '').length < 10) throw new S.Xato('Nega uzaytirilayotganini yozing (kamida 10 belgi): mijoz nima dedi, qancha to\'ladi.');
+    muddatTek(); }
+}
 async function yuristHolat(args) {
-  const [kodSes, id, amal, sabab0] = args;
+  const [kodSes, id, amal, sabab0, muddat0] = args;
   const u = await S.ruxsat(kodSes, 'yurist');
   return bajar('yuristHolat', u, args.slice(1), () => qulfBilan(async () => {
-    const sabab = t(sabab0);
+    const sabab = t(sabab0), muddat = t(muddat0), bugun = V.bugun();
     const i = await ishYangi(id);
     if (Q.YU_FAOL.indexOf(i.holati) < 0) throw new S.Xato('Bu ish holati: ' + i.holati + '.');
+    kelTekshir(amal, i.holati, sabab, muddat, bugun);   // 14.11.2026: kelishuvda «qachongacha» sanasi majburiy
     let natija;
     if (amal === 'kelishuv') {
       const yangi = i.holati === 'Kelishuv' ? 'Faol' : 'Kelishuv';
-      if (yangi === 'Kelishuv' && sabab.length < 10) throw new S.Xato('Kelishuv shartlarini yozing (kamida 10 belgi): qancha, qachongacha.');
       await ishYoz(i, [[15, yangi]]);
-      await tarixYoz(i, yangi === 'Kelishuv' ? 'Kelishuv — muddatlar to\'xtatildi' : 'Kelishuv buzildi — ish davom etadi', u.fish, sabab, '');
-      natija = { ok: true, holati: yangi };
+      await tarixYoz(i, yangi === 'Kelishuv' ? 'Kelishuv — muddatlar to\'xtatildi' : 'Kelishuv buzildi — ish davom etadi', u.fish, yangi === 'Kelishuv' ? Q.kelIzoh(muddat, sabab) : sabab, '');
+      natija = { ok: true, holati: yangi, muddat: yangi === 'Kelishuv' ? muddat : '' };
+    } else if (amal === 'kelishuv_uzaytir') {
+      await tarixYoz(i, 'Kelishuv — muddat uzaytirildi', u.fish, Q.kelIzoh(muddat, sabab), '');
+      natija = { ok: true, holati: 'Kelishuv', muddat };
     } else {
       if (sabab.length < 10) throw new S.Xato('Sababini batafsil yozing (kamida 10 belgi).');
       if (amal === 'bekor') {
@@ -391,4 +407,4 @@ async function yuristXat(args) {
 }
 
 module.exports = { yuristQabul, yuristMajlis, yuristHolat, yuristKeyingi, yuristRad, yuristTasdiq, yuristHujjat, yuristXat };
-module.exports._ichki = { faylMumkin, skanYukla, QABUL_AVVAL };
+module.exports._ichki = { faylMumkin, skanYukla, QABUL_AVVAL, kelTekshir };

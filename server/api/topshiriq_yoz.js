@@ -24,7 +24,7 @@ const { xodimTeng } = require('../lib/xodim');
 
 const TOP_V = '10_Topshiriqlar';
 const TOP_N = 22;   // A–V (TOP_S)
-const TOP_QOIDA_KALIT = ['skan', 'davo', 'vada', 'tolov', 'xat', 'bekor', 'pasport', 'bepul', 'bufer', 'skanq'];   // TOP_QOIDALAR kalitlari
+const TOP_QOIDA_KALIT = ['skan', 'davo', 'vada', 'tolov', 'xat', 'bekor', 'pasport', 'bepul', 'bufer', 'skanq', 'kbskan'];   // TOP_QOIDALAR kalitlari
 const TOP_HJ_TUR = { SHARTNOMA: 1, PASPORT: 1, NOTARIAL: 1, QOSHIMCHA_KELISHUV: 1, YOZISHMA: 1 };
 const s = v => String(v == null ? '' : v);
 const S1 = v => s(v).replace(/\s+/g, ' ').trim();

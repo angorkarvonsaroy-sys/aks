@@ -164,7 +164,7 @@ for (const [yol, fn] of [['/api/kirish', 'kirishTel'], ['/api/unutdim', 'unutdim
 }
 
 fastify.get('/api/holat', async () => {
-  const out = { ok: true, versiya: VERSIYA, vaqt: new Date().toISOString(), koprik: koprik.bor(), ui: ui.indexBor() };
+  const out = { ok: true, versiya: VERSIYA, ilova: ui.versiya(), vaqt: new Date().toISOString(), koprik: koprik.bor(), ui: ui.indexBor() };   // ilova — Index.html talqini (ochiq sahifa shu bilan solishtiradi)
   try {
     out.baza = (await q('SELECT 1 AS ok')).rows[0].ok === 1;
     out.xodimlar = Number((await q(`SELECT count(*) FROM v_xodimlar WHERE holat='Ishlayapti'`)).rows[0].count);

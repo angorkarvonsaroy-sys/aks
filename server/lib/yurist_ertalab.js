@@ -27,7 +27,7 @@ function matn(fish, G, bugun) {
   if (G.qabul.length) {
     M.push('🔴 <b>Qabul qilish kerak — ' + G.qabul.length + ' ta</b> (muddat: 1 ish kuni)');
     G.qabul.forEach(k => M.push('• <b>' + k.no + '</b> ' + esc(qisqa(k.fish)) + ' — qarz ' + pul(k.jami) + (k.kechikdi ? ' · <b>' + k.kechikdi + ' kun kechikdi</b>' : ' · muddat ' + dmy(k.chegara))));
-    M.push('Hujjatlarni tekshirib «✅ Qabul qilish» yoki kamchilik bo\'lsa «↩ Kamchilik bilan qaytarish».', '');
+    M.push('Hujjatlarni tekshirib «✅ Qabul qilish» yoki kamchilik bo\'lsa «⚠ Kamchilik bor» ni bosing (ish qaytarilmaydi — kamchilik yozib qabul qilinadi).', '');
   }
   const kech = G.mening.filter(k => k.kechikdi > 0), bugungi = G.mening.filter(k => !k.kechikdi && k.chegara === bugun), keyin = G.mening.filter(k => !k.kechikdi && k.chegara !== bugun);
   if (kech.length) {

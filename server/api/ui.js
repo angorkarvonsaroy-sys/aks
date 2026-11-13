@@ -30,6 +30,27 @@ const SHIM = `<script>
       fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:'ilovaXato',args:[(typeof kod==='string'&&kod)||OXK,{fn:String(fn||''),nom:String((e&&e.name)||''),xabar:String((e&&e.message)||e),joy:joy,talqin:window.AKS_V||'',oyna:oyna}]})}).catch(function(){});
     }catch(x){} }
   window.addEventListener('error',function(ev){ try{ var e=ev&&ev.error; var f=String(ev.filename||''); if(!e||!(e instanceof Error)||(f&&f.indexOf(location.origin)!==0)) return; ilovaXato('',e,OXK);   /* begona skript (kengaytma) xatosi hisobga olinmaydi */ }catch(x){} });
+  /* 14.11.2026: YANGI TALQIN CHIQSA — xabar va «Yangilash». Avval ilova ochiq turgan telefonda yangi talqin chiqqanini bilishning yo'li yo'q edi:
+     xodim eski sahifada ishlayverardi. Endi har 5 daqiqada (va ilovaga qaytilganda) server talqini so'raladi; farq bo'lsa tepada chiziq chiqadi.
+     O'zi yangilanmaydi — to'ldirilayotgan forma yo'qolmasin; xodim tayyor bo'lganda bosadi. «✕» — shu talqin uchun bir soatga yopadi. */
+  var YT=0;
+  function talqinXabar(v){ try{ if(document.getElementById('aksYangi')||!document.body) return;
+      try{ var y=JSON.parse(sessionStorage.getItem('aks_yangi_yop')||'null'); if(y&&y.v===v&&Date.now()-y.t<3600000) return; }catch(x){}
+      var d=document.createElement('div'); d.id='aksYangi';
+      d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:400;background:#0B3D2E;color:#fff;padding:10px 12px;font-size:14px;line-height:1.35;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,.3)';
+      var m=document.createElement('span'); m.textContent='🔄 Ilovaning yangi talqini chiqdi: '+v+' (sizda '+window.AKS_V+"). Ishingizni saqlab, yangilang.";
+      var b=document.createElement('button'); b.type='button'; b.id='aksYangiB'; b.textContent='Yangilash'; b.style.cssText='background:#fff;color:#0B3D2E;border:0;border-radius:8px;padding:8px 16px;font-weight:700;font-size:14px;cursor:pointer;width:auto;margin:0';
+      b.onclick=function(){ b.disabled=true; b.textContent='Yangilanmoqda…'; location.reload(); };
+      var x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Yopish'); x.textContent='✕'; x.style.cssText='background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;width:auto;margin:0';
+      x.onclick=function(){ try{ sessionStorage.setItem('aks_yangi_yop',JSON.stringify({v:v,t:Date.now()})); }catch(e){} d.remove(); };
+      d.appendChild(m); d.appendChild(b); d.appendChild(x); document.body.appendChild(d);
+    }catch(e){} }
+  function talqinTek(majbur){ try{ if(!window.AKS_V||document.hidden||document.getElementById('aksYangi')) return; var t=Date.now(); if(!majbur&&t-YT<240000) return; YT=t;
+      fetch('/api/holat',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var v=j&&j.ilova; if(v&&v!==window.AKS_V) talqinXabar(v); }).catch(function(){});
+    }catch(e){} }
+  window.aksTalqinTek=talqinTek;
+  setInterval(function(){ talqinTek(false); },300000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) talqinTek(false); });
   function run(ok,yoq,uo){
     return new Proxy({},{get:function(_,k){
       if(k==='withSuccessHandler') return function(f){return run(f,yoq,uo);};
@@ -233,6 +254,8 @@ const HOLAT_TUGMA = kod => { const u = '/tizim-holati?k=' + encodeURIComponent(k
   'b.id="aks-holat-yon";b.innerHTML=\'<span class="ik">🛠</span>Тизим ҳолати\';b.onclick=function(){location.href=U};p.insertBefore(b,p.firstChild);}' +
   'var f=document.getElementById("aks-holat-tugma");if(f)f.style.display="none";return true;}' +
   'var t=setInterval(function(){if(q()||++n>60)clearInterval(t)},250);})();</script>'; };
+// ilova talqini — Index.html boshidagi birinchi «<!-- vNN.NN» izohidan (pastki yozuvda, /api/holat da va «yangi talqin chiqdi» xabarida)
+const versiyaOl = matn => (/<!--\s*(v\d+\.\d+)/.exec(matn || '') || [])[1] || '';
 function sahifa(user, kod, bilet) {
   const matn = indexMatn();
   if (!matn) return null;
@@ -243,7 +266,7 @@ function sahifa(user, kod, bilet) {
     "JSON.stringify(String((typeof bilet!=='undefined'&&bilet)||''))": JSON.stringify(bilet || ''),
     "include('Xarita')": xaritaMatn(),
     'ism': esc(user.fish), 'muallif': esc(MUALLIF), 'yil': String(new Date().getFullYear()),
-    'versiya': (/<!--\s*(v27\.\d+)/.exec(matn) || [])[1] || '',   // 06.11.2026: ilova versiyasi — Index.html boshidagi birinchi «<!-- v27.NN» izohidan (pastki yozuvda ko'rinadi)
+    'versiya': versiyaOl(matn),   // 06.11.2026: ilova versiyasi — Index.html boshidagi birinchi «<!-- v27.NN» izohidan (pastki yozuvda ko'rinadi)
   };
   let html = matn.replace(/<\?(!?)=\s*([\s\S]*?)\s*\?>/g, (m, raw, ifoda) => {
     if (ifoda in qiymat) return qiymat[ifoda];
@@ -258,4 +281,4 @@ function sahifa(user, kod, bilet) {
 const YOQ = '<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>AKS TIZIM</title></head><body style="font-family:Arial;padding:40px;text-align:center">' +
   '<h2>AKS TIZIM server ishlayapti</h2><p>Ilova fayli (Index.html) hali serverga yuklanmagan.</p></body></html>';
 
-module.exports = { sahifa, TAQIQ, KOP, YOQ, KIRISH, indexBor: () => !!indexMatn() };
+module.exports = { sahifa, TAQIQ, KOP, YOQ, KIRISH, indexBor: () => !!indexMatn(), versiya: () => versiyaOl(indexMatn()) };

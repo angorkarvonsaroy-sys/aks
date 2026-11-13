@@ -194,7 +194,7 @@ async function ijroKechki(kod, opt = {}) {
       } catch (e) { if (!e.avto) console.error('ijroYurist_ tasdiq:', e.message); }
       try { const YQ = require('../api/yurist').Q; YK = YK || { K: await YQ.yuKesh(), I: await J.yuIshlar() };
         const KK = YK.I.filter(i => YQ.YU_FAOL.indexOf(i.holati) >= 0 && (!i.yurist || xodimTeng(i.yurist, f))).map(i => YQ.yuKorinish(i, S[i.no], bugun, YK.K))
-          .filter(k2 => k2.yuMas && k2.kechikdi > 0 && k2.chegara >= IJRO_BOSH_XODIM);
+          .filter(k2 => k2.yuMas && k2.kechikdi > 0 && k2.chegara >= IJRO_BOSH_XODIM && k2.holati === 'Faol');   // 14.11.2026: kelishuv muddati o'tishi — mijozning kechikishi, yuristga ball yozilmaydi (faqat eslatma)
         for (const k2 of KK) await yoz(f, { tur: k2.qabulKerak ? 'yuqabul' : 'yubosqich', kalit: k2.qabulKerak ? 'yuqabul|' + k2.id : 'yubos|' + k2.id + '|' + k2.bosqich, no: k2.no, fish: k2.fish,
           tafsilot: k2.keyingi + ' — muddat ' + dmy(k2.chegara) + ', ' + k2.kechikdi + ' kun kechikdi' }, Lx);
       } catch (e) { console.error('ijroYurist_ ish:', e.message); }

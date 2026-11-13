@@ -58,7 +58,23 @@ async function yuQabulMap() {
     const m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(String(r[0])); o[id] = { sana: m ? m[3] + '-' + m[2] + '-' + m[1] : '', vaqt: String(r[0]).slice(0, 16), kim: r[4], kamchilik: /kamchilik/i.test(String(r[3])), izoh: r[5] }; });
   return o;
 }
-async function yuKesh() { return { Q: await yuQabulMap(), TP: (await J.topRows()).filter(t => /^yutop\|/.test(String(t.kalit || ''))) }; }
+// 14.11.2026 (direktor qarori): KELISHUV MUDDATI. Avval kelishuvda muddatlar to'xtardi va tugash sanasi hech qayerga yozilmasdi — mijoz va'dasini bajarmasa,
+// ish cheksiz turib qolishi mumkin edi. Endi kelishuvga o'tkazishda «qachongacha» sanasi majburiy; u 06f tarixidagi yozuv izohining boshida turadi:
+// «Kelishuv muddati: 30.11.2026 · <shartlar>». Sana o'tsa — ish yuristning navbatiga qaytadi (yuKorinish: kelOtdi, yuMas).
+const KEL_RE = /^Kelishuv muddati:\s*(\d{2})\.(\d{2})\.(\d{4})\s*(?:·\s*)?/;
+const kelIzoh = (muddatIso, matn) => 'Kelishuv muddati: ' + yuDmy(muddatIso) + ' · ' + String(matn || '').trim();
+// 06f: ish → amaldagi kelishuv { muddat (iso), shart, vaqt, kim, uzaytirildi }. «Kelishuv buzildi» dan keyin — yo'q.
+async function yuKelMap() {
+  const o = {};
+  (await V.qatorlar('06f_Yurist_tarix')).forEach(({ r }) => { const id = String(r[1]), v = String(r[3] || ''), iz = String(r[5] || '');
+    if (/^Kelishuv buzildi/.test(v)) { delete o[id]; return; }
+    if (!/^Kelishuv — /.test(v)) return;
+    const m = KEL_RE.exec(iz), muddat = m ? m[3] + '-' + m[2] + '-' + m[1] : '', matn = iz.replace(KEL_RE, '');
+    if (/uzaytirildi/.test(v) && o[id]) o[id] = Object.assign({}, o[id], { muddat: muddat || o[id].muddat, uzaytirildi: String(r[0]).slice(0, 16), uzSabab: matn });
+    else o[id] = { muddat, shart: matn, vaqt: String(r[0]).slice(0, 16), kim: r[4] }; });
+  return o;
+}
+async function yuKesh() { return { Q: await yuQabulMap(), KM: await yuKelMap(), TP: (await J.topRows()).filter(t => /^yutop\|/.test(String(t.kalit || ''))) }; }
 async function yuTarixOl(id) {
   return (await V.qatorlar('06f_Yurist_tarix')).map(({ r }) => r).filter(r => String(r[1]) === String(id)).reverse()
     .map(r => ({ vaqt: r[0], voqea: r[3], kim: r[4], izoh: r[5], hujjat: r[6] }));
@@ -84,12 +100,21 @@ function yuKorinish(i, x, bugun, K) {
     if (i.bosqich === 3 && i.majlis) { chegara = i.majlis; eslatma = 'keyingi majlis ' + yuDmy(i.majlis); }
     if (!eslatma) eslatma = 'muddat ' + yuDmy(chegara) + (pauza ? ' (kamchilik topshirig\'i: +' + pauza + ' kun)' : '') + (i.bosqich === 1 && shosh ? ' · shoshilinch' : '');
   }
+  // 🤝 kelishuv: muddati kelguncha yuristdan ish talab qilinmaydi; sana o'tsa (yoki sana umuman kiritilmagan bo'lsa) — yana yuristning navbati
+  let kel = null, kelOtdi = false;
+  if (i.holati === 'Kelishuv') {
+    kel = (K.KM || {})[String(i.id)] || { muddat: '', shart: '', vaqt: '', kim: '' };
+    if (!kel.muddat) { yuMas = true; eslatma = 'kelishuv muddati kiritilmagan'; }
+    else { chegara = kel.muddat; kelOtdi = bugun > kel.muddat; yuMas = kelOtdi; eslatma = 'kelishuv muddati ' + yuDmy(kel.muddat); }
+  }
   if (chegara) kechikdi = Math.max(0, kun(chegara, bugun));
   const fishQ = String(x.fish || i.fish || '').split(/\s+/).slice(0, 2).join(' ');
   return { id: i.id, no: i.no, fish: x.fish || i.fish, fishQ, dokon: x.dokon || i.dokon, tel: x.tel || '', manzil: x.manzil || '',
     jami: x.jami != null ? x.jami : 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, bosqich: i.bosqich, bosqichNomi: T.bosqich[i.bosqich] || '—',
-    keyingi: qabulKerak ? 'Ishni qabul qilish (hujjatlarni tekshirish)' : (!i.tartib && i.bosqich === 1) ? 'Sudga ariza berish' : (T.keyingi[i.bosqich] || ''), keyingiB: yuKeyingiB(T, i.bosqich), bosqichSana: i.bosqichSana, holati: i.holati, kechikdi, eslatma, yol: i.yol,
+    keyingi: kel ? (kelOtdi ? 'Kelishuv muddati o\'tdi — natijasini kiriting' : !kel.muddat ? 'Kelishuv muddatini kiriting' : 'Kelishuv — mijoz to\'lovi kutilmoqda')
+      : qabulKerak ? 'Ishni qabul qilish (hujjatlarni tekshirish)' : (!i.tartib && i.bosqich === 1) ? 'Sudga ariza berish' : (T.keyingi[i.bosqich] || ''), keyingiB: yuKeyingiB(T, i.bosqich), bosqichSana: i.bosqichSana, holati: i.holati, kechikdi, eslatma, yol: i.yol,
     chegara, yuMas, qabulKerak, qabul: q, shosh, pauza,
+    kelMuddat: kel ? kel.muddat : '', kelShart: kel ? kel.shart : '', kelVaqt: kel ? kel.vaqt : '', kelKim: kel ? kel.kim : '', kelOtdi, kelUzaytirildi: kel ? (kel.uzaytirildi || '') : '', kelUzSabab: kel ? (kel.uzSabab || '') : '',
     tartib: i.tartib, tartibNomi: i.tartib ? T.nomi : '', zanjir: T.zanjir, radIzoh: i.radIzoh,
     topshirilgan: i.topshirilgan, davoNo: i.davoNo, davoSana: i.davoSana, sudNomi: i.sudNomi, sudIshNo: i.sudIshNo, qarorSana: i.qarorSana, qaror: i.qaror,
     kuchSana: i.kuchSana, ijroNo: i.ijroNo, ijroSana: i.ijroSana, ijrochi: i.ijrochi, mibSana: i.mibSana, majlis: i.majlis,
@@ -154,4 +179,4 @@ async function yuristIsh([kodSes, id]) {
 
 module.exports = { yuristBoshlang, yuristIsh };
 // yozadigan amallar (yurist_yoz.js) uchun umumiy qoidalar — amal emas
-module.exports.Q = { YU_TREK, YU_FAOL, YU_QARORLAR, YU_SUD, YU_TOP_TUR, yuTrek, yuKeyingiB, yuDmy, yuQabulMap, yuKorinish, yuKesh, yuQabulKerakmi };
+module.exports.Q = { YU_TREK, YU_FAOL, YU_QARORLAR, YU_SUD, YU_TOP_TUR, yuTrek, yuKeyingiB, yuDmy, yuQabulMap, yuKorinish, yuKesh, yuQabulKerakmi, yuKelMap, kelIzoh, KEL_RE };

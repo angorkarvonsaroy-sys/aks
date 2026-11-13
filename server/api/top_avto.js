@@ -49,6 +49,7 @@ async function qulfUrin(ish) {
   try { return await ish(); } finally { if ((await redis.get(kalit)) === belgi) await redis.del(kalit); }
 }
 
+const KB_SKAN_KUN = 3;
 // ------------------------------------------------------------------ topCtx_: qoidalar uchun manbalar
 async function topCtx(kod, bugun) {
   const d0 = new Date(bugun + 'T12:00:00Z');
@@ -78,7 +79,14 @@ async function topCtx(kod, bugun) {
   // 05b L (Muddat_holati) — ko'ringan matndan emas, xom qiymatdan (02.11.2026, 3-bosqichga tayyorgarlik)
   aOxiri(R5).forEach(({ r, x }) => { if (r[0] && s(r[6]) === 'Буферда' && /MUDDATI O'TDI/i.test(s(x[11]))) bufer.push({ id: s(r[0]), sana: s(r[1]), no: s(r[2]), summa: Number(s(r[3]).replace(/\s/g, '').replace(',', '.')) || 0 }); });
   const qaytBlok = {}; (await require('../lib/qaytarish_blok').ochiqQarorlar()).forEach(q => { qaytBlok[q.no] = true; });   // pul qaytarilayotganlar — yuristga tavsiya yo'q
-  return { mlM, qaytBlok, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // 14.11.2026 (direktor qarori): 🤝 kelishuv bilan bekor qilish hujjati tayyorlangan, lekin imzolangan skan KB_SKAN_KUN kundan beri yuklanmagan (yoki direktor
+  // qaytargan va qayta yuklanmagan) — shartnoma bazada «Aktiv» bo'lib turaveradi. 14.11.2026 da shunday 7 ta ish bor edi, 5 tasi 34 kundan beri.
+  let kb = [];
+  try { kb = (await require('./taminot')._ichki.kbRows()).filter(z => z.holati === 'Hujjat tayyorlandi' || z.holati === 'Rad etildi').map(z => {
+      const sana = TS.topIso(z.holati === 'Rad etildi' ? (z.javobVaqt || z.vaqt) : z.vaqt).slice(0, 10);
+      return { id: s(z.id), no: z.no, fish: s(z.fish), dokon: s(z.dokon), kim: s(z.kim), qaytgan: z.holati === 'Rad etildi', kun: sana ? Math.round((d0 - new Date(sana + 'T12:00:00Z')) / 86400000) : 0 }; })
+    .filter(z => z.kun > KB_SKAN_KUN); } catch (e) { console.error('topCtx kb:', e.message); }
+  return { mlM, qaytBlok, kb, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -95,6 +103,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'pasport') return hozir[t.kalit] ? '' : (ctx.pasMuddat && ctx.pasMuddat[id] ? 'mijozning faol shartnomasi qolmadi (yakunlangan yoki bekor qilingan)' : 'pasport yangilandi');
   if (q === 'bepul') return ctx.bekorNo[id] ? 'shartnoma bekor qilingan' : (ctx.ijOylik[id] > 0 ? 'pullik ijara kiritildi' : '');
   if (q === 'bufer') return hozir[t.kalit] ? '' : 'buferdan chiqarildi';
+  if (q === 'kbskan') return hozir[t.kalit] ? '' : 'imzolangan skan yuklandi yoki so\'rov yopildi';   // 14.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -169,6 +178,8 @@ async function topAvto(kod, opt = {}) {
     if ((p[0] === 'skanq' && /^Arxivda topilmadi/.test(t.dalil)) || ((p[0] === 'skanu' || p[0] === 'skanz') && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda'))) skanTop[p[1]] = 1; });
   ctx.P.forEach(x => { if (!(Number(x.muddati) > 100000) || ctx.skanBor[x.no] || ctx.bekorNo[x.no] || skanTop[x.no]) return;
     nomzod('skanq', x.no, 'Shartnoma skanini arxivdan topib yuklang', x.fish + ' · ' + x.dokon + ' · qarzdor, undiruvchi: ' + (x.undiruvchi || '—') + ' — skan sudga kerak', x.no, x.mijozId || ctx.mid[x.no], kotiba || x.undiruvchi); });
+  // 11 kbskan (14.11.2026) — kelishuv bilan bekor qilish: hujjat tayyor, imzolangan skan yo'q
+  (ctx.kb || []).forEach(k => nomzod('kbskan', k.id, 'Kelishuv bilan bekor qilish: imzolangan skanni yuklang', k.no + ' · ' + k.fish + ' · ' + k.dokon + ' · ' + (k.qaytgan ? 'direktor qaytargan, ' : 'hujjat ') + k.kun + ' kundan beri ' + (k.qaytgan ? 'qayta yuklanmagan' : 'imzolanmagan') + ' — shartnoma hali «Aktiv»', k.no, ctx.mid[k.no], k.kim));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
 
@@ -176,7 +187,11 @@ async function topAvto(kod, opt = {}) {
   const yetti = isoKun(Date.now() - 7 * 86400000);
   const band = {}; R.L.forEach(t => { if (!t.kalit) return; if (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda' || TS.topIso(t.yopildi).slice(0, 10) >= yetti) band[t.kalit] = 1; });
   const yangi = [], asl = { L: R.L.slice() };   // avtomatik yopish — faqat avval bor topshiriqlar (eski: R yaratishdan oldin o'qilgan)
+  // 14.11.2026: yangi «kbskan» topshiriqlari faqat ish vaqtida (08:00–20:00) yaratiladi — xodimga tunda bir nechta Telegram xabar bormasin.
+  // Nomzodlar ro'yxati (C) tunda ham to'liq — aks holda ochiq topshiriqlar «sabab bartaraf bo'ldi» deb yopilib ketardi.
+  const soatT = new Date(Date.now() + 5 * 3600 * 1000).getUTCHours(), tun = soatT < 8 || soatT >= 20;
   for (const c of C) {
+    if (!quruq && tun && c.qoida === 'kbskan') continue;
     if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw);
     const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? ' · ⚠ mas\'ul topilmadi — qayta topshiring' : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' ? 'Shoshilinch' : 'Oddiy' };
     if (quruq) { yangi.push(o); continue; }
