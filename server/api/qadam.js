@@ -207,7 +207,8 @@ function qdMijoz(x, fish, act0, top0, bekorOchiq, o, Jn, KT, bugun) {
     if (holat === 'kutish') kutishN++;
     const sms = tr.tur !== 'aloqa' ? '' : tr.sms ? tr.sms : smsT;
     // 12.11.2026: SMS tartibi — faqat SMS so'raydigan qadam: bugun SMS yuborilgan yoki 3 kun o'tmagan bo'lsa — bugun majburiy emas (ijro minusi yo'q)
-    if (holat === 'kutadi' && tr.chora.length === 1 && tr.chora[0] === 'СМС/Телеграм' && x.smsHol) {
+    // 13.11.2026: chora faqat «aloqa» qadamida bor — xat/JSHSHIR/skan qadamlarida undefined edi (Bugungi ish «reading 'length'» xatosi)
+    if (holat === 'kutadi' && Array.isArray(tr.chora) && tr.chora.length === 1 && tr.chora[0] === 'СМС/Телеграм' && x.smsHol) {
       const sh = P.SMS_ISTISNO.indexOf(sms) >= 0 ? x.smsHol.istisno : x.smsHol.oddiy;
       if (!sh.mumkin) { holat = 'info'; majburiy = false; qoldi--;
         izoh = x.smsHol.bugun ? 'Bugun SMS yuborilgan' + (x.smsHol.ox.vaqt ? ' (' + x.smsHol.ox.vaqt + ')' : '') + ' — kuniga 1 ta.'
