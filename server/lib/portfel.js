@@ -71,6 +71,10 @@ async function xatShartnomalar(bugun) {
       kechikkan, davoKun, oxirgiTolov: OX[no] || null, shoshilinch: davoKun >= XAT_DAVO_KUN - XAT_DAVO_OGOH, tolangan: V.son(x[27]), boshKun: V.son(x[10]),
       blok: dk.blok || '', qavat: dk.qavat || '', dokonNo: dk.no || '', manzil: MJ[s(x[4])] || '', shablon, undiruvchi: s(x[17]) });
   });
+  // 13.11.2026 (direktor qarori, «o'rta yo'l»): mijozga pul qaytarilayotgan shartnoma (05r qaror «Ochiq») — x.qaytarish. Ogohlantirish xatlari davom etadi
+  //   (yurist xulosasi 06.11.2026), lekin qo'ng'iroq/tashrif talab qilinmaydi: xat oldidan «aloqa» sharti ham so'ralmaydi (xatKeyingi), vazifalar chiqmaydi (undBuyruq, undNazorat).
+  const QB = {}; (await require('./qaytarish_blok').ochiqQarorlar()).forEach(q => { QB[q.no] = 1; });
+  L.forEach(z => { if (QB[z.no]) z.qaytarish = true; });
   return L;
 }
 
@@ -105,7 +109,7 @@ function xatKeyingi(x, XJ, bugunIso, UJ, adm, seriya, Z) {
   if (yub.length) { const m = X.xatIso(yub[yub.length - 1].muddat);
     if (bugunIso <= m) return { mumkin: false, sabab: 'Oldingi xatda berilgan to\'lov muddati (' + yub[yub.length - 1].muddat + ') hali o\'tmagan.' }; }
   const b = yub.length + 1;
-  if (!adm) {
+  if (!adm && !x.qaytarish) {   // 13.11.2026: pul qaytarilayotgan shartnomada xatdan oldingi qo'ng'iroq/SMS/tashrif sharti so'ralmaydi
     let dan, izoh;
     if (b === 1) { dan = qosh(bugunIso, -XAT_CHORA_KUN); izoh = 'so\'nggi ' + XAT_CHORA_KUN + ' kunda'; }
     else { const p = yub[b - 2]; dan = X.xatIso(p.yetSana || p.sana); izoh = (b - 1) + '-xat yetkazilgan ' + (p.yetSana || p.sana) + ' dan keyin'; }
@@ -181,6 +185,7 @@ function undNazorat(x, bugun) {
   // 12.11.2026: «Nazorat» — 1) va'da / grafik eslatmasi (x.esl, lib/eslatma_kun.js): qo'ng'iroq HAM SMS majburiy (ikkalasi bo'lsa — bajarildi);
   //   2) faol va'da (eslatma kuni emas) — kuzatuv; 3) xat yetkazilgan — har kuni qo'ng'iroq. Yakshanba ham chiqadi (ijroga kirmaydi), bajarilmagan eslatma — dushanbaga.
   const M = Number(x.muddati) > 100000, Q = Number(x.qoshimcha) > 100000;
+  if (x.qaytarish) return null;   // 13.11.2026: pul qaytarilayotgan shartnoma — nazorat qo'ng'irog'i / eslatma talab qilinmaydi
   if (x.tolovSoni === 0 && x.boshOtgan && x.jami > 0) return null;
   const bA = x.bugunAloqa || [], aloqa = bA.length > 0, sms = !!x.bugunSmsBor, vaqt = aloqa ? bA[0].vaqt : '';
   if (x.davoOtgan && M) return (x.yuSorov || x.talabnoma || x.oxirgiXat) ? { tur: 'yurist', kerak: '', qilindi: aloqa, aloqa, sms, vaqt } : null;
@@ -198,9 +203,12 @@ function undBuyruq(x) {
   const sOn = t => { if (!B.some(b => b.t === t)) sq(t); };
   const choraT = c => c === 'Ташриф (манзилига бориб)' ? 'Uyiga boring va jurnalga yozing' : c === 'Телефон' ? 'Qo\'ng\'iroq qiling va jurnalga yozing' : 'SMS/Telegram yozing va jurnalga yozing';
   const M = Number(x.muddati) > 100000;
-  const bekor = x.tolovSoni === 0 && x.boshOtgan && x.jami > 0;
+  // 13.11.2026 («o'rta yo'l», direktor qarori): mijozga PUL QAYTARILAYOTGAN shartnoma (x.qaytarish) — faqat xat ishlari qoladi (chiqarish, yetkazish, eskirganini
+  //   bekor qilish) va ma'lumot kamchiliklari. Qo'ng'iroq, tashrif, «bog'laning», va'da, yuristga o'tkazish vazifalari chiqmaydi (yuristga o'tkazish bu holatda bloklangan).
+  const QB = !!x.qaytarish;
+  const bekor = !QB && x.tolovSoni === 0 && x.boshOtgan && x.jami > 0;
   const eski = !!(x.xatEskirgan && x.xatEskirgan.length);
-  const davo = !bekor && M && (x.davoOtgan || x.davoShosh);
+  const davo = !QB && !bekor && M && (x.davoOtgan || x.davoShosh);
   const faqatYurist = davo && x.davoOtgan;
   if (bekor) q('Boshlang\'ich to\'lov muddati o\'tdi, to\'lov yo\'q — shartnomani bekor qilish uchun direktorga kiriting');
   if (eski) x.xatEskirgan.forEach(h => q('Xat ' + h.raqam + ' — to\'lov muddati ' + h.muddat + ' da o\'tgan, yetkazmang: sababini yozib bekor qiling'));
@@ -218,25 +226,26 @@ function undBuyruq(x) {
     if (!x.ota) k('Otasining ismi yo\'q — direktorga ayting');
     return B;
   }
-  if (x.buzilgan && M) q('Va\'da buzildi — bugun qo\'ng\'iroq qiling');
-  else if (x.qisman && M) sq('Va\'daning bir qismini to\'ladi — qolganiga yangi sana oling');
-  if (x.u4 && x.u4.ok && !x.yuSorov) y('Yuristga o\'tkazishni so\'rang');
+  if (QB) k('↩ Mijozga pul qaytarilmoqda — faqat ogohlantirish xatlari yuboriladi; telefon va tashrif talab qilinmaydi, sudga berilmaydi');
+  if (!QB && x.buzilgan && M) q('Va\'da buzildi — bugun qo\'ng\'iroq qiling');
+  else if (!QB && x.qisman && M) sq('Va\'daning bir qismini to\'ladi — qolganiga yangi sana oling');
+  if (!QB && x.u4 && x.u4.ok && !x.yuSorov) y('Yuristga o\'tkazishni so\'rang');
   // 12.11.2026 (C): faol va'da muddati tugaguncha xat chiqarish (va undan oldingi SMS/qo'ng'iroq sharti) vazifasi chiqmaydi; va'da buzilsa — navbat darhol qaytadi.
   //   Da'vo muddati (yuqorida) va allaqachon chiqarilgan xatni yetkazish — to'xtamaydi.
-  if (!bekor && !eski && !davo && x.vadaFaol && ((x.kAS && (x.kAS.mumkin || x.kAS.yetishmaydi)) || (x.kQM && (x.kQM.mumkin || x.kQM.yetishmaydi))))
+  if (!QB && !bekor && !eski && !davo && x.vadaFaol && ((x.kAS && (x.kAS.mumkin || x.kAS.yetishmaydi)) || (x.kQM && (x.kQM.mumkin || x.kQM.yetishmaydi))))
     k('Faol va\'da ' + String(x.vada.sana).split('-').reverse().join('.') + ' gacha — xat navbati to\'xtatildi (va\'da buzilsa, darhol qaytadi)');
-  if (!bekor && !eski && !davo && !x.vadaFaol && x.kAS) {
+  if (!bekor && !eski && !davo && (QB || !x.vadaFaol) && x.kAS) {
     if (x.kAS.mumkin) sq(x.kAS.bosqich === 3 ? 'Talabnomani chiqaring' : x.kAS.bosqich + '-xatni chiqaring');
     else if (x.kAS.yetishmaydi) x.kAS.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
-  if (!bekor && !eski && !x.vadaFaol && x.kQM) {
+  if (!bekor && !eski && (QB || !x.vadaFaol) && x.kQM) {
     if (x.kQM.mumkin) sq(x.kQM.bosqich === 1 ? 'Maydon farqi bildirishnomasini chiqaring' : x.kQM.bosqich === 2 ? 'Maydon farqi ogohlantirish xatini chiqaring' : 'Maydon farqi talabnomasini chiqaring');
     else if (x.kQM.yetishmaydi) x.kQM.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
-  if (!bekor && (M || Number(x.qoshimcha) > 100000) && x.javobsizKun >= UND_JAVOBSIZ_KUN) sq('Uyiga boring — ' + x.javobsizKun + ' kundan beri telefonga javob bermayapti');
+  if (!QB && !bekor && (M || Number(x.qoshimcha) > 100000) && x.javobsizKun >= UND_JAVOBSIZ_KUN) sq('Uyiga boring — ' + x.javobsizKun + ' kundan beri telefonga javob bermayapti');
   // 13.11.2026 (direktor qarori): muddati o'tgan qarzi yo'q mijozga «bog'laning» vazifasi chiqmaydi — vaqtida to'layotgan mijozni bezovta qilish shart emas
   //   (150 mijozli portfelda 36 tasi shunday edi: 7 tasining qarzi nol, 29 tasi vaqtida to'layapti).
-  if (!bekor && x.jimKun >= UND_JIM_KUN && !x.buzilgan && (M || Number(x.qoshimcha) > 100000)) sq(x.jimKun >= 9999 ? 'Hali chora ko\'rilmagan — bugun bog\'laning' : x.jimKun + ' kundan beri chora yo\'q — bugun bog\'laning');
+  if (!QB && !bekor && x.jimKun >= UND_JIM_KUN && !x.buzilgan && (M || Number(x.qoshimcha) > 100000)) sq(x.jimKun >= 9999 ? 'Hali chora ko\'rilmagan — bugun bog\'laning' : x.jimKun + ' kundan beri chora yo\'q — bugun bog\'laning');
   if (!x.skan && !B.some(b => /skanini yuklang/.test(b.t))) k('Shartnoma skanini yuklang');
   if (!x.jshshir) k('JSHSHIR yo\'q — direktorga ayting');
   if (!x.ota) k('Otasining ismi yo\'q — direktorga ayting');
@@ -266,7 +275,7 @@ async function undPortfel(filtr, kod) {
   T.forEach(t => (Tn[t.no] = Tn[t.no] || []).push(t));
   XJ.forEach(h => (XJn[h.no] = XJn[h.no] || []).push(h));
   L.forEach(x => {
-    const xs = XS[x.no];
+    const xs = XS[x.no]; if (xs && xs.qaytarish) x.qaytarish = true;
     const my = UJn[x.no] || [], Tm = Tn[x.no] || [], Xm = XJn[x.no] || [];
     const oxirgi = my[my.length - 1];
     x.chora = my.length;

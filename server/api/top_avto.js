@@ -151,9 +151,9 @@ async function topAvto(kod, opt = {}) {
   // 2–4 portfel
   ctx.P.forEach(x => {
     if (x.davoXavf && !x.yuSorov && !ctx.qaytBlok[x.no]) nomzod('davo', x.no, "Da'vo muddati yaqin — ogohlantirish yoki yuristga o'tkazish", x.fish + ' · ' + x.davoQolgan + ' kun qoldi · qarz ' + pul(x.jami), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
-    if (x.bugunVada) nomzod('vada', x.no + '|' + (x.vada ? x.vada.sana : ''), "Va'da sanasi — mijoz bilan bog'laning", x.fish + ' · va\'da ' + (x.vada ? pul(x.vada.summa) + ' so\'m' : ''), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
+    if (x.bugunVada && !ctx.qaytBlok[x.no]) nomzod('vada', x.no + '|' + (x.vada ? x.vada.sana : ''), "Va'da sanasi — mijoz bilan bog'laning", x.fish + ' · va\'da ' + (x.vada ? pul(x.vada.summa) + ' so\'m' : ''), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
     const k = Number(x.kechikkan) || 0;
-    if ((Number(x.muddati) || 0) > 0 && k >= 1 && k <= 30 && !(x.oxirgi && x.oxirgi.sana >= ctx.kunOldin(k))) nomzod('tolov', x.no, "To'lov kechikdi — mijoz bilan bog'laning", x.fish + ' · ' + k + ' kun · muddati o\'tgan ' + pul(x.muddati), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
+    if (!ctx.qaytBlok[x.no] && (Number(x.muddati) || 0) > 0 && k >= 1 && k <= 30 && !(x.oxirgi && x.oxirgi.sana >= ctx.kunOldin(k))) nomzod('tolov', x.no, "To'lov kechikdi — mijoz bilan bog'laning", x.fish + ' · ' + k + ' kun · muddati o\'tgan ' + pul(x.muddati), x.no, x.mijozId || ctx.mid[x.no], x.undiruvchi);
   });
   // 5 xat
   ctx.X.forEach(h => { const kun = X.xatKechikkan(h, bugun); if (kun > 0) nomzod('xat', h.raqam, 'Ogohlantirish xatini yetkazing', h.raqam + ' · ' + kun + ' kun kechikdi', h.no, ctx.mid[h.no], h.kim); });
