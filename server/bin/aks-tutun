@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AKS TIZIM — 🧪 TUTUN SINOVI (13.11.2026, direktor qarori): yangi kod o'rnatilishidan OLDIN tekshiriladi. deploy.sh chaqiradi.
-#   1) ilova sahifasi (Index.html, Xarita.html) skriptlari sintaksisi;
+#   1) ilova sahifasi (Index.html, Xarita.html): skriptlar sintaksisi va tugmalarga bog'langan har bir funksiya ta'riflangani (14.11.2026);
 #   2) server kodi: har fayl sintaksisi + har bir xodim nomidan asosiy o'qish amallari (sinov/tutun.js — hech narsa yozmaydi);
 #   3) dastur xatosi chiqsa — ishlab turgan ESKI kod ham xuddi shunday sinaladi: faqat YANGI paydo bo'lgan xato to'xtatadi.
 # Ishlatish: aks-tutun [REPO] [APP]      Chiqish kodi: 0 — o'rnatilsin (o'tdi yoki sinab bo'lmadi); 2 — o'rnatilmasin.
@@ -28,7 +28,7 @@ if [ "${#SAHIFA[@]}" -gt 0 ]; then
   node "$SIN/index_tekshir.js" "${SAHIFA[@]}" >"$T/sahifa.txt" 2>&1; K=$?
   cat "$T/sahifa.txt"
   if [ "$K" = "2" ]; then
-    { echo "Ilova sahifasida sintaksis xatosi:"; grep '✗' "$T/sahifa.txt" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | head -5; } >"$T/xabar.txt"
+    { echo "Ilova sahifasi tekshiruvdan o'tmadi (sintaksis xatosi yoki tugmaga bog'langan funksiya yo'q):"; grep '✗' "$T/sahifa.txt" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | head -5; } >"$T/xabar.txt"
     xabar; exit 2
   fi
 fi
