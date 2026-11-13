@@ -28,7 +28,7 @@ const UY = require('./undiruv_yoz');
 const TP = require('./topshiriq_yoz')._ichki;
 
 const QDV = '06n_Qadam_kun', SOR_V = '06i_Direktor_sorovlari', XAT_V = '06e_Xatlar', TOP_V = TP.TOP_V;
-const QD_OTKAZ_CHEGARA = 3, QD_MAQSAD = 20, QD_SABAB_MIN = 10;
+const QD_OTKAZ_CHEGARA = 3, QD_MAQSAD = 15, QD_SABAB_MIN = 10;
 const QD_MAYDON = { jshshir: 'JSHSHIR', ota: 'Otasining ismi', tel: 'Telefon raqami' };
 const s = v => String(v == null ? '' : v);
 const dmy = iso => iso.split('-').reverse().join('.');
@@ -127,7 +127,7 @@ function otkazTgMatn(u, m, n, holat, sabab, H) {
     const L = H.otkaz.concat([{ no: m.no, fish: m.fish, sabab, holat }]);
     return '⏭ <b>' + esc(u.fish) + '</b> bugun <b>' + n + '</b> ta mijozni o\'tkazdi (chegara — ' + QD_OTKAZ_CHEGARA + '):\n'
       + L.map((x, i) => (i + 1) + '. ' + nom(x) + (x.holat === 'Qisman' ? ' (qisman)' : '') + ' — «' + esc(x.sabab) + '»').join('\n')
-      + '\n▶ Bajarildi: ' + H.son.bajarildi + ' / ' + QD_MAQSAD;
+      + '\n▶ Bajarildi: ' + H.son.bajarildi + ' / ' + (H.son.reja != null ? H.son.reja : QD_MAQSAD);
   }
   return '⏭ <b>' + esc(u.fish) + '</b> yana mijoz o\'tkazdi (' + n + '-si): ' + nom(m) + (holat === 'Qisman' ? ' (qisman)' : '') + ' — «' + esc(sabab) + '»';
 }

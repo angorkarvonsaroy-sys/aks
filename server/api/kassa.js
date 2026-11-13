@@ -265,7 +265,9 @@ async function tolovSaqlash(args) {
   if (d.sana > bugun) throw new S.Xato('Kelajak sanasiga to\'lov kiritib bo\'lmaydi.');
   const kunFarq = (new Date(bugun) - new Date(d.sana)) / 86400000;
   if (kunFarq > 7 && !u.admin) throw new S.Xato('7 kundan eski to\'lovni faqat direktor kirita oladi.');
-  const hujjat = String(d.hujjat || '').trim();
+  // 13.11.2026: NAQD to'lovda hujjat raqami qabul qilinmaydi — kirim kassa orderi (KO-1) raqamini tizim o'zi beradi (api/ko1.js raqamBer).
+  //   Avval bu katakka qo'lda «Naqt» va boshqa so'zlar yozilardi (142 naqd to'lovdan 79 tasida) — KO-1 raqami o'rniga o'sha so'z chiqib qolardi.
+  const hujjat = shakl === 'Naqt' ? '' : String(d.hujjat || '').trim();
   const izoh = String(d.izoh || '').trim();
   const maqsad = String(d.maqsad || '').trim();
   if (shakl === 'Bank' && !hujjat) throw new S.Xato('Bank to\'lovi uchun to\'lov topshiriqnomasi raqami majburiy.');

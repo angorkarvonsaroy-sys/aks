@@ -14,7 +14,7 @@ const S = require('./sessiya');
 const koprik = require('./koprik');
 const { q, redis } = require('../lib/db');
 
-const SIFAT_OQISH = ['xodimBosh', 'topMening', 'topXodimlar', 'pinTirik', 'qadamSudKarta', 'qadamTgTel',
+const SIFAT_OQISH = ['taqiqRuxsatHolat', 'xodimBosh', 'topMening', 'topXodimlar', 'pinTirik', 'qadamSudKarta', 'qadamTgTel',
   'qadamTalabHolat', 'xatTopPdf', 'tasdiqRoyxat', 'tasdiqFayl',
   'devonBoshlang', 'devonFayl', 'devonChiqimOl', 'devonIjroHolat',
   'hujjatBoshlang', 'hujjatlarRoyxati', 'hujjatNazorat',

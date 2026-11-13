@@ -114,6 +114,9 @@ async function mijozTekshir(u, d) {
   if (!/^[A-Z]{2}\d{7}$/.test(pas)) throw new S.Xato('Pasport AB1234567 ko\'rinishida bo\'lishi kerak.');
   const jsh = s(d.jshshir).replace(/\D/g, '');
   if (jsh && jsh.length !== 14) throw new S.Xato('JSHSHIR 14 raqam bo\'lishi kerak.');
+  // 13.11.2026 (direktor qarori): yangi mijozda JSHSHIR majburiy — usiz rasmiy xat, talabnoma va da'vo arizasi chiqmaydi (279 mijozdan 124 tasida yo'q edi).
+  // Faqat direktor JSHSHIRsiz kirita oladi (masalan, chet el fuqarosi).
+  if (!jsh && !u.admin) throw new S.Xato('JSHSHIR ni kiriting (14 raqam) — pasportda yoki ID-kartaning orqa tomonida yozilgan. Usiz mijoz saqlanmaydi; aniqlab bo\'lmasa — direktor o\'zi kiritadi.');
   const v = await G.oraliqOqi(env.aksBazaId, T02, 'A2:L', env.googleKey);
   let m = -1; v.forEach((r, i) => { if (s(r[0]) !== '') m = i; });
   for (const r0 of v.slice(0, m + 1)) { const r = []; for (let k = 0; k < 12; k++) r.push(s(r0[k]));
@@ -213,18 +216,41 @@ async function shartnomaYoz(v3, v3b, u, d, mid, dr, h) {   // yozuv yadrosi (sin
 async function shartnomaSaqlash(args) {
   const [kodSes, d0] = args; const d = Object.assign({}, d0 || {});
   const u = await S.ruxsat(kodSes, 'shartnoma');
+  // ⛔ 13.11.2026 (direktor qarori): taqiqdagi do'kon faqat direktor ruxsati bilan sotiladi (api/taqiq_ruxsat.js). Eski tizimga o'tib ketishidan OLDIN tekshiriladi.
+  const TQ = require('./taqiq_ruxsat')._ichki;
+  const dr0 = await dokon(d.dokonId);
+  let ruxsat = dr0 ? await TQ.tekshir(u, d, dr0) : null;
   if (!(await serverda())) return eskiTizim('shartnomaSaqlash', u, [d0]);
   const { mid, dr, h } = await shartnomaTekshir(kodSes, d);
   let yoq = false;
   const w = await qulfBilan(async () => {
     const dr2 = await dokon(d.dokonId);   // qulf ichida qayta — shu orada boshqa xodim sotmadimi
     if (!dr2 || dr2[17] || s(dr2[18]) !== 'SOTILMAGAN') throw new S.Xato('Bu do\'kon allaqachon sotilgan (' + (dr2 ? dr2[17] : '') + ').');
+    if (!ruxsat) ruxsat = await TQ.tekshir(u, d, dr2);   // shu orada taqiqqa qo'yilgan bo'lsa
     try { return await shartnomaYoz(T03, T03b, u, d, mid, dr2, h); } catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
   });
   if (yoq) return eskiTizim('shartnomaSaqlash', u, [d0]);
+  await TQ.ishlatildi(ruxsat, w.no);
+  const ogoh = await ijaradaSotildi(u, d, dr, mid, w.no);
   const tsh = await tashrifAvto(d.sana, mid, 'Дўкон сотиб олиш масаласида', u.fish, 'Шартнома ' + w.no);   // v9.0
   await kut(tetik.varaqlarYangila([T03, T03b, T01]).catch(e => console.error('ko\'zgu (shartnoma):', e.message)), 15000);
-  return { ok: true, no: w.no, qiymat: h.qiymat, narx: h.narx, oylik: h.oylik, sovga: h.sovga, jadval: h.jadval, tashrif: tsh };
+  return { ok: true, no: w.no, qiymat: h.qiymat, narx: h.narx, oylik: h.oylik, sovga: h.sovga, jadval: h.jadval, tashrif: tsh, ogoh };
+}
+// ⚠️ 13.11.2026: IJARADAGI do'kon sotilsa — xodimga ogohlantirish, direktorga Telegram: ijara shartnomasi yangi egaga o'tkazilishi kerak
+// (D-1-7: 08.10 da MChJ nomidan ijaraga berilgan, 28.10 da sotilgan — ijarada hamon «ijaraga beruvchi: MChJ», buni hech kim payqamagan).
+// dr — 01_Dokonlar qatori (V — Ijara_shartnoma_№, W — Ijarachi). Xato tashlamaydi.
+async function ijaradaSotildi(u, d, dr, mid, no, tg) {
+  try {
+    const ij = s(dr[21]).trim(); if (!ij) return '';
+    const ijarachi = s(dr[22]).trim(), dk = s(d.dokonId).trim();
+    let fish = ''; try { const m = (await V.qatorlar(T02)).find(({ x }) => String(x[0]) === String(mid)); if (m) fish = s(m.x[2]).trim(); } catch (e) { }
+    const esc = v => s(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const matn = '⚠️ <b>Ijaradagi do\'kon sotildi</b>\nDo\'kon: <b>' + esc(dk) + '</b>\nSotuv shartnomasi: <b>' + esc(no) + '</b>' + (fish ? ' — ' + esc(fish) : '') + '\nKiritgan xodim: ' + esc(u.fish)
+      + '\nAmaldagi ijara: <b>' + esc(ij) + '</b>' + (ijarachi ? ' (ijarachi: ' + esc(ijarachi) + ')' : '')
+      + '\n\nDo\'kon egasi o\'zgardi — ijara shartnomasini yangi egaga o\'tkazish (yoki qayta rasmiylashtirish) kerak. Aks holda ijarada «ijaraga beruvchi» eski holicha qoladi.';
+    (tg || require('./qadam_yoz')._ichki.tgFon)(u.kod, matn);
+    return dk + ' do\'koni hozir ijarada (' + ij + (ijarachi ? ', ijarachi: ' + ijarachi : '') + '). Do\'kon egasi o\'zgardi — ijara shartnomasini yangi egaga o\'tkazish kerak. Direktorga xabar yuborildi.';
+  } catch (e) { console.error('ijaradaSotildi:', e.message); return ''; }
 }
 
 // ------------------------------------------------------------------ 🔑 ijara shartnomasi
@@ -286,4 +312,4 @@ async function ijaraSaqlash(args) {
 }
 
 module.exports = { mijozSaqlash, shartnomaSaqlash, ijaraSaqlash };
-module.exports._ichki = { mijozTekshir, mijozYoz, shartnomaTekshir, shartnomaYoz, ijaraTekshir, ijaraYoz, tashrifAvto, bandRaqamlar, kumManba, dokon, matnBelgi, qatorlarYoz, formatla, aUstun, ogoh, F02, F03, F03b, F04, T02, T03, T03b, T04 };
+module.exports._ichki = { dokon, ijaradaSotildi, mijozTekshir, mijozYoz, shartnomaTekshir, shartnomaYoz, ijaraTekshir, ijaraYoz, tashrifAvto, bandRaqamlar, kumManba, dokon, matnBelgi, qatorlarYoz, formatla, aUstun, ogoh, F02, F03, F03b, F04, T02, T03, T03b, T04 };

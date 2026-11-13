@@ -234,7 +234,9 @@ function undBuyruq(x) {
     else if (x.kQM.yetishmaydi) x.kQM.yetishmaydi.forEach(c => sOn(choraT(c)));
   }
   if (!bekor && (M || Number(x.qoshimcha) > 100000) && x.javobsizKun >= UND_JAVOBSIZ_KUN) sq('Uyiga boring — ' + x.javobsizKun + ' kundan beri telefonga javob bermayapti');
-  if (!bekor && x.jimKun >= UND_JIM_KUN && !x.buzilgan) sq(x.jimKun >= 9999 ? 'Hali chora ko\'rilmagan — bugun bog\'laning' : x.jimKun + ' kundan beri chora yo\'q — bugun bog\'laning');
+  // 13.11.2026 (direktor qarori): muddati o'tgan qarzi yo'q mijozga «bog'laning» vazifasi chiqmaydi — vaqtida to'layotgan mijozni bezovta qilish shart emas
+  //   (150 mijozli portfelda 36 tasi shunday edi: 7 tasining qarzi nol, 29 tasi vaqtida to'layapti).
+  if (!bekor && x.jimKun >= UND_JIM_KUN && !x.buzilgan && (M || Number(x.qoshimcha) > 100000)) sq(x.jimKun >= 9999 ? 'Hali chora ko\'rilmagan — bugun bog\'laning' : x.jimKun + ' kundan beri chora yo\'q — bugun bog\'laning');
   if (!x.skan && !B.some(b => /skanini yuklang/.test(b.t))) k('Shartnoma skanini yuklang');
   if (!x.jshshir) k('JSHSHIR yo\'q — direktorga ayting');
   if (!x.ota) k('Otasining ismi yo\'q — direktorga ayting');

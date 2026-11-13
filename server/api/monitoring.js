@@ -12,7 +12,7 @@ const P = require('../lib/portfel');
 const TS = require('../lib/tasdiq');
 const { Q } = require('./yurist');
 
-const MON_SOROV_TUR = { xat_bekor: 'Xatni bekor qilish', tahrir: 'Shartnoma tahriri' };
+const MON_SOROV_TUR = { xat_bekor: 'Xatni bekor qilish', tahrir: 'Shartnoma tahriri', taqiq_sotuv: 'Taqiqdagi do\'konni sotishga ruxsat' };
 const MON_HAFTA = 7, MON_OQISH_QATOR = 2500;
 const HUJJAT_NAZORAT_BOSHI = '2026-09-29', HUJJAT_NAZORAT_KUN = 3;
 const BEKOR_YOPIQ = ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'], BEKOR_SKAN_ISH_KUN = 2;
@@ -186,6 +186,7 @@ function monTasdiqlar(D) {
     if (x.tur === 'xat_bekor') { const h = D.X.find(z => z.raqam === x.kalit); const m = h ? (D.NOM[h.no] || {}) : {};
       o.izoh2 = h ? (h.no + ' · ' + monQisqa(m.fish) + ' · ' + h.sana + ' · holati: ' + h.holati) : 'xat topilmadi'; }
     if (x.tur === 'tahrir') { const m = D.NOM[x.kalit] || {}; o.izoh2 = [monQisqa(m.fish), m.dokon].filter(Boolean).join(' · '); }
+    if (x.tur === 'taqiq_sotuv') { let mj = {}; try { mj = JSON.parse(String(x.malumot || '')) || {}; } catch (e) { } o.mijoz = String(mj.fish || ''); o.izoh2 = 'mijoz: ' + (o.mijoz || '—'); }   // ⛔ 13.11.2026
     return o; });
   return { yurist, yopish, bekor: D.B.filter(monBekorOchiq), sorovlar };
 }

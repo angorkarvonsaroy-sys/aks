@@ -16,7 +16,7 @@ const tetik = require('../lib/kozgu_tetik');
 const { redis } = require('../lib/db');
 const SZ = require('../lib/sozlama');
 
-const QD_MAQSAD = 20, QD_TEL = '+998 95-557-88-88';
+const QD_MAQSAD = 15, QD_TEL = '+998 95-557-88-88';
 const QD_KUTISH = 'Kutilmoqda', QD_KUTISH_TUR = ['skan', 'hj', 'olib'], QD_KUTISH_MAX = 30, QD_SABAB_MIN = 10;   // v2.2
 const QD_KUN = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
 const QD_OY = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
@@ -315,11 +315,12 @@ async function qdHisob(kod, fishlar, bugun, XD) {
       if (a.tur === 'chora') { aloqa++; if (a.vada) vada++; } else if (a.tur === 'xat' || a.tur === 'yetkazdi') xat++; }));
     const tugNo = {}; o.hamma.forEach(m => { if (m.tugadi) tugNo[m.no] = 1; });
     const B = o.L;
-    o.son = { maqsad: QD_MAQSAD, bajarildi: o.bajarildi.length, qoshimcha: o.qoshimcha.length, navbat: o.navbat.length,
+    // reja — bugun haqiqatan talab qilinadigan son: 15 ta yoki ertalabki navbatda shundan kam bo'lsa — navbatdagi hammasi (ijro intizomi ham shunday hisoblaydi)
+    o.son = { maqsad: QD_MAQSAD, reja: Math.min(QD_MAQSAD, o.hamma.filter(m => m.navbatda).length), bajarildi: o.bajarildi.length, qoshimcha: o.qoshimcha.length, navbat: o.navbat.length,
       otkazildi: o.otkaz.filter(r => !tugNo[r.no]).length, otkazJami: o.otkaz.length, kech: o.kech.length, aloqa, vada, xat, savat: o.savat.length,
       davoOtgan: B.filter(x => x.davoOtgan && Number(x.muddati) > 100000).length,
       portfel: B.length, qizil: B.filter(x => (x.buyruq || []).some(b => b.d === 'q')).length, buzilgan: B.filter(x => x.buzilgan && Number(x.muddati) > 100000).length,
-      jim: B.filter(x => x.jimKun >= P.UND_JIM_KUN).length, davo: B.filter(x => x.davoXavf).length, yuristga: B.filter(x => (x.buyruq || []).some(b => b.d === 'y' || /shoshilinch yuristga o'tkazishni so'rang/.test(b.t))).length,
+      jim: B.filter(x => x.jimKun >= P.UND_JIM_KUN && (Number(x.muddati) > 100000 || Number(x.qoshimcha) > 100000)).length, davo: B.filter(x => x.davoXavf).length, yuristga: B.filter(x => (x.buyruq || []).some(b => b.d === 'y' || /shoshilinch yuristga o'tkazishni so'rang/.test(b.t))).length,
       nazorat: o.nazorat.jami, nazoratQilinmadi: o.nazorat.qilinmadi, kutilmoqda: o.kutilmoqda.length };
     await qdKecha(o, f, bugun, XJ);   // v2.2 (faqat server): «⏪ kechadan qolgan»
     delete o.L;

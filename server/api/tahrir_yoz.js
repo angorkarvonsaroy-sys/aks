@@ -27,7 +27,9 @@ const TP = require('./topshiriq_yoz')._ichki;
 const MY = require('./mayda_yoz');
 
 const MIJ_V = '02_Mijozlar', S3_V = '03_Sotuv_shartnomalar', S4_V = '04_Ijara_shartnomalar', TJ_V = '03b_Tolov_jadvali', JUR_V = '06j_Tahrir_jurnali', SOR_V = QY.SOR_V, TOP_V = TP.TOP_V;
-const MON_SOROV_TUR = { xat_bekor: 'Xatni bekor qilish', tahrir: 'Shartnoma tahriri' };
+const MON_SOROV_TUR = { xat_bekor: 'Xatni bekor qilish', tahrir: 'Shartnoma tahriri' };   // monSorovYubor qabul qiladigan turlar
+const TQ = require('./taqiq_ruxsat')._ichki;   // ⛔ taqiqdagi do'konni sotishga ruxsat (13.11.2026) — so'rov api/taqiq_ruxsat.js da yoziladi, javob shu yerda (monSorovJavob)
+const turNomi = t => MON_SOROV_TUR[t] || (t === TQ.TUR ? TQ.TUR_NOMI : t);
 const QD_MAYDON = { jshshir: 'JSHSHIR', ota: 'Otasining ismi', tel: 'Telefon raqami' };
 const MZ = require('../lib/manzil');
 const MANZIL_K = ['mv', 'mt', 'mfy', 'kocha', 'uy', 'xon'];
@@ -268,6 +270,7 @@ async function javob(u, kodSes, id, ha, izoh0) {   // monSorovJavob ning o'zi (t
   if (so.holati !== 'Kutilmoqda') throw new S.Xato("Bu so'rovga allaqachon javob berilgan: " + so.holati + '.');
   if (!ha && izoh.length < 5) throw new S.Xato('Rad etish sababini yozing (kamida 5 belgi).');
   let natija = '', t = null;
+  if (so.tur === TQ.TUR) natija = TQ.natija(so, !!ha);   // ruxsatning o'zi — shu qatorning «Tasdiqlandi» holati (shartnomaSaqlash o'qiydi)
   if (ha && so.tur === 'xat_bekor') { await MY.xatBekor([kodSes, so.kalit, "Xodim so'rovi (" + so.kim + '): ' + so.sabab + (izoh ? ' · ' + izoh : '')]); natija = so.kalit + ' xati bekor qilindi.'; }
   if (ha && so.tur === 'tahrir') {
     let p = null; try { p = JSON.parse(s(so.malumot || '')); } catch (e) { }
@@ -282,17 +285,19 @@ async function javob(u, kodSes, id, ha, izoh0) {   // monSorovJavob ning o'zi (t
   }
   await javobYoz(SOR_V, so.qator, [ha ? 'Tasdiqlandi' : 'Rad etildi', izoh, QY.hozir().dmyHm, u.fish]);
   const x = (await monXodimlar()).find(z => z.fish === so.kim);
-  if (x && x.tg) koprik.chaqir('koprikTgChat', u.kod, [x.tg, (ha ? '✅' : '✖') + " <b>So'rovingiz</b> (" + (MON_SOROV_TUR[so.tur] || so.tur) + ' ' + so.kalit + '): ' + (ha ? 'tasdiqlandi' : 'rad etildi') + (izoh ? '\n«' + izoh + '»' : '')])
+  if (x && x.tg) koprik.chaqir('koprikTgChat', u.kod, [x.tg, (ha ? '✅' : '✖') + " <b>So'rovingiz</b> (" + turNomi(so.tur) + ' ' + so.kalit + '): ' + (ha ? 'tasdiqlandi' : 'rad etildi') + (izoh ? '\n«' + izoh + '»' : '')
+    + (ha && so.tur === TQ.TUR ? '\n' + TQ.KUN + ' kun ichida shartnomani saqlang — ruxsat bitta shartnomaga.' : '')])
     .catch(e => console.error('monSorovJavob tg (ko\'prik):', e.message));
   return { natija, t };
 }
 async function monSorovJavob(args) {
   const [kodSes, id, ha, izoh] = args;
   const u = await S.ruxsat(kodSes, 'admin');
-  if (!(await serverda(u.kod))) return eskiTizim('monSorovJavob', u, args.slice(1));
+  const taqiq = await TQ.sorovmi(id);   // ⛔ taqiq_sotuv — faqat serverda (eski tizim bu turni bilmaydi)
+  if (!taqiq && !(await serverda(u.kod))) return eskiTizim('monSorovJavob', u, args.slice(1));
   let j;
   try { j = await javob(u, kodSes, id, ha, izoh); }
-  catch (e) { if (e.yozilmadi) return eskiTizim('monSorovJavob', u, args.slice(1)); throw e; }
+  catch (e) { if (e.yozilmadi) { if (taqiq) throw new S.Xato('Javob yozilmadi (Google jadvaliga ulanib bo\'lmadi) — birozdan keyin qayta urinib ko\'ring.'); return eskiTizim('monSorovJavob', u, args.slice(1)); } throw e; }
   await tahrirKozgu(j.t, [SOR_V]);
   return { ok: true, natija: j.natija };
 }

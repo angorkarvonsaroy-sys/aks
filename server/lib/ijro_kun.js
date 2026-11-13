@@ -70,8 +70,9 @@ async function qadamKechki(kod, opt = {}) {
   const QM = q.QD_MAQSAD;
   let kam = 0; const M = ['🌙 <b>Bugungi ish natijasi</b> — ' + dmy(bugun) + ', ' + q.QD_KUN[hk], 'Reja: har undiruvchiga kuniga ' + QM + ' ta mijoz to\'liq ishlanishi.', ''];
   XD.forEach(x => { const h = H[x.fish], sn = h.son;
-    const yetdi = sn.bajarildi >= QM; if (!yetdi || (h.nazorat && h.nazorat.qilinmadi)) kam++;
-    M.push((yetdi ? '✅' : '⚠️') + ' <b>' + esc(x.fish) + '</b> — bajarildi <b>' + sn.bajarildi + ' / ' + QM + '</b>');
+    const rj = sn.reja != null ? sn.reja : QM;   // navbatda 15 tadan kam bo'lsa — navbatdagi hammasi
+    const yetdi = sn.bajarildi >= rj; if (!yetdi || (h.nazorat && h.nazorat.qilinmadi)) kam++;
+    M.push((yetdi ? '✅' : '⚠️') + ' <b>' + esc(x.fish) + '</b> — bajarildi <b>' + sn.bajarildi + ' / ' + rj + '</b>');
     M.push('   📞 ' + sn.aloqa + ' aloqa · 🤝 ' + sn.vada + ' va\'da · ✉ ' + sn.xat + ' xat · ⏭ ' + sn.otkazildi + ' o\'tkazildi · 🕓 ' + sn.kech + ' qadam kechiktirildi · navbatda ' + sn.navbat + ' qoldi'
       + (sn.qoshimcha ? ' · navbatdan tashqari ' + sn.qoshimcha : ''));
     if (!sn.aloqa && !sn.bajarildi && !h.otkaz.length) M.push('   ❗ Bugun bitta ham chora yozilmagan.');
