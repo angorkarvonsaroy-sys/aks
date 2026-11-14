@@ -39,6 +39,20 @@ function sintaksis() {
   }
 }
 
+// ------------------------------------------------------------------ 1b. kirish sahifasi (api/ui.js KIRISH) — ichidagi skript sintaksisi
+// 14.11.2026: bu sahifa server kodidagi qator (shablon) ichida yoziladi; undagi bitta ortiqcha yoki kam «\» sahifa skriptini buzadi —
+// fayl sintaksisi sog' ko'rinadi, lekin hech kim telefon va parol yozib kira olmaydi. Shuning uchun sahifaning o'zi ham tekshiriladi.
+function kirishSahifa() {
+  let ui; try { ui = require(path.join(ILDIZ, 'api', 'ui.js')); }
+  catch (e) { if (dasturmi(e)) N.yuklash.push({ fn: 'api/ui.js', tur: e.name, xabar: String(e.message).slice(0, 200), joy: joy(e) }); return; }
+  const h = ui && ui.KIRISH; if (typeof h !== 'string') return;
+  const re = /<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g; let m, n = 0;
+  while ((m = re.exec(h))) { n++; if (!m[1].trim()) continue;
+    try { new vm.Script(m[1], { filename: 'kirish-sahifasi-' + n + '.js' }); }
+    catch (e) { N.yuklash.push({ fn: 'kirish sahifasi (api/ui.js), ' + n + '-skript', tur: e.name, xabar: String(e.message).slice(0, 200), joy: 'api/ui.js' }); } }
+  N.soni.kirish = n;
+}
+
 // ------------------------------------------------------------------ 2. himoya: hech narsa yozilmaydi
 function himoya() {
   global.fetch = async () => { throw new Error('tutun: tarmoq o\'chirilgan'); };
@@ -119,7 +133,7 @@ async function amallar() {
 }
 
 (async () => {
-  try { sintaksis(); if (!N.yuklash.length) await amallar(); }
+  try { sintaksis(); if (!N.yuklash.length) kirishSahifa(); if (!N.yuklash.length) await amallar(); }
   catch (e) { console.log('tutun: sinovning o\'zi ishlamadi:', e && e.stack); N.sinovXato = String(e && e.message); return tugat(3); }
   // bir xil xato (amal + matn) bir marta
   const bor = {}; N.xato = N.xato.filter(x => { const k = x.fn + '|' + x.tur + '|' + x.xabar; if (bor[k]) { bor[k].rollar.push(x.rol); return false; } x.rollar = [x.rol]; bor[k] = x; return true; });

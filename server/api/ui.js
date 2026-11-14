@@ -130,9 +130,12 @@ button.b:disabled{opacity:.6}
 .kor input{width:16px;height:16px;margin:0}
 .hv{text-align:center;margin-top:16px}a.u{color:#C9D8D1;font-size:14px;text-decoration:underline;cursor:pointer}
 .iz{font-size:13px;color:#C9D8D1;line-height:1.45;margin-top:4px}
+.chr{background:#FFF7E0;color:#0B3D2E;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.45;margin-bottom:12px}
+.chrB{display:block;margin:10px 0 6px;padding:13px;border-radius:10px;background:#0B3D2E;color:#fff;font-weight:bold;font-size:16px;text-align:center;text-decoration:none}.chr2{display:block;font-size:12px;color:#475467}
 .a{text-align:center;font-size:12px;color:#9FB8AD;padding:0 16px 16px;margin-top:-40px}</style></head><body>
 <div id="e"><img src="/icon-192.png" alt=""><div class="n">AKS TIZIM</div><div class="m" id="sar">Angor Karvon Saroy</div>
 <div class="kt">
+ <div id="chr" class="chr" style="display:none"><span id="t_chr">Bu sahifa Telegram ichida ochildi. Ilovani telefoningizga o'rnatish uchun uni Chrome'da oching.</span><a id="chrB" class="chrB" href="#">Chrome'da ochish</a><span id="t_chr2" class="chr2">Ochilmasa: yuqoridagi uch nuqta — «Chrome'da ochish».</span></div>
  <div id="x" style="display:none"></div>
  <div id="yk" class="m" style="text-align:center">Yuklanmoqda…</div>
  <div id="fk" style="display:none">
@@ -166,7 +169,7 @@ if(k && (!XATO || k!==urlK)){ ket=true; location.replace('/?k='+encodeURICompone
 else if(XATO && k===urlK){ lsY('aks_k',''); k=''; }                                          // saqlangani ham yaramadi
 // ---- alifbo (ilovadagi tanlov bilan bir xil kalit — aks_alifbo)
 function kr(){ return lsO('aks_alifbo')==='kr'; }
-var SAQLA=['AKS TIZIM','Telegram','Gmail','AKS'];
+var SAQLA=['AKS TIZIM','Telegram','Gmail','Chrome','AKS'];
 function lk(t){ // lotin → kirill (xato/izoh matnlari uchun, sodda)
   var Q=[]; t=t.replace(/[^\\s()]+@[^\\s()]+/g,function(m){ Q.push(m); return '\\u0003'+(Q.length-1)+'\\u0004'; });   // pochta manzili o'girilmaydi
   SAQLA.forEach(function(w,i){ t=t.split(w).join('\\u0001'+i+'\\u0002'); });
@@ -180,7 +183,8 @@ function lk(t){ // lotin → kirill (xato/izoh matnlari uchun, sodda)
 }
 var T={ t_tel:'Telefon raqamingiz', t_tel2:'Telefon raqamingiz', t_par:'Parol', t_kor:"Parolni ko'rsatish", kir:'Kirish', unutH:'Parolimni unutdim',
   t_uiz:"Telefon raqamingizni yozing — vaqtinchalik parol Telegram va Gmail'ingizga yuboriladi.", yub:'Parol yuborish', ortH:'← Kirishga qaytish',
-  yk:'Yuklanmoqda…', muallif:'Tizim muallifi va yaratuvchisi: ' };
+  yk:'Yuklanmoqda…', muallif:'Tizim muallifi va yaratuvchisi: ',
+  t_chr:"Bu sahifa Telegram ichida ochildi. Ilovani telefoningizga o'rnatish uchun uni Chrome'da oching.", chrB:"Chrome'da ochish", t_chr2:"Ochilmasa: yuqoridagi uch nuqta — «Chrome'da ochish»." };
 function mt(t){ return kr()?lk(t):t; }
 function alQoy(){
   Object.keys(T).forEach(function(i){ var e=g(i); if(!e) return; if(i==='muallif') e.innerHTML=mt(T[i])+'<b>'+(kr()?'Камолиддин Нақиев':${JSON.stringify(MUALLIF)})+'</b>'; else e.textContent=mt(T[i]); });
@@ -222,6 +226,13 @@ if(!ket){
     return [d.slice(0,2),d.slice(2,5),d.slice(5,7),d.slice(7,9)].filter(function(x){return x;}).join(' '); }
   ['tel','tel2'].forEach(function(id){ var el=g(id); el.addEventListener('input',function(){ var v=telF(el.value); if(v!==el.value) el.value=v; }); });
   var st=lsO('aks_tel'); if(st){ g('tel').value=telF(st); g('tel2').value=telF(st); }
+  // 14.11.2026: xodimga yuborilgan kirish havolasi (/?t=907477114) — raqam tayyor turadi, faqat parol yoziladi
+  var ht=rq(QP.get('t')||''); if(ht.length===12&&ht.indexOf('998')===0) ht=ht.slice(3);
+  if(ht.length===9){ st=ht; g('tel').value=telF(ht); g('tel2').value=telF(ht); }
+  // 14.11.2026: Telegram (yoki boshqa ilova) ichidagi brauzerda ochilsa — Chrome'ga o'tkazish tugmasi (ilovani o'rnatish faqat Chrome'ning o'zida chiqadi).
+  // Android «intent» havolasi aynan Chrome'ni ochadi; o'z-o'zidan yo'naltirilmaydi (ichki brauzer uni tanimasa xato sahifasi chiqmasin) — bitta tugma.
+  (function(){ try{ var ua=navigator.userAgent||''; var ichki=/Android/i.test(ua)&&(/; wv\\)/.test(ua)||/Telegram/i.test(ua)||typeof window.TelegramWebview!=='undefined'||typeof window.TelegramWebviewProxy!=='undefined');
+    if(!ichki) return; g('chrB').setAttribute('href','intent://'+location.host+location.pathname+location.search+'#Intent;scheme=https;package=com.android.chrome;end'); g('chr').style.display='block'; }catch(e){} })();
   g('kir').onclick=kirish; g('yub').onclick=yubor;
   g('par').addEventListener('keydown',function(e){ if(e.key==='Enter') kirish(); });
   g('tel').addEventListener('keydown',function(e){ if(e.key==='Enter') g('par').focus(); });
