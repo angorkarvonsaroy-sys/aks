@@ -23,4 +23,22 @@ function qisqaIsm(fish) {
   const k = xatKirill(w.join(' ')).split(/\s+/).filter((z, i) => !i || !OTA.test(z));
   return k[0] + (k.length > 1 ? ' ' + k.slice(1).map(z => z.charAt(0) + '.').join('') : '');
 }
-module.exports = { xatKirill, qisqaIsm };
+// 14.11.2026 (direktor: «qaysi alifboda yozsam ham tizim o'zi kerakligiga o'tkazsin»):
+// kirill → lotin (tizimning asosiy alifbosi: xodimning qisqa nomi, lavozimi — kod lavozimni lotinda qidiradi: «kotib», «buxgalter», «kassir»)
+const KL = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'j', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'x', 'ц': 's', 'ч': 'ch', 'ш': 'sh', 'щ': 'sh', 'ъ': "'", 'ь': '', 'ы': 'i', 'э': 'e', 'ю': 'yu', 'я': 'ya', 'ў': "o'", 'қ': 'q', 'ғ': "g'", 'ҳ': 'h' };
+function lotinga(matn) {
+  const s = String(matn == null ? '' : matn); let o = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i], l = c.toLowerCase(); let m = KL[l];
+    if (m === undefined) { o += c; continue; }
+    if (l === 'е' && (i === 0 || /[\s(«"-]/.test(s[i - 1]) || 'аеёиоуэюяўъь'.indexOf(s[i - 1].toLowerCase()) >= 0)) m = 'ye';
+    o += (c !== l && m) ? m.charAt(0).toUpperCase() + m.slice(1) : m;
+  }
+  return o;
+}
+// hujjatlar uchun to'liq F.I.Sh.: lotincha so'zlar kirillga, hammasi KATTA harfda («Назаров Фурқат Qudratovich» → «НАЗАРОВ ФУРҚАТ ҚУДРАТОВИЧ»)
+function toliqKirill(matn) {
+  return String(matn == null ? '' : matn).replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)
+    .map(w => /[A-Za-z]/.test(w) && !/[Ѐ-ӿ]/.test(w) ? xatKirill(w) : w).join(' ').toUpperCase();
+}
+module.exports = { xatKirill, qisqaIsm, lotinga, toliqKirill };

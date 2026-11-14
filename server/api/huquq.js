@@ -11,6 +11,7 @@ const G = require('../lib/google');
 const env = require('../lib/env');
 const tetik = require('../lib/kozgu_tetik');
 const { redis } = require('../lib/db');
+const ISM = require('../lib/ism');
 
 const T07 = '07_Xodimlar', T08d = '08d_Huquqlar';
 const US = { id: 0, fish: 1, lavozim: 3, holat: 10, huquq: 18 };   // 07_Xodimlar: A ID, B F.I.Sh., D lavozim, K holat, S huquqlar
@@ -156,9 +157,10 @@ async function xodimQosh([kodSes, d0]) {
   const u = await S.ruxsat(kodSes, 'admin');
   if (!u.admin) throw new S.Xato('Bu bo\'lim faqat direktor uchun.');
   const d = d0 || {};
-  const fish = s(d.fish).replace(/\s+/g, ' ').trim();
-  const toliq = s(d.toliq).replace(/\s+/g, ' ').trim();
-  const lavozim = s(d.lavozim).replace(/\s+/g, ' ').trim();
+  // 14.11.2026: qaysi alifboda yozilsa ham — qisqa nom va lavozim LOTINDA (tizim kaliti; kod lavozimni lotinda qidiradi), to'liq F.I.Sh. KIRILLDA, katta harfda (hujjatlar)
+  const fish = ISM.lotinga(s(d.fish).replace(/\s+/g, ' ').trim());
+  const toliq = ISM.toliqKirill(d.toliq);
+  const lavozim = ISM.lotinga(s(d.lavozim).replace(/\s+/g, ' ').trim());
   const tel = telRaqam(d.tel);
   const huquq = [...new Set(ajrat(s(d.huquq).toLowerCase()))];
   if (fish.split(' ').filter(Boolean).length < 2) throw new S.Xato('F.I.Sh. ni to\'liq yozing (kamida ism va familiya).');
@@ -207,8 +209,8 @@ async function xodimTahrir([kodSes, d0]) {
   const u = await S.ruxsat(kodSes, 'admin');
   if (!u.admin) throw new S.Xato('Bu bo\'lim faqat direktor uchun.');
   const d = d0 || {}, id = idN(d.id);
-  const toliq = s(d.toliq).replace(/\s+/g, ' ').trim();
-  const lavozim = s(d.lavozim).replace(/\s+/g, ' ').trim();
+  const toliq = ISM.toliqKirill(d.toliq);                                    // 14.11.2026: lotincha yozilgani kirillga, katta harfda
+  const lavozim = ISM.lotinga(s(d.lavozim).replace(/\s+/g, ' ').trim());   // 14.11.2026: kirillcha yozilgani lotinga
   const tel = telRaqam(d.tel);
   if (!id) throw new S.Xato('Xodim tanlanmadi.');
   if (!lavozim) throw new S.Xato('Lavozimini yozing.');
