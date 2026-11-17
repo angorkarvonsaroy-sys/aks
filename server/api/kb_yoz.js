@@ -24,6 +24,7 @@ const PDF = require('../lib/pdf');
 const KBH = require('../lib/kb_hujjat');
 const V = require('../lib/varaq');
 const TY = require('./tahrir_yoz')._ichki;
+const TGK = require('../lib/tg_kb');   // 17.11.2026: skan + «✅ / ✖» tugmalari botda (direktor qarori)
 const { redis } = require('../lib/db');
 
 const KB_V = KBH.KB_VARAQ, N = KBH.KB_SARLAVHA.length;
@@ -232,12 +233,15 @@ async function kbSkan(args) {
     rel = 'kb/' + yil + '/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + '/' + nom;
     const skanId = saqla(rel, bayt);
     try { await kbSkanYoz(KB_V, sr, skanId, u.fish, sahifa); } catch (e) { ochirSrv(skanId); throw e; }
-    return { sr, yil, nom };
+    return { sr, yil, nom, skanId };
   }).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!r) return eskiTizim('kbSkan', u, [id, b64, sahifa]);
   skanDriveGa(u.kod, { id: r.sr.id, yil: r.yil, nom: r.nom, rel }).catch(e => console.error('kb skan Drive:', e.message));
-  tgFon(u.kod, 'koprikTgYubor', ['🤝 <b>Ijara kelishuv bilan bekor qilinmoqda</b> — ' + r.sr.no + ' (' + kbHtml(r.sr.fish) + ', ' + kbHtml(r.sr.dokon) + ')\n«' + kbHtml(r.sr.sabab) + '»\n'
-    + 'Ikki tomon imzolagan skan yuklandi (' + u.fish + '). Imzolarni tekshirib tasdiqlang: ilovada 👔 Direktor → Tasdiqlar.']);
+  // 17.11.2026 (direktor qarori): direktorga skan faylining O'ZI «✅ Tasdiqlayman / ✖ Rad etish» tugmalari bilan boradi (lib/tg_kb.js) —
+  // ilovaga kirmasdan botning o'zidan tasdiqlaydi. Bot tugmalari yoqilmagan bo'lsa — eski matnli xabar (2-parametr).
+  TGK.yuborFon(u.kod, Object.assign({}, r.sr, { skan: r.skanId, skanKim: u.fish, skanVaqt: hozir().dmyHm }),
+    '🤝 <b>Ijara kelishuv bilan bekor qilinmoqda</b> — ' + r.sr.no + ' (' + kbHtml(r.sr.fish) + ', ' + kbHtml(r.sr.dokon) + ')\n«' + kbHtml(r.sr.sabab) + '»\n'
+    + 'Ikki tomon imzolagan skan yuklandi (' + u.fish + '). Imzolarni tekshirib tasdiqlang: ilovada 👔 Direktor → Tasdiqlar.');
   await yangila([KB_V]);
   return { ok: true, natija: r.sr.no + ': imzolangan skan yuklandi — direktor tasdig\'ini kutmoqda. Tasdiqlangach shartnoma bekor bo\'ladi, do\'kon bo\'shaydi.' };
 }
@@ -309,6 +313,8 @@ async function kbTasdiq(args) {
   const m = (ha ? '✅ <b>Kelishuv tasdiqlandi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ') bekor qilindi, do\'kon ' + kbHtml(sr.dokon) + ' bo\'shadi.'
     : '✖ <b>Kelishuv rad etildi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ').\n«' + kbHtml(izoh) + '»\nTuzatib, skanni qayta yuklang: 📎 Hujjatlar → shartnoma → 🤝 kelishuv bloki.');
   await kbTgXodim(u.kod, sr.kim, m); if (sr.skanKim && sr.skanKim !== sr.kim) await kbTgXodim(u.kod, sr.skanKim, m);
+  TGK.natijaFon(sr.id, ha ? '✅ Tasdiqlandi — ' + sr.no + ' bekor qilindi, do\'kon ' + sr.dokon + ' bo\'shadi (' + u.fish + ', ' + hozir().dmyHm + ')'
+    : '✖ Rad etildi: «' + izoh + '» (' + u.fish + ', ' + hozir().dmyHm + ')');   // botdagi skan xabari yangilanadi, tugmalar o'chadi
   await yangila(x ? [KB_V, '04_Ijara_shartnomalar', '06j_Tahrir_jurnali', '06d_Hujjatlar'] : [KB_V]);
   return { ok: true, natija, ogoh };
 }
