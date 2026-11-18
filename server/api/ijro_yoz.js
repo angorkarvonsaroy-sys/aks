@@ -223,6 +223,14 @@ async function ijroTushuntir(args) {
     await G.sanaYoz(env.aksBazaId, [{ varaq: IJRO_VARAQ, qator: q.qator, ustun: 15, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
   } catch (e) { const z = yozilmadi(e); if (z.yozilmadi) return eskiTizim('ijroTushuntir', u, [id, matn0]); throw z; }
   await yangila([IJRO_VARAQ]);
+  // 18.11.2026 (direktor qarori): tushuntirish yozilishi bilan direktorga Telegram — avval faqat ilovada ko'rinardi, direktor bilmay qolardi
+  try {
+    const T = require('../lib/telegram');
+    if (T.bor()) await T.direktor('\u270d <b>' + esc(u.fish) + '</b> qoidabuzarlikka tushuntirish yozdi\n'
+      + ijroDmy(ijroIso(q.Sana)) + ' \u2014 ' + esc(s(q.Nomi)) + (q.Shartnoma ? ' (' + esc(s(q.Shartnoma)) + ')' : '')
+      + '\n\u00ab' + esc(matn.slice(0, 600)) + '\u00bb'
+      + '\n\nIlovada: \ud83d\udcd2 Ishlar \u2192 Ijro intizomi \u2014 uzrli deb topishingiz mumkin.');
+  } catch (e) { console.error('ijroTushuntir (tg):', e.message); }
   return { ok: true };
 }
 

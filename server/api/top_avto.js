@@ -98,7 +98,23 @@ async function topCtx(kod, bugun) {
         return { id: s(i.id), no: i.no, fish: s(z.fish || i.fish), dokon: s(z.dokon || i.dokon), jami: Number(z.jami) || 0, yurist: s(i.yurist), qoldi: 1095 - dk }; })
       .filter(z => z.qoldi <= 90);
   } catch (e) { console.error('topCtx yuDavo:', e.message); }
-  return { mlM, qaytBlok, kb, yuDavo, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // 📒 18.11.2026 (direktor qarori): ijro intizomi — oy ichida 3 balldan oshgan xodimdan YOZMA TUSHUNTIRISH talab qilinadi (zinapoyaning 2-pog'onasi).
+  // Avval bu faqat Telegram xabari bilan so'ralardi va hech qayerda kuzatilmasdi: Badalovda 8 ta qoidabuzarlik, 8 tasi ham tushuntirishsiz turardi.
+  let ijTush = [];
+  try {
+    const oy = bugun.slice(0, 7), Q = await V.qatorlar('06q_Qoidabuzarlik');
+    const L = Q.map(({ x }) => ({ id: s(x[0]), sana: typeof x[1] === 'number' ? V.iso(x[1]) : s(x[1]).slice(0, 10), xodim: s(x[2]), tur: s(x[3]), nomi: s(x[4]),
+      ogirlik: s(x[5]), ball: Number(x[6]) || 1, no: s(x[7]), tafsilot: s(x[9]), holati: s(x[10]), tush: s(x[13]).trim() }))
+      .filter(q => q.id && q.xodim && q.holati !== 'Uzrli' && String(q.sana).slice(0, 7) === oy);
+    const ball = {}; L.forEach(q => ball[q.xodim] = (ball[q.xodim] || 0) + q.ball);
+    // Har qoidabuzarlikka alohida topshiriq berilsa — bir kunda 165 ta topshiriq chiqadi (18.11 sinovi). Shuning uchun xodimga OYIGA BITTA topshiriq:
+    // «shu oyda N ta tushuntirilmagan qoidabuzarlik bor» — ichidagilarni xodim «📒 Ijro intizomi» sahifasida birin-ketin yozadi.
+    ijTush = Object.keys(ball).filter(x => ball[x] >= 3).map(x => {
+      const M = L.filter(q => q.xodim === x && !q.tush).sort((a2, b2) => (a2.sana < b2.sana ? -1 : 1));
+      return { xodim: x, oy, soni: M.length, ball: ball[x], eski: M.length ? M[0].sana : '', misol: M.slice(0, 3).map(q => q.nomi) };
+    }).filter(z => z.soni);
+  } catch (e) { console.error('topCtx ijTush:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, ijTush, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -117,6 +133,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'bufer') return hozir[t.kalit] ? '' : 'buferdan chiqarildi';
   if (q === 'kbskan') return hozir[t.kalit] ? '' : 'imzolangan skan yuklandi yoki so\'rov yopildi';   // 14.11.2026
   if (q === 'yudavo') return (ctx.yuDavo || []).some(z => z.no === id) ? '' : 'sudga ariza berildi yoki ish yopildi';   // 18.11.2026
+  if (q === 'tushuntirish') return (ctx.ijTush || []).some(z => z.xodim === t.kalit.split('|')[1]) ? '' : 'hamma tushuntirish yozildi yoki uzrli deb topildi';   // 18.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -199,6 +216,13 @@ async function topAvto(kod, opt = {}) {
     z.fish + ' \u00b7 ' + z.dokon + ' \u00b7 ' + (z.qoldi > 0 ? "da'vo muddatiga " + z.qoldi + ' kun qoldi' : "da'vo muddati " + (-z.qoldi) + ' kun oldin tugagan')
       + ' \u00b7 qarz ' + pul(z.jami) + ' so\'m \u00b7 hali sudga berilmagan',
     z.no, ctx.mid[z.no], z.yurist));
+  // 13 tushuntirish (18.11.2026) — ijro intizomi: 2-pog'onadagi xodimga oyiga bitta topshiriq (ichida nechta tushuntirish kerakligi yozilgan)
+  (ctx.ijTush || []).forEach(z => nomzod('tushuntirish', z.xodim + '|' + z.oy,
+    z.soni + ' ta qoidabuzarlikka yozma tushuntirish yozing',
+    'Bu oyda ' + z.ball + ' ball qoidabuzarlik \u00b7 ' + z.soni + ' tasi tushuntirilmagan'
+      + (z.eski ? ' \u00b7 eng eskisi ' + dmy(z.eski) : '') + (z.misol.length ? ' \u00b7 masalan: ' + z.misol.join('; ') : '')
+      + ' \u2014 ilovada: \ud83d\udcd2 Ishlar \u2192 Ijro intizomi \u2192 har qatorda \u00ab\u270d Tushuntirish yozish\u00bb',
+    '', '', z.xodim));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
 
