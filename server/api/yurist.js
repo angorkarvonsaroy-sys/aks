@@ -89,8 +89,11 @@ function yuKorinish(i, x, bugun, K) {
   const q = (K.Q || {})[String(i.id)] || null;
   const qabulKerak = yuQabulKerakmi(i, q);
   const shosh = (Number(x.muddati) || 0) > 0 && (Number(x.davoKun != null ? x.davoKun : x.kechikkan) || 0) >= 1095 - 90;
+  // 18.11.2026: shoshilinch ishda da'vo muddatiga necha kun qolgani ham ko'rsatiladi (3 yil = 1095 kun) — «shoshilinch» so'zining o'zi sababini aytmasdi
+  const davoQoldi = shosh ? 1095 - (Number(x.davoKun != null ? x.davoKun : x.kechikkan) || 0) : null;   // manfiy bo'lsa — muddat allaqachon tugagan
+  const davoIzoh = shosh ? (davoQoldi > 0 ? ' · 🔥 da\'vo muddatiga ' + davoQoldi + ' kun' : ' · ⛔ da\'vo muddati ' + (-davoQoldi) + ' kun oldin tugagan') : '';
   if (qabulKerak) {
-    chegara = yuIshKun(i.topshirilgan, YU_QABUL_KUN); yuMas = true; eslatma = 'qabul qilish muddati ' + yuDmy(chegara);
+    chegara = yuIshKun(i.topshirilgan, YU_QABUL_KUN); yuMas = true; eslatma = 'qabul qilish muddati ' + yuDmy(chegara) + davoIzoh;
   } else if (i.holati === 'Faol' && T.muddat[i.bosqich] && i.bosqichSana) {
     yuMas = (T.yurist || []).indexOf(i.bosqich) >= 0;
     let bosh = i.bosqichSana, n = T.muddat[i.bosqich];
@@ -98,7 +101,7 @@ function yuKorinish(i, x, bugun, K) {
     chegara = yuMas ? yuIshKun(bosh, n) : qosh(bosh, n);
     if (i.bosqich === 1) { pauza = yuPauza(K.TP, i, bosh, bugun); if (pauza) chegara = qosh(chegara, pauza); }
     if (i.bosqich === 3 && i.majlis) { chegara = i.majlis; eslatma = 'keyingi majlis ' + yuDmy(i.majlis); }
-    if (!eslatma) eslatma = 'muddat ' + yuDmy(chegara) + (pauza ? ' (kamchilik topshirig\'i: +' + pauza + ' kun)' : '') + (i.bosqich === 1 && shosh ? ' · shoshilinch' : '');
+    if (!eslatma) eslatma = 'muddat ' + yuDmy(chegara) + (pauza ? ' (kamchilik topshirig\'i: +' + pauza + ' kun)' : '') + (i.bosqich === 1 ? davoIzoh : '');
   }
   // 🤝 kelishuv: muddati kelguncha yuristdan ish talab qilinmaydi; sana o'tsa (yoki sana umuman kiritilmagan bo'lsa) — yana yuristning navbati
   let kel = null, kelOtdi = false;
@@ -113,7 +116,7 @@ function yuKorinish(i, x, bugun, K) {
     jami: x.jami != null ? x.jami : 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, bosqich: i.bosqich, bosqichNomi: T.bosqich[i.bosqich] || '—',
     keyingi: kel ? (kelOtdi ? 'Kelishuv muddati o\'tdi — natijasini kiriting' : !kel.muddat ? 'Kelishuv muddatini kiriting' : 'Kelishuv — mijoz to\'lovi kutilmoqda')
       : qabulKerak ? 'Ishni qabul qilish (hujjatlarni tekshirish)' : (!i.tartib && i.bosqich === 1) ? 'Sudga ariza berish' : (T.keyingi[i.bosqich] || ''), keyingiB: yuKeyingiB(T, i.bosqich), bosqichSana: i.bosqichSana, holati: i.holati, kechikdi, eslatma, yol: i.yol,
-    chegara, yuMas, qabulKerak, qabul: q, shosh, pauza,
+    chegara, yuMas, qabulKerak, qabul: q, shosh, davoQoldi, pauza,
     kelMuddat: kel ? kel.muddat : '', kelShart: kel ? kel.shart : '', kelVaqt: kel ? kel.vaqt : '', kelKim: kel ? kel.kim : '', kelOtdi, kelUzaytirildi: kel ? (kel.uzaytirildi || '') : '', kelUzSabab: kel ? (kel.uzSabab || '') : '',
     tartib: i.tartib, tartibNomi: i.tartib ? T.nomi : '', zanjir: T.zanjir, radIzoh: i.radIzoh,
     topshirilgan: i.topshirilgan, davoNo: i.davoNo, davoSana: i.davoSana, sudNomi: i.sudNomi, sudIshNo: i.sudIshNo, qarorSana: i.qarorSana, qaror: i.qaror,
@@ -122,6 +125,35 @@ function yuKorinish(i, x, bugun, K) {
 }
 
 const { yuMezon } = require('../lib/portfel');   // U4 mezoni — portfel bilan umumiy
+
+// ------------------------------------------------------------------ ⚡ Samaradorlik (18.11.2026, direktor topshirig'i): yurist ham, direktor ham
+// «bu oyda nechta ish sudga berildi va qancha undirildi» ni bir qarashda ko'rsin. Hammasi 06b_Yuridik_ishlar sanalaridan va 05_Tolovlar dan hisoblanadi.
+const YU_OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const yuOyNomi = o => { const m = /^(\d{4})-(\d{2})/.exec(String(o || '')); return m ? YU_OYLAR[Number(m[2]) - 1] + ' ' + m[1] : ''; };
+function yuSamara(I, T, bugun) {
+  const oy = bugun.slice(0, 7);
+  const d = new Date(bugun.slice(0, 7) + '-15T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() - 1);
+  const oldin = d.toISOString().slice(0, 7);
+  // shartnoma → yuristga o'tgan eng erta sana (shundan keyingi to'lovlar «undirildi» deb sanaladi)
+  const band = {};
+  I.filter(i => i.holati !== 'Rad etildi' && i.topshirilgan).forEach(i => { const e = band[i.no]; if (!e || i.topshirilgan < e) band[i.no] = i.topshirilgan; });
+  const oyi = s => String(s || '').slice(0, 7);
+  const hisob = o => {
+    const c = { ariza: 0, qaror: 0, mib: 0, pul: 0, yangi: 0 };
+    I.forEach(i => {
+      if (oyi(i.davoSana) === o) c.ariza++;
+      if (oyi(i.qarorSana) === o) c.qaror++;
+      if (oyi(i.mibSana || i.ijroSana) === o) c.mib++;
+      if (oyi(i.topshirilgan) === o && i.holati !== 'Rad etildi') c.yangi++;
+    });
+    c.pul = T.filter(p => band[p.no] && p.sana >= band[p.no] && oyi(p.sana) === o).reduce((s, p) => s + (Number(p.summa) || 0), 0);
+    return c;
+  };
+  const faol = I.filter(i => YU_FAOL.indexOf(i.holati) >= 0);
+  return { oyKod: oy, oyNomi: yuOyNomi(oy), oldinNomi: yuOyNomi(oldin), oy: hisob(oy), oldin: hisob(oldin),
+    faol: faol.length, sudda: faol.filter(i => i.bosqich >= 2 && i.bosqich <= 6).length, mibda: faol.filter(i => i.bosqich >= 7).length,
+    yopildi: I.filter(i => /^Yopildi/.test(i.holati)).length };
+}
 
 // ------------------------------------------------------------------ yurist / direktor ekrani
 async function yuristBoshlang([kodSes]) {
@@ -133,7 +165,8 @@ async function yuristBoshlang([kodSes]) {
   if (I.some(i => YU_FAOL.indexOf(i.holati) >= 0 && Sh[i.no] && !(Sh[i.no].jami > 0)) && koprik.bor())
     koprik.chaqir('yuristBoshlang', u.kod, []).catch(e => console.error('yuAvtoYop (ko\'prik):', e.message));
   const ishlar = I.filter(i => YU_FAOL.indexOf(i.holati) >= 0 || /^Yopildi/.test(i.holati)).map(i => yuKorinish(i, Sh[i.no], bugun, K));
-  const res = { ishlar, admin: adm, bugun, topTur: YU_TOP_TUR, bosqich: YU_BOSQICH, keyingi: YU_KEYINGI, qarorlar: YU_QARORLAR, sud: YU_SUD,
+  let samara = null; try { samara = yuSamara(I, await U.undTolovlar(), bugun); } catch (e) { console.error('yuSamara:', e.message); }
+  const res = { ishlar, samara, admin: adm, bugun, topTur: YU_TOP_TUR, bosqich: YU_BOSQICH, keyingi: YU_KEYINGI, qarorlar: YU_QARORLAR, sud: YU_SUD,
     treklar: { Davo: { nomi: YU_TREK.Davo.nomi, zanjir: YU_TREK.Davo.zanjir, bosqich: YU_TREK.Davo.bosqich, ariza: YU_TREK.Davo.ariza },
       Buyruq: { nomi: YU_TREK.Buyruq.nomi, zanjir: YU_TREK.Buyruq.zanjir, bosqich: YU_TREK.Buyruq.bosqich, ariza: YU_TREK.Buyruq.ariza } } };
   if (adm) {
