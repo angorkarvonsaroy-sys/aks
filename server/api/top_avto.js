@@ -148,7 +148,24 @@ async function topCtx(kod, bugun) {
       return { kim, oy: oyJ, soni: M.length, pasYoq: M.filter(z => !/[A-Za-z]{2}\s*\d{6,7}/.test(z.m.pas || '')).length,
         misol: M.slice(0, 3).map(z => z.fish.split(/\s+/).slice(0, 2).join(' ') + ' (' + z.no + ')') }; });
   } catch (e) { console.error('topCtx jshYoq:', e.message); }
-  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // 🛒 19.11.2026 (direktor qarori): sotuv voronkasi — do'kon sotib olish uchun kelgan tashrifning natijasi yoki keyingi qadami yo'q.
+  // 14,5 oyda 519 ta shunday tashrif bo'lgan, 67 ta shartnoma tuzilgan; qolganlariga nima bo'lgani hech qayerda yozilmagan.
+  let sotuv = [];
+  try {
+    const ST = require('./sotuv')._ichki;
+    const L4 = await ST.tashrifRoyxat(bugun);
+    const oyS = bugun.slice(0, 7), gr = {};
+    L4.forEach(z => { if (z.holat === 'yopiq' || z.holat === 'kutilmoqda' || z.holat === 'bugun') return;
+      if (z.sana < ST.ST_BOSH) return;              // qoida kuchga kirgan kundan oldingi tashriflar — qo'ng'iroq ro'yxatida
+      const kim = ST.stXodim(z.kim); if (!kim) return;
+      (gr[kim] = gr[kim] || []).push(z); });
+    sotuv = Object.keys(gr).map(kim => { const M = gr[kim];
+      return { kim, oy: oyS, soni: M.length,
+        natijasiz: M.filter(z => z.holat === 'natijasiz').length,
+        kechikdi: M.filter(z => z.holat === 'kechikdi' || z.holat === 'qadamsiz').length,
+        misol: M.slice(0, 3).map(z => s(z.fish).split(/\s+/).slice(0, 2).join(' ') + ' (' + ST.stDmy(z.sana) + ')') }; });
+  } catch (e) { console.error('topCtx sotuv:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, sotuv, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -170,6 +187,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'tushuntirish') return (ctx.ijTush || []).some(z => z.xodim === t.kalit.split('|')[1]) ? '' : 'hamma tushuntirish yozildi yoki uzrli deb topildi';   // 18.11.2026
   if (q === 'qmxat') return (ctx.qmXat || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'maydon farqi xat zanjiri tugallandi yoki qarz qolmadi';   // 19.11.2026
   if (q === 'jshshir') return (ctx.jshYoq || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma mijozning JSHSHIRi bazaga kiritildi';   // 19.11.2026
+  if (q === 'sotuv') return (ctx.sotuv || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma tashrifga natija va keyingi qadam qo\'yildi';   // 19.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -274,6 +292,14 @@ async function topAvto(kod, opt = {}) {
       + (z.pasYoq ? ' · ' + z.pasYoq + ' tasida pasport seriyasi ham yo\'q' : '')
       + (z.misol.length ? ' · masalan: ' + z.misol.join(', ') : '')
       + ' — JSHSHIRsiz sudga ariza berib bo\'lmaydi. Ilovada: 👤 Mijozlar → mijoz → ✎ Tahrir',
+    '', '', z.kim));
+  // 🛒 19.11.2026 — sotuv voronkasi: natijasiz yoki qadami kechikkan tashriflar
+  (ctx.sotuv || []).forEach(z => nomzod('sotuv', z.kim + '|' + z.oy,
+    z.soni + ' ta tashrifga natija yoki keyingi qadam qo\'yilmagan',
+    (z.natijasiz ? z.natijasiz + ' tasida natija yo\'q' : '')
+      + (z.natijasiz && z.kechikdi ? ' · ' : '') + (z.kechikdi ? z.kechikdi + ' tasida keyingi qadam muddati o\'tgan' : '')
+      + (z.misol.length ? ' · masalan: ' + z.misol.join(', ') : '')
+      + ' — do\'kon sotib olish uchun kelgan mijoz. Ilovada: 🛒 Sotuv bo\'limi',
     '', '', z.kim));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
