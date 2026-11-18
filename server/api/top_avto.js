@@ -19,6 +19,7 @@ const env = require('../lib/env');
 const J = require('../lib/jurnallar');
 const P = require('../lib/portfel');
 const X = require('../lib/xat_yordam');
+const UY = require('../lib/undiruv_yordam');   // 18.11.2026: yuristdagi ishlarda da'vo muddati
 const TS = require('../lib/tasdiq');
 const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
@@ -86,7 +87,18 @@ async function topCtx(kod, bugun) {
       const sana = TS.topIso(z.holati === 'Rad etildi' ? (z.javobVaqt || z.vaqt) : z.vaqt).slice(0, 10);
       return { id: s(z.id), no: z.no, fish: s(z.fish), dokon: s(z.dokon), kim: s(z.kim), qaytgan: z.holati === 'Rad etildi', kun: sana ? Math.round((d0 - new Date(sana + 'T12:00:00Z')) / 86400000) : 0 }; })
     .filter(z => z.kun > KB_SKAN_KUN); } catch (e) { console.error('topCtx kb:', e.message); }
-  return { mlM, qaytBlok, kb, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // ⚖ 18.11.2026 (direktor qarori): ish yuristga o'tgach «davo» qoidasi to'xtar edi — yuristdagi, hali sudga berilmagan ishlarda da'vo muddati
+  // (3 yil = 1095 kun) 90 kundan kam qolgan yoki allaqachon tugaganlari nazoratsiz qolardi. Endi ular yuristga topshiriq bo'lib tushadi.
+  let yuDavo = [];
+  try {
+    const [YI, SHL] = await Promise.all([J.yuIshlar(), UY.undShartnomalar()]);
+    const SH = {}; SHL.forEach(z => SH[z.no] = z);
+    yuDavo = YI.filter(i => ['Faol', 'Kelishuv', "Yopish so'ralgan"].indexOf(i.holati) >= 0 && (Number(i.bosqich) || 0) <= 1)
+      .map(i => { const z = SH[i.no] || {}; const dk = Number(z.davoKun != null ? z.davoKun : z.kechikkan) || 0;
+        return { id: s(i.id), no: i.no, fish: s(z.fish || i.fish), dokon: s(z.dokon || i.dokon), jami: Number(z.jami) || 0, yurist: s(i.yurist), qoldi: 1095 - dk }; })
+      .filter(z => z.qoldi <= 90);
+  } catch (e) { console.error('topCtx yuDavo:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -104,6 +116,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'bepul') return ctx.bekorNo[id] ? 'shartnoma bekor qilingan' : (ctx.ijOylik[id] > 0 ? 'pullik ijara kiritildi' : '');
   if (q === 'bufer') return hozir[t.kalit] ? '' : 'buferdan chiqarildi';
   if (q === 'kbskan') return hozir[t.kalit] ? '' : 'imzolangan skan yuklandi yoki so\'rov yopildi';   // 14.11.2026
+  if (q === 'yudavo') return (ctx.yuDavo || []).some(z => z.no === id) ? '' : 'sudga ariza berildi yoki ish yopildi';   // 18.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -180,6 +193,12 @@ async function topAvto(kod, opt = {}) {
     nomzod('skanq', x.no, 'Shartnoma skanini arxivdan topib yuklang', x.fish + ' · ' + x.dokon + ' · qarzdor, undiruvchi: ' + (x.undiruvchi || '—') + ' — skan sudga kerak', x.no, x.mijozId || ctx.mid[x.no], kotiba || x.undiruvchi); });
   // 11 kbskan (14.11.2026) — kelishuv bilan bekor qilish: hujjat tayyor, imzolangan skan yo'q
   (ctx.kb || []).forEach(k => nomzod('kbskan', k.id, 'Kelishuv bilan bekor qilish: imzolangan skanni yuklang', k.no + ' · ' + k.fish + ' · ' + k.dokon + ' · ' + (k.qaytgan ? 'direktor qaytargan, ' : 'hujjat ') + k.kun + ' kundan beri ' + (k.qaytgan ? 'qayta yuklanmagan' : 'imzolanmagan') + ' — shartnoma hali «Aktiv»', k.no, ctx.mid[k.no], k.kim));
+  // 12 yudavo (18.11.2026) — yuristdagi ishda da'vo muddati tugayapti yoki tugagan
+  (ctx.yuDavo || []).forEach(z => nomzod('yudavo', z.no,
+    z.qoldi > 0 ? "Da'vo muddati tugayapti — sudga ariza bering" : "Da'vo muddati tugagan — sudga ariza bering yoki yozma xulosa kiriting",
+    z.fish + ' \u00b7 ' + z.dokon + ' \u00b7 ' + (z.qoldi > 0 ? "da'vo muddatiga " + z.qoldi + ' kun qoldi' : "da'vo muddati " + (-z.qoldi) + ' kun oldin tugagan')
+      + ' \u00b7 qarz ' + pul(z.jami) + ' so\'m \u00b7 hali sudga berilmagan',
+    z.no, ctx.mid[z.no], z.yurist));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
 
@@ -193,7 +212,7 @@ async function topAvto(kod, opt = {}) {
   for (const c of C) {
     if (!quruq && tun && c.qoida === 'kbskan') continue;
     if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw);
-    const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? ' · ⚠ mas\'ul topilmadi — qayta topshiring' : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' ? 'Shoshilinch' : 'Oddiy' };
+    const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? ' · ⚠ mas\'ul topilmadi — qayta topshiring' : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' || c.qoida === 'yudavo' ? 'Shoshilinch' : 'Oddiy' };
     if (quruq) { yangi.push(o); continue; }
     const row = await TP.topYoz(TOP_V, o, R);
     R.L.push(Object.assign({ holati: 'Jarayonda', yopildi: '', isbot: '', tgx: '' }, row)); R.l = row.qator;   // keyingi ID va qator uchun

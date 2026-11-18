@@ -16,7 +16,8 @@ const TOP_QOIDALAR = [   // [kalit, nomi, muddat kun, kimga]
   ['tolov', "Oylik to'lov o'tdi, to'lov yo'q", 3, 'undiruvchi'], ['xat', 'Ogohlantirish xati yetkazilmagan', 2, 'xatni chiqargan'], ['bekor', 'Bekor qilish skanlari kechikdi', 1, "so'rov kiritgan"],
   ['pasport', 'Mijoz pasporti tugagan / 30 kunda tugaydi', 14, 'biriktirilgan xodim'], ['bepul', 'Ijara bepul davriga 30 kun qoldi', 14, 'ijara mas\'uli'], ['bufer', "Bufer to'lov muddati o'tdi", 1, 'direktor'],
   ['skanq', "Qarzdor shartnomasining skani yo'q", 7, 'kotiba'],
-  ['kbskan', 'Kelishuv bilan bekor qilish: imzolangan skan 3 kundan beri yuklanmagan', 2, 'hujjatni tayyorlagan']];   // 14.11.2026
+  ['kbskan', 'Kelishuv bilan bekor qilish: imzolangan skan 3 kundan beri yuklanmagan', 2, 'hujjatni tayyorlagan'],   // 14.11.2026
+  ['yudavo', "Yuristdagi ishda da'vo muddati tugayapti yoki tugagan", 2, 'ishning yuristi']];   // 18.11.2026 (direktor qarori)
 
 // TOP_QOIDA (xom) → har qoida uchun {on, kun} (topQoidaCfg_ bilan bir xil)
 function cfgDan(p) { const o = {}; TOP_QOIDALAR.forEach(q => { const c = (p || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: c.kun === undefined ? q[2] : Number(c.kun) || 0 }; }); return o; }
