@@ -5,7 +5,9 @@ const S = require('./sessiya');
 const V = require('../lib/varaq');
 const U = require('../lib/undiruv_yordam');
 const P = require('../lib/portfel');
-const KR = require('../lib/korinish');   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
+const KR = require('../lib/korinish');
+const { xHolat } = require('../lib/dokon');
+const ST = require('./sotuv')._ichki;   // shartnoma holati bo'yicha ko'rinish (18.10.2026)
 
 const BOSH_REJA_USTUN = 26, BOSH_PASPORT_KUN = 30, BOSH_BEPUL_KUN = 30;
 const num = x => { const n = Number(x); return isNaN(n) ? 0 : Math.round(n); };   // Kod.gs num_
@@ -67,11 +69,15 @@ async function hisobotHisobla(bosh, oxir) {
   const dok = await dokonlar();
   return { bosh, oxir, tol, sot, ij, tash, buf, dok, qay };
 }
-// 01_Dokonlar: 2..641-qatorlar, Z ustuni (holat); bo'sh katak — «Bo'sh». Eski kod aynan 640 qator o'qiydi (bo'sh qatorlar ham sanaladi).
+// 01_Dokonlar: 2..641-qatorlar. Holat lib/dokon.js da hisoblanadi (Z ustuni formulasi o'rniga — «Bron» endi
+// 01d_Bronlar dagi haqiqiy bron, 19.11.2026). Eski kod aynan 640 qator o'qiydi (bo'sh qatorlar ham sanaladi).
 async function dokonlar() {
   const R = await V.qatorlar('01_Dokonlar'); const bor = {}; R.forEach(({ n, x }) => { bor[n] = x; });
+  const BR = {};
+  try { (await ST.bronRoyxat(V.bugun())).forEach(z => { if (z.holati === 'Faol' && z.dokon) BR[z.dokon.trim().toUpperCase()] = 1; }); }
+  catch (e) { /* 01d_Bronlar hali yo'q */ }
   const dok = {};
-  for (let n = 2; n <= 641; n++) { const x = bor[n] || []; const h = s(x[25]) || "Bo'sh"; dok[h] = (dok[h] || 0) + 1; }
+  for (let n = 2; n <= 641; n++) { const x = bor[n] || []; const h = xHolat(x, !!BR[s(x[0]).trim().toUpperCase()]); dok[h] = (dok[h] || 0) + 1; }
   return dok;
 }
 function davrChegara(davr, bugun) {

@@ -16,6 +16,7 @@ const env = require('../lib/env');
 const koprik = require('./koprik');
 const tetik = require('../lib/kozgu_tetik');
 const { xodimTeng } = require('../lib/xodim');
+const { xHolat } = require('../lib/dokon');
 
 const ST_VARAQ = '01c_Tashrif_natija';
 const ST_S = ['Tashrif_ID', 'Natija', 'Sabab', 'Keyingi_qadam', 'Qadam_sana', 'Izoh', 'Kim', 'Vaqt'];
@@ -216,10 +217,12 @@ async function dokonHolat(dokonId, bugun) {
   const D = (await V.qatorlar('01_Dokonlar')).find(({ x }) => s(x[0]).trim().toLowerCase() === s(dokonId).trim().toLowerCase());
   if (!D) return { bor: false };
   const x = D.x;
-  // 01_Dokonlar: I(8) Taqiq, L(11) Rais, S(18) Egasi, Z(25) xarita holati (hisoblanadi: Bo'sh / Sotilgan / Sotilgan+ijara / Bo'sh+ijara / Bron / Ma'muriyat)
+  // 01_Dokonlar: H(7) Qurilish, I(8) Taqiq, L(11) Rais, S(18) Egasi. Xarita holati lib/dokon.js da hisoblanadi
+  // (Bo'sh / Bo'sh+ijara / Sotilgan / Sotilgan+ijara / Ma'muriyat / Bron) — xarita va bosh ekran bilan bitta manba.
   const egasi = s(x[18]).trim(), taqiq = /^ha$/i.test(s(x[8]).trim()), rais = /^ha$/i.test(s(x[11]).trim());
-  const xh = s(x[25]).trim(), qur = s(x[7]).trim();
+  const qur = s(x[7]).trim();
   const B = (await bronRoyxat(bugun)).find(z => z.dokon.toLowerCase() === s(dokonId).trim().toLowerCase() && z.holati === 'Faol');
+  const xh = xHolat(x, !!B);
   return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };

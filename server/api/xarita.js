@@ -2,6 +2,8 @@
 'use strict';
 const S = require('./sessiya');
 const V = require('../lib/varaq');
+const ST = require('./sotuv')._ichki;
+const { xHolat } = require('../lib/dokon');
 
 const num = x => { const n = Number(x); return isNaN(n) ? 0 : Math.round(n); };   // Kod.gs num_
 // ustunA_oxiri_
@@ -19,8 +21,12 @@ async function xaritaMalumot([kodSes]) {
   // 04 AC (bepul davr tugashi) — ko'ringan matndan emas, xom qiymatdan «dd.MM.yyyy» (02.11.2026, 3-bosqichga tayyorgarlik; aks-baza xom: 0 farq)
   aOxiri(R4).forEach(({ r: r0, x: x0 }) => { const r = kor(r0, 37); r[28] = V.korSana(x0[28]); if (r[0]) S4[String(r[0])] = r; });
   if (mol) aOxiri(R3).forEach(({ x }) => { const r = xom(x, 40); if (r[0]) S3[String(r[0])] = r; });
+  const BR = {};
+  try { (await ST.bronRoyxat(V.bugun())).forEach(z => { if (z.holati === 'Faol' && z.dokon) BR[z.dokon.trim().toUpperCase()] = z; }); }
+  catch (e) { /* 01d_Bronlar hali yo'q — bron yo'q deb hisoblanadi */ }
   const dokonlar = v.map(r => {
-    const o = { id: String(r[0]), holat: String(r[25] || "Bo'sh"), maydon: Number(r[5]) || 0, faoliyat: String(r[23] || ''), savdo: String(r[24] || ''), xona: String(r[29] || ''),
+    const br = BR[String(r[0]).trim().toUpperCase()];
+    const o = { id: String(r[0]), holat: xHolat(r, !!br), maydon: Number(r[5]) || 0, faoliyat: String(r[23] || ''), savdo: String(r[24] || ''), xona: String(r[29] || ''),
       egasi: String(r[18] || ''), sotuvNo: String(r[17] || ''), ijara: String(r[21] || '') };
     // ijara turi (rang uchun, hammaga): mchj | biz (egasi nomidan, tilxat bilan) | egasi (egasi o'zi bergan) | ozi (egasi o'zi ishlatyapti)
     const ij0 = S4[o.ijara];
@@ -35,6 +41,7 @@ async function xaritaMalumot([kodSes]) {
       if (ij) Object.assign(o, { ijarachiId: String(ij[5] || ''), beruvchi: String(ij[6] || ''), ijBosh: String(ij[9] || ''), ijTug: String(ij[10] || ''),
         bepulTug: String(ij[28] || ''), ijOylik: Number(String(ij[14] || '').replace(/[^\d]/g, '')) || 0 });
     } else { o.egasi = o.egasi === 'SOTILMAGAN' ? 'SOTILMAGAN' : '*'; o.sotuvNo = o.sotuvNo ? '*' : ''; o.ijara = o.ijara ? '*' : ''; }
+    if (br && o.holat === 'Bron') o.bron = { id: br.id, fish: br.fish, tel: mol ? br.tel : '*', sana: br.sana, tugash: br.tugash, qoldi: br.qoldi, kim: br.kim, ogoh: br.ogoh };
     return o;
   });
   return { moliya: mol, dokonlar };
