@@ -114,7 +114,25 @@ async function topCtx(kod, bugun) {
       return { xodim: x, oy, soni: M.length, ball: ball[x], eski: M.length ? M[0].sana : '', misol: M.slice(0, 3).map(q => q.nomi) };
     }).filter(z => z.soni);
   } catch (e) { console.error('topCtx ijTush:', e.message); }
-  return { mlM, qaytBlok, kb, yuDavo, ijTush, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // ⬜ 19.11.2026 (direktor qarori): qo'shimcha maydon qarzi da'voga qo'shiladi, lekin uning o'z xat zanjiri (maydon farqi: bildirishnoma →
+  // ogohlantirish → talabnoma) hech kimda tugallanmagan — bugungi holatda 3-xat umuman yuborilmagan. Endi undiruvchiga oylik topshiriq.
+  let qmXat = [];
+  try {
+    const [XSH, XJ2] = await Promise.all([P.xatShartnomalar(bugun), J.xatJurnal()]);
+    const L2 = XSH.filter(z => z.qm && !/bekor/i.test(String(z.holati || '')))
+      .map(z => { const h = P.qmHolat(z, XJ2);
+        return { no: z.no, fish: s(z.fish), dokon: s(z.blok ? z.blok + '-' + z.qavat + '-' + z.dokonNo : z.dokon), qarz: h.qarz,
+          bosqich: h.bosqich, kerak: h.kerak, toliq: h.toliq, kim: s(z.undiruvchi),
+          kutmoqda: XJ2.some(w => w.no === z.no && w.holati === 'Tayyorlandi' && X.xatSeriya(w.shablon) === 'QM') }; })
+      .filter(z => z.kerak && !z.toliq && z.kim);
+    const oyQ = bugun.slice(0, 7), gr = {};
+    L2.forEach(z => { (gr[z.kim] = gr[z.kim] || []).push(z); });
+    qmXat = Object.keys(gr).map(kim => { const M = gr[kim].sort((a2, b2) => b2.qarz - a2.qarz);
+      return { kim, oy: oyQ, soni: M.length, jami: M.reduce((a2, z) => a2 + z.qarz, 0),
+        yoq: M.filter(z => !z.bosqich).length, kutmoqda: M.filter(z => z.kutmoqda).length,
+        misol: M.slice(0, 3).map(z => z.no + ' (' + Math.round(z.qarz / 1e6) + ' mln)') }; });
+  } catch (e) { console.error('topCtx qmXat:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -134,6 +152,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'kbskan') return hozir[t.kalit] ? '' : 'imzolangan skan yuklandi yoki so\'rov yopildi';   // 14.11.2026
   if (q === 'yudavo') return (ctx.yuDavo || []).some(z => z.no === id) ? '' : 'sudga ariza berildi yoki ish yopildi';   // 18.11.2026
   if (q === 'tushuntirish') return (ctx.ijTush || []).some(z => z.xodim === t.kalit.split('|')[1]) ? '' : 'hamma tushuntirish yozildi yoki uzrli deb topildi';   // 18.11.2026
+  if (q === 'qmxat') return (ctx.qmXat || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'maydon farqi xat zanjiri tugallandi yoki qarz qolmadi';   // 19.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -223,6 +242,14 @@ async function topAvto(kod, opt = {}) {
       + (z.eski ? ' \u00b7 eng eskisi ' + dmy(z.eski) : '') + (z.misol.length ? ' \u00b7 masalan: ' + z.misol.join('; ') : '')
       + ' \u2014 ilovada: \ud83d\udcd2 Ishlar \u2192 Ijro intizomi \u2192 har qatorda \u00ab\u270d Tushuntirish yozish\u00bb',
     '', '', z.xodim));
+  // ⬜ 19.11.2026 — maydon farqi xat zanjiri: undiruvchiga oyiga bitta topshiriq (har shartnomaga alohida berilsa 99 ta chiqadi)
+  (ctx.qmXat || []).forEach(z => nomzod('qmxat', z.kim + '|' + z.oy,
+    z.soni + ' ta shartnomada maydon farqi xati yetkazilmagan',
+    'Qo\'shimcha maydon qarzi jami ' + pul(z.jami) + ' so\'m · ' + z.yoq + ' tasida bitta ham xat yo\'q'
+      + (z.kutmoqda ? ' · ' + z.kutmoqda + ' tasida tayyorlangan xat yetkazilmagan' : '')
+      + (z.misol.length ? ' · eng kattalari: ' + z.misol.join(', ') : '')
+      + ' — talabnoma yuborilmasa bu qarz sudda rad etilishi mumkin. Ilovada: 📂 Portfel → mijoz → «Maydon farqi xati»',
+    '', '', z.kim));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
 

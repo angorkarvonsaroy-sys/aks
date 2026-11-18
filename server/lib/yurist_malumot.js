@@ -216,6 +216,8 @@ async function yhYig(id, ishOld) {
   const tolov = (await U.undTolovlar()).filter(t => t.no === no).slice().sort((a, b) => s(a.sana) < s(b.sana) ? -1 : 1);
   const jadval = await yh03b(no);
   const penya = yhPenyaHisob({ bugun, jadval, tolov, asosiy: x.asosiy || 0, muddati: x.muddati || 0, shablon: x.shablon || '' });
+  // 19.11.2026: qo'shimcha maydon (QM) xat zanjiri holati — da'vo arizasi shuni tekshirib ogohlantiradi
+  const qmH = P.qmHolat(x, await J.xatJurnal());
   return {
     svod: yhSvod(jurnal, xat, tolov, hujjat),
     jadval, penya, muddat: yhDavoMuddati(jadval, penya, tolov, bugun),
@@ -228,7 +230,7 @@ async function yhYig(id, ishOld) {
     dokon: { blok: s(x.blok || ''), qavat: s(x.qavat || ''), no: s(x.dokonNo || ''), maydon: Number(x.maydon) || 0 },   // 19.11.2026: da'vo arizasi uchun — alohida maydonlar
     qiymat: r03.qiymat, tolangan: r03.tolangan, oylik: r03.oylik, kechikkan: r03.kechikkan, shart: r03,
     pasIIB: mij.pasIIB, pasSana: mij.pasSana, pasMuddat: mij.pasMuddat,
-    asosiy: x.asosiy || 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, jami: x.jami || 0,
+    asosiy: x.asosiy || 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, jami: x.jami || 0, qm: qmH,
     undiruvchi: await yhXodim(x.undiruvchi || ish.undiruvchi), yurist: await yhXodim(ish.yurist),
     hujjat, yoq, xat, jurnal, vada, tolov,
     tarix: await yuTarixOl(ish.id)

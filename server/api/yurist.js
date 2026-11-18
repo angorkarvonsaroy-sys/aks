@@ -113,7 +113,7 @@ function yuKorinish(i, x, bugun, K) {
   if (chegara) kechikdi = Math.max(0, kun(chegara, bugun));
   const fishQ = String(x.fish || i.fish || '').split(/\s+/).slice(0, 2).join(' ');
   return { id: i.id, no: i.no, fish: x.fish || i.fish, fishQ, dokon: x.dokon || i.dokon, tel: x.tel || '', manzil: x.manzil || '',
-    jami: x.jami != null ? x.jami : 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, bosqich: i.bosqich, bosqichNomi: T.bosqich[i.bosqich] || '—',
+    jami: x.jami != null ? x.jami : 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, qm: (K.QM || {})[i.no] || null, bosqich: i.bosqich, bosqichNomi: T.bosqich[i.bosqich] || '—',
     keyingi: kel ? (kelOtdi ? 'Kelishuv muddati o\'tdi — natijasini kiriting' : !kel.muddat ? 'Kelishuv muddatini kiriting' : 'Kelishuv — mijoz to\'lovi kutilmoqda')
       : qabulKerak ? 'Ishni qabul qilish (hujjatlarni tekshirish)' : (!i.tartib && i.bosqich === 1) ? 'Sudga ariza berish' : (T.keyingi[i.bosqich] || ''), keyingiB: yuKeyingiB(T, i.bosqich), bosqichSana: i.bosqichSana, holati: i.holati, kechikdi, eslatma, yol: i.yol,
     chegara, yuMas, qabulKerak, qabul: q, shosh, davoQoldi, pauza,
@@ -161,6 +161,11 @@ async function yuristBoshlang([kodSes]) {
   const bugun = V.bugun();
   const Sh = {}; (await U.undShartnomalar()).forEach(x => Sh[x.no] = x);
   const I = await J.yuIshlar(); const K = await yuKesh();
+  // 19.11.2026 (direktor topshirig'i): qo'shimcha maydon qarzi bor ishda «maydon farqi» xat zanjiri holati — yurist ko'rib tursin
+  try { const XJq = await J.xatJurnal(); K.QM = {};
+    I.forEach(i => { const sx = Sh[i.no]; if (!sx || K.QM[i.no] !== undefined) return;
+      const h = require('../lib/portfel').qmHolat(sx, XJq); K.QM[i.no] = h.kerak && !h.toliq ? { qarz: h.qarz, bosqich: h.bosqich, matn: h.matn } : null; });
+  } catch (e) { console.error('yuQM:', e.message); }
   // qarzi to'liq yopilgan faol ish — eski tizim o'zi yopadi; serverda yozuv yo'q, fonda eskisini bir marta chaqiramiz
   if (I.some(i => YU_FAOL.indexOf(i.holati) >= 0 && Sh[i.no] && !(Sh[i.no].jami > 0)) && koprik.bor())
     koprik.chaqir('yuristBoshlang', u.kod, []).catch(e => console.error('yuAvtoYop (ko\'prik):', e.message));
@@ -206,7 +211,10 @@ async function yuristIsh([kodSes, id]) {
   const top = (await J.topRows()).filter(t => re.test(t.kalit)).map(J.topKor).reverse()
     .map(t => ({ id: t.id, sarlavha: t.sarlavha, izoh: t.izoh, kimga: t.kimga, muddat: t.muddat, holati: t.holati, dalil: t.dalil, yopildi: t.yopildi, kechikkan: t.kechikkan }));
   const S1 = (await U.undShartnomalar()).find(z => z.no === i.no); const kor = yuKorinish(i, S1, bugun, await yuKesh());
-  return { hujjat, xat, xatSkan, jurnal, tolov, tarix, yux, top, topTur: YU_TOP_TUR, mening: u.fish,
+  // 19.11.2026: qo'shimcha maydon qarzi bor bo'lsa — uning xat zanjiri holati ish kartasida ham ko'rinadi
+  let qm = null; try { const h = require('../lib/portfel').qmHolat(S1 || {}, await J.xatJurnal());
+    if (h.kerak && !h.toliq) qm = { qarz: h.qarz, bosqich: h.bosqich, matn: h.matn }; } catch (e) { console.error('yuIshQM:', e.message); }
+  return { hujjat, xat, xatSkan, jurnal, tolov, tarix, yux, top, topTur: YU_TOP_TUR, mening: u.fish, qm,
     qabul: kor.qabul, qabulKerak: kor.qabulKerak, chegara: kor.chegara, eslatma: kor.eslatma, kechikdi: kor.kechikdi, yuMas: kor.yuMas };
 }
 

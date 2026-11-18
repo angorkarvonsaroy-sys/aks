@@ -126,6 +126,22 @@ function xatKeyingi(x, XJ, bugunIso, UJ, adm, seriya, Z) {
   return { mumkin: true, bosqich: b };
 }
 
+// 19.11.2026 (direktor topshirig'i): qo'shimcha maydon qarzi bo'lgan shartnomada «maydon farqi» (QM) xat zanjiri holati.
+// Bitta ta'rif — yurist ekrani, da'vo arizasi, avtomatik topshiriq va U4 mezoni shu funksiyadan foydalanadi.
+//   kerak  — qo'shimcha maydon qarzi 100 000 so'mdan ortiqmi (ya'ni QM xatlari talab qilinadimi)
+//   bosqich— yetkazilgan eng yuqori QM xati (0 = bitta ham yo'q, 3 = talabnoma)
+//   toliq  — talabnoma (3-xat) yetkazilganmi
+function qmHolat(x, XJ) {
+  const qarz = Number(x && x.qoshimcha) || 0;
+  if (!(qarz > X.XAT_MIN_QARZ)) return { qarz, kerak: false, bosqich: 0, toliq: true, matn: '' };
+  const bosqich = (XJ || []).reduce((a, h) => (h.no === x.no && h.holati === 'Yuborildi' && X.xatSeriya(h.shablon) === 'QM'
+    && !/^Kutilmoqda/.test(String(h.tek || '')) && Number(h.bosqich) > a) ? Number(h.bosqich) : a, 0);
+  const toliq = bosqich >= 3;
+  return { qarz, kerak: true, bosqich, toliq, qm: x.qm || '', sabab: x.qmSabab || '',
+    matn: toliq ? '' : 'qo\'shimcha maydon qarzi ' + Math.round(qarz).toLocaleString('ru-RU').replace(/[\u00a0,]/g, ' ')
+      + ' so\'m — maydon farqi xat zanjiri tugallanmagan (' + (bosqich ? bosqich + '-xatgacha yetkazilgan' : 'bitta ham xat yetkazilmagan') + ', talabnoma yo\'q)' };
+}
+
 // ------------------------------------------------------------------ Yurist.gs: yuHimoya_ / yuMezon_ / yuFaolSet_
 function yuHimoya(x, t) {
   const ox = x && x.oxirgiTolov; if (!ox || !ox.sana || !(t >= 0 && t <= YU_TOLOV_KUN) || x.sekin) return null;
@@ -155,8 +171,12 @@ function yuMezon(x, XJ, UJ, H, bugun, Z) {
     if (!my.some(j => j.chora === 'Ташриф (манзилига бориб)')) yet.push('jurnalda uyiga borib ogohlantirish yo\'q');
   }
   if (!H.some(h => h.no === x.no && h.turi === 'SHARTNOMA')) yet.push('imzolangan shartnoma skani yuklanmagan');
+  // 19.11.2026 (direktor qarori): qo'shimcha maydon qarzi daъvoga qo'shiladi, shuning uchun uning o'z xat zanjiri ham tugallangan bo'lishi shart.
+  //   Shoshilinch (da'vo muddati tugayotgan) ishda to'sib qo'yilmaydi — aks holda muddat o'tib ketadi; faqat ogohlantiriladi.
+  const QMH = qmHolat(x, XJ);
+  if (QMH.kerak && !QMH.toliq && !shosh) yet.push(QMH.matn);
   const ox = x.oxirgiTolov; if (ox && ox.sana) { const h = yuHimoya(x, kun(ox.sana, bugun)); if (h) yet.push(h.matn); }
-  return { ok: !yet.length, yetishmaydi: yet, kun: sana ? kun(sana, bugun) : 0 };
+  return { ok: !yet.length, yetishmaydi: yet, kun: sana ? kun(sana, bugun) : 0, qm: QMH };
 }
 async function yuFaolSet() {
   const I = await J.yuIshlar(); const f = new Set(), k = new Set();
@@ -344,5 +364,5 @@ async function undPortfel(filtr, kod) {
   return { royxat: L, bugun };
 }
 
-module.exports = { smsHolat, smsVadaIstisno, smsHaqiqiy, SMS_ORALIQ_KUN, SMS_ISTISNO, undPortfel, xatShartnomalar, xatKeyingi, xatDavo, yuMezon, yuHimoya, yuFaolSet, undNazorat, undXavf, undBuyruq, vadaNatija,
+module.exports = { smsHolat, smsVadaIstisno, smsHaqiqiy, SMS_ORALIQ_KUN, SMS_ISTISNO, undPortfel, xatShartnomalar, xatKeyingi, xatDavo, yuMezon, qmHolat, yuHimoya, yuFaolSet, undNazorat, undXavf, undBuyruq, vadaNatija,
   UND_JIM_KUN, UND_DAVO_KUN, UND_DAVO_OGOH, UND_ALOQA };

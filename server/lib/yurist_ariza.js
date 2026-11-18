@@ -152,6 +152,12 @@ function ariza(M) {
     if (!mTol && !(M.hujjat || []).some(h => h.kod === 'KELISHUV'))
       ogoh.push('DIQQAT: bu shablonda qo\'shimcha maydon to\'lovi ' + bnd('maydon') + 'ga ko\'ra QO\'SHIMCHA KELISHUV rasmiylashtirilgandan keyin talab qilinadi, '
         + 'ish hujjatlari ichida esa qo\'shimcha kelishuv yo\'q. Qo\'shimcha maydon qarzi (' + pul(M.qoshimcha) + ' so\'m) sudda rad etilishi mumkin — yurist xulosasi kerak.');
+    // 19.11.2026: maydon farqi (QM) xat zanjiri — sudgacha tartib shu qarz bo'yicha ham bajarilgan bo'lishi kerak
+    if (M.qm && M.qm.kerak && !M.qm.toliq)
+      ogoh.push('DIQQAT: maydon farqi bo\'yicha sudgacha xat zanjiri tugallanmagan — '
+        + (M.qm.bosqich ? M.qm.bosqich + '-xat (' + (M.qm.bosqich === 1 ? 'bildirishnoma' : 'ogohlantirish') + ') gacha yetkazilgan, talabnoma yuborilmagan'
+                        : 'bitta ham maydon farqi xati yetkazilmagan')
+        + '. Qo\'shimcha maydon qarzi ' + pul(M.qoshimcha) + ' so\'m shu holda da\'voga kiritilsa, sud shu qismni rad etishi mumkin.');
   }
   SHA.push('Shartnomaning ' + bnd('penya') + 'iga ko’ra kechiktirilgan har bir kun uchun muddati o’tgan qarzdorlikning 0,1 % miqdorida peniya hisoblanadi'
     + (B ? ' va ' + B.chekMatn : '') + '; shu bandga asosan peniya ' + pul(pen) + ' so’m qilib hisoblangan.');
