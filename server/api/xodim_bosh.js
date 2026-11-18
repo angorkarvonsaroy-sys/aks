@@ -208,8 +208,8 @@ async function xodimBosh([kodSes]) {
     } catch (e) { }
     return c; }, { faol: 0, mib: 0, qabul: 0, mening: 0, kech: 0, kutish: 0, royxat: [] });
   if (bor('yurist') && !adm) {
-    if (yu.qabul) dq('#B42318', '<b>⚖ ' + yu.qabul + ' ta ish qabul qilinmagan</b> — 1 ish kuni ichida hujjatlarni tekshirib qabul qiling; kamchilik bo\'lsa «Kamchilik bor» deb belgilang', { t: 'bolim', v: 'yurist' }, 0);
-    if (yu.kech) dq('#B42318', '<b>⚖ ' + yu.kech + ' ta ishda mening navbatim kechikdi</b> — sud bosqichini yuriting', { t: 'bolim', v: 'yurist' }, 1);
+    if (yu.qabul) dq('#B42318', '<b>⚖ ' + yu.qabul + ' ta ish qabul qilinmagan</b> — 1 ish kuni ichida hujjatlarni tekshirib qabul qiling; kamchilik bo\'lsa «Kamchilik bor» deb belgilang', { t: 'bolim', v: 'yurist', f: 'bugun' }, 0);
+    if (yu.kech) dq('#B42318', '<b>⚖ ' + yu.kech + ' ta ishda mening navbatim kechikdi</b> — sud bosqichini yuriting', { t: 'bolim', v: 'yurist', f: 'chozil' }, 1);
   }
 
   // ---------- 12. ▶ bugungi ish — faqat undiruvchi (admin emas)
@@ -243,9 +243,9 @@ async function xodimBosh([kodSes]) {
   if (bor('undiruv')) rol.push({ k: 'und', nom: "Portfelim: muddati o'tgan", q: und.muddati, iz: und.vada ? und.vada + ' ta va\'da kutmoqda' : 'shartnoma', cls: und.vada ? 's' : '', och: { t: 'bolim', v: 'undiruv' } });
   if (bor('xat')) rol.push({ k: 'xat', nom: 'Yetkazilmagan xatlar', q: xt.yetkazilmagan, iz: xt.yetkazilmagan ? 'imzolatib yetkazing' : 'hammasi yetkazilgan ✅', cls: xt.yetkazilmagan ? 's' : '', och: { t: 'bolim', v: 'xat' } });
   if (bor('yurist')) {
-    rol.push({ k: 'yuqabul', nom: '⚖ Qabul qilish kerak', q: yu.qabul, iz: yu.qabul ? '1 ish kuni muddat' : 'hammasi qabul qilingan ✅', cls: yu.qabul ? 'q' : '', och: { t: 'bolim', v: 'yurist' } });
-    rol.push({ k: 'yumen', nom: '⚖ Mening navbatim', q: yu.mening, iz: yu.kech ? yu.kech + ' tasi kechikdi' : 'kechikkani yo\'q ✅', cls: yu.kech ? 'q' : '', och: { t: 'bolim', v: 'yurist' } });
-    rol.push({ k: 'yu', nom: '⚖ Sud / MIB kutilmoqda', q: yu.kutish, iz: 'jami faol ' + yu.faol + ' ta · ' + yu.mib + ' ta MIB da', cls: '', och: { t: 'bolim', v: 'yurist' } });
+    rol.push({ k: 'yuqabul', nom: '⚖ Qabul qilish kerak', q: yu.qabul, iz: yu.qabul ? '1 ish kuni muddat' : 'hammasi qabul qilingan ✅', cls: yu.qabul ? 'q' : '', och: { t: 'bolim', v: 'yurist', f: 'bugun' } });
+    rol.push({ k: 'yumen', nom: '⚖ Mening navbatim', q: yu.mening, iz: yu.kech ? yu.kech + ' tasi kechikdi' : 'kechikkani yo\'q ✅', cls: yu.kech ? 'q' : '', och: { t: 'bolim', v: 'yurist', f: yu.kech ? 'chozil' : 'bugun' } });
+    rol.push({ k: 'yu', nom: '⚖ Sud / MIB kutilmoqda', q: yu.kutish, iz: 'jami faol ' + yu.faol + ' ta · ' + yu.mib + ' ta MIB da', cls: '', och: { t: 'bolim', v: 'yurist', f: 'faol' } });
   }
   if (bor('taminot')) rol.push({ k: 'tm', nom: 'Tasdiq kutayotgan partiyalar', q: tm.kutmoqda, iz: "ta'minot", cls: tm.kutmoqda ? 's' : '', och: { t: 'bolim', v: 'taminot' } });
   if (!qd) rol.slice(0, kpi.length ? 2 : 4).forEach(x => kpi.push(x));   // 18.11: topshiriq kataklari chiqmasa — rol kataklariga joy bo'shaydi (yuristda uchtasi ham ko'rinadi)
