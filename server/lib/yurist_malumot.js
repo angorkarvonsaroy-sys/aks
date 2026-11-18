@@ -80,7 +80,7 @@ function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== nul
 const isoD = v => typeof v === 'number' ? V.iso(v) : '';   // getValues: Date → iso, aks holda ''
 async function yh03(no) {
   const v = (aOxiri(await V.qatorlar('03_Sotuv_shartnomalar')).map(z => z.x).find(r => s(r[0]).trim() === no)) || [];
-  return { mid: s(v[4] || ''), sana: isoD(v[2]), turi: s(v[3] || ''), qiymat: Number(v[25]) || 0, qiymatSh: Number(v[22]) || 0, realMaydon: Number(v[21]) || 0,
+  return { mid: s(v[4] || ''), sana: isoD(v[2]), turi: s(v[3] || ''), qiymat: Number(v[25]) || 0, qiymatSh: Number(v[22]) || 0, realMaydon: Number(v[21]) || 0, narx1m2: Number(v[7]) || 0,
     oylik: Number(v[26]) || 0, tolangan: Number(v[27]) || 0, kechikkan: Number(v[32]) || 0,
     boshSumma: Number(v[9]) || 0, boshKun: Number(v[10]) || 0, oy: Number(v[11]) || 0, tkun: Number(v[12]) || 0 };
 }
