@@ -165,7 +165,12 @@ async function topCtx(kod, bugun) {
         kechikdi: M.filter(z => z.holat === 'kechikdi' || z.holat === 'qadamsiz').length,
         misol: M.slice(0, 3).map(z => s(z.fish).split(/\s+/).slice(0, 2).join(' ') + ' (' + ST.stDmy(z.sana) + ')') }; });
   } catch (e) { console.error('topCtx sotuv:', e.message); }
-  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, sotuv, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // 🔒 19.11.2026: bron muddati — tugayapti (1 kun qoldi) yoki tugagan. Har broniga alohida topshiriq (soni kam, nomma-nom kerak).
+  let bronlar = [];
+  try { const ST = require('./sotuv')._ichki;
+    bronlar = (await ST.bronRoyxat(bugun)).filter(z => (z.holati === 'Faol' && z.ogoh) || z.holati === 'Muddati o\'tdi'); }
+  catch (e) { console.error('topCtx bron:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, sotuv, bronlar, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -188,6 +193,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'qmxat') return (ctx.qmXat || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'maydon farqi xat zanjiri tugallandi yoki qarz qolmadi';   // 19.11.2026
   if (q === 'jshshir') return (ctx.jshYoq || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma mijozning JSHSHIRi bazaga kiritildi';   // 19.11.2026
   if (q === 'sotuv') return (ctx.sotuv || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma tashrifga natija va keyingi qadam qo\'yildi';   // 19.11.2026
+  if (q === 'bron') return (ctx.bronlar || []).some(z => z.id === id) ? '' : 'bron yopildi (shartnoma, bekor yoki uzaytirildi)';   // 19.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -301,6 +307,15 @@ async function topAvto(kod, opt = {}) {
       + (z.misol.length ? ' · masalan: ' + z.misol.join(', ') : '')
       + ' — do\'kon sotib olish uchun kelgan mijoz. Ilovada: 🛒 Sotuv bo\'limi',
     '', '', z.kim));
+  // 🔒 19.11.2026 — bron muddati
+  (ctx.bronlar || []).forEach(z => { const kim = require('./sotuv')._ichki.stXodim(z.kim); if (!kim) return;
+    nomzod('bron', z.id,
+      z.holati === 'Muddati o\'tdi' ? 'Брон муддати ўтди — натижасини киритинг' : 'Брон муддати эртага тугайди',
+      z.dokon + ' · ' + z.fish + ' · ' + z.tel + ' · '
+        + (z.holati === 'Muddati o\'tdi' ? 'муддат ' + require('./sotuv')._ichki.stDmy(z.tugash) + ' да тугаган — дўкон бўшаб қолди'
+                                          : 'тугайди ' + require('./sotuv')._ichki.stDmy(z.tugash))
+        + '. Шартнома тузилдими, узайтириладими ёки бекор қилинадими — иловада: 🛒 Сотув бўлими → Бронлар',
+      '', '', kim); });
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
 

@@ -21,7 +21,7 @@ const XARITA = {
   'shartnoma': 'ijaraImzosizHolat ijaraImzosizSorov ijaraSaqlash jadvalHisob mijozSaqlash shartnomaBoshlang shartnomaSaqlash tahrirHolat tahrirSaqlash',
   'shartnoma,undiruv,hujjat,tolov,xat,yurist': 'mijozKarta mijozKartaPdf mijozQidir',
   'taminot': 'taminotBoshlang taminotFirmaQosh taminotKiritish',
-  'tashrif': 'bugungiTashriflar bugungiTashriflarHammasi sotuvBoshlang sotuvNatija tashrifSaqlash tashrifTekshir',
+  'tashrif': 'bugungiTashriflar bugungiTashriflarHammasi sotuvBoshlang sotuvBron sotuvBronAmal sotuvNatija tashrifSaqlash tashrifTekshir',
   'tekshiruv': 'ijroTekshirJavob',
   'tolov': 'bugungiTolovlar shartnomalar tolovSaqlash',
   'undiruv': 'qadamBekorKirit qadamBoshlang qadamChora qadamDirektorga qadamHujjat qadamKechiktir qadamMalumot qadamMijoz qadamMuhlatSora qadamNazorat qadamNazoratYoz qadamOtkaz qadamSkan qadamTalabChiqar qadamTgYubordim qadamXatBekor qadamXatChiqar undBoshlang undMijoz undYoz yuristgaSorov',
