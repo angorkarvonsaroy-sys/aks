@@ -80,7 +80,7 @@ function aOxiri(rows) { let m = 0; rows.forEach(({ n, x }) => { if (x[0] !== nul
 const isoD = v => typeof v === 'number' ? V.iso(v) : '';   // getValues: Date → iso, aks holda ''
 async function yh03(no) {
   const v = (aOxiri(await V.qatorlar('03_Sotuv_shartnomalar')).map(z => z.x).find(r => s(r[0]).trim() === no)) || [];
-  return { mid: s(v[4] || ''), sana: isoD(v[2]), turi: s(v[3] || ''), qiymat: Number(v[25]) || 0,
+  return { mid: s(v[4] || ''), sana: isoD(v[2]), turi: s(v[3] || ''), qiymat: Number(v[25]) || 0, qiymatSh: Number(v[22]) || 0, realMaydon: Number(v[21]) || 0,
     oylik: Number(v[26]) || 0, tolangan: Number(v[27]) || 0, kechikkan: Number(v[32]) || 0,
     boshSumma: Number(v[9]) || 0, boshKun: Number(v[10]) || 0, oy: Number(v[11]) || 0, tkun: Number(v[12]) || 0 };
 }
@@ -225,6 +225,7 @@ async function yhYig(id, ishOld) {
     manzil: x.manzil || mij.manzil || '—',
     sana: x.sana || r03.sana, turi: x.turi || r03.turi,
     dokonMatn: (x.blok ? '«' + x.blok + '» блок, ' + x.qavat + '-қават, ' + x.dokonNo + '-дўкон' : (x.dokon || ish.dokon || '—')) + (x.maydon ? ', ' + s(x.maydon).replace('.', ',') + ' м²' : ''),
+    dokon: { blok: s(x.blok || ''), qavat: s(x.qavat || ''), no: s(x.dokonNo || ''), maydon: Number(x.maydon) || 0 },   // 19.11.2026: da'vo arizasi uchun — alohida maydonlar
     qiymat: r03.qiymat, tolangan: r03.tolangan, oylik: r03.oylik, kechikkan: r03.kechikkan, shart: r03,
     pasIIB: mij.pasIIB, pasSana: mij.pasSana, pasMuddat: mij.pasMuddat,
     asosiy: x.asosiy || 0, muddati: x.muddati || 0, qoshimcha: x.qoshimcha || 0, jami: x.jami || 0,

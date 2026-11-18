@@ -50,5 +50,14 @@ function amal(fn) {
   };
 }
 
-module.exports = { yhMalumotnoma: amal('yhMalumotnoma'), yhBayonnoma: amal('yhBayonnoma'), yhPenya: amal('yhPenya') };
+// ⚖ 19.11.2026 (direktor topshirig'i): ДАЪВО АРИЗАСИ — Savdo-sanoat palatasi blankasida, DOCX. Eski tizimda bunday hujjat yo'q,
+// shuning uchun ko'prikka qaytmaydi. Palata sana, raqam va imzoni o'zi qo'yadi — fayl tahrirlanadigan bo'lib beriladi.
+async function yhDavoAriza(args) {
+  const [kodSes, id] = args;
+  const u = await S.ruxsat(kodSes, 'yurist');   // faqat direktor va yurist
+  const M = await yig(id);
+  return require('../lib/yurist_ariza').ariza(M);
+}
+
+module.exports = { yhMalumotnoma: amal('yhMalumotnoma'), yhBayonnoma: amal('yhBayonnoma'), yhPenya: amal('yhPenya'), yhDavoAriza };
 module.exports._ichki = { yasa, DOCX, XLSX };
