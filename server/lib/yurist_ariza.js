@@ -14,6 +14,26 @@ const SHABLON = path.join(__dirname, '..', 'shablon', 'davo_ariza_ssp.docx');
 const NOM_SANA = '2025-09-10';   // nomi o'zgargan kun
 const OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const BOSH = '______________________';   // bazada yo'q ma'lumot — qo'lda to'ldiriladi
+// 19.11.2026 (direktor savoli): shartnoma shabloni yillar davomida uch marta o'zgargan — band raqamlari ham, peniya chegarasi ham boshqa.
+// Quyidagi jadval TAXMIN emas: har bir davr imzolangan haqiqiy shartnoma skanidan tekshirilgan —
+//   ESKI               27/54 (25.12.2021), 27/195 (12.08.2023), 27/213 (12.08.2024), 27/245 (13.01.2025), 27/314 (15.09.2025)
+//   YANGI_TAYYOR       27/316 (22.09.2025), 27/320 (13.10.2025), 27/336 (13.01.2026), 27/372 (04.11.2026)
+//   YANGI_QURILAYOTGAN 27/374 (10.11.2026)
+// Davrni sana emas, tizimning o'z tasnifi (portfel.js shablon) belgilaydi; shablon noma'lum bo'lsa band raqami «____» qoldiriladi.
+// O'TISH DAVRI: 2025-yil sentabrda ikkala shablon ham parallel ishlatilgan —
+// 27/301 (08.09.2025) yangi o'zbekcha, 27/314 (15.09.2025) eski ruscha, 27/316 (22.09.2025) yangi.
+// Shu oraliqda sanaga qarab shablonni aniqlab bo'lmaydi — band raqamlari «____» qoldiriladi.
+const OTISH = ['2025-08-01', '2025-10-12'];
+const SHB = {
+  ESKI: { nom: 'Ulushli qurilishda ishtirok etish (rus tilida, договор соинвестирования)', dokon: '1.2', qiymat: '2.1', tolov: '2.2',
+    maydon: '2.3.2', penya: '4.2.1', chek: null, chekMatn: 'shartnomada peniyaning yuqori chegarasi belgilanmagan', maydonTur: 'kelishuv' },
+  YANGI_TAYYOR: { nom: "Do'konni muddatli to'lov yoki bank krediti asosida sotib olish bo'yicha dastlabki oldi-sotdi shartnomasi",
+    dokon: '1.1', qiymat: '2.1', tolov: '2.2', maydon: '2.5', penya: '2.7', chek: 0.10, chekAsos: 'muddati',
+    chekMatn: "uning umumiy miqdori muddati o'tgan qarzdorlikning 10 % idan oshmaydi", maydonTur: 'tolerans' },
+  YANGI_QURILAYOTGAN: { nom: "Do'kon qurilishiga investitsiya kiritish va kelgusida oldi-sotdi qilish bo'yicha dastlabki shartnoma",
+    dokon: '1.2', qiymat: '2.1', tolov: '2.2', maydon: '2.3.1', penya: '5.1', chek: 0.10, chekAsos: 'shartnoma',
+    chekMatn: "uning umumiy miqdori shartnoma summasining 10 % idan oshmaydi", maydonTur: 'kelishuv' }
+};
 
 const s = v => String(v == null ? '' : v).trim();
 const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -74,6 +94,17 @@ function ariza(M) {
   if (!manzil) ogoh.push('Mijozning manzili bazada yo\'q.');
 
   const D = M.dokon || {}, sh = M.shart || {};
+  const otish = s(M.sana) >= OTISH[0] && s(M.sana) <= OTISH[1];
+  const shbKod = otish ? '' : (/^ESKI_/.test(s(M.shablon)) ? 'ESKI' : s(M.shablon));
+  const B = SHB[shbKod] || null;
+  if (otish) ogoh.push('Shartnoma ' + s(M.sana).split('-').reverse().join('.') + ' — shablon almashgan o\'tish davrida tuzilgan. '
+    + 'O\'sha paytda eski (ruscha) va yangi (o\'zbekcha) shablonlar parallel ishlatilgan, sanaga qarab aniqlab bo\'lmaydi. '
+    + 'Band raqamlari «____» qoldirildi — imzolangan shartnoma skanidan qo\'ying.');
+  const bnd = k => (B ? B[k] : '____') + '-band';
+  if (!B) ogoh.push('Shartnoma shabloni aniqlanmadi (tizimda shablon turi yo\'q — 100 % to\'lov shartnomasi bo\'lishi mumkin). '
+    + 'Arizada band raqamlari «____» qoldirildi: imzolangan shartnoma skanidan qo\'ying.');
+  else ogoh.push('Shartnoma shabloni: ' + B.nom + ' (bandlar: do\'kon ' + B.dokon + ', qiymat ' + B.qiymat + ', to\'lov ' + B.tolov
+    + ', maydon ' + B.maydon + ', peniya ' + B.penya + '). Imzolangan skan bilan solishtiring.');
   const qarz = Number(M.jami) || 0;
   const pen = Math.round((M.penya && M.penya.undiriladigan) || 0);
   if (!pen) ogoh.push('Peniya hisoblanmadi — shartnomada neustoyka bandi topilmadi yoki muddati o\'tgan qarz yo\'q.');
@@ -97,32 +128,50 @@ function ariza(M) {
   const SHA = [];
   SHA.push((E ? '“ANGOR INDEX” MCHJ xozirgi nomi “ANGOR KARVON SAROY” MCHJ' : '“ANGOR KARVON SAROY” MCHJ')
     + ' bilan ' + fish + ' o’rtasida ' + sanaMatn(M.sana) + ' №' + s(M.no)
-    + '-sonli «Do’konni muddatli to’lov yoki bank krediti asosida sotib olish bo’yicha dastlabki oldi-sotdi shartnomasi” tuzilgan. '
-    + 'Shartnomaning 1.1-bandiga ko’ra “ANGOR KARVON SAROY” MCHJ xududidagi ' + dokonMatn + ' Xaridorga sotilgan. '
-    + 'Shartnomaning 2.1-bandiga ko’ra do’konning qiymati ' + pul(qiymatSh) + ' so’m'
+    + '-sonli «' + (B ? B.nom : 'shartnoma') + '» tuzilgan. '
+    + 'Shartnomaning ' + bnd('dokon') + 'iga ko’ra “ANGOR KARVON SAROY” MCHJ xududidagi ' + dokonMatn
+    + (shbKod === 'ESKI' ? ' ulushli qurilish obyekti sifatida Xaridorga (Dolshchikka) berilishi kelishilgan. '
+                         : ' Xaridorga sotilgan. ')
+    + 'Shartnomaning ' + bnd('qiymat') + 'iga ko’ra do’konning qiymati ' + pul(qiymatSh) + ' so’m'
     + (narx1 ? ', 1 m² uchun qiymat ' + pul(narx1) + ' so’m' : '') + ' etib belgilangan.'
-    + (bosh ? ' Shartnomaning 2.2-bandiga ko’ra qiymatning ' + pul(bosh) + ' so’mi shartnoma imzolangan sanadan ' + (boshKun || 0)
+    + (bosh ? ' Shartnomaning ' + bnd('tolov') + 'iga ko’ra qiymatning ' + pul(bosh) + ' so’mi shartnoma imzolangan sanadan ' + (boshKun || 0)
         + ' kun ichida, qolgan qismi esa ' + (oy || 0) + ' oy davomida har oyda ' + pul(M.oylik) + ' so’mdan to’lanishi kelishilgan.'
-      : ' Shartnomaning 2.2-bandiga ko’ra qiymati ' + (oy || 0) + ' oy davomida har oyda ' + pul(M.oylik) + ' so’mdan to’lanishi kelishilgan.'));
+      : ' Shartnomaning ' + bnd('tolov') + 'iga ko’ra qiymati ' + (oy || 0) + ' oy davomida har oyda ' + pul(M.oylik) + ' so’mdan to’lanishi kelishilgan.'));
   if (Number(M.qoshimcha) > 0) {
     const farq = Math.round((Number(sh.realMaydon) - Number(D.maydon)) * 100) / 100;
-    SHA.push('Shartnomaning 2.5-bandiga ko’ra yakuniy maydon kadastr/texnik o’lchov bo’yicha 1.1-banddagidan ±0,50 m² dan ortiq farq qilsa, '
-      + 'do’kon qiymati 1 m² narxidan kelib chiqib qayta hisoblanadi. '
+    const mTol = !B || B.maydonTur === 'tolerans';
+    SHA.push('Shartnomaning ' + bnd('maydon') + 'iga ko’ra yakuniy maydon kadastr/texnik o’lchov bo’yicha ' + bnd('dokon') + 'dagidan '
+      + (mTol ? '±0,50 m² dan ortiq farq qilsa, do’kon qiymati 1 m² narxidan kelib chiqib qayta hisoblanadi. '
+             : 'katta chiqsa, Xaridor ortiqcha maydon uchun ' + bnd('qiymat') + 'dagi 1 m² narxidan kelib chiqib qo’shimcha to’lov qiladi; '
+               + 'to’lov qo’shimcha kelishuv rasmiylashtirilganidan keyin 10 bank kuni ichida amalga oshiriladi. ')
       + (farq > 0 ? 'O’lchovda haqiqiy maydon ' + son(sh.realMaydon) + ' kv.m — shartnomadagi ' + son(D.maydon) + ' kv.m dan ' + son(farq)
           + ' kv.m ko’p chiqqan; shu bandga asosan ' + (narx1 ? '1 m² narxi ' + pul(narx1) + ' so’mdan ' : '') + son(farq)
           + ' kv.m uchun qo’shimcha ' + pul(M.qoshimcha) + ' so’m hisoblangan'
         : 'qayta hisobda qo’shimcha ' + pul(M.qoshimcha) + ' so’m hisoblangan')
       + ', umumiy qiymat ' + pul(M.qiymat) + ' so’m bo’lgan.');
+    if (!mTol && !(M.hujjat || []).some(h => h.kod === 'KELISHUV'))
+      ogoh.push('DIQQAT: bu shablonda qo\'shimcha maydon to\'lovi ' + bnd('maydon') + 'ga ko\'ra QO\'SHIMCHA KELISHUV rasmiylashtirilgandan keyin talab qilinadi, '
+        + 'ish hujjatlari ichida esa qo\'shimcha kelishuv yo\'q. Qo\'shimcha maydon qarzi (' + pul(M.qoshimcha) + ' so\'m) sudda rad etilishi mumkin — yurist xulosasi kerak.');
   }
-  SHA.push('Shartnomaning 2.7-bandiga ko’ra kechiktirilgan har bir kun uchun muddati o’tgan qarzdorlikning 0,1 % miqdorida peniya hisoblanadi '
-    + 'va uning umumiy miqdori muddati o’tgan qarzdorlikning 50 % idan oshmaydi; shu bandga asosan peniya ' + pul(pen) + ' so’m qilib hisoblangan.');
+  SHA.push('Shartnomaning ' + bnd('penya') + 'iga ko’ra kechiktirilgan har bir kun uchun muddati o’tgan qarzdorlikning 0,1 % miqdorida peniya hisoblanadi'
+    + (B ? ' va ' + B.chekMatn : '') + '; shu bandga asosan peniya ' + pul(pen) + ' so’m qilib hisoblangan.');
+  // Tizim peniyani 50 % chegara bilan hisoblaydi (yurist_malumot.js YH_CHEGARA) — shartnomadagi haqiqiy chegara boshqacha bo'lishi mumkin
+  if (B && B.chek != null) {
+    const asosChek = Math.round((B.chekAsos === 'shartnoma' ? (Number(sh.qiymatSh) || Number(M.qiymat) || 0) : (Number(M.muddati) || 0)) * B.chek);
+    if (asosChek > 0 && pen > asosChek) ogoh.push('DIQQAT: shartnomaning ' + B.penya + '-bandiga ko\'ra peniya ' + (B.chek * 100) + ' % dan oshmaydi ('
+      + pul(asosChek) + ' so\'m), tizim esa ' + pul(pen) + ' so\'m hisoblagan (tizimdagi chegara 50 %). Arizaga chegara summasi yozilishi kerak — yurist tasdiqlasin.');
+  } else if (B && M.penya && M.penya.kesildi) {
+    ogoh.push('Eslatma: bu shablonning ' + B.penya + '-bandida peniyaga yuqori chegara ko\'rsatilmagan. Tizim 50 % chegara qo\'llamoqda '
+      + '(to\'liq hisoblangan ' + pul(M.penya.jami) + ' so\'m, arizada ' + pul(pen) + ' so\'m). 27/200 ishida Palata ham aynan shu 50 % summani yozgan. '
+      + 'Chegarani o\'zgartirish kerakmi — yurist hal qilsin.');
+  }
 
   // Direktor talabi 19.11.2026: oxirida hammasi qo'shilib, UNDIRILADIGAN JAMI SUMMA so'raladi — har qanday holatda
   const asosiyQ = Math.max(0, qarz - (Number(M.qoshimcha) || 0));
   const jamiU = qarz + pen;
   const SOR = '- ' + qosh(M.fish, 'ning') + ' hisobidan shartnomaga asosan to’lanmagan asosiy qarz ' + pul(asosiyQ) + ' so’m'
-    + (Number(M.qoshimcha) > 0 ? ', shartnomaning 2.5-bandiga asosan qo’shimcha maydon uchun qarz ' + pul(M.qoshimcha) + ' so’m' : '')
-    + ', shartnomaning 2.7-bandiga asosan hisoblangan peniya ' + pul(pen) + ' so’m, JAMI ' + pul(jamiU) + ' (' + sozBilan(jamiU) + ') so’mni '
+    + (Number(M.qoshimcha) > 0 ? ', shartnomaning ' + bnd('maydon') + 'iga asosan qo’shimcha maydon uchun qarz ' + pul(M.qoshimcha) + ' so’m' : '')
+    + ', shartnomaning ' + bnd('penya') + 'iga asosan hisoblangan peniya ' + pul(pen) + ' so’m, JAMI ' + pul(jamiU) + ' (' + sozBilan(jamiU) + ') so’mni '
     + '“ANGOR KARVON SAROY” MCHJ foydasiga undirish haqida sud buyrug’i berishingizni;';
 
   const Q = {

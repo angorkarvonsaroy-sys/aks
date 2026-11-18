@@ -223,7 +223,7 @@ async function yhYig(id, ishOld) {
     famLat: s(fish).split(/\s+/)[0].replace(/[^A-Za-z`'Ѐ-ӿ]/g, '') || 'mijoz',
     pasport: mij.pasport || '—', jshshir: mij.jshshir || '—', tel: mij.tel || '—',
     manzil: x.manzil || mij.manzil || '—',
-    sana: x.sana || r03.sana, turi: x.turi || r03.turi,
+    sana: x.sana || r03.sana, turi: x.turi || r03.turi, shablon: x.shablon || '',   // 19.11.2026: da'vo arizasi band raqamlarini shablon davriga qarab qo'yadi
     dokonMatn: (x.blok ? '«' + x.blok + '» блок, ' + x.qavat + '-қават, ' + x.dokonNo + '-дўкон' : (x.dokon || ish.dokon || '—')) + (x.maydon ? ', ' + s(x.maydon).replace('.', ',') + ' м²' : ''),
     dokon: { blok: s(x.blok || ''), qavat: s(x.qavat || ''), no: s(x.dokonNo || ''), maydon: Number(x.maydon) || 0 },   // 19.11.2026: da'vo arizasi uchun — alohida maydonlar
     qiymat: r03.qiymat, tolangan: r03.tolangan, oylik: r03.oylik, kechikkan: r03.kechikkan, shart: r03,
