@@ -34,4 +34,18 @@ function tugmaChaqiruvlari(s) { const C = {}; let m;
     if (!yoq.length) { console.log('  ' + nom + ': tugmalarga bog\'langan ' + Object.keys(C).length + ' ta funksiya — hammasi ta\'riflangan'); return; }
     yoq.forEach(n => console.log('  ' + (asosiy ? '✗' : '⚠') + ' ' + nom + ': tugmaga bog\'langan «' + n + '» funksiyasi ta\'riflanmagan (qator ' + [...new Set(C[n])].slice(0, 4).join(', ') + ') — tugma bosilganda hech narsa bo\'lmaydi'));
     if (asosiy) yomon += yoq.length; }); }
+// 19.11.2026: «//» izohi o'sha qatordagi KODNI yutib yuborgan holat. v27.137 da shunday bo'lgan:
+//   if(...) return ...;   // izoh ... const kech=g.filter(...)   ← «const kech» izohning ichida qolgan
+// Sintaksis sog' ko'rinadi (node --check o'tadi), lekin ishlaganda «kech is not defined» chiqadi va ekran to'xtaydi.
+{ for (const f of process.argv.slice(2)) { let s; try { s = fs.readFileSync(f, 'utf8'); } catch (e) { continue; }
+    const nom = f.split('/').pop();
+    s.split('\n').forEach((l, i) => {
+      const m = /\/\/[^\n]*?\b(const|let|var|return|function|if|for|while)\s/.exec(l); if (!m) return;
+      const old = l.slice(0, m.index);
+      if (old.endsWith(':') || /[:=]\s*["'`]?$/.test(old)) return;           // http:// va shunga o'xshash
+      if ((old.match(/'/g) || []).length % 2 || (old.match(/"/g) || []).length % 2 || (old.match(/`/g) || []).length % 2) return;   // satr ichida
+      console.log('  ✗ ' + nom + ': ' + (i + 1) + '-qatorda «//» izohidan keyin shu qatorda kod qolib ketgan — izoh uni yutib yuboradi:');
+      console.log('      ' + l.slice(m.index, m.index + 120).trim());
+      yomon++; }); } }
+
 process.exit(yomon ? 2 : 0);
