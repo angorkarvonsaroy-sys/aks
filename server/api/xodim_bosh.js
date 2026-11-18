@@ -229,8 +229,9 @@ async function xodimBosh([kodSes]) {
     kpi.push({ k: 'buz', nom: "Va'dasi buzilgan", q: qd.buzilgan, iz: qd.buzilgan ? "bugun qo'ng'iroq qiling" : 'yo\'q ✅', cls: qd.buzilgan ? 's' : '', och: { t: 'bolim', v: 'qadam' } });
     kpi.push({ k: 'jim', nom: '30+ kun aloqa yo\'q', q: qd.jim, iz: 'portfel ' + qd.portfel + ' ta', cls: qd.jim ? 's' : '', och: { t: 'bolim', v: 'qadam' } });
     kpi.push({ k: 'kech', nom: "Muddati o'tgan topshiriq", q: tk.kechikkan, iz: tk.kechikkan ? 'darhol bajaring' : 'hammasi vaqtida ✅', cls: tk.kechikkan ? 'q' : '', och: { t: 'topshiriq' } });
-  } else {
+  } else if (!(bor('yurist') && !tk.kechikkan && !tk.bugun && !tk.ochiq && !tk.tekshiruv)) {
     // 14.11.2026: bu ikki katak faqat 📌 topshiriqlarni sanaydi — nomi ham shunday (yuristda tepada «5 ta muddati o'tgan», katakda «0 — hammasi vaqtida» chiqardi)
+    // 18.11.2026 (direktor talabi): yuristda topshiriq umuman bo'lmasa — ikkala katak ham doim nol turadi va tepadagi qatorga zid ko'rinadi; ko'rsatilmaydi, o'rniga yurist kataklari chiqadi
     kpi.push({ k: 'kech', nom: "Muddati o'tgan topshiriqlar", q: tk.kechikkan, iz: tk.kechikkan ? 'darhol bajaring' : 'hammasi vaqtida ✅', cls: tk.kechikkan ? 'q' : '', och: { t: 'topshiriq' } });
     kpi.push({ k: 'bugun', nom: 'Bugungi topshiriqlar', q: tk.bugun, iz: tk.tekshiruv ? tk.tekshiruv + ' ta tekshiruvda' : 'muddati bugun', cls: '', och: { t: 'topshiriq' } });
   }
@@ -247,7 +248,7 @@ async function xodimBosh([kodSes]) {
     rol.push({ k: 'yu', nom: '⚖ Sud / MIB kutilmoqda', q: yu.kutish, iz: 'jami faol ' + yu.faol + ' ta · ' + yu.mib + ' ta MIB da', cls: '', och: { t: 'bolim', v: 'yurist' } });
   }
   if (bor('taminot')) rol.push({ k: 'tm', nom: 'Tasdiq kutayotgan partiyalar', q: tm.kutmoqda, iz: "ta'minot", cls: tm.kutmoqda ? 's' : '', och: { t: 'bolim', v: 'taminot' } });
-  if (!qd) rol.slice(0, 2).forEach(x => kpi.push(x));
+  if (!qd) rol.slice(0, kpi.length ? 2 : 4).forEach(x => kpi.push(x));   // 18.11: topshiriq kataklari chiqmasa — rol kataklariga joy bo'shaydi (yuristda uchtasi ham ko'rinadi)
 
   diqqat.sort((a, b) => a.t - b.t);
   OX.sort((a, b) => a.srt < b.srt ? 1 : -1);
