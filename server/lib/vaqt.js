@@ -122,6 +122,8 @@ const ISHLAR = [
   { nom: 'kut_eslatma', fn: 'kutEslatma', tavsif: '⏳ Direktorga: 3 kundan ortiq javob kutayotgan so\'rovlar (13.11.2026 qarori)', har: 'kun:08:45', eski: 'yo\'q — yangi ish (13.11)', ish: (kod, opt) => require('./kutilmoqda_eslatma').eslatma(kod, opt) },
   { nom: 'mon_eslatma', fn: 'monEslatmaYubor', tavsif: '📎 Skansiz shartnoma eslatmasi (monEslatmaYubor)', har: 'kun:09:10', eski: 'monEslatmaYubor — har kuni 09:10', ish: (kod, opt) => ER.monEslatma(kod, opt) },
   { nom: 'top_ertalab', fn: 'topErtalab', tavsif: '☀️ Xodimlarga bugungi topshiriqlar (topErtalab)', har: 'kun:08:30', eski: 'topErtalab — har kuni 08:30', ish: topErtalabIsh },
+  { nom: 'top_kechikdi', fn: 'topKechikdiTekshir', tavsif: '⏰ Muddati o\'tgan topshiriq → direktorga darhol xabar (18.11.2026 qarori)', har: 'daq:30', eski: 'yo\'q — yangi ish (18.11)',
+    ish: (kod, opt) => require('./top_kechikdi').tekshir(kod, opt) },
   { nom: 'top_kechki', fn: 'topKechki', tavsif: '📌 Direktorga kun yakuni (topKechki)', har: 'kun:20:10', eski: 'topKechki — har kuni 20:10', ish: topKechkiIsh },
   { nom: 'qadam_kechki', fn: 'qadamKechki', tavsif: '🌙 Direktorga bugungi ish natijasi (qadamKechki)', har: 'kun:18:00', eski: 'qadamKechki — har kuni 18:00', ish: (kod, opt) => IK.qadamKechki(kod, opt) },
   { nom: 'ijro_kechki', fn: 'ijroKechki', tavsif: '📒 Kunlik ijro + qoidabuzarliklar (ijroKechki)', har: 'kun:18:15', eski: 'ijroKechki — har kuni 18:15', ish: (kod, opt) => IK.ijroKechki(kod, opt) },
