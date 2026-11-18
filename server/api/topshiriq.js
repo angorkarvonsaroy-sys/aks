@@ -19,7 +19,8 @@ const TOP_QOIDALAR = [   // [kalit, nomi, muddat kun, kimga]
   ['kbskan', 'Kelishuv bilan bekor qilish: imzolangan skan 3 kundan beri yuklanmagan', 2, 'hujjatni tayyorlagan'],   // 14.11.2026
   ['yudavo', "Yuristdagi ishda da'vo muddati tugayapti yoki tugagan", 2, 'ishning yuristi'],   // 18.11.2026 (direktor qarori)
   ['tushuntirish', 'Qoidabuzarlikka yozma tushuntirish yozilmagan (2-pog\'onadan)', 1, 'qoidabuzarlik qilgan xodim'],   // 18.11.2026 (direktor qarori)
-  ['qmxat', "Qo'shimcha maydon qarzi bor, maydon farqi xat zanjiri tugallanmagan", 2, 'shartnoma undiruvchisi']];   // 19.11.2026 (direktor qarori)
+  ['qmxat', "Qo'shimcha maydon qarzi bor, maydon farqi xat zanjiri tugallanmagan", 2, 'shartnoma undiruvchisi'],   // 19.11.2026 (direktor qarori)
+  ['jshshir', "Qarzdor mijozning JSHSHIRi bazada yo'q", 3, 'shartnoma undiruvchisi']];   // 19.11.2026 (direktor qarori)
 
 // TOP_QOIDA (xom) → har qoida uchun {on, kun} (topQoidaCfg_ bilan bir xil)
 function cfgDan(p) { const o = {}; TOP_QOIDALAR.forEach(q => { const c = (p || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: c.kun === undefined ? q[2] : Number(c.kun) || 0 }; }); return o; }

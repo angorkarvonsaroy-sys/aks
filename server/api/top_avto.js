@@ -132,7 +132,23 @@ async function topCtx(kod, bugun) {
         yoq: M.filter(z => !z.bosqich).length, kutmoqda: M.filter(z => z.kutmoqda).length,
         misol: M.slice(0, 3).map(z => z.no + ' (' + Math.round(z.qarz / 1e6) + ' mln)') }; });
   } catch (e) { console.error('topCtx qmXat:', e.message); }
-  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
+  // 🆔 19.11.2026 (direktor qarori): faol sotuv shartnomasi bor, JSHSHIRi bazada yo'q mijozlar. JSHSHIRsiz sudga ariza berib bo'lmaydi,
+  // ijro varaqasi ham rasmiylashtirilmaydi. Shartnoma skanidan olib bo'lmaydi — shartnoma bazadan yasaladi, bazada yo'q bo'lsa skanda ham yo'q.
+  // Shuning uchun mijozdan so'raladi: bitta qo'ng'iroq. Har mijozga alohida topshiriq 100 dan oshib ketadi — undiruvchiga OYIGA BITTA.
+  let jshYoq = [];
+  try {
+    const SHL = await UY.undShartnomalar();
+    const MJ = {}; (await V.qatorlar('02_Mijozlar')).forEach(({ x }) => { const id = s(x[0]).trim(); if (id) MJ[id] = { fish: s(x[2]), jsh: s(x[11]).trim(), pas: s(x[6]).trim() }; });
+    const L3 = SHL.filter(z => z.jami > 0 && !/bekor/i.test(s(z.holati)) && s(z.undiruvchi))
+      .map(z => ({ no: z.no, mid: s(z.mid), fish: s(z.fish), kim: s(z.undiruvchi), jami: Number(z.jami) || 0, m: MJ[s(z.mid)] || {} }))
+      .filter(z => !/^\d{14}$/.test(z.m.jsh || ''));
+    const seen = {}, oyJ = bugun.slice(0, 7), gr = {};
+    L3.forEach(z => { if (seen[z.mid]) return; seen[z.mid] = 1; (gr[z.kim] = gr[z.kim] || []).push(z); });
+    jshYoq = Object.keys(gr).map(kim => { const M = gr[kim].sort((a2, b2) => b2.jami - a2.jami);
+      return { kim, oy: oyJ, soni: M.length, pasYoq: M.filter(z => !/[A-Za-z]{2}\s*\d{6,7}/.test(z.m.pas || '')).length,
+        misol: M.slice(0, 3).map(z => z.fish.split(/\s+/).slice(0, 2).join(' ') + ' (' + z.no + ')') }; });
+  } catch (e) { console.error('topCtx jshYoq:', e.message); }
+  return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
 }
 // sabab bartaraf bo'lganmi — bo'lsa dalil matni, aks holda ''
@@ -153,6 +169,7 @@ function topHal(t, ctx, hozir) {
   if (q === 'yudavo') return (ctx.yuDavo || []).some(z => z.no === id) ? '' : 'sudga ariza berildi yoki ish yopildi';   // 18.11.2026
   if (q === 'tushuntirish') return (ctx.ijTush || []).some(z => z.xodim === t.kalit.split('|')[1]) ? '' : 'hamma tushuntirish yozildi yoki uzrli deb topildi';   // 18.11.2026
   if (q === 'qmxat') return (ctx.qmXat || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'maydon farqi xat zanjiri tugallandi yoki qarz qolmadi';   // 19.11.2026
+  if (q === 'jshshir') return (ctx.jshYoq || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma mijozning JSHSHIRi bazaga kiritildi';   // 19.11.2026
   if (q === 'otkaz') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'kun tugadi — javob berilmadi' : '';   // v1.5
   if (q === 'muhlat') return t.kalit.split('|')[2] < ctx.kunOldin(0) ? 'so\'ralgan sana o\'tdi — javob berilmadi' : '';   // v1.6
   if (q === 'malumot') { const p = t.kalit.split('|'); if (ctx.bekorNo[p[1]]) return 'shartnoma bekor qilingan';   // v1.4
@@ -249,6 +266,14 @@ async function topAvto(kod, opt = {}) {
       + (z.kutmoqda ? ' · ' + z.kutmoqda + ' tasida tayyorlangan xat yetkazilmagan' : '')
       + (z.misol.length ? ' · eng kattalari: ' + z.misol.join(', ') : '')
       + ' — talabnoma yuborilmasa bu qarz sudda rad etilishi mumkin. Ilovada: 📂 Portfel → mijoz → «Maydon farqi xati»',
+    '', '', z.kim));
+  // 🆔 19.11.2026 — JSHSHIRi yo'q mijozlar: undiruvchiga oyiga bitta topshiriq
+  (ctx.jshYoq || []).forEach(z => nomzod('jshshir', z.kim + '|' + z.oy,
+    z.soni + ' ta qarzdor mijozning JSHSHIRi bazada yo\'q',
+    'Mijozga qo\'ng\'iroq qilib JSHSHIRini oling (pasportning 2-betida, ID-kartaning orqasida — 14 raqam)'
+      + (z.pasYoq ? ' · ' + z.pasYoq + ' tasida pasport seriyasi ham yo\'q' : '')
+      + (z.misol.length ? ' · masalan: ' + z.misol.join(', ') : '')
+      + ' — JSHSHIRsiz sudga ariza berib bo\'lmaydi. Ilovada: 👤 Mijozlar → mijoz → ✎ Tahrir',
     '', '', z.kim));
   // 9 bufer
   ctx.bufer.forEach(b => nomzod('bufer', b.id, 'Bufer to\'lovni kirim qiling yoki qaytaring', b.no + ' · ' + pul(b.summa) + ' so\'m · ' + b.sana, b.no, ctx.mid[b.no], ''));
