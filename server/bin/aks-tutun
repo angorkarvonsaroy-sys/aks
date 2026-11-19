@@ -34,6 +34,18 @@ if [ "${#SAHIFA[@]}" -gt 0 ]; then
 fi
 rm -rf "$YP"
 
+# 1b) eksport tekshiruvi (19.11.2026): const { A } = require('./x') — x da A bormi.
+#     Sabab: lib/narx.js ustidan yozilib, shartnoma narxi «narxHisob is not a function» bergan edi.
+#     Statik: hech narsa ishga tushmaydi. Yangi kodda yo'q eksport topilsa — o'rnatilmaydi.
+if [ -f "$SIN/eksport_tekshir.js" ]; then
+  node "$SIN/eksport_tekshir.js" --ildiz "$YANGI" >"$T/eksport.txt" 2>&1; K=$?
+  cat "$T/eksport.txt"
+  if [ "$K" = "2" ]; then
+    { echo "Eksport tekshiruvidan o'tmadi — modul o'zgargan, uni ishlatadigan fayl buziladi:"; grep '✗' "$T/eksport.txt" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | head -6; } >"$T/xabar.txt"
+    xabar; exit 2
+  fi
+fi
+
 # 2) server kodi — yangi
 yur() { nomidan env NODE_PATH="$APP/node_modules" timeout 220 node "$SIN/tutun.js" --ildiz "$1" >"$2" 2>&1; }
 yur "$YANGI" "$T/yangi.txt"; K=$?
