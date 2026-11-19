@@ -500,6 +500,91 @@ async function sotuvBronAmal(args) {
   return { ok: true, holati: holat };
 }
 
+// ------------------------------------------------------------------ 🏠 ROLGA QARAB BOSH SAHIFA (19.11.2026, direktor qarori)
+// Sotuvchi («sotuvchi» huquqi) va sotuv bo'limi boshlig'i («sotuv_boshliq») ilovani ochganda umumiy xodim sahifasi
+// o'rniga o'z ekranini ko'radi. Tartib — Uysot / MacroCRM / Profitbase / Kommo / Salesforce / Pipedrive da bir xil:
+//   sotuvchi — avval MUDDATI O'TGAN (qizil), keyin BUGUN, TUGAYOTGAN BRONLAR, oxirida o'z rejasi;
+//   boshliq — REJA/FAKT katta raqamlar, shu oy VORONKA, SOTUVCHILAR JADVALI, E'TIBOR ro'yxati, yo'qotish sabablari.
+// Bu funksiya hech narsa yozmaydi; xodim_bosh.js chaqiradi (bitta so'rov — bitta ekran). Ekran yarmi bo'sh bo'lsa ham
+// blok yashirilmaydi — yashil «hammasi joyida» chiqadi (odam ekranni o'rganib olsin).
+const XB_ROY = 8;   // har blokda ko'rinadigan eng ko'p qator (qolgani — «Hammasi →»)
+function sotuvBosh(u, bugun, boshliqmi) {
+  return (async () => {
+    const oy = bugun.slice(0, 7);
+    const L = await tashrifRoyxat(bugun);
+    let B = []; try { B = await bronRoyxat(bugun); } catch (e) { }
+    let R = []; try { R = await rejaRoyxat(); } catch (e) { }
+    let SH = { oylar: [], xodim: [] }; try { SH = await shartnomaOylar(oy); } catch (e) { }
+    const shOy = (SH.oylar.find(z => z.oy === oy) || {}).soni || 0;
+    const kunOy = new Date(+oy.slice(0, 4), +oy.slice(5, 7), 0).getDate();
+    const otdi = Math.round(+bugun.slice(8, 10) / kunOy * 100);   // oyning necha foizi o'tdi — reja sur'ati uchun
+    // Harakat kerak bo'lgan ish: natijasi yozilmagan (qoida boshlanganidan keyin), qadam muddati o'tgan, qadami yo'q.
+    // 19.11 gacha bo'lgan natijasiz tashriflar alohida sanaladi — ular qayta qo'ng'iroq ro'yxatida, «muddati o'tgan» emas.
+    const kechikkanMi = z => z.holat === 'kechikdi' || z.holat === 'qadamsiz' || (z.holat === 'natijasiz' && z.sana >= ST_BOSH && z.kechikkan > 0);
+    const eskiMi = z => z.holat === 'natijasiz' && z.sana < ST_BOSH;
+    const kTartib = z => z.holat === 'natijasiz' ? 0 : z.holat === 'kechikdi' ? 1 : 2;
+    const qisqa = z => ({ id: z.id, fish: z.fish, tel: z.tel, sana: z.sana, turi: z.turi, holat: z.holat, kechikkan: z.kechikkan, kim: stXodim(z.kim) || z.kim,
+      natija: z.natija, natijaNomi: z.natijaNomi, sabab: z.sabab, qadam: z.qadam, qadamSana: z.qadamSana, natIzoh: z.natIzoh, izoh: z.izoh, manzil: z.manzil });
+    const bronQ = b => ({ id: b.id, dokon: b.dokon, fish: b.fish, tel: b.tel, sana: b.sana, tugash: b.tugash, holati: b.holati, qoldi: b.qoldi, ogoh: b.ogoh, kim: b.kim, uzaytirildi: b.uzaytirildi });
+    const bronOchiq = b => b.holati === 'Faol' || b.holati === 'Muddati o\'tdi';
+    const bronTartib = (a, b) => (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi);
+    // reja: xodimning o'z satri, bo'lmasa bo'lim satri (xodim bo'sh)
+    const rejaTop = fish => { const own = fish ? R.find(z => z.oy === oy && z.xodim && xodimTeng(z.xodim, fish)) : null; const bol = R.find(z => z.oy === oy && !z.xodim) || null;
+      return own ? { tashrif: own.tashrif, taklif: own.taklif, shartnoma: own.shartnoma, kimniki: 'mening' } : bol ? { tashrif: bol.tashrif, taklif: bol.taklif, shartnoma: bol.shartnoma, kimniki: 'bolim' } : null; };
+    const faktOy = (Z, shSoni) => ({ tashrif: Z.filter(z => z.sana.slice(0, 7) === oy).length,
+      taklif: Z.filter(z => z.sana.slice(0, 7) === oy && (z.natija === 'taklif' || z.natija === 'shartnoma')).length, shartnoma: shSoni });
+
+    if (!boshliqmi) {
+      const M = L.filter(z => xodimTeng(z.kim, u.fish) || xodimTeng(z.natKim, u.fish));
+      const K = M.filter(kechikkanMi).sort((a, b) => kTartib(a) - kTartib(b) || b.kechikkan - a.kechikkan || (a.sana < b.sana ? -1 : 1));
+      // bugun qilinadigan: qadami bugunga belgilangan; natijasi hali yozilmagan yangi tashrif (bugungi yoki kechagi — muddati bugun tugaydi)
+      const bugungi = M.filter(z => z.holat === 'bugun' || (z.holat === 'natijasiz' && z.sana >= ST_BOSH && !z.kechikkan)).sort((a, b) => (a.holat === 'bugun' ? 0 : 1) - (b.holat === 'bugun' ? 0 : 1) || (a.sana < b.sana ? 1 : -1));
+      const BR = B.filter(b => bronOchiq(b) && (!b.kim || xodimTeng(b.kim, u.fish))).sort(bronTartib);
+      const shMen = (SH.xodim.find(x => xodimTeng(x.xodim, u.fish)) || {}).soni || 0;
+      return { rol: 'sotuvchi', oy, otdi, bosh: ST_BOSH, bronKun: BR_KUN,
+        kechikkan: K.slice(0, XB_ROY).map(qisqa), kechikkanSoni: K.length, eskiSoni: M.filter(eskiMi).length,
+        bugungi: bugungi.slice(0, XB_ROY).map(qisqa), bugungiSoni: bugungi.length, bugunYozdim: M.filter(z => z.sana === bugun).length,
+        bron: BR.slice(0, XB_ROY).map(bronQ), bronSoni: BR.length, bronOtdi: BR.filter(b => b.holati !== 'Faol').length,
+        reja: rejaTop(u.fish), fakt: faktOy(M, shMen) };
+    }
+    // ---- boshliq: butun bo'lim
+    const oyL = L.filter(z => z.sana.slice(0, 7) === oy);
+    const bronFaol = B.filter(b => b.holati === 'Faol');
+    const voronka = { murojaat: oyL.filter(z => z.turi === 'Telefon').length, tashrif: oyL.filter(z => z.turi !== 'Telefon').length,
+      taklif: oyL.filter(z => z.natija === 'taklif' || z.natija === 'shartnoma').length, band: bronFaol.length, shartnoma: shOy };
+    const X = {};
+    const xo = k => { const n = stXodim(k) || '—'; return X[n] || (X[n] = { xodim: n, tashrif: 0, natijali: 0, bron: 0, shartnoma: 0, kechikkan: 0, eski: 0 }); };
+    oyL.forEach(z => { const x = xo(z.kim); x.tashrif++; if (z.natija) x.natijali++; });
+    L.forEach(z => { if (kechikkanMi(z)) xo(z.kim).kechikkan++; else if (eskiMi(z)) xo(z.kim).eski++; });
+    bronFaol.forEach(b => { if (b.kim) xo(b.kim).bron++; });
+    SH.xodim.forEach(x => { if (x.xodim !== '—') xo(x.xodim).shartnoma += x.soni; });
+    const sotuvchilar = Object.values(X).filter(x => x.xodim !== '—' || x.tashrif || x.kechikkan).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif);
+    // e'tibor — nima yomon ketyapti
+    const E = [];
+    B.filter(b => b.holati === 'Muddati o\'tdi').sort(bronTartib).forEach(b => E.push({ rang: 'q', matn: '🔒 Bron muddati o\'tdi: ' + b.dokon + ' · ' + b.fish + (b.kim ? ' · ' + b.kim : '') + ' — shartnoma tuziladi yoki bekor qilinadi', och: { t: 'sotuv', tab: 'bron' } }));
+    bronFaol.filter(b => b.ogoh).sort(bronTartib).forEach(b => E.push({ rang: 's', matn: '🔒 Bron ' + (b.qoldi === 0 ? 'bugun' : 'ertaga') + ' tugaydi: ' + b.dokon + ' · ' + b.fish + (b.kim ? ' · ' + b.kim : ''), och: { t: 'sotuv', tab: 'bron' } }));
+    sotuvchilar.filter(x => x.kechikkan).forEach(x => E.push({ rang: 'q', matn: '⏰ ' + x.xodim + ' — ' + x.kechikkan + ' ta muddati o\'tgan ish (natija yoki qadam yozilmagan)', och: { t: 'sotuv', tab: 'ish' } }));
+    if (!R.some(z => z.oy === oy)) E.push({ rang: 's', matn: '📊 Bu oyga reja qo\'yilmagan — tashrif / taklif / shartnoma rejasini qo\'ying', och: { t: 'sotuv', tab: 'rej' } });
+    // imzolangan skani yo'q sotuv shartnomalari (06d da Faol SHARTNOMA skani bo'lmasa)
+    try {
+      const skanBor = {}; (await V.qatorlar('06d_Hujjatlar')).forEach(({ x }) => { if (x[0] && s(x[5]) === 'SHARTNOMA' && s(x[13]) === 'Faol') skanBor[s(x[1]).trim()] = 1; });
+      const SK = [];
+      (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ x }) => { const no = s(x[0]).trim(); if (!no || /bekor/i.test(s(x[13])) || /QAYTA TUZ/i.test(s(x[19]))) return;
+        const sana = stIso(x[2]); if (!sana || sana < '2026-09-29') return; const k = kun(sana, bugun); if (k >= 3 && !skanBor[no]) SK.push({ no, kun: k, fish: s(x[20]).trim().split(/\s+/).slice(0, 2).join(' '), kim: stXodim(x[42]) }); });
+      SK.sort((a, b) => b.kun - a.kun);
+      if (SK.length) E.push({ rang: SK[0].kun >= 7 ? 'q' : 's', matn: '📎 ' + SK.length + ' ta sotuv shartnomasining imzolangan skani yo\'q (eng eskisi ' + SK[0].no + ' · ' + SK[0].fish + ' — ' + SK[0].kun + ' kun)', och: { t: 'bolim', v: 'hujjat' } });
+    } catch (e) { }
+    // yo'qotish sabablari — shu oy
+    const SB = {}; let yoq = 0;
+    oyL.forEach(z => { if (z.natija === 'qiziqmadi' || z.natija === 'notogri') { const k = z.natija === 'notogri' ? 'Рақам нотўғри' : (s(z.sabab).trim() || 'Сабаб ёзилмаган'); SB[k] = (SB[k] || 0) + 1; yoq++; } });
+    const sabablar = Object.keys(SB).map(k => ({ sabab: k, soni: SB[k] })).sort((a, b) => b.soni - a.soni);
+    return { rol: 'rop', oy, otdi, bosh: ST_BOSH, bronKun: BR_KUN, reja: rejaTop(''), fakt: faktOy(L, shOy), voronka, sotuvchilar,
+      etibor: E.slice(0, 10), etiborSoni: E.length, yoqolgan: yoq, sabablar: sabablar.slice(0, 3),
+      bron: bronFaol.sort(bronTartib).slice(0, XB_ROY).map(bronQ), bronSoni: bronFaol.length,
+      kechikkanSoni: L.filter(kechikkanMi).length, eskiSoni: L.filter(eskiMi).length, oyJami: oyL.length };
+  })();
+}
+
 module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
-module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
+module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, sotuvBosh, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };

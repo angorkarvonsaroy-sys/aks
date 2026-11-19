@@ -220,6 +220,11 @@ async function xodimBosh([kodSes]) {
     if (qd.davo) dq('#B42318', '<b>' + qd.davo + ' ta mijozda da\'vo muddati tugayapti</b> (90 kundan kam qoldi) — ▶ Bugungi ish navbatida', { t: 'bolim', v: 'qadam' }, 1);
   }
 
+  // ---------- 13. 🛒 rolga qarab bosh sahifa (19.11.2026): sotuv bo'limi boshlig'i → «Bo'lim bugun», sotuvchi → «Mening kunim».
+  // Direktorda bu sahifa yo'q (unda 👔 Bosh); 👁 ko'rish rejimida xodimning o'z ekrani chiqadi.
+  const rolS = adm ? '' : (H.indexOf('sotuv_boshliq') >= 0 ? 'rop' : (H.indexOf('sotuvchi') >= 0 ? 'sotuvchi' : ''));
+  const sotuv = rolS ? await blok('sotuv', async () => await require('./sotuv')._ichki.sotuvBosh(u, bugun, rolS === 'rop'), null) : null;
+
   // ---------- ko'rsatkichlar
   const kpi = [];
   const tk = top || { kechikkan: 0, bugun: 0, ochiq: 0, tekshiruv: 0 };
@@ -259,7 +264,8 @@ async function xodimBosh([kodSes]) {
   return { ok: true, fish: u.fish, ism: xbIsm(u.fish), bugun, sana: XB_KUNLAR[d.getUTCDay()] + ', ' + d.getUTCDate() + '-' + XB_OYLAR[d.getUTCMonth()] + ' ' + d.getUTCFullYear(),
     huquq: H, top, yuIsh: (yu && yu.royxat) || [], kpi, diqqat: diqqat.slice(0, XB_DIQQAT).map(x => ({ rang: x.rang, matn: x.matn, och: x.och })),
     oxirgi: ox, qildim: { royxat: QL.slice(-XB_QILDIM), jami }, xato,
-    qadam: qd ? { bajarildi: qd.bajarildi, maqsad: qd.maqsad, navbat: qd.navbat, qizil: qd.qizil } : null };
+    qadam: qd ? { bajarildi: qd.bajarildi, maqsad: qd.maqsad, navbat: qd.navbat, qizil: qd.qizil } : null,
+    rol: sotuv ? rolS : '', sotuv, tashBugun: tash.bugun, shBugun: sh.bugun };
 }
 
 module.exports = { xodimBosh };
