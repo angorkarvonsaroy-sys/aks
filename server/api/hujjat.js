@@ -43,6 +43,9 @@ async function royxat(u) {
   });
   const bor = {}; (await J.hujjatJurnal()).forEach(h => { if (h.holati === 'Faol') { (bor[h.no] = bor[h.no] || { soni: 0, shartnoma: false }).soni++; if (h.turi === 'SHARTNOMA') bor[h.no].shartnoma = true; } });
   L.forEach(x => { const b = bor[x.no]; x.hujjat = b ? b.soni : 0; x.skan = !!(b && b.shartnoma); });
+  // 🏪 20.11.2026: ijara shartnomasida «undiruvchi» — ochilish nazorati bo'yicha biriktirilgan xodim (04b); undiruvchi o'z nazoratidagi ijarani ko'radi
+  try { const OU = {}; (await require('../lib/ochilish').ochKozgu()).forEach(z => { if (z.undiruvchi) OU[z.no] = z.undiruvchi; });
+    L.forEach(x => { if (x.tur === 'ijara' && OU[x.no]) x.und = OU[x.no]; }); } catch (e) { }
   const ch = undCheklov(u);
   if (ch) {
     const T = await topShartnoma(u.fish);

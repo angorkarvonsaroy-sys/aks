@@ -324,6 +324,8 @@ async function ijaraSaqlash(args) {
   if (yoq) return eskiTizim('ijaraSaqlash', u, [d0]);
   const tsh = await tashrifAvto(d.sana, t.mid, 'Ижарага туриш масаласида', u.fish, 'Шартнома ' + w.no);   // v9.0
   await kut(tetik.varaqlarYangila([T04, T01]).catch(e => console.error('ko\'zgu (ijara):', e.message)), 15000);
+  // 🏪 20.11.2026 (direktor qarori): yangi ijaraga undiruvchi avtomatik biriktiriladi, skan va 5-kun tekshiruvi topshiriqlari unga tushadi (api/ochilish.js, fon)
+  try { require('./ochilish')._ichki.biriktirFon(w.no, u.fish); } catch (e) { console.error('ochilish biriktirFon:', e.message); }
   return { ok: true, no: w.no, beruvchi: t.beruvchi, oylik: t.oylikS, tugash: isoG(t.tug), egasi: t.sotilgan ? s(t.dr[18]) : '', tashrif: tsh };
 }
 

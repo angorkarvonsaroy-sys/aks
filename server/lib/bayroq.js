@@ -15,7 +15,7 @@ const YOZUV_NOMLAR = [
   'hisobot_pdf', 'hujjat', 'ijro_tekshir', 'imzosiz', 'imzosiz_bekor', 'kb', 'kb2', 'kirish07b', 'mayda', 'mijoz_karta_pdf', 'qadam', 'qadam_hujjat',
   'qadam_ruxsat', 'qayta', 'qayta2', 'qayta_bekor', 'qayta_hujjat', 'shartnoma', 'shartnoma_pdf', 'sifat', 'tahrir', 'taminot', 'tasdiq',
   'tasdiq_qaror', 'tashrif', 'tg', 'tg_kirish', 'tolov', 'top_avto', 'top_mening', 'topshiriq', 'xat_chiqar', 'xat_isbot', 'yurist_aloqa',
-  'yurist_hujjat', 'yurist_ish', 'yurist_sorov'];
+  'yurist_hujjat', 'yurist_ish', 'yurist_sorov', 'ochilish'];   // ochilish — 20.11.2026 (🏪 ochilish nazorati; standart yoniq)
 
 async function oqi(kalit, standart) {
   let v = null;

@@ -22,7 +22,13 @@ const TOP_QOIDALAR = [   // [kalit, nomi, muddat kun, kimga]
   ['qmxat', "Qo'shimcha maydon qarzi bor, maydon farqi xat zanjiri tugallanmagan", 2, 'shartnoma undiruvchisi'],   // 19.11.2026 (direktor qarori)
   ['jshshir', "Qarzdor mijozning JSHSHIRi bazada yo'q", 3, 'shartnoma undiruvchisi'],   // 19.11.2026 (direktor qarori)
   ['sotuv', "Tashrifga natija yoki keyingi qadam qo'yilmagan", 1, 'tashrifni yozgan xodim'],   // 19.11.2026 (direktor qarori)
-  ['bron', "Bron muddati tugayapti yoki tugagan", 0, 'bron qilgan xodim']];   // 19.11.2026 (direktor qarori)
+  ['bron', "Bron muddati tugayapti yoki tugagan", 0, 'bron qilgan xodim'],   // 19.11.2026 (direktor qarori)
+  // 🏪 20.11.2026 (direktor qarori): ochilish nazorati — yangi ijara: 2-kun SMS, 5-kun tekshiruv, 6-kun xabarnoma, pochtadan 5 kun → bekor
+  ['ochsms', 'Ijara: 2-kun — ijarachiga SMS eslatma', 0, 'ijara undiruvchisi'],
+  ['ochtek', 'Ijara: 5-kun — do\'kon ochilganini tekshirish', 0, 'ijara undiruvchisi'],
+  ['ochxat', 'Ijara: 6-kun — xabarnoma, buyurtma xat, kvitansiya', 0, 'ijara undiruvchisi'],
+  ['ochbekor', 'Ijara: pochtadan 5 kun o\'tdi — bekor qilishga yuborish', 0, 'ijara undiruvchisi'],
+  ['ochkelmadi', 'Ijara (eski matn): do\'kon ochilmadi — 🚫 «ijarachi kelmadi» so\'rovi', 1, 'shartnomani tuzgan xodim']];
 
 // TOP_QOIDA (xom) → har qoida uchun {on, kun} (topQoidaCfg_ bilan bir xil)
 function cfgDan(p) { const o = {}; TOP_QOIDALAR.forEach(q => { const c = (p || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: c.kun === undefined ? q[2] : Number(c.kun) || 0 }; }); return o; }
@@ -88,6 +94,7 @@ async function topRoyxat([kodSes]) {
   await topTalabBelgi(L3.filter(x => x.holati === 'Jarayonda' || x.holati === 'Tekshiruvda'));
   return { ok: true, royxat: L3, xodimlar: Object.keys(X).map(k => X[k]).sort((a, b) => b.kechikkan - a.kechikkan || b.ochiq - a.ochiq),
     qoidalar: TOP_QOIDALAR.map(q => ({ k: q[0], nom: q[1], kimga: q[3], on: cfg[q[0]].on, kun: cfg[q[0]].kun })),
+    ochBosh: await require('../lib/ochilish').ochBosh(),   // 20.11.2026: yangi ijara shabloni kuchga kirgan sana (ochilish zanjiri shu sanadan)
     son: { ochiq: R.filter(x => x.holati === 'Jarayonda').length, kechikkan: R.filter(x => x.kechikkan).length, tekshiruv: R.filter(x => x.holati === 'Tekshiruvda').length, bugun: R.filter(x => x.holati === 'Bajarildi' && x.yopildi.slice(0, 10) === bugun).length } };
 }
 // qoidalarni saqlash — server bazasida (server_sozlama 'top_qoida'). Eski tizimga nusxa endi yozilmaydi (02.11.2026).
@@ -96,6 +103,8 @@ async function topQoidaYoz([kodSes, cfg]) {
   const u = await S.ruxsat(kodSes, 'admin');
   const o = {}; TOP_QOIDALAR.forEach(q => { const c = (cfg || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: Math.max(0, Math.min(60, Number(c.kun) || 0)) }; });
   await SZ.yoz('top_qoida', o, u.fish);
+  // 20.11.2026: och_bosh — yangi ijara shabloni kuchga kirgan sana (bo'sh = zanjir hali yoqilmagan; shu sanadan oldingi shartnomalar — 🚫 «Ijarachi kelmadi» yo'li)
+  if (cfg && cfg.ochBosh !== undefined) { const b = String(cfg.ochBosh || '').trim(); if (b && !/^\d{4}-\d{2}-\d{2}$/.test(b)) throw new S.Xato('Yangi shablon sanasi noto\'g\'ri.'); await require('../lib/ochilish').ochBoshYoz(b, u.fish); }
   return { ok: true };
 }
 

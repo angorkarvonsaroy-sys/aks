@@ -113,7 +113,8 @@ async function kbTekshir(no, ozId, R06m, opt = {}) {
   if (!opt.tekshirma) {
     const holati = s(r[2]).trim();
     if (holati !== 'Aktiv') throw new Xato(no + ' holati «' + (holati || 'bo\'sh') + '» — faqat «Aktiv» shartnoma bekor qilinadi.');
-    if (s(r[6]).trim() !== 'MChJ') throw new Xato(no + ' bo\'yicha ijaraga beruvchi — «' + r[6] + '». Bu yo\'l faqat MChJ nomidan tuzilgan shartnoma uchun — Kamoliddinga ayting.');
+    // 20.11.2026: ochilish nazorati (Ochilmagan) yo'lida sotilgan do'kon ijarasi ham o'tadi — direktorga ogohlantirish bilan (opt.egasiRuxsat)
+    if (s(r[6]).trim() !== 'MChJ' && !opt.egasiRuxsat) throw new Xato(no + ' bo\'yicha ijaraga beruvchi — «' + r[6] + '». Bu yo\'l faqat MChJ nomidan tuzilgan shartnoma uchun — Kamoliddinga ayting.');
     if (!(await J.hujjatJurnal()).some(h => h.no === no && h.turi === 'SHARTNOMA' && h.holati === 'Faol'))
       throw new Xato(no + ' ning imzolangan skani yuklanmagan — demak shartnoma imzolanmagan. Uni «✕ Imzolanmagan» yo\'li bilan bekor qiling.');
     const och = (await J.bekorJurnal()).find(z => z.no === no && BEKOR_YOPIQ.indexOf(z.holati) < 0);
@@ -122,7 +123,7 @@ async function kbTekshir(no, ozId, R06m, opt = {}) {
     if (boshqa) throw new Xato(no + ' bo\'yicha kelishuv so\'rovi allaqachon ochiq (' + boshqa.holati + ', ' + boshqa.kim + ').');
   }
   const x = { qator: V4[top[0]].n, no, sana: isoX(r[1]), dokon: T(r[4]), mid: T(r[5]), fish: T(r[23]), tel: T(r[24]), maydon: Number(r[25]) || 0,
-    egasi: T(r[26]), oylik: Number(r[14]) || 0, bepulGacha: isoX(r[28]), ogoh: [] };
+    egasi: T(r[26]), oylik: Number(r[14]) || 0, bepulGacha: isoX(r[28]), beruvchi: T(r[6]), holati: T(r[2]), bosh: isoX(r[9]), ogoh: [] };
   // 02 — mijoz: pasport, JSHSHIR, manzil (yuridik shaxs — STIR, rahbar, bank)
   const m = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => xom(z.x, 26)).find(z => T(z[0]) === x.mid);
   if (m) {

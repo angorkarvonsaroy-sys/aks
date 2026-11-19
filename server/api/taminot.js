@@ -190,9 +190,11 @@ async function kbHolat([kodSes, no]) {
   no = String(no || '').trim();
   if (!(await require('./hujjat')._ichki.royxatda(u, no))) return { huquq: true, admin: adm, mumkin: false, sabab: 'Shartnoma topilmadi: ' + no };
   const sr = (await kbRows()).filter(z => z.no === no && KB_OCHIQ.indexOf(z.holati) >= 0).pop();
-  if (sr) return { huquq: true, admin: adm, ozi: sr.kim === u.fish, s: kbKor(sr) };
-  try { await kbTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { huquq: true, admin: adm, mumkin: false, sabab: e.message }; }
-  return { huquq: true, admin: adm, mumkin: true };
+  // 20.11.2026: yangi matndagi shartnoma (sana ≥ och_bosh) — 🚫 «Ijarachi kelmadi» emas, 🏪 ochilish nazorati zanjiri
+  let yangiMatn = false; try { const O = require('../lib/ochilish'); const ob = await O.ochBosh(); const r4 = (await V.qatorlar('04_Ijara_shartnomalar')).map(z => z.x).find(z => String(z[0] || '').trim() === no); yangiMatn = !!(r4 && O.yangiMatn(O.isoDan(r4[1]), ob)); } catch (e) { }
+  if (sr) return { huquq: true, admin: adm, ozi: sr.kim === u.fish, s: kbKor(sr), yangiMatn };
+  try { await kbTekshir(no); } catch (e) { if (!(e instanceof S.Xato)) throw e; return { huquq: true, admin: adm, mumkin: false, sabab: e.message, yangiMatn }; }
+  return { huquq: true, admin: adm, mumkin: true, yangiMatn };
 }
 // imzTekshir_ — tekshiruv qismi; masul qaytaradi
 async function imzTekshir(no) {

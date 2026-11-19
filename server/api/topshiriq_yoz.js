@@ -163,6 +163,7 @@ async function topBer(args) {
 const ZAXIRA_ROL = {
   pasport: 'kotiba', skan: 'kotiba', skanq: 'kotiba', kbskan: 'kotiba', bekor: 'kotiba', xat: 'kotiba', bepul: 'kotiba',
   skanu: 'undiruv', davo: 'undiruv', vada: 'undiruv', tolov: 'undiruv', qmxat: 'undiruv', jshshir: 'undiruv',
+  ochsms: 'undiruv', ochtek: 'undiruv', ochxat: 'undiruv', ochbekor: 'undiruv', ochkelmadi: 'kotiba',   // 20.11.2026: ochilish nazorati
   yudavo: 'yurist', sotuv: 'rop', bron: 'rop'
 };
 const ZAXIRA_LAVOZIM = { kotiba: /kotiba/i, undiruv: /undiruv\s*(yurist|bo.?lim)/i, yurist: /undiruv\s*yurist/i, rop: /^\s*rop\s*$|sotuv\s*bo/i };

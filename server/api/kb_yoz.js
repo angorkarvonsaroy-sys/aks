@@ -197,11 +197,11 @@ async function kbBekorQil(u, x, sr, v = {}) {
     if (typeof W[0] === 'string' && W[0][0] === '=') ogoh.push('04 Izoh ustunida formula bor — izoh yozilmadi.');
     else {
       const e = s(((await G.oraliqOqi(env.aksBazaId, S4, 'W' + x.qator, env.googleKey))[0] || [])[0]).trim();
-      const kelmadi = sr.turi === 'Kelmadi';
-      await G.yoz(env.aksBazaId, [{ varaq: S4, katak: 'W' + x.qator, qiymat: [[(e ? e + ' | ' : '') + (kelmadi ? 'Ижарачи келмади — бир томонлама ' : 'Ўзаро келишув билан ') + sr.sana + ' бекор қилинди (KB-' + sr.id + '; ' + sr.kim + '; тасдиқ: ' + u.fish + '): ' + sr.sabab + (kelmadi && sr.izoh ? ' · ' + sr.izoh : '')]] }], env.googleKey);
+      const kelmadi = sr.turi === 'Kelmadi', ochilmagan = sr.turi === 'Ochilmagan';   // 20.11.2026: Ochilmagan — ochilish nazorati zanjiri (xabarnoma bilan)
+      await G.yoz(env.aksBazaId, [{ varaq: S4, katak: 'W' + x.qator, qiymat: [[(e ? e + ' | ' : '') + (ochilmagan ? 'Дўкон 5 кунда очилмади — бир томонлама (хабарнома) ' : kelmadi ? 'Ижарачи келмади — бир томонлама ' : 'Ўзаро келишув билан ') + sr.sana + ' бекор қилинди (KB-' + sr.id + '; ' + sr.kim + '; тасдиқ: ' + u.fish + '): ' + sr.sabab + ((kelmadi || ochilmagan) && sr.izoh ? ' · ' + sr.izoh : '')]] }], env.googleKey);
     }
     let bor = true; try { await G.gid(env.aksBazaId, jv, env.googleKey); } catch (e) { bor = false; }
-    if (bor) await TY.jurnalYoz(jv, [[vaqt, x.no, 'Ijara', x.mid, 'Holati', 'Aktiv', 'Bekor qilindi', u.fish, (sr.turi === 'Kelmadi' ? 'ijarachi kelmadi, bir tomonlama' : 'o\'zaro kelishuv') + ' (KB-' + sr.id + ', ' + sr.kim + '): ' + sr.sabab]]);
+    if (bor) await TY.jurnalYoz(jv, [[vaqt, x.no, 'Ijara', x.mid, 'Holati', 'Aktiv', 'Bekor qilindi', u.fish, (sr.turi === 'Ochilmagan' ? 'do\'kon ochilmadi, bir tomonlama (xabarnoma)' : sr.turi === 'Kelmadi' ? 'ijarachi kelmadi, bir tomonlama' : 'o\'zaro kelishuv') + ' (KB-' + sr.id + ', ' + sr.kim + '): ' + sr.sabab]]);
     else ogoh.push('06j_Tahrir_jurnali varag\'i topilmadi — jurnalga yozilmadi.');
   } catch (e) { throw yozilmadi(e); }
   return ogoh;
@@ -279,18 +279,28 @@ async function kbTasdiq(args) {
     if (sr.holati !== 'Tasdiq kutilmoqda') throw xato('So\'rov «' + sr.holati + '» holatida — tasdiq kutmayapti.');
     let natija = '', ogoh = [], x = null;
     if (ha) {
-      try { x = await KBH.kbTekshir(sr.no, sr.id, R.L); } catch (e) { if (e instanceof KBH.Xato) throw xato(e.message); throw e; }
+      try { x = await KBH.kbTekshir(sr.no, sr.id, R.L, { egasiRuxsat: sr.turi === 'Ochilmagan' }); } catch (e) { if (e instanceof KBH.Xato) throw xato(e.message); throw e; }
       ogoh = await kbBekorQil(u, x, sr);
       await kbJavobYoz(KB_V, sr, 'Tasdiqlandi', izoh || '', u.fish, 'tasdiqlandi — shartnoma bekor qilindi');
     } else {
       await kbJavobYoz(KB_V, sr, 'Rad etildi', izoh, u.fish, 'rad etildi — ' + izoh);
-      natija = sr.turi === 'Kelmadi' ? sr.no + ' bo\'yicha «ijarachi kelmadi» so\'rovi rad etildi. Shartnoma «Aktiv» qoladi.' : sr.no + ' bo\'yicha kelishuv rad etildi. Xodim skanni qayta yuklashi mumkin.';
+      natija = sr.turi === 'Kelmadi' ? sr.no + ' bo\'yicha «ijarachi kelmadi» so\'rovi rad etildi. Shartnoma «Aktiv» qoladi.'
+        : sr.turi === 'Ochilmagan' ? sr.no + ' bo\'yicha «do\'kon ochilmadi» so\'rovi rad etildi. Shartnoma «Aktiv» qoladi.' : sr.no + ' bo\'yicha kelishuv rad etildi. Xodim skanni qayta yuklashi mumkin.';
     }
     return { sr, natija, ogoh, x };
   }).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!r) return eskiTizim('kbTasdiq', u, [id, ha0, izoh0]);
   const { sr, x } = r; let { natija, ogoh } = r;
-  const kelmadi = sr.turi === 'Kelmadi';
+  const ochilmagan = sr.turi === 'Ochilmagan';
+  const kelmadi = sr.turi === 'Kelmadi' || ochilmagan;   // 20.11.2026: «Ochilmagan» (ochilish nazorati) — hujjat va skansiz yo'l, Kelmadi kabi
+  // 🏪 04b_Ochilish_nazorati qatori: ✅ — «Bekor qilindi», ✖ — so'rov tozalanadi (undiruvchi direktor bilan gaplashib qayta so'rashi mumkin)
+  if (kelmadi) {   // Kelmadi (eski matn) ham, Ochilmagan ham — 04b qatori bo'lsa
+    try { const O = require('../lib/ochilish'); const z = (await O.ochYangi()).find(q => q.no === sr.no && (q.sorov === String(sr.id) || q.holati === 'Bekor so\'raldi'));
+      if (z) { if (ha) await O.tarixQosh(z, u.fish + ': direktor tasdiqladi — shartnoma ' + sr.sana + ' dan bekor qilindi (KB-' + sr.id + ')', { Holati: 'Bekor qilindi' });
+        else await O.tarixQosh(z, u.fish + ': direktor rad etdi — ' + izoh + ' (KB-' + sr.id + ')', { Bekor_sorov: '', Holati: ochilmagan ? 'Xabarnoma' : 'Nazoratda' });
+        kut(tetik.varaqlarYangila([O.OCH_VARAQ]).catch(() => {}), 10000); } }
+    catch (e) { ogoh.push('04b_Ochilish_nazorati yangilanmadi (' + e.message + ').'); }
+  }
   if (x && !kelmadi) {   // qulfdan keyin: hujjat yuklash o'z qulfini oladi (Bekor.gs dagi kabi)
     // 3) 06d: imzolangan kelishuv — «Qo'shimcha kelishuv» turi bilan mijoz hujjatlariga (serverda — hujjat_yoz yuklaYadro, Drive fonda)
     try {
@@ -319,11 +329,12 @@ async function kbTasdiq(args) {
       if (k < 0) ogoh.push('Do\'kon ' + x.dokon + ' 01_Dokonlar da topilmadi — qo\'lda tekshiring.');
       else if (s(D[k][21]).trim() === x.no) ogoh.push('01_Dokonlar hali ham ' + x.no + ' ni ko\'rsatyapti — bazani tekshiring.');
     }
-    natija = sr.no + ' bekor qilindi (ijarachi kelmadi — bir tomonlama), do\'kon ' + x.dokon + ' bo\'shadi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '');
+    natija = sr.no + ' bekor qilindi (' + (ochilmagan ? 'do\'kon ochilmadi' : 'ijarachi kelmadi') + ' — bir tomonlama), do\'kon ' + x.dokon + ' bo\'shadi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '');
   }
   const m = kelmadi
-    ? (ha ? '✅ <b>Bir tomonlama bekor qilish tasdiqlandi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ') bekor qilindi, do\'kon ' + kbHtml(sr.dokon) + ' bo\'shadi. Yangi shartnoma tuzish mumkin.'
-        : '✖ <b>«Ijarachi kelmadi» so\'rovi rad etildi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ').\n«' + kbHtml(izoh) + '»\nShartnoma «Aktiv» qoladi. Ijarachi bilan yana bog\'laning; kerak bo\'lsa so\'rovni qayta yuboring: 📎 Hujjatlar → shartnoma → 🤝 kelishuv bloki.')
+    ? (ha ? '✅ <b>Bir tomonlama bekor qilish tasdiqlandi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ') ' + (ochilmagan ? sr.sana + ' dan ' : '') + 'bekor qilindi, do\'kon ' + kbHtml(sr.dokon) + ' bo\'shadi. Yangi shartnoma tuzish mumkin.'
+        + (ochilmagan ? '\nEndi do\'konni ikki xodim ishtirokida bir tomonlama dalolatnoma bilan qabul qiling (6.4-band): ichidagi mol-mulk ro\'yxatga olinadi.' : '')
+        : '✖ <b>«' + (ochilmagan ? 'Do\'kon ochilmadi' : 'Ijarachi kelmadi') + '» so\'rovi rad etildi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ').\n«' + kbHtml(izoh) + '»\nShartnoma «Aktiv» qoladi. Ijarachi bilan yana bog\'laning; kerak bo\'lsa so\'rovni qayta yuboring: 📎 Hujjatlar → shartnoma → ' + (ochilmagan ? '🏪 ochilish nazorati' : '🤝 kelishuv') + ' bloki.')
     : (ha ? '✅ <b>Kelishuv tasdiqlandi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ') bekor qilindi, do\'kon ' + kbHtml(sr.dokon) + ' bo\'shadi.'
     : '✖ <b>Kelishuv rad etildi</b> — ' + sr.no + ' (' + kbHtml(sr.fish) + ').\n«' + kbHtml(izoh) + '»\nTuzatib, skanni qayta yuklang: 📎 Hujjatlar → shartnoma → 🤝 kelishuv bloki.');
   await kbTgXodim(u.kod, sr.kim, m); if (sr.skanKim && sr.skanKim !== sr.kim) await kbTgXodim(u.kod, sr.skanKim, m);
@@ -355,6 +366,9 @@ async function kbKelmadi(args) {
   const R0 = await kbRowsYangi();
   let x; try { x = await KBH.kbTekshir(no, d.id, R0.L); } catch (e) { if (e instanceof KBH.Xato) throw xato(e.message); throw e; }
   if (sana < x.sana) throw xato('Sana shartnoma sanasidan (' + KBH.kbDmy(x.sana) + ') oldin bo\'lishi mumkin emas.');
+  // 20.11.2026: yangi matndagi shartnoma (3.2.4 — 5 kun, 6.3 — xabarnoma) 🏪 ochilish nazorati zanjiri bilan bekor qilinadi; bu yo'l — eski matn uchun
+  try { const O = require('../lib/ochilish'); const ob = await O.ochBosh(); if (O.yangiMatn(x.sana, ob)) throw xato('Bu shartnoma yangi matnda (' + KBH.kbDmy(x.sana) + ' — yangi shablon ' + KBH.kbDmy(ob) + ' dan) — bekor qilish 🏪 «Ochilish nazorati» zanjiri bilan: 5-kun tekshiruvi → xabarnoma → pochtadan 5 kun → ✂ Bekor qilish.'); }
+  catch (e) { if (e instanceof S.Xato) throw e; }
   const ogoh = x.ogoh.filter(m => !/kirillga|solishtiring|otasining ismi/.test(m));   // hujjat yo'q — ism/pasport ogohlantirishlari kerak emas
   if (kun < 15) ogoh.push('Shartnomaning 6.2-bandi: do\'kon 15 kundan ortiq yopiq turganda bekor qilinadi — siz ' + kun + ' kun deb yozdingiz. Direktor buni ko\'radi.');
   try {   // ijara to'lovi bo'lsa — bir tomonlama bekor qilish bahsli; direktorga ogohlantirish
@@ -389,12 +403,53 @@ async function kbKelmadi(args) {
     id = r.id; return r;
   }).catch(e => { if (e.yozilmadi) throw xato('Bazaga yozib bo\'lmadi (robotda ruxsat yo\'q) — direktorga ayting.'); throw e; });
   const sr = { id, no, fish: x.fish, dokon: x.dokon, sabab, sana: KBH.kbDmy(sana), qarz: 'Йўқ', kalit: 0, hisob: 'йўқ', holat: 'Очилмаган', izoh, kim: u.fish, turi: 'Kelmadi', kun, aloqa, ogoh, pdf: pdfId };
+  // 20.11.2026: 04b ochilish nazorati qatori bo'lsa — so'rov raqami yoziladi (faza «soraldi», «ochkelmadi» topshirig'i o'zi yopiladi)
+  try { const O = require('../lib/ochilish'); const z = (await O.ochYangi()).find(q => q.no === no && O.OCH_YOPIQ.indexOf(q.holati) < 0);
+    if (z) { await O.tarixQosh(z, u.fish + ': 🚫 «ijarachi kelmadi» so\'rovi direktorga yuborildi (KB-' + id + ')', { Bekor_sorov: String(id), Holati: 'Bekor so\'raldi' }); kut(tetik.varaqlarYangila([O.OCH_VARAQ]).catch(() => {}), 10000); } }
+  catch (e) { console.error('kbKelmadi 04b:', e.message); }
   TGK.yuborFon(u.kod, sr,
     '🚫 <b>Ijarachi kelmadi — bir tomonlama bekor qilish so\'rovi</b> — ' + no + ' (' + kbHtml(x.fish) + ', ' + kbHtml(x.dokon) + ')\n'
     + kun + ' kundan beri do\'kon ochilmagan. Aloqa: ' + kbHtml(aloqa) + '\n«' + kbHtml(sabab) + '»\n' + u.fish + '. Tasdiqlang: ilovada 👔 Direktor → Tasdiqlar.');
   await yangila([KB_V]);
   return { ok: true, id, no, ogoh, serverda: true,
     natija: no + ': «ijarachi kelmadi» so\'rovi direktorga yuborildi (Telegram). Tasdiqlagach shartnoma bekor bo\'ladi, do\'kon bo\'shaydi. Shu paytgacha shartnoma «Aktiv».' };
+}
+// ------------------------------------------------------------------ 🏪 kbOchilmagan(u, z, kun) — OCHILISH NAZORATI zanjirining oxiri (20.11.2026, direktor qarori)
+// Yangi matndagi shartnoma: 5 kunda do'kon ochilmadi → SMS/qo'ng'iroq → xabarnoma buyurtma xat bilan → pochtadan 5 kun o'tdi. Undiruvchi «✂ Bekor qilish»
+// bosadi (api/ochilish.js ochAmal 'bekor') → shu funksiya 06m qatorini «Tasdiq kutilmoqda» (Y «Ochilmagan») qiladi → direktorga botga ✅/✖ →
+// ✅ kbTasdiq: 04 «Bekor qilindi», D = xabarnomadagi (yoki pochta + 5 kun) sana, 06j; 06d ga hech narsa yozilmaydi (xabarnoma skani allaqachon 06d da).
+// z — 04b qatori (lib/ochilish.js qatorDan). Sotilgan do'kon (04 G ≠ MChJ) — ruxsat etiladi, direktorga ogohlantirish bilan.
+async function kbOchilmagan(u, z, kun) {
+  const O = require('../lib/ochilish');
+  const no = z.no, sana = z.bekorMumkin || hozir().iso;
+  if (!(await serverda2(u.kod))) throw xato('Bu amal hozir o\'chiq (serverda yozuv yoqilmagan) — direktorga ayting.');
+  const R0 = await kbRowsYangi();
+  let x; try { x = await KBH.kbTekshir(no, '', R0.L, { egasiRuxsat: true }); } catch (e) { if (e instanceof KBH.Xato) throw xato(e.message); throw e; }
+  const ogoh = x.ogoh.filter(m => !/kirillga|solishtiring|otasining ismi/.test(m));
+  if (x.beruvchi && x.beruvchi !== 'MChJ') ogoh.push('Ijara do\'kon egasi nomidan tuzilgan (' + x.beruvchi + ') — bekor qilishni egasi bilan kelishing; direktor buni ko\'radi.');
+  try { const t5 = (await V.qatorlar('05_Tolovlar')).filter(q => s(q.x[2]).trim() === no).length;
+    if (t5) ogoh.push('Bu shartnoma bo\'yicha ' + t5 + ' ta to\'lov bor — ijarachi pul to\'lagan; direktor alohida ko\'rib chiqadi.'); } catch (e) { }
+  const aloqa = [z.eslatma ? 'SMS eslatma ' + z.eslatma.slice(0, 10) : '', z.sms2 ? 'SMS ' + z.sms2.slice(0, 10) : '', z.qongiroq ? 'qo\'ng\'iroq ' + z.qongiroq.slice(0, 10) + ' (' + (z.qongiroq.split(' · ')[1] || '') + ')' : '',
+    'xabarnoma ' + z.xabNo + ' ' + O.dmy(z.xabSana), 'pochta ' + O.dmy(z.pochtaSana) + ' ' + z.pochtaNo].filter(Boolean).join('; ');
+  const sabab = 'Ижарачи 3.2.4-банддаги 5 кунлик муддатда (' + O.dmy(z.muddat) + 'гача) дўконни қабул қилиб олмади ва очмади (6.2-банд, 1-ҳолат). '
+    + 'Хабарнома ' + z.xabNo + ' буюртма хат билан юборилди (' + O.dmy(z.pochtaSana) + ', ' + z.pochtaNo + '); бекор санаси ' + O.dmy(sana) + '.';
+  const izoh = kun + ' kun ochilmagan · ' + aloqa;
+  const qator = [no, x.fish, x.dokon, sabab, O.dmy(sana), 'Йўқ', 0, 'йўқ', 'Очилмаган', izoh];
+  const w = await qulfBilan(async () => {
+    const R = await kbRowsYangi();
+    try { await KBH.kbTekshir(no, '', R.L, { egasiRuxsat: true }); } catch (e) { if (e instanceof KBH.Xato) throw xato(e.message); throw e; }
+    try { const y1 = s(((await G.oraliqOqi(env.aksBazaId, KB_V, 'Y1', env.googleKey))[0] || [])[0]).trim();
+      if (!y1) await G.yoz(env.aksBazaId, [{ varaq: KB_V, katak: 'Y1', qiymat: [['Turi']] }], env.googleKey); } catch (e) { }
+    return kbSorovYoz(KB_V, R, { qator, pdfId: '', docId: '', kim: u.fish, holati: 'Tasdiq kutilmoqda', turi: 'Ochilmagan',
+      tarix: 'do\'kon ochilmadi — ochilish nazorati zanjiri yakunlandi, bir tomonlama bekor qilish so\'rovi (' + izoh + ')' });
+  }).catch(e => { if (e.yozilmadi) throw xato('Bazaga yozib bo\'lmadi (robotda ruxsat yo\'q) — direktorga ayting.'); throw e; });
+  const sr = { id: w.id, no, fish: x.fish, dokon: x.dokon, sabab, sana: O.dmy(sana), qarz: 'Йўқ', kalit: 0, hisob: 'йўқ', holat: 'Очилмаган', izoh, kim: u.fish, turi: 'Ochilmagan', kun, aloqa, ogoh, pdf: '',
+    och: { xabNo: z.xabNo, xabSana: O.dmy(z.xabSana), pochtaSana: O.dmy(z.pochtaSana), pochtaNo: z.pochtaNo, muddat: O.dmy(z.muddat), tekVaqt: z.tekVaqt, eslatma: z.eslatma, sms2: z.sms2, qongiroq: z.qongiroq } };
+  TGK.yuborFon(u.kod, sr,
+    '🏪 <b>Do\'kon ochilmadi — bir tomonlama bekor qilish so\'rovi</b> — ' + no + ' (' + kbHtml(x.fish) + ', ' + kbHtml(x.dokon) + ')\n'
+    + 'Muddat ' + O.dmy(z.muddat) + ' gacha edi. ' + kbHtml(aloqa) + '\nBekor sanasi: ' + O.dmy(sana) + '. ' + u.fish + '. Tasdiqlang: ilovada 👔 Direktor → Tasdiqlar.');
+  await yangila([KB_V]);
+  return { ok: true, id: w.id, no, ogoh, natija: no + ': bekor qilish so\'rovi direktorga yuborildi (Telegram). Tasdiqlagach shartnoma ' + O.dmy(sana) + ' dan bekor qilingan hisoblanadi, do\'kon bo\'shaydi.' };
 }
 // skan → Drive (fon): Koprik v1.13 koprikKbSaqla { yil, skanNom, skanB64 } → { skan }; 06m P ga Drive ID (agar hali shu SRV bo'lsa)
 const skanYolda = new Set();
@@ -470,4 +525,4 @@ async function qolganlarniKochir() {
 function boshla() { const t = setInterval(() => qolganlarniKochir().catch(() => {}), 15 * 60000); t.unref(); setTimeout(() => qolganlarniKochir().catch(() => {}), 90000).unref(); }
 
 module.exports = { kbTayyorla, kbSkan, kbBekor, kbTasdiq, kbKelmadi };
-module.exports._ichki = { kbRowsYangi, kbSorovYoz, kbQaytaYoz, kbTarix, kbSkanYoz, kbBekorYoz, kbJavobYoz, kbBekorQil, koprik112, koprik113, boshla, KB_V, N };
+module.exports._ichki = { kbOchilmagan, kbRowsYangi, kbSorovYoz, kbQaytaYoz, kbTarix, kbSkanYoz, kbBekorYoz, kbJavobYoz, kbBekorQil, koprik112, koprik113, boshla, KB_V, N };

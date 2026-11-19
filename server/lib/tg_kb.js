@@ -15,7 +15,10 @@ const s = v => String(v == null ? '' : v);
 const SABAB = ['Imzo yo\'q yoki mos emas', 'Skan to\'liq emas — varaq yetishmaydi', 'O\'qib bo\'lmaydi — xira', 'Hujjatda xato bor'];
 // 19.11.2026: «Ijarachi kelmadi» (bir tomonlama, skansiz) so'rovi uchun rad sabablari boshqa
 const SABAB_K = ['Ijarachi bilan yana gaplashing', 'Muddat hali yetarli emas', 'Avval ogohlantirish xati yuboring', 'Sabab asosli emas'];
-const sabablar = sr => (sr && sr.turi === 'Kelmadi') ? SABAB_K : SABAB;
+// 20.11.2026: 🏪 «Do'kon ochilmadi» (ochilish nazorati zanjiri: xabarnoma yuborilgan) so'rovi uchun
+const SABAB_O = ['Ijarachi bilan yana gaplashing', 'Xabarnoma yetkazilganini tekshiring', 'Muddat hali yetarli emas', 'Sabab asosli emas'];
+const sabablar = sr => (sr && sr.turi === 'Kelmadi') ? SABAB_K : (sr && sr.turi === 'Ochilmagan') ? SABAB_O : SABAB;
+const birTomonlama = sr => !!(sr && (sr.turi === 'Kelmadi' || sr.turi === 'Ochilmagan'));
 const klav = id => ({ inline_keyboard: [[{ text: '✅ Tasdiqlayman', callback_data: 'kb|A|' + id }, { text: '✖ Rad etish', callback_data: 'kb|R|' + id }]] });
 const klavSabab = (id, sr) => ({ inline_keyboard: sabablar(sr).map((z, i) => [{ text: '✖ ' + z, callback_data: 'kb|S|' + id + '|' + i }])
   .concat([[{ text: '✍ Boshqa — yozaman', callback_data: 'kb|W|' + id }], [{ text: '↩ Orqaga', callback_data: 'kb|B|' + id }]]) });
@@ -23,6 +26,16 @@ const klavSabab = (id, sr) => ({ inline_keyboard: sabablar(sr).map((z, i) => [{ 
 // xabar matni (skan fayl ostidagi izoh)
 function matn(sr) {
   const e = TT.esc;
+  if (sr.turi === 'Ochilmagan') {   // 20.11.2026: ochilish nazorati zanjiri yakunlandi — 5-kun tekshiruvi, SMS/qo'ng'iroq, xabarnoma pochta bilan, 5 kun o'tdi
+    const o = sr.och || {};
+    return '🏪 <b>Do\'kon ochilmadi — bir tomonlama bekor qilish so\'rovi</b> — <b>' + e(sr.no) + '</b> (' + e(sr.fish) + ', ' + e(sr.dokon) + ')\n'
+      + 'Muddat (3.2.4, 5 kun): <b>' + e(o.muddat || '?') + '</b> gacha · tekshiruv: ' + e(s(o.tekVaqt).slice(0, 16) || '—') + ' — ochilmagan\n'
+      + 'SMS: ' + e(o.eslatma ? s(o.eslatma).slice(0, 10) : '—') + (o.sms2 ? ', ' + e(s(o.sms2).slice(0, 10)) : '') + ' · qo\'ng\'iroq: ' + e(o.qongiroq ? s(o.qongiroq).slice(0, 10) + ' (' + (s(o.qongiroq).split(' · ')[1] || '') + ')' : '—') + '\n'
+      + 'Xabarnoma <b>' + e(o.xabNo || '') + '</b> ' + e(o.xabSana || '') + ' · pochta ' + e(o.pochtaSana || '') + ' ' + e(o.pochtaNo || '') + '\n'
+      + 'Bekor sanasi: <b>' + e(sr.sana) + '</b> · so\'radi: ' + e(sr.kim)
+      + ((sr.ogoh || []).length ? '\n⚠ ' + (sr.ogoh || []).map(e).join(' ') : '') + '\n'
+      + '✅ bossangiz — shartnoma ' + e(sr.sana) + ' dan bekor bo\'ladi, do\'kon bo\'shaydi, xodimga xabar ketadi (keyin bir tomonlama dalolatnoma).';
+  }
   if (sr.turi === 'Kelmadi') {   // 19.11.2026: hujjat va skan yo'q — direktor sababni o'qib qaror qiladi
     return '🚫 <b>Ijarachi kelmadi — bir tomonlama bekor qilish so\'rovi</b> — <b>' + e(sr.no) + '</b> (' + e(sr.fish) + ', ' + e(sr.dokon) + ')\n'
       + '<b>' + e(sr.kun || '?') + ' kundan beri</b> do\'kon ochilmagan · aloqa: ' + e(s(sr.aloqa).slice(0, 200)) + '\n'
@@ -47,7 +60,7 @@ async function yubor(kod, sr, eskiMatn) {
   }
   const cap = matn(sr), ctx = TT.haqiqiy(), R = [];
   for (const chat of C) {
-    try { const r = await TT.faylYubor(ctx, chat, sr.skan ? [{ f: sr.skan }] : [], cap, klav(sr.id), sr.turi === 'Kelmadi' ? 'Ijarachi kelmadi' : 'Imzolangan kelishuv'); if (r.ref) R.push(r.ref); }
+    try { const r = await TT.faylYubor(ctx, chat, sr.skan ? [{ f: sr.skan }] : [], cap, klav(sr.id), sr.turi === 'Ochilmagan' ? 'Do\'kon ochilmadi' : sr.turi === 'Kelmadi' ? 'Ijarachi kelmadi' : 'Imzolangan kelishuv'); if (r.ref) R.push(r.ref); }
     catch (e) { console.error('kb tg ' + chat + ':', e.message); }
   }
   if (!R.length) { try { await require('../api/koprik').chaqir('koprikTgYubor', kod, [s(eskiMatn)]); } catch (e) { } return ''; }
@@ -117,9 +130,9 @@ async function radMatn(ctx, m, chat, matn0, id, h) {
     if (ctx.quruq) { ctx.log.push({ yozuv: 'KELISHUV ✖ ' + id + ' «' + matn0 + '»' }); return { tur: 'kb sabab', kim, nima: id, natija: '(quruq)' }; }
     await bajar(u, id, false, matn0);
     const sr = await sorov(id);
-    await h.yubor(ctx, chat, '✖ Rad etildi: «' + TT.esc(matn0) + '». ' + (sr && sr.turi === 'Kelmadi' ? 'Shartnoma «Aktiv» qoladi, xodimga xabar ketdi.' : 'Xodim tuzatib, skanni qayta yuklaydi.'));
+    await h.yubor(ctx, chat, '✖ Rad etildi: «' + TT.esc(matn0) + '». ' + (birTomonlama(sr) ? 'Shartnoma «Aktiv» qoladi, xodimga xabar ketdi.' : 'Xodim tuzatib, skanni qayta yuklaydi.'));
     return { tur: 'kb sabab', kim, nima: id, natija: 'rad: ' + s(matn0).slice(0, 80) };
   } catch (e) { await h.yubor(ctx, chat, '⚠ ' + TT.esc(e.message)).catch(() => {}); return { tur: 'kb sabab', kim, nima: id, natija: '⚠ ' + e.message }; }
 }
 
-module.exports = { yubor, yuborFon, natija, natijaFon, bajar, tugma, radMatn, matn, klav, klavSabab, sorov, SABAB, SABAB_K };
+module.exports = { yubor, yuborFon, natija, natijaFon, bajar, tugma, radMatn, matn, klav, klavSabab, sorov, SABAB, SABAB_K, SABAB_O };
