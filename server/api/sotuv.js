@@ -28,6 +28,10 @@ const BR_KUN = 3;          // bron muddati
 const BR_UZAYTIR = 3;      // uzaytirilganda qo'shiladigan kun
 const BR_UZ_MAX = 1;       // xodim necha marta uzaytira oladi (keyingisi — direktor)
 const BR_OGOH_KUN = 1;     // tugashiga shuncha kun qolganda ogohlantiriladi
+// 📊 19.11.2026 (direktor qarori) — oylik reja. Direktor ko'rsatkichni ilovada o'zi qo'yadi,
+// kodda yozilmaydi: har oy o'zgarishi mumkin. Xodim satri bo'sh bo'lsa — butun bo'lim rejasi.
+const RJ_VARAQ = '01e_Reja';
+const RJ_S = ['Oy', 'Xodim', 'Tashrif_reja', 'Taklif_reja', 'Shartnoma_reja', 'Kim', 'Vaqt'];
 
 // Natijalar — yopiladigan (zanjir tugaydi) va ochiq (keyingi qadam kerak)
 const ST_NATIJA = [
@@ -126,8 +130,9 @@ function sababHisob(L) {
   L.forEach(z => {
     jami++;
     const m = s(z.sana).slice(0, 7);
-    const o = oyM[m] || (oyM[m] = { oy: m, jami: 0, natijali: 0, shartnoma: 0, yoqolgan: 0 });
+    const o = oyM[m] || (oyM[m] = { oy: m, jami: 0, natijali: 0, taklif: 0, shartnoma: 0, yoqolgan: 0 });
     o.jami++; if (s(z.natija)) o.natijali++;
+    if (s(z.natija) === 'taklif' || s(z.natija) === 'shartnoma') o.taklif++;   // таклиф босқичигача етганлар
     const kim = s(z.natKim) || s(z.kim) || '—';
     const qo = s(z.natija) === 'qiziqmadi', nt = s(z.natija) === 'notogri';
     if (s(z.natija) === 'shartnoma') { shartnoma++; o.shartnoma++; return; }
@@ -142,7 +147,7 @@ function sababHisob(L) {
   });
   const royxat = Object.keys(S).map(k => ({ sabab: k, soni: S[k], ulush: yoq ? Math.round(S[k] / yoq * 1000) / 10 : 0 }))
     .sort((a2, b2) => b2.soni - a2.soni);
-  const oylar = Object.values(oyM).sort((a2, b2) => a2.oy < b2.oy ? 1 : -1).slice(0, 6).reverse();
+  const oylar = Object.values(oyM).sort((a2, b2) => a2.oy < b2.oy ? 1 : -1).slice(0, 12).reverse();
   return { jami, natijali: jami - natijasiz, shartnoma, yoqolgan: yoq, natijasiz, aloqa, jarayon, royxat, oylar,
     xodimlar: Object.values(XD).sort((a2, b2) => b2.yoqolgan - a2.yoqolgan)
       .map(x => ({ xodim: x.xodim, yoqolgan: x.yoqolgan,
@@ -170,12 +175,16 @@ async function sotuvBoshlang([kodSes]) {
   try { bron = (await bronRoyxat(bugun)).filter(z => u.admin || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
+  let reja = [];
+  try { reja = await rejaRoyxat(); } catch (e) { console.error('sotuvReja:', e.message); }
+  // режа қўйиш учун сотувчилар рўйхати (директорга) — ташриф ёзадиган ходимлар
+  const XR = [...new Set(L.map(z => stXodim(z.kim)).filter(Boolean))].sort();
   son.bronFaol = bron.filter(z => z.holati === 'Faol').length;
   son.bronOtdi = bron.filter(z => z.holati === 'Muddati o\'tdi').length;
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: u.admin, mening: u.fish,
     svod: u.admin ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(u.admin ? L : M) };
+    sababHis: sababHisob(u.admin ? L : M), reja, xodimlar: u.admin ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -262,6 +271,55 @@ async function dokonHolat(dokonId, bugun) {
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
 }
 
+// 📊 reja varag'i va ro'yxati
+async function rjVaraqTayyor() {
+  const m = await G.varaqlar(env.aksBazaId, env.googleKey);
+  if (m.varaqlar.some(v => v.title === RJ_VARAQ)) return;
+  await G.soralar(env.aksBazaId, [{ addSheet: { properties: { title: RJ_VARAQ,
+    gridProperties: { rowCount: 500, columnCount: RJ_S.length, frozenRowCount: 1 } } } }], env.googleKey);
+  await G.yoz(env.aksBazaId, [{ varaq: RJ_VARAQ, katak: 'A1', qiymat: [RJ_S] }], env.googleKey);
+}
+async function rjYangi() {
+  try {
+    const R = await G.oraliqOqi(env.aksBazaId, RJ_VARAQ, 'A2:G', env.googleKey, 'UNFORMATTED_VALUE');
+    let m = -1; R.forEach((r, i) => { if (r[0] !== '' && r[0] != null) m = i; });
+    return R.slice(0, m + 1).map((r, i) => { const o = { qator: i + 2 }; RJ_S.forEach((k, j) => { o[k] = r[j] == null ? '' : r[j]; }); return o; });
+  } catch (e) { if (/Unable to parse range|not found/i.test(e.message)) return []; throw e; }
+}
+async function rejaRoyxat() {
+  let R = [];
+  try { R = (await V.qatorlar(RJ_VARAQ)).map(({ x }) => ({ oy: s(x[0]).trim(), xodim: s(x[1]).trim(),
+    tashrif: Number(x[2]) || 0, taklif: Number(x[3]) || 0, shartnoma: Number(x[4]) || 0, kim: s(x[5]), vaqt: s(x[6]) }))
+    .filter(z => /^\d{4}-\d{2}$/.test(z.oy)); } catch (e) { return []; }
+  return R;
+}
+// 📊 rejani qo'yish / o'zgartirish — faqat direktor
+async function sotuvRejaYoz(args) {
+  const [kodSes, oy0, xodim0, tashrif0, taklif0, shartnoma0] = args;
+  const u = await S.ruxsat(kodSes, 'tashrif');
+  if (u.sifat) throw new S.Xato('👁 Кўриш режимида бажарилмайди.');
+  if (!u.admin) throw new S.Xato('Режани фақат директор қўяди.');
+  const oy = s(oy0).trim(), xodim = s(xodim0).trim();
+  if (!/^\d{4}-\d{2}$/.test(oy)) throw new S.Xato('Ой нотўғри.');
+  const son = v => { const n = Math.round(Number(v) || 0); return n < 0 ? 0 : (n > 9999 ? 9999 : n); };
+  const tr = son(tashrif0), tk = son(taklif0), sh = son(shartnoma0);
+  if (!tr && !tk && !sh) throw new S.Xato('Камида битта рақам киритинг.');
+  if (!(await serverda())) throw new S.Xato('Сотув бўлимига ёзиш ҳозир ўчиқ. Директорга айтинг.');
+  await rjVaraqTayyor();
+  const L = await rjYangi();
+  const bor = L.find(z => s(z.Oy).trim() === oy && s(z.Xodim).trim() === xodim);
+  if (bor) {
+    await G.yoz(env.aksBazaId, [{ varaq: RJ_VARAQ, katak: 'C' + bor.qator + ':F' + bor.qator, qiymat: [[tr, tk, sh, u.fish]] }], env.googleKey);
+    await G.sanaYoz(env.aksBazaId, [{ varaq: RJ_VARAQ, qator: bor.qator, ustun: 7, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
+  } else {
+    const qator = await G.qatorQoshR(env.aksBazaId, RJ_VARAQ, L.reduce((m, z) => Math.max(m, z.qator), 1) + 1,
+      [oy, xodim, tr, tk, sh, u.fish, ''], env.googleKey);
+    await G.sanaYoz(env.aksBazaId, [{ varaq: RJ_VARAQ, qator, ustun: 7, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
+  }
+  await yangila([RJ_VARAQ]);
+  return { ok: true, oy, xodim, tashrif: tr, taklif: tk, shartnoma: sh };
+}
+
 async function sotuvBron(args) {
   const [kodSes, d0] = args; const d = d0 || {};
   const u = await S.ruxsat(kodSes, 'tashrif');
@@ -327,6 +385,6 @@ async function sotuvBronAmal(args) {
   return { ok: true, holati: holat };
 }
 
-module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal };
-module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN,
+module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz };
+module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };
