@@ -39,6 +39,12 @@ const NARX = {
   k1: 1.045, k2: 0.3795, yarim: 60000000, yaxlit: 10000, oy: 36,
   bazalar: [10530000, 12510000, 13410000, 14310000],          // prays-listda rasman e'lon qilinganlari
   shartlar: [0, 60000000, 120000000],                          // rasmiy boshlang'ich to'lovlar
+  // RASMIY PRAYS-LIST — e'lon qilingan aniq raqamlar. Formula faqat taqribiy: uchta tarifda 5–10 ming
+  // so'm farq qiladi (12 510 000@60: formula 15 450 000, prays 15 440 000; 13 410 000@120: 15 290 000 va
+  // 15 280 000; 14 310 000@0: 20 380 000 va 20 385 000). Rasmiy baza bo'lsa — FAQAT shu jadval,
+  // formula esa prays-listda yo'q bazalar uchun. taklif_generator.py dagi JADVAL bilan bir xil.
+  jadval: { '10530000': [15000000, 13000000, 12000000], '12510000': [17820000, 15440000, 14260000],
+            '13410000': [19100000, 16560000, 15280000], '14310000': [20385000, 17670000, 16310000] },
   sovga: { naqd: '«Умра» сафарига йўлланма + замонавий телевизор', '120': '12-ўлчамли кондиционер',
     '60': 'замонавий телевизор', '0': 'мотивацион эсдалик совғалар' }
 };
