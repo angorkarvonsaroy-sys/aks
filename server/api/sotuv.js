@@ -30,27 +30,15 @@ const BR_UZ_MAX = 1;       // xodim necha marta uzaytira oladi (keyingisi — di
 const BR_OGOH_KUN = 1;     // tugashiga shuncha kun qolganda ogohlantiriladi
 // 📊 19.11.2026 (direktor qarori) — oylik reja. Direktor ko'rsatkichni ilovada o'zi qo'yadi,
 // kodda yozilmaydi: har oy o'zgarishi mumkin. Xodim satri bo'sh bo'lsa — butun bo'lim rejasi.
-// 🏬 19.11.2026 (direktor qarori) — do'kon tanlash va narx. Formula loyiha qoidasidan:
-//   1 m² narxi = baza × [1,045 + 0,3795 × 0,5^(boshlang'ich / 60 000 000)], 10 000 so'mgacha yaxlitlanadi
-//   100 % naqd — alohida hol: 1 m² = bazaning o'zi
-//   umumiy qiymat = 1 m² × real maydon;  oylik = (qiymat − boshlang'ich) / 36
-// Konstantalar ilovaga YUBORILADI — formula ikki joyda yozilmasin, bitta manbadan ishlasin.
-const NARX = {
-  k1: 1.045, k2: 0.3795, yarim: 60000000, yaxlit: 10000, oy: 36,
-  bazalar: [10530000, 12510000, 13410000, 14310000],          // prays-listda rasman e'lon qilinganlari
-  shartlar: [0, 60000000, 120000000],                          // rasmiy boshlang'ich to'lovlar
-  // RASMIY PRAYS-LIST — e'lon qilingan aniq raqamlar. Formula faqat taqribiy: uchta tarifda 5–10 ming
-  // so'm farq qiladi (12 510 000@60: formula 15 450 000, prays 15 440 000; 13 410 000@120: 15 290 000 va
-  // 15 280 000; 14 310 000@0: 20 380 000 va 20 385 000). Rasmiy baza bo'lsa — FAQAT shu jadval,
-  // formula esa prays-listda yo'q bazalar uchun. taklif_generator.py dagi JADVAL bilan bir xil.
-  jadval: { '10530000': [15000000, 13000000, 12000000], '12510000': [17820000, 15440000, 14260000],
-            '13410000': [19100000, 16560000, 15280000], '14310000': [20385000, 17670000, 16310000] },
-  sovga: { naqd: '«Умра» сафарига йўлланма + замонавий телевизор', '120': '12-ўлчамли кондиционер',
-    '60': 'замонавий телевизор', '0': 'мотивацион эсдалик совғалар' }
-};
+const NR = require('../lib/narx');          // 🏬 narx: rasmiy prays-list jadvali, aks holda formula
+const TKP = require('../lib/taklif_pdf');   // 📄 taklif varag'i (A4 PDF)
+const NARX = NR.NARX;
 
 const RJ_VARAQ = '01e_Reja';
 const RJ_S = ['Oy', 'Xodim', 'Tashrif_reja', 'Taklif_reja', 'Shartnoma_reja', 'Kim', 'Vaqt'];
+// 📄 19.11.2026 — chiqarilgan takliflar jurnali: kimga, qachon, qaysi do'kon, qaysi narxda
+const TK_VARAQ = '01f_Takliflar';
+const TK_S = ['Taklif_ID', 'Sana', 'Dokon_ID', 'Mijoz_FISH', 'Telefon', 'Maydon', 'Baza_narx', 'Naqd_qiymat', 'Boshlangichsiz_qiymat', 'Izoh', 'Kim', 'Vaqt'];
 
 // Natijalar — yopiladigan (zanjir tugaydi) va ochiq (keyingi qadam kerak)
 const ST_NATIJA = [
@@ -199,7 +187,8 @@ async function sotuvBoshlang([kodSes]) {
   try { bron = (await bronRoyxat(bugun)).filter(z => bosh || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
-  let reja = [], shOy = [], dokonlar = [];
+  let reja = [], shOy = [], dokonlar = [], takliflar = [];
+  try { takliflar = await taklifRoyxat(); } catch (e) { console.error('taklifRoyxat:', e.message); }
   try { dokonlar = await bosDokonlar(bugun); } catch (e) { console.error('bosDokonlar:', e.message); }
   try { reja = await rejaRoyxat(); } catch (e) { console.error('sotuvReja:', e.message); }
   try { shOy = await shartnomaOylar(); } catch (e) { console.error('shartnomaOylar:', e.message); }
@@ -210,7 +199,7 @@ async function sotuvBoshlang([kodSes]) {
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: bosh, dir: u.admin, mening: u.fish,
     svod: bosh ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(bosh ? L : M), reja, shOy, dokonlar, narx: NARX, xodimlar: bosh ? XR : [] };
+    sababHis: sababHisob(bosh ? L : M), reja, shOy, dokonlar, narx: NARX, takliflar: takliflar.slice(0, 200), xodimlar: bosh ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -292,7 +281,7 @@ async function dokonHolat(dokonId, bugun) {
   const qur = s(x[7]).trim();
   const B = (await bronRoyxat(bugun)).find(z => z.dokon.toLowerCase() === s(dokonId).trim().toLowerCase() && z.holati === 'Faol');
   const xh = xHolat(x, !!B);
-  return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, qurilish: qur,
+  return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0, qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
 }
@@ -378,6 +367,70 @@ async function sotuvRejaYoz(args) {
   return { ok: true, oy, xodim, tashrif: tr, taklif: tk, shartnoma: sh };
 }
 
+// 📄 takliflar jurnali
+async function tkVaraqTayyor() {
+  const m = await G.varaqlar(env.aksBazaId, env.googleKey);
+  if (m.varaqlar.some(v => v.title === TK_VARAQ)) return;
+  await G.soralar(env.aksBazaId, [{ addSheet: { properties: { title: TK_VARAQ,
+    gridProperties: { rowCount: 5000, columnCount: TK_S.length, frozenRowCount: 1 } } } }], env.googleKey);
+  await G.yoz(env.aksBazaId, [{ varaq: TK_VARAQ, katak: 'A1', qiymat: [TK_S] }], env.googleKey);
+}
+async function tkYangi() {
+  try {
+    const R = await G.oraliqOqi(env.aksBazaId, TK_VARAQ, 'A2:L', env.googleKey, 'UNFORMATTED_VALUE');
+    let m = -1; R.forEach((r, i) => { if (r[0] !== '' && r[0] != null) m = i; });
+    return R.slice(0, m + 1).map((r, i) => { const o = { qator: i + 2 }; TK_S.forEach((k, j) => { o[k] = r[j] == null ? '' : r[j]; }); return o; });
+  } catch (e) { if (/Unable to parse range|not found/i.test(e.message)) return []; throw e; }
+}
+async function taklifRoyxat() {
+  let R = [];
+  try { R = (await V.qatorlar(TK_VARAQ)).map(({ x }) => ({ id: s(x[0]).trim(), sana: stIso(x[1]), dokon: s(x[2]),
+    fish: s(x[3]), tel: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0,
+    naqd: Number(x[7]) || 0, boshsiz: Number(x[8]) || 0, izoh: s(x[9]), kim: s(x[10]), vaqt: s(x[11]) }))
+    .filter(z => z.id); } catch (e) { return []; }
+  return R.sort((a, b) => a.sana < b.sana ? 1 : (a.sana > b.sana ? -1 : 0));
+}
+
+// 📄 taklifni chiqarish: PDF + jurnalga qator. Ruxsat — «tashrif» (sotuvchi).
+async function sotuvTaklif(args) {
+  const [kodSes, d0] = args;
+  const u = await S.ruxsat(kodSes, 'tashrif');
+  if (u.sifat) throw new S.Xato('👁 Кўриш режимида бажарилмайди.');
+  const d = d0 || {};
+  const dokon = s(d.dokon).trim().toUpperCase();
+  const fish = s(d.fish).replace(/\s+/g, ' ').trim();
+  const tel = s(d.tel).replace(/\D/g, '');
+  const izoh = s(d.izoh).replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!dokon) throw new S.Xato('Дўкон рақамини киритинг.');
+  const bugun = V.bugun();
+  const D = await dokonHolat(dokon, bugun);
+  if (!D.bor) throw new S.Xato('Бундай дўкон топилмади: ' + dokon);
+  if (!D.maydon || !D.baza) throw new S.Xato('Бу дўконнинг майдони ёки база нархи базада йўқ.');
+  const T = await TKP.taklifYasa({ blok: D.blok, qavat: D.qavat, no: D.no, maydon: D.maydon, baza: D.baza,
+    qurilish: D.qurilish, taqiq: D.taqiq, rais: D.rais }, izoh);
+  if (D.egasi) T.ogoh.unshift('Дўкон бўш эмас: ' + D.egasi + '.');
+  if (D.ijarada) T.ogoh.unshift('Дўкон ижарада.');
+  if (D.bron) T.ogoh.unshift('Дўкон бронда: ' + D.bron.fish + ', ' + stDmy(D.bron.tugash) + ' гача.');
+  // jurnalga yozish — PDF baribir berilади, yozuv imkoni bo'lmasa faqat ogohlantiriladi
+  let id = '', yozildi = false;
+  try {
+    if (await serverda()) {
+      await tkVaraqTayyor();
+      const L = await tkYangi();
+      id = 'TK-' + bugun.slice(0, 4) + '/' + String(L.reduce((m, z) => Math.max(m, Number(s(z.Taklif_ID).split('/')[1]) || 0), 0) + 1).padStart(4, '0');
+      const qator = await G.qatorQoshR(env.aksBazaId, TK_VARAQ, L.reduce((m, z) => Math.max(m, z.qator), 1) + 1,
+        [id, '', D.id, fish, tel ? '+998' + tel.slice(-9) : '', D.maydon, D.baza,
+         Math.round(T.hisob.naqd.jami), Math.round(T.hisob.yoq.jami), izoh, u.fish, ''], env.googleKey);
+      await G.sanaYoz(env.aksBazaId, [{ varaq: TK_VARAQ, qator, ustun: 2, iso: bugun, naqsh: 'dd.MM.yyyy' },
+        { varaq: TK_VARAQ, qator, ustun: 12, iso: hozirIso(), naqsh: 'auto' }], env.googleKey);
+      await yangila([TK_VARAQ]);
+      yozildi = true;
+    }
+  } catch (e) { console.error('sotuvTaklif (jurnal):', e.message); }
+  return { ok: true, id, yozildi, nom: T.nom + '.pdf', mime: 'application/pdf', b64: T.pdf.toString('base64'),
+    dokon: D.id, ogoh: T.ogoh, hisob: T.hisob };
+}
+
 async function sotuvBron(args) {
   const [kodSes, d0] = args; const d = d0 || {};
   const u = await S.ruxsat(kodSes, 'tashrif');
@@ -443,6 +496,6 @@ async function sotuvBronAmal(args) {
   return { ok: true, holati: holat };
 }
 
-module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz };
+module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
 module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };
