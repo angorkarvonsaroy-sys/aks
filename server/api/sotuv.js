@@ -30,6 +30,19 @@ const BR_UZ_MAX = 1;       // xodim necha marta uzaytira oladi (keyingisi — di
 const BR_OGOH_KUN = 1;     // tugashiga shuncha kun qolganda ogohlantiriladi
 // 📊 19.11.2026 (direktor qarori) — oylik reja. Direktor ko'rsatkichni ilovada o'zi qo'yadi,
 // kodda yozilmaydi: har oy o'zgarishi mumkin. Xodim satri bo'sh bo'lsa — butun bo'lim rejasi.
+// 🏬 19.11.2026 (direktor qarori) — do'kon tanlash va narx. Formula loyiha qoidasidan:
+//   1 m² narxi = baza × [1,045 + 0,3795 × 0,5^(boshlang'ich / 60 000 000)], 10 000 so'mgacha yaxlitlanadi
+//   100 % naqd — alohida hol: 1 m² = bazaning o'zi
+//   umumiy qiymat = 1 m² × real maydon;  oylik = (qiymat − boshlang'ich) / 36
+// Konstantalar ilovaga YUBORILADI — formula ikki joyda yozilmasin, bitta manbadan ishlasin.
+const NARX = {
+  k1: 1.045, k2: 0.3795, yarim: 60000000, yaxlit: 10000, oy: 36,
+  bazalar: [10530000, 12510000, 13410000, 14310000],          // prays-listda rasman e'lon qilinganlari
+  shartlar: [0, 60000000, 120000000],                          // rasmiy boshlang'ich to'lovlar
+  sovga: { naqd: '«Умра» сафарига йўлланма + замонавий телевизор', '120': '12-ўлчамли кондиционер',
+    '60': 'замонавий телевизор', '0': 'мотивацион эсдалик совғалар' }
+};
+
 const RJ_VARAQ = '01e_Reja';
 const RJ_S = ['Oy', 'Xodim', 'Tashrif_reja', 'Taklif_reja', 'Shartnoma_reja', 'Kim', 'Vaqt'];
 
@@ -180,7 +193,8 @@ async function sotuvBoshlang([kodSes]) {
   try { bron = (await bronRoyxat(bugun)).filter(z => bosh || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
-  let reja = [], shOy = [];
+  let reja = [], shOy = [], dokonlar = [];
+  try { dokonlar = await bosDokonlar(bugun); } catch (e) { console.error('bosDokonlar:', e.message); }
   try { reja = await rejaRoyxat(); } catch (e) { console.error('sotuvReja:', e.message); }
   try { shOy = await shartnomaOylar(); } catch (e) { console.error('shartnomaOylar:', e.message); }
   // режа қўйиш учун сотувчилар рўйхати (директорга) — ташриф ёзадиган ходимлар
@@ -190,7 +204,7 @@ async function sotuvBoshlang([kodSes]) {
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: bosh, dir: u.admin, mening: u.fish,
     svod: bosh ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(bosh ? L : M), reja, shOy, xodimlar: bosh ? XR : [] };
+    sababHis: sababHisob(bosh ? L : M), reja, shOy, dokonlar, narx: NARX, xodimlar: bosh ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -275,6 +289,22 @@ async function dokonHolat(dokonId, bugun) {
   return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
+}
+
+// 🏬 Sotuvga bo'sh do'konlar ro'yxati: xHolat — «Bo'sh» (sotilmagan, ijarasiz, ma'muriy emas, broni yo'q).
+// Taqiqdagi va raisga ajratilganlar ham chiqadi, lekin belgisi bilan — ularni bronlashda ruxsat so'raladi.
+async function bosDokonlar(bugun) {
+  const [R1, B] = await Promise.all([V.qatorlar('01_Dokonlar'), bronRoyxat(bugun).catch(() => [])]);
+  const br = {}; B.forEach(z => { if (z.holati === 'Faol' && z.dokon) br[z.dokon.trim().toUpperCase()] = 1; });
+  const L = [];
+  R1.forEach(({ n, x }) => {
+    if (n > 641 || !s(x[0]).trim()) return;
+    const h = xHolat(x, !!br[s(x[0]).trim().toUpperCase()]);
+    if (h !== 'Bo\'sh') return;
+    L.push({ id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0,
+      qurilish: s(x[7]), taqiq: /^ha$/i.test(s(x[8])), rais: /^ha$/i.test(s(x[11])) });
+  });
+  return L;
 }
 
 // 📋 19.11.2026 — oyma-oy TUZILGAN SHARTNOMALAR (03_Sotuv_shartnomalar dan, bekor qilinganlarsiz).
