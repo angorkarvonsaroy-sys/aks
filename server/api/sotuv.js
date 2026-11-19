@@ -116,6 +116,39 @@ async function tashrifRoyxat(bugun) {
 function kun(a, b) { if (!a || !b) return 0; return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000); }
 
 // ------------------------------------------------------------------ 🛒 ekran
+// 🧾 19.11.2026 (direktor qarori) — SABABLAR HISOBOTI: qaysi sababdan qancha mijoz yo'qolgan.
+// Manbai 01c_Tashrif_natija: «Qiziqmadi» natijasi va uning sababi, hamda «Raqam noto'g'ri».
+// Yo'qolgan deb faqat YOPILGAN ishlar sanaladi. Natija umuman yozilmagan va «Bog'lanib bo'lmadi»
+// — bular hali yo'qotish emas, XAVF ostidagilar: alohida ko'rsatiladi, chunki aynan shular jim yo'qoladi.
+function sababHisob(L) {
+  const S = {}, oyM = {}, XD = {};
+  let jami = 0, shartnoma = 0, yoq = 0, natijasiz = 0, aloqa = 0, jarayon = 0;
+  L.forEach(z => {
+    jami++;
+    const m = s(z.sana).slice(0, 7);
+    const o = oyM[m] || (oyM[m] = { oy: m, jami: 0, natijali: 0, shartnoma: 0, yoqolgan: 0 });
+    o.jami++; if (s(z.natija)) o.natijali++;
+    const kim = s(z.natKim) || s(z.kim) || '—';
+    const qo = s(z.natija) === 'qiziqmadi', nt = s(z.natija) === 'notogri';
+    if (s(z.natija) === 'shartnoma') { shartnoma++; o.shartnoma++; return; }
+    if (qo || nt) {
+      const k = nt ? 'Рақам нотўғри' : (s(z.sabab).trim() || 'Сабаб ёзилмаган');
+      S[k] = (S[k] || 0) + 1; yoq++; o.yoqolgan++;
+      const x = XD[kim] || (XD[kim] = { xodim: kim, yoqolgan: 0, sabablar: {} });
+      x.yoqolgan++; x.sabablar[k] = (x.sabablar[k] || 0) + 1;
+      return;
+    }
+    if (!s(z.natija)) natijasiz++; else if (s(z.natija) === 'aloqa') aloqa++; else jarayon++;
+  });
+  const royxat = Object.keys(S).map(k => ({ sabab: k, soni: S[k], ulush: yoq ? Math.round(S[k] / yoq * 1000) / 10 : 0 }))
+    .sort((a2, b2) => b2.soni - a2.soni);
+  const oylar = Object.values(oyM).sort((a2, b2) => a2.oy < b2.oy ? 1 : -1).slice(0, 6).reverse();
+  return { jami, natijali: jami - natijasiz, shartnoma, yoqolgan: yoq, natijasiz, aloqa, jarayon, royxat, oylar,
+    xodimlar: Object.values(XD).sort((a2, b2) => b2.yoqolgan - a2.yoqolgan)
+      .map(x => ({ xodim: x.xodim, yoqolgan: x.yoqolgan,
+        eng: Object.keys(x.sabablar).sort((p, q) => x.sabablar[q] - x.sabablar[p])[0] || '' })) };
+}
+
 async function sotuvBoshlang([kodSes]) {
   const u = await S.ruxsat(kodSes, 'tashrif');
   const bugun = V.bugun();
@@ -141,7 +174,8 @@ async function sotuvBoshlang([kodSes]) {
   son.bronOtdi = bron.filter(z => z.holati === 'Muddati o\'tdi').length;
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: u.admin, mening: u.fish,
     svod: u.admin ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
-    natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB };
+    natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
+    sababHis: sababHisob(u.admin ? L : M) };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
