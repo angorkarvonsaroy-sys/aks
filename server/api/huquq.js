@@ -29,6 +29,7 @@ const BILAMAN = [
   ['xarita', "Do'konlar xaritasi"],
   ['xarita_moliya', "Xaritada pul ma'lumotlari (qarz, to'lov)"],
   ['undiruv', "Undiruvchi — o'ziga biriktirilgan qarzdorlar, «Bugungi ish»"],
+  ['sotuv_boshliq', "Sotuv bo'limi boshlig'i — butun sotuv voronkasi, sabablar va oylik reja (19.11.2026)"],
   ['yurist', "Yurist bo'limi — yuristga o'tkazilgan ishlar"],
   ['xat', 'Ogohlantirish xatlari'],
   ['devon', 'Devonxona (kirim-chiqim xatlar)'],

@@ -64,6 +64,10 @@ const natNomi = k => (ST_NATIJA.find(x => x[0] === k) || [, s(k)])[1];
 const natYopiq = k => !!(ST_NATIJA.find(x => x[0] === k) || [])[2];
 
 async function serverda() { try { return await BQ.yozuv('tashrif'); } catch (e) { return false; } }
+// 📊 19.11.2026 (direktor qarori): sotuv bo'limi boshlig'i (ROP) — butun bo'lim ko'rinadi va oylik rejani
+// u ham qo'yadi. Direktor ham shu huquqqa ega. Bron muddatini ikkinchi marta uzaytirish va raisga ajratilgan
+// do'konni bronlash FAQAT direktorda qoladi — u yerda u.admin tekshiriladi.
+const boshliq = u => !!(u.admin || (u.huquq || []).indexOf('sotuv_boshliq') >= 0);
 function kunQosh(iso, n) { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
 // ------------------------------------------------------------------ 01c varaq
@@ -158,7 +162,8 @@ async function sotuvBoshlang([kodSes]) {
   const u = await S.ruxsat(kodSes, 'tashrif');
   const bugun = V.bugun();
   const L = await tashrifRoyxat(bugun);
-  const meniki = z => u.admin || xodimTeng(z.kim, u.fish) || xodimTeng(z.natKim, u.fish);
+  const bosh = boshliq(u);
+  const meniki = z => bosh || xodimTeng(z.kim, u.fish) || xodimTeng(z.natKim, u.fish);
   const M = L.filter(meniki);
   const son = { jami: M.length, natijasiz: 0, kechikdi: 0, bugun: 0, kutilmoqda: 0, yopiq: 0, shartnoma: 0 };
   M.forEach(z => { if (z.holat === 'natijasiz') son.natijasiz++; else if (z.holat === 'kechikdi' || z.holat === 'qadamsiz') son.kechikdi++;
@@ -172,7 +177,7 @@ async function sotuvBoshlang([kodSes]) {
   const tartib = { natijasiz: 0, kechikdi: 1, qadamsiz: 2, bugun: 3, kutilmoqda: 4, yopiq: 5 };
   M.sort((a, b) => (tartib[a.holat] - tartib[b.holat]) || (a.sana < b.sana ? 1 : -1));
   let bron = [];
-  try { bron = (await bronRoyxat(bugun)).filter(z => u.admin || !z.kim || xodimTeng(z.kim, u.fish))
+  try { bron = (await bronRoyxat(bugun)).filter(z => bosh || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
   let reja = [];
@@ -181,10 +186,10 @@ async function sotuvBoshlang([kodSes]) {
   const XR = [...new Set(L.map(z => stXodim(z.kim)).filter(Boolean))].sort();
   son.bronFaol = bron.filter(z => z.holati === 'Faol').length;
   son.bronOtdi = bron.filter(z => z.holati === 'Muddati o\'tdi').length;
-  return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: u.admin, mening: u.fish,
-    svod: u.admin ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
+  return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: bosh, dir: u.admin, mening: u.fish,
+    svod: bosh ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(u.admin ? L : M), reja, xodimlar: u.admin ? XR : [] };
+    sababHis: sababHisob(bosh ? L : M), reja, xodimlar: bosh ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -205,7 +210,7 @@ async function sotuvNatija(args) {
   if (!(await serverda())) throw new S.Xato('Сотув бўлимига ёзиш ҳозир ўчиқ. Директорга айтинг.');
   const T = (await V.qatorlar('01b_Tashrif_jurnali')).find(({ x }) => s(x[0]).trim() === id);
   if (!T) throw new S.Xato('Ташриф топилмади.');
-  if (!u.admin && !xodimTeng(s(T.x[8]), u.fish)) throw new S.Xato('Бу ташриф сизники эмас.');
+  if (!boshliq(u) && !xodimTeng(s(T.x[8]), u.fish)) throw new S.Xato('Бу ташриф сизники эмас.');
   await varaqTayyor();
   const bor = (await natijaYangi()).find(z => s(z.Tashrif_ID).trim() === id);
   const qiymat = [id, nat, natYopiq(nat) ? sabab : '', natYopiq(nat) ? '' : qadam, '', izoh, u.fish, ''];
@@ -298,7 +303,7 @@ async function sotuvRejaYoz(args) {
   const [kodSes, oy0, xodim0, tashrif0, taklif0, shartnoma0] = args;
   const u = await S.ruxsat(kodSes, 'tashrif');
   if (u.sifat) throw new S.Xato('👁 Кўриш режимида бажарилмайди.');
-  if (!u.admin) throw new S.Xato('Режани фақат директор қўяди.');
+  if (!boshliq(u)) throw new S.Xato('Режани директор ёки сотув бўлими бошлиғи қўяди.');
   const oy = s(oy0).trim(), xodim = s(xodim0).trim();
   if (!/^\d{4}-\d{2}$/.test(oy)) throw new S.Xato('Ой нотўғри.');
   const son = v => { const n = Math.round(Number(v) || 0); return n < 0 ? 0 : (n > 9999 ? 9999 : n); };
@@ -364,7 +369,7 @@ async function sotuvBronAmal(args) {
   const L = await brYangi();
   const z = L.find(x => s(x.Bron_ID).trim() === id); if (!z) throw new S.Xato('Брон топилмади.');
   if (s(z.Holati).trim() !== 'Faol') throw new S.Xato('Бу брон аллақачон ёпилган: ' + s(z.Holati));
-  if (!u.admin && s(z.Kim).trim() && !require('../lib/xodim').xodimTeng(s(z.Kim), u.fish)) throw new S.Xato('Бу брон сизники эмас.');
+  if (!boshliq(u) && s(z.Kim).trim() && !require('../lib/xodim').xodimTeng(s(z.Kim), u.fish)) throw new S.Xato('Бу брон сизники эмас.');
   const uz = Number(z.Uzaytirildi) || 0;
   if (amal === 'uzaytir') {
     if (!u.admin && uz >= BR_UZ_MAX) throw new S.Xato('Брон бир марта узайтирилган. Яна узайтириш — фақат директор рухсати билан.');
