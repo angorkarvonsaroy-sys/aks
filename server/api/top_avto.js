@@ -83,7 +83,7 @@ async function topCtx(kod, bugun) {
   // 14.11.2026 (direktor qarori): 🤝 kelishuv bilan bekor qilish hujjati tayyorlangan, lekin imzolangan skan KB_SKAN_KUN kundan beri yuklanmagan (yoki direktor
   // qaytargan va qayta yuklanmagan) — shartnoma bazada «Aktiv» bo'lib turaveradi. 14.11.2026 da shunday 7 ta ish bor edi, 5 tasi 34 kundan beri.
   let kb = [];
-  try { kb = (await require('./taminot')._ichki.kbRows()).filter(z => z.holati === 'Hujjat tayyorlandi' || z.holati === 'Rad etildi').map(z => {
+  try { kb = (await require('./taminot')._ichki.kbRows()).filter(z => (z.holati === 'Hujjat tayyorlandi' || z.holati === 'Rad etildi') && z.turi !== 'Kelmadi').map(z => {   // 19.11.2026: «Kelmadi» so'rovida skan yo'q — bu topshiriq unga berilmaydi
       const sana = TS.topIso(z.holati === 'Rad etildi' ? (z.javobVaqt || z.vaqt) : z.vaqt).slice(0, 10);
       return { id: s(z.id), no: z.no, fish: s(z.fish), dokon: s(z.dokon), kim: s(z.kim), qaytgan: z.holati === 'Rad etildi', kun: sana ? Math.round((d0 - new Date(sana + 'T12:00:00Z')) / 86400000) : 0 }; })
     .filter(z => z.kun > KB_SKAN_KUN); } catch (e) { console.error('topCtx kb:', e.message); }

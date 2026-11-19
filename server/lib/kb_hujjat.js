@@ -15,7 +15,8 @@ const { xatKirill } = require('./ism');
 
 const KB_VARAQ = '06m_Kelishuv_bekor';
 const KB_SARLAVHA = ['ID', 'Vaqt', 'Shartnoma_№', 'Mijoz_FISH', 'Dokon_ID', 'Sabab', 'Bekor_sana', 'Elektr_qarz', 'Kalitlar', 'Hisoblagich',
-  'Dokon_holati', 'Holat_izoh', 'Holati', 'PDF_ID', 'DOC_ID', 'Skan_ID', 'Skan_vaqt', 'Skan_kim', 'Kim', 'Javob', 'Javob_vaqt', 'Javob_kim', 'Tarix', 'Skan_sahifa'];
+  'Dokon_holati', 'Holat_izoh', 'Holati', 'PDF_ID', 'DOC_ID', 'Skan_ID', 'Skan_vaqt', 'Skan_kim', 'Kim', 'Javob', 'Javob_vaqt', 'Javob_kim', 'Tarix', 'Skan_sahifa',
+  'Turi'];   // Y (19.11.2026): '' — o'zaro kelishuv (hujjat + skan); «Kelmadi» — ijarachi kelmadi, bir tomonlama, hujjatsiz (direktor tasdig'i bilan)
 const KB_HUQUQ = 'ijara_kelishuv';
 const KB_OCHIQ = ['Hujjat tayyorlandi', 'Tasdiq kutilmoqda', 'Rad etildi'];
 const KB_QARZ_KUN = 10;                       // elektr qarzi bo'lsa — kelishuvdan keyin shuncha kun ichida to'lanadi
@@ -94,7 +95,7 @@ async function kbXodimIsm(fish) {
 function kbRowsDan(rows) {
   return rows.map(({ qator, r: r0 }) => { const r = []; for (let i = 0; i < KB_SARLAVHA.length; i++) r.push(s(r0[i]));
     return { qator, id: r[0], vaqt: r[1], no: r[2].trim(), fish: r[3], dokon: r[4], sabab: r[5], sana: r[6], qarz: r[7].trim() === 'Йўқ' ? 'Йўқ' : r[7].replace(/\D/g, ''), kalit: r[8], hisob: r[9],
-      holat: r[10], izoh: r[11], holati: r[12], pdf: r[13], doc: r[14], skan: r[15], skanVaqt: r[16], skanKim: r[17], kim: r[18], javob: r[19], javobVaqt: r[20], javobKim: r[21], tarix: r[22], sahifa: r[23] }; })
+      holat: r[10], izoh: r[11], holati: r[12], pdf: r[13], doc: r[14], skan: r[15], skanVaqt: r[16], skanKim: r[17], kim: r[18], javob: r[19], javobVaqt: r[20], javobKim: r[21], tarix: r[22], sahifa: r[23], turi: r[24].trim() }; })
     .filter(z => z.id);
 }
 async function kbRowsKozgu() { return kbRowsDan(aOxiri(await V.qatorlar(KB_VARAQ)).map(z => ({ qator: z.n, r: z.r }))); }

@@ -129,14 +129,14 @@ async function taminotBoshlang([kodSes]) {
 
 // ------------------------------------------------------------------ 🤝 KELISHUV BILAN BEKOR (06m)
 async function kbRows() {
-  return aOxiri(await V.qatorlar('06m_Kelishuv_bekor')).map(({ n, r: r0 }) => { const r = kor(r0, 24);
+  return aOxiri(await V.qatorlar('06m_Kelishuv_bekor')).map(({ n, r: r0 }) => { const r = kor(r0, 25);
     return { qator: n, id: r[0], vaqt: r[1], no: String(r[2]).trim(), fish: r[3], dokon: r[4], sabab: r[5], sana: r[6], qarz: String(r[7]).trim() === 'Йўқ' ? 'Йўқ' : String(r[7]).replace(/\D/g, ''), kalit: r[8], hisob: r[9],
-      holat: r[10], izoh: r[11], holati: r[12], pdf: r[13], doc: r[14], skan: r[15], skanVaqt: r[16], skanKim: r[17], kim: r[18], javob: r[19], javobVaqt: r[20], javobKim: r[21], tarix: r[22], sahifa: r[23] }; })
+      holat: r[10], izoh: r[11], holati: r[12], pdf: r[13], doc: r[14], skan: r[15], skanVaqt: r[16], skanKim: r[17], kim: r[18], javob: r[19], javobVaqt: r[20], javobKim: r[21], tarix: r[22], sahifa: r[23], turi: String(r[24]).trim() }; })
     .filter(s => s.id);
 }
 function kbKor(s) {
   return { id: s.id, vaqt: s.vaqt, no: s.no, fish: s.fish, dokon: s.dokon, sabab: s.sabab, sana: s.sana, qarz: s.qarz, kalit: s.kalit, hisob: s.hisob, holat: s.holat, izoh: s.izoh,
-    holati: s.holati, skan: !!s.skan, skanVaqt: s.skanVaqt, skanKim: s.skanKim, kim: s.kim, javob: s.javob, javobVaqt: s.javobVaqt, javobKim: s.javobKim, doc: !!s.doc };
+    holati: s.holati, skan: !!s.skan, skanVaqt: s.skanVaqt, skanKim: s.skanKim, kim: s.kim, javob: s.javob, javobVaqt: s.javobVaqt, javobKim: s.javobKim, doc: !!s.doc, pdf: !!s.pdf, turi: s.turi || '' };
 }
 async function kbDirektor([kodSes]) {
   await S.ruxsat(kodSes, 'admin');
