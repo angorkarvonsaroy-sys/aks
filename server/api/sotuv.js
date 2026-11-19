@@ -180,8 +180,9 @@ async function sotuvBoshlang([kodSes]) {
   try { bron = (await bronRoyxat(bugun)).filter(z => bosh || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
-  let reja = [];
+  let reja = [], shOy = [];
   try { reja = await rejaRoyxat(); } catch (e) { console.error('sotuvReja:', e.message); }
+  try { shOy = await shartnomaOylar(); } catch (e) { console.error('shartnomaOylar:', e.message); }
   // режа қўйиш учун сотувчилар рўйхати (директорга) — ташриф ёзадиган ходимлар
   const XR = [...new Set(L.map(z => stXodim(z.kim)).filter(Boolean))].sort();
   son.bronFaol = bron.filter(z => z.holati === 'Faol').length;
@@ -189,7 +190,7 @@ async function sotuvBoshlang([kodSes]) {
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: bosh, dir: u.admin, mening: u.fish,
     svod: bosh ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(bosh ? L : M), reja, xodimlar: bosh ? XR : [] };
+    sababHis: sababHisob(bosh ? L : M), reja, shOy, xodimlar: bosh ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -274,6 +275,22 @@ async function dokonHolat(dokonId, bugun) {
   return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
+}
+
+// 📋 19.11.2026 — oyma-oy TUZILGAN SHARTNOMALAR (03_Sotuv_shartnomalar dan, bekor qilinganlarsiz).
+// Reja ekranidagi «Shartnoma» FAKTI shu yerdan olinadi, tashrif natijasidan emas: shartnoma tashrif
+// jurnalida belgilanmagan bo'lsa ham tuzilgan bo'lishi mumkin — biznes natijasi 03 da turadi.
+async function shartnomaOylar() {
+  const O = {};
+  try {
+    (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ x }) => {
+      if (!s(x[0]).trim()) return;
+      if (/bekor/i.test(s(x[13]))) return;
+      const m = stIso(x[2]).slice(0, 7); if (!/^\d{4}-\d{2}$/.test(m)) return;
+      O[m] = (O[m] || 0) + 1;
+    });
+  } catch (e) { console.error('shartnomaOylar:', e.message); return []; }
+  return Object.keys(O).sort().slice(-24).map(m => ({ oy: m, soni: O[m] }));
 }
 
 // 📊 reja varag'i va ro'yxati
