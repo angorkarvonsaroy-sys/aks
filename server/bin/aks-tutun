@@ -46,6 +46,17 @@ if [ -f "$SIN/eksport_tekshir.js" ]; then
   fi
 fi
 
+# 1c) jadval hisobi birlik sinovi (19.11.2026): lib/jadval_holat — to'lovni jadval qatorlariga taqsimlash.
+#     Bu hisob mijoz kartasi va to'lov kiritishda ko'rinadi; buzilsa raqamlar bazadagidan farq qiladi. Sof funksiya — baza kerak emas.
+if [ -f "$YANGI/sinov/jadval_holat_sinov.js" ]; then
+  node "$YANGI/sinov/jadval_holat_sinov.js" >"$T/jadval.txt" 2>&1; K=$?
+  tail -1 "$T/jadval.txt"
+  if [ "$K" != "0" ]; then
+    { echo "Jadval hisobi sinovidan o'tmadi (lib/jadval_holat):"; grep -E 'AssertionError|actual|expected' "$T/jadval.txt" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | head -5; } >"$T/xabar.txt"
+    xabar; exit 2
+  fi
+fi
+
 # 2) server kodi — yangi
 yur() { nomidan env NODE_PATH="$APP/node_modules" timeout 220 node "$SIN/tutun.js" --ildiz "$1" >"$2" 2>&1; }
 yur "$YANGI" "$T/yangi.txt"; K=$?

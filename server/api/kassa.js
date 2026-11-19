@@ -346,7 +346,19 @@ async function tolovMaqsad([kodSes, d]) {
   if (asos.length) parts.push(dokon + 'ни сотиб олиш учун ' + asos.join(' ва '));
   if (qosh.length) parts.push((asos.length ? 'ва шу дўкон' : dokon) + 'нинг ' + qosh.join(' ва '));
   const matn = fish + 'нинг «Ангор Карвон Сарой» савдо мажмуасидан ' + parts.join(' ') + ' (' + no + '-сонли шартнома)';
-  return { matn, davr: Q };
+  // 19.11.2026: JADVAL HOLATI va «BU TO'LOV NIMANI YOPADI» — to'lov saqlanishidan oldin xodim ko'radi (lib/jadval_holat)
+  let jadval = null;
+  try {
+    const JH = require('../lib/jadval_holat'); const bugun = V.bugun();
+    const [T5, B5] = await Promise.all([V.qatorlar(T05), V.qatorlar('05b_Bufer_tolovlar')]);
+    const tl = T5.filter(({ x: y }) => y[0] !== '' && y[0] != null && st(y[2]) === no).map(({ x: y }) => ({ id: st(y[0]), sana: V.iso(y[1]) || '', summa: V.son(y[3]) }))
+      .concat(B5.filter(({ x: y }) => y[0] !== '' && y[0] != null && st(y[2]) === no && st(y[6]) === 'Буферда').map(({ x: y }) => ({ id: 'b' + st(y[0]), sana: V.iso(y[1]) || bugun, summa: V.son(y[3]), bufer: true })));
+    const P = { qatorlar: jad.map(j => ({ tartib: j.t, sana: j.sana, summa: j.summa })), tolovlar: tl, bugun, qiymat: V.son(x[22]), umumiy: V.son(x[25]) || V.son(x[22]) };
+    const h = JH.jadvalHolat(P); const dmy = v => v ? String(v).split('-').reverse().join('.') : '';
+    jadval = { keyingi: h.keyingi ? { nom: h.keyingi.nom, sana: dmy(h.keyingi.sana), summa: h.keyingi.summa, kechikkan: h.keyingi.kechikkan } : null, muddatiOtgan: h.muddatiOtgan, kechikkanKun: h.kechikkanKun, progress: h.progress, soni: h.soni,
+      oldindan: summa > 0 ? (o => ({ yopdi: o.yopdi, ortiqcha: o.ortiqcha, muddatiOtganKeyin: o.keyin.muddatiOtgan, keyingiKeyin: o.keyin.keyingi ? { nom: o.keyin.keyingi.nom, sana: dmy(o.keyin.keyingi.sana), summa: o.keyin.keyingi.summa } : null, progressKeyin: o.keyin.progress }))(JH.tolovOldindan(P, summa, V.iso(d && d.sana) || bugun)) : null };
+  } catch (e) { jadval = { xato: String(e && e.message || e).slice(0, 120) }; }
+  return { matn, davr: Q, jadval };
 }
 
 module.exports = { tashrifTekshir, bugungiTashriflar, tashrifSaqlash, tolovSaqlash, tolovMaqsad };

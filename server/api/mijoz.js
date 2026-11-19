@@ -70,13 +70,13 @@ async function mijozKarta([kodSes, mid]) {
   const SH = [], NO = {};
   // 02.11.2026 (3-bosqichga tayyorgarlik): hisoblangan ustunlar (03 Z–AG, 04 AC) ko'ringan matndan emas, XOM qiymatdan (x0) — aks-baza xom: 0 farq
   (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ r: x, x: x0 }) => { if (!x[0] || String(x[4] || '').trim() !== mid) return; if (!k(x[13], x[17], String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
-    SH.push({ no: String(x[0]).trim(), tur: 'sotuv', sana: x[2] || '', dokon: x[5] || '', maydon: x[6] || '', holati: x[13] || '', qiymat: num(x0[25]), oylik: num(x0[26]), tolangan: num(x0[27]), asosiy: num(x0[28]), qoshimcha: num(x0[29]), jami: num(x0[30]), muddati: num(x0[31]), kechikkan: num(x0[32]), undiruvchi: x[17] || '', bekorSana: x[14] || '' }); });
+    SH.push({ no: String(x[0]).trim(), tur: 'sotuv', sana: x[2] || '', dokon: x[5] || '', maydon: x[6] || '', holati: x[13] || '', qiymat: num(x0[25]), asosiyQiymat: num(x0[22]), oylik: num(x0[26]), tolangan: num(x0[27]), asosiy: num(x0[28]), qoshimcha: num(x0[29]), jami: num(x0[30]), muddati: num(x0[31]), kechikkan: num(x0[32]), undiruvchi: x[17] || '', bekorSana: x[14] || '' }); });
   (await V.qatorlar('04_Ijara_shartnomalar')).forEach(({ r: x, x: x0 }) => { if (!x[0] || String(x[5] || '').trim() !== mid) return; if (!k(x[2], '', String(x[0]).trim())) { YO[String(x[0]).trim()] = 1; return; } NO[String(x[0]).trim()] = 1;
     SH.push({ no: String(x[0]).trim(), tur: 'ijara', sana: x[1] || '', dokon: x[4] || '', maydon: x[13] || '', holati: x[2] || '', bosh: x[9] || '', tugash: x[10] || '', muddat: x[11] || '', bepul: x[12] || '', oylik: num(x[14]), faoliyat: x[18] || '', masul: x[20] || '', bepulTugash: V.korSana(x0[28]) || '', bekorSana: x[3] || '' }); });
   if (!SH.length && (Object.keys(YO).length || k.cheklangan)) throw new S.Xato('Mijoz topilmadi: ' + mid);   // faqat yashirin shartnomalari bor (undiruvchi/yurist — shartnomasiz ham)
   // 03b: keyingi to'lov sanasi va jadval tugashi
-  const bugunIso = V.bugun(); const JD = {};
-  (await V.qatorlar('03b_Tolov_jadvali')).forEach(({ x }) => { const no = String(x[1] == null ? '' : x[1]).trim(); if (!NO[no]) return; const d = V.iso(x[3]); if (!d) return; (JD[no] = JD[no] || []).push(d); });
+  const bugunIso = V.bugun(); const JD = {}, JDR = {};
+  (await V.qatorlar('03b_Tolov_jadvali')).forEach(({ x }) => { const no = String(x[1] == null ? '' : x[1]).trim(); if (!NO[no]) return; const d = V.iso(x[3]); if (!d) return; (JD[no] = JD[no] || []).push(d); (JDR[no] = JDR[no] || []).push({ tartib: num(x[2]), sana: d, summa: num(x[4]), turi: x[6] || '' }); });
   SH.forEach(s => { const L = (JD[s.no] || []).sort(); if (!L.length) return; s.tugash = L[L.length - 1].split('-').reverse().join('.'); const k = L.find(d => d >= bugunIso); s.keyingi = k ? k.split('-').reverse().join('.') : 'jadval tugagan'; });
   // do'konlar (01_Dokonlar)
   const DK = []; const DKN = {}; SH.forEach(s => { if (s.dokon && !/bekor/i.test(s.holati)) DKN[String(s.dokon).trim()] = s; });
@@ -88,8 +88,19 @@ async function mijozKarta([kodSes, mid]) {
       xarita: V.matn(x0[25]) || '', hujjat: r[26] || '', narx: num(r[6]) }); });
   // to'lovlar
   const T = [];
-  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || V.matn(x0[12]).trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ id: String(x[0]).trim(), sana: x[1] || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
+  (await V.qatorlar('05_Tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; if ((NO[String(x[2] || '').trim()] || V.matn(x0[12]).trim() === mid) && !YO[String(x[2] || '').trim()]) T.push({ id: String(x[0]).trim(), sana: x[1] || '', sanaIso: V.iso(x0[1]) || V.iso(x[1]) || '', no: x[2] || '', summa: num(x[3]), shakl: x[4] || '', hujjat: x[5] || '', kim: x[9] || '', izoh: x[11] || '' }); });
   T.reverse();
+  // 19.11.2026: TO'LOV JADVALI QATOR-QATOR — har qator holati, har to'lov «nimani yopdi», keyingi to'lov, progress (lib/jadval_holat — bazadagi AB/AF/AG formulalari bilan bir xil, 206/206 shartnomada tekshirilgan)
+  { const JH = require('../lib/jadval_holat'); const BUF = {};
+    (await V.qatorlar('05b_Bufer_tolovlar')).forEach(({ r: x, x: x0 }) => { if (!x[0]) return; const no = String(x[2] || '').trim(); if (NO[no] && String(x[6] || '').trim() === 'Буферда') (BUF[no] = BUF[no] || []).push({ id: 'b' + String(x[0]).trim(), sana: V.iso(x0[1]) || V.iso(x[1]) || bugunIso, summa: num(x[3]), bufer: true }); });
+    const dmy = d => d ? String(d).split('-').reverse().join('.') : '';
+    SH.forEach(s => { if (s.tur !== 'sotuv' || !(JDR[s.no] || []).length) return;
+      const tl = T.filter(t => String(t.no).trim() === s.no).map(t => ({ id: t.id, sana: t.sanaIso, summa: t.summa, shakl: t.shakl })).concat(BUF[s.no] || []);
+      const jh = JH.jadvalHolat({ qatorlar: JDR[s.no], tolovlar: tl, bugun: bugunIso, qiymat: s.asosiyQiymat || s.qiymat, umumiy: s.qiymat });   // 03 W — asosiy, Z — umumiy (W + qo'shimcha maydon)
+      s.jadval = jh.qatorlar.map(q => ({ tartib: q.tartib, nom: q.nom, sana: dmy(q.sana), summa: q.summa, tolandi: q.tolandi, qoldiq: q.qoldiq, holat: q.holat, kun: q.kun }));
+      s.keyingiTolov = jh.keyingi ? { nom: jh.keyingi.nom, sana: dmy(jh.keyingi.sana), summa: jh.keyingi.summa, kechikkan: jh.keyingi.kechikkan } : null;
+      s.progress = jh.progress; s.jadvalSoni = jh.soni; s.jadvalJami = { tolangan: jh.jamiTolangan, muddatiOtgan: jh.muddatiOtgan, kechikkanKun: jh.kechikkanKun, jadvalSumma: jh.jadvalSumma, umumiy: jh.umumiy, farq: Math.round(jh.jadvalSumma - jh.umumiy) };
+      jh.tolovlar.forEach(y => { const t = T.find(z => z.id === y.id); if (t) t.yopdi = y.yopdi; }); }); }
   // ↩ KO-2 (06.11.2026): mijozga qaytarilganlar va to'lov pulidan boshqa mijozga berilganlar
   const KX = await require('../lib/ko2_xarita').ko2Xarita();
   T.forEach(t => { const k = KX.manba[t.id]; if (k) t.ko2 = k.map(z => ({ raqam: z.raqam, olindi: z.olindi, fish: z.fish, no: z.no, holati: z.holati })); });
