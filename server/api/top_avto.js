@@ -328,8 +328,8 @@ async function topAvto(kod, opt = {}) {
   const soatT = new Date(Date.now() + 5 * 3600 * 1000).getUTCHours(), tun = soatT < 8 || soatT >= 20;
   for (const c of C) {
     if (!quruq && tun && c.qoida === 'kbskan') continue;
-    if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw);
-    const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? ' · ⚠ mas\'ul topilmadi — qayta topshiring' : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' || c.qoida === 'yudavo' ? 'Shoshilinch' : 'Oddiy' };
+    if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw, c.qoida);
+    const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? (k.zaxira ? ' · ⚠ shartnomada mas\'ul xodim belgilanmagan — bo\'lim o\'zi taqsimlaydi' : ' · ⚠ mas\'ul topilmadi — qayta topshiring') : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' || c.qoida === 'yudavo' ? 'Shoshilinch' : 'Oddiy' };
     if (quruq) { yangi.push(o); continue; }
     const row = await TP.topYoz(TOP_V, o, R);
     R.L.push(Object.assign({ holati: 'Jarayonda', yopildi: '', isbot: '', tgx: '' }, row)); R.l = row.qator;   // keyingi ID va qator uchun
@@ -344,7 +344,40 @@ async function topAvto(kod, opt = {}) {
     yop.push({ id: t.id, holat: 'Bajarildi', kim: 'tizim', dalil: sabab }); yopildi++;
     if (!quruq) await TP.topYop(TOP_V, t, 'Bajarildi', 'tizim', sabab);
   }
-  if (quruq) return { ok: true, yangi, yop, nomzod: C.length, band: C.filter(c => !yangi.some(y => y.kalit === c.kalit)).length };
+  // --- 19.11.2026 (direktor qarori): avval «mas'ul topilmadi» deb DIREKTORGA tushib qolgan ochiq topshiriqlar
+  // zaxira lavozimga o'tkaziladi (topKimga dagi ZAXIRA_ROL). Yangi Telegram yuborilmaydi — xodim ro'yxatida
+  // va ertalabki svodda ko'radi, aks holda bir vaqtda o'nlab xabar ketardi.
+  const { xodimTeng: xTeng } = require('../lib/xodim');
+  const dirF = (XD.find(x => x.admin) || {}).fish || '';
+  const kochdi = [];
+  // Shartnomaga bog'liq qoidalarda haqiqiy egasi — 03 R (Undiruvchi). U bo'sh bo'lsa topshiriq egasiz:
+  // «kotiba arxivdan topa olmadi» (skanu) kabi topshiriqlarda izohda belgi yo'q, shuning uchun shu yerdan bilinadi.
+  // Undiruvchi direktorning O'ZI bo'lsa — topshiriq qonuniy ravishda uning (19.11 holatida 31 ta shartnoma) va ko'chmaydi.
+  const UND_QOIDA = { skanu: 1, davo: 1, vada: 1, tolov: 1, qmxat: 1, jshshir: 1 };
+  const UND = {};
+  try { (await UY.undShartnomalar()).forEach(z => { UND[s(z.no)] = s(z.undiruvchi).trim(); }); }
+  catch (e) { console.error('topAvto und:', e.message); }
+  for (const t of R.L) {
+    if (t.holati !== 'Jarayonda' || !t.kalit || !dirF || !xTeng(t.kimga, dirF)) continue;
+    const q0 = s(t.qoida) || s(t.kalit).split('|')[0];
+    const no0 = s(t.no) || s(t.kalit).split('|')[1];
+    const egasiz = /mas'ul topilmadi/.test(s(t.izoh)) || (UND_QOIDA[q0] && no0 && UND[no0] === '');
+    if (!egasiz) continue;
+    const yangiKim = TP.zaxiraXodim(XD, q0);
+    if (!yangiKim || xTeng(yangiKim, t.kimga)) continue;
+    const iz = s(t.izoh).replace(/\s*·\s*⚠\s*mas'ul topilmadi[^·]*$/, '')
+      + ' · ⚠ shartnomada mas\'ul xodim belgilanmagan — bo\'lim o\'zi taqsimlaydi';
+    kochdi.push({ id: t.id, qoida: q0, no: no0, sarlavha: t.sarlavha, eski: t.kimga, yangi: yangiKim, qator: t.qator, iz });
+    if (kochdi.length >= 40) break;              // bir yurishda ko'pi bilan 40 ta — qolgani keyingi yurishda
+  }
+  // bitta yozuvda (16 ta topshiriq → 32 katak): xato bo'lsa hech biri ko'chmaydi, keyingi yurishda qayta urinadi
+  if (!quruq && kochdi.length) {
+    try {
+      await TP.topKimgaKochirHammasi(TOP_V, kochdi);
+      kochdi.forEach(z => { const t = R.L.find(w => String(w.id) === String(z.id)); if (t) { t.kimga = z.yangi; t.izoh = z.iz; } });
+    } catch (e) { console.error('topKimgaKochir:', e.message); kochdi.length = 0; }
+  }
+  if (quruq) return { ok: true, yangi, yop, kochdi, nomzod: C.length, band: C.filter(c => !yangi.some(y => y.kalit === c.kalit)).length };
   // tgTugmaOrnat_ — faqat Apps Script (eski trigger o'zi o'rnatadi). skanNazTekshir_ — eski tizimning o'zi (Koprik v1.12), xato e'tiborsiz
   let skanNaz = null;
   // 23.10: vaqt_yondi:skan_naz yoqilgan bo'lsa — serverning o'zi har 10 daqiqada (lib/tg_ishlar.js), eski koprikSkanNaz chaqirilmaydi (ikki marta ketmasin)
@@ -352,7 +385,7 @@ async function topAvto(kod, opt = {}) {
   try { if (!snServer && await koprik112(kod)) skanNaz = (await koprik.chaqir('koprikSkanNaz', kod, [], { muddat: 90000, urinish: 1 }) || {}).n; } catch (e) { console.error('koprikSkanNaz:', e.message); }
   if (hj.tg.length) tasdiqTg(kod, hj.tg);
   if (yangi.length) TP.topTg(kod, yangi, XD);
-  return { ok: true, yangi: yangi.length, yopildi, skanNaz };
+  return { ok: true, yangi: yangi.length, yopildi, kochdi: kochdi.length, skanNaz };
 }
 let kv = { ok: false, t: 0 };
 async function koprik112(kod) {

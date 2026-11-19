@@ -161,7 +161,7 @@ async function skanQaror(ctx, u, h, ha, izoh, it) {
   await xomYoz(ctx, HUJ_V + ' P/Q' + h.qator + ' ← Rad|' + vaqt + '|' + u.fish + '|' + izoh + ', havola tozalandi', [{ varaq: HUJ_V, qator: h.qator, ustun: 16, qiymat: 'Rad|' + vaqt + '|' + u.fish + '|' + izoh }, { varaq: HUJ_V, qator: h.qator, ustun: 17, qiymat: '' }]);
   await tasdiqYangila(ctx, h.tgx, '↩ ' + rol(u) + ' qaytardi — «' + izoh + '» (' + u.fish + ')', it.caption);
   // yuklagan xodimga — qayta yuklash topshirig'i (ochiq «skan|…» bo'lmasa) va Telegram
-  const XD = await TP().topXodimlar(), k = TP().topKimga(XD, h.kim), R = await TP().topRowsYangi(TOP_V);
+  const XD = await TP().topXodimlar(), k = TP().topKimga(XD, h.kim, 'skan'), R = await TP().topRowsYangi(TOP_V);
   const och = R.L.find(t => t.kalit === 'skan|' + h.no && (t.holati === 'Jarayonda' || t.holati === 'Tekshiruvda'));
   if (!och) {
     const mid = ((await U.undShartnomalar()).find(z => z.no === h.no) || {}).mid || '';

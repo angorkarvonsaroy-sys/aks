@@ -154,12 +154,44 @@ async function topBer(args) {
   return { ok: true, id: w.row.id, kimga: w.x.fish, tg: !!w.x.tg };
 }
 
-// topKimga_: istalgan yozuvdagi ismni 07 dagi xodimga bog'lash; topilmasa — direktor
-function topKimga(XD, raw) {
+// 19.11.2026 (direktor qarori): mas'ul topilmaganda topshiriq DIREKTORGA tushib qolardi va uning ro'yxati
+// begona ish bilan to'lib ketardi (19.11 da 45 ta ochiq topshiriqdan 40 tasi shunday: 16 ta pasport,
+// 11 ta «nusxani mijozdan olib kelish», qolgani boshqa). Sabab — 03_Sotuv_shartnomalar R (Undiruvchi) bo'sh:
+// 38 ta faol shartnomada undiruvchi belgilanmagan. Endi ish turiga qarab o'sha ishning egasi bo'lgan
+// lavozimga boradi; lavozim topilmasa — direktorga (avvalgidek).
+// «bufer» ataylab ro'yxatda yo'q: bufer to'lov qarori direktorning o'zida (TOP_QOIDALAR da ham «direktor»).
+const ZAXIRA_ROL = {
+  pasport: 'kotiba', skan: 'kotiba', skanq: 'kotiba', kbskan: 'kotiba', bekor: 'kotiba', xat: 'kotiba', bepul: 'kotiba',
+  skanu: 'undiruv', davo: 'undiruv', vada: 'undiruv', tolov: 'undiruv', qmxat: 'undiruv', jshshir: 'undiruv',
+  yudavo: 'yurist', sotuv: 'rop', bron: 'rop'
+};
+const ZAXIRA_LAVOZIM = { kotiba: /kotiba/i, undiruv: /undiruv\s*(yurist|bo.?lim)/i, yurist: /undiruv\s*yurist/i, rop: /^\s*rop\s*$|sotuv\s*bo/i };
+// qoida → shu ishni oladigan xodim (direktordan boshqa, ishlayotgan). Topilmasa '' — chaqiruvchi direktorga beradi.
+function zaxiraXodim(XD, qoida) {
+  const re = ZAXIRA_LAVOZIM[ZAXIRA_ROL[s(qoida).trim()]];
+  if (!re) return '';
+  const x = XD.find(z => !z.admin && re.test(s(z.lavozim)));
+  return x ? x.fish : '';
+}
+// topKimga_: istalgan yozuvdagi ismni 07 dagi xodimga bog'lash; topilmasa — qoida zaxirasi, u ham bo'lmasa direktor
+function topKimga(XD, raw, qoida) {
   raw = s(raw).trim(); const dir = (XD.find(x => x.admin) || {}).fish || '';
-  if (!raw || raw === '—') return { fish: dir, egasiz: true };
-  const x = XD.find(z => xodimTeng(raw, z.fish));
-  return x ? { fish: x.fish, egasiz: false } : { fish: dir, egasiz: true };
+  if (raw && raw !== '—') { const x = XD.find(z => xodimTeng(raw, z.fish)); if (x) return { fish: x.fish, egasiz: false }; }
+  const z = zaxiraXodim(XD, qoida);
+  return { fish: z || dir, egasiz: true, zaxira: !!z };
+}
+// 19.11.2026 (direktor qarori): ochiq topshiriqni boshqa xodimga o'tkazish — G (Izoh) va J (Kimga).
+// Faqat «egasiz» topshiriqlarni zaxira lavozimga burish uchun; topshiriqning o'zi, muddati, kaliti o'zgarmaydi.
+async function topKimgaKochir(varaq, x, kimga, izoh) {
+  try { await G.yoz(env.aksBazaId, [{ varaq, katak: 'G' + x.qator, qiymat: [[izoh]] }, { varaq, katak: 'J' + x.qator, qiymat: [[kimga]] }], env.googleKey); }
+  catch (e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; throw e; }
+}
+// bir nechta topshiriqni bitta yozuvda o'tkazish: lar = [{ qator, yangi, iz }…]
+async function topKimgaKochirHammasi(varaq, lar) {
+  const k = []; lar.forEach(z => { k.push({ varaq, katak: 'G' + z.qator, qiymat: [[z.iz]] }, { varaq, katak: 'J' + z.qator, qiymat: [[z.yangi]] }); });
+  if (!k.length) return;
+  try { await G.yoz(env.aksBazaId, k, env.googleKey); }
+  catch (e) { if (e instanceof G.RuxsatYoq) e.yozilmadi = true; throw e; }
 }
 function kunKeyinDmy(n) { const d = new Date(Date.now() + 5 * 3600 * 1000 + n * 86400000), p = x => String(x).padStart(2, '0'); return p(d.getUTCDate()) + '.' + p(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); }
 
@@ -182,7 +214,7 @@ async function topSkanTopilmadi(args) {
     try { await topYop(TOP_V, x, 'Bajarildi', u.fish, 'Arxivda topilmadi: ' + izoh); }
     catch (e) { if (e.yozilmadi) { yoq = true; return null; } throw e; }
     const sh = (await U.undShartnomalar()).find(z => z.no === no) || {};
-    const k = topKimga(XD, sh.undiruvchi);
+    const k = topKimga(XD, sh.undiruvchi, 'skanu');
     const row = await topYoz(TOP_V, { manba: 'Tizim', qoida: 'skanu', kalit: 'skanu|' + no, sarlavha: 'Shartnoma nusxasini mijozdan olib, skanini yuklang',
       izoh: (sh.fish || '') + ' · kotiba arxivdan topa olmadi: «' + izoh + '»', no, mid: x.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: kunKeyinDmy(3) + ' 18:00', muhim: 'Oddiy' }, R);   // topYop qator qo'shmaydi — R (ID uchun) o'zgarmagan
     return { row, k };
@@ -212,4 +244,4 @@ async function topBekorQil(args) {
 }
 
 module.exports = { topBer, topSkanTopilmadi, topBekorQil };
-module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, koprik15, serverda, qulfBilan, TOP_V };
+module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, zaxiraXodim, topKimgaKochir, topKimgaKochirHammasi, koprik15, serverda, qulfBilan, TOP_V };
