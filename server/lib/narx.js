@@ -40,4 +40,24 @@ function hisobla(baza, maydon) {
   };
 }
 
-module.exports = { NARX, m2Narx, rasmiy, hisobla };
+// ───────────────────────────────────────────────────────────────────────────
+// ESKI NOM BILAN CHAQIRILADIGAN QISM — api/shartnoma.js (jadvalHisob) va
+// lib/ijara_hujjat.js shu ikkisini ishlatadi. Jadval yuqoridagi NARX.jadval bilan
+// AYNAN bir xil, ikkinchi manba emas: NARX_JADVAL o'sha obyektdan yasaladi.
+const NARX_JADVAL = {};
+Object.keys(NARX.jadval).forEach(k => { NARX_JADVAL[Number(k)] = NARX.jadval[k]; });
+
+// narxHisob(baza, boshlang'ich, oy) — oy 0 yoki yo'q bo'lsa 100 % to'lov (1 m² = baza)
+function narxHisob(baza, boshl, oy) {
+  if (!oy || oy <= 0) return { narx: baza, manba: '100% to\'lov — baza narx' };
+  const j = NARX_JADVAL[baza];
+  if (j) {
+    if (boshl === 0) return { narx: j[0], manba: 'Rasmiy jadval (boshlang\'ichsiz)' };
+    if (boshl === 60000000) return { narx: j[1], manba: 'Rasmiy jadval (60 mln)' };
+    if (boshl === 120000000) return { narx: j[2], manba: 'Rasmiy jadval (120 mln)' };
+  }
+  const x = baza * (NARX.k1 + NARX.k2 * Math.pow(0.5, boshl / NARX.yarim));
+  return { narx: Math.round(x / NARX.yaxlit) * NARX.yaxlit, manba: 'Formula bo\'yicha ekstrapolyatsiya — tasdiqlang' };
+}
+
+module.exports = { NARX, m2Narx, rasmiy, hisobla, NARX_JADVAL, narxHisob };
