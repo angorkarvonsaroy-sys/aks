@@ -28,7 +28,7 @@ const QT_FAOL = ['Loyiha', 'Qaytarildi', 'Tekshiruvda', 'Yozilmoqda'];
 // 01.11.2026: Z (26) formula EMAS — endi qatorning o'zida N..S dan yig'ib yoziladi (lib/manzil.js). Avval yuqoridan nusxalanib,
 // oldingi mijozning manzili ko'chib qolardi (02.10–30.10 dagi 17 mijoz — aks-manzil-tikla bilan tuzatildi).
 const F02 = { matn: [7, 12, 5, 6], sana: { 10: 'dd.MM.yyyy', 11: 'dd.MM.yyyy', 22: 'dd.MM.yyyy' }, son: {}, formula: [[31, 31]] };
-const F03 = { matn: [1, 41, 42], sana: { 3: 'dd.MM.yyyy' }, son: { 9: '0%' }, formula: [[21, 40]] };
+const F03 = { matn: [1, 41, 42, 43], sana: { 3: 'dd.MM.yyyy' }, son: { 9: '0%' }, formula: [[21, 40]] };
 const F03b = { matn: [2], sana: { 4: 'dd.MM.yyyy' }, son: {}, formula: [] };
 const F04 = { matn: [1, 5, 38], sana: { 2: 'dd.MM.yyyy', 10: 'dd.MM.yyyy', 11: 'dd.MM.yyyy' }, son: {}, formula: [[24, 37]] };
 const s = v => String(v == null ? '' : v);
@@ -185,6 +185,18 @@ async function kumManba(varaq, row1) {
   for (let src = row1 - 1; src >= 2; src--) { const f = s((Fo[src - 2] || [])[0]), k = s((Fk[src - 2] || [])[0]); if (/^=/.test(f) && !/^#/.test(k)) return src; }
   throw new S.Xato('03b: Kumulyativ formulasini olish uchun sog\' qator topilmadi.');
 }
+// AQ (43) ustuni sarlavhasi — bir marta qo'yiladi (ustun avval nomsiz edi)
+let aqQoyildi = false;
+async function aqSarlavha(v3) {
+  if (aqQoyildi) return;
+  try {
+    const R = await G.oraliqOqi(env.aksBazaId, v3, 'AQ1:AQ1', env.googleKey, 'UNFORMATTED_VALUE');
+    const bor = R && R[0] && s(R[0][0]).trim();
+    if (!bor) await G.yoz(env.aksBazaId, [{ varaq: v3, katak: 'AQ1', qiymat: [['Sotuvchi']] }], env.googleKey);
+    aqQoyildi = true;
+  } catch (e) { console.error('aqSarlavha:', e.message); }
+}
+
 async function shartnomaYoz(v3, v3b, u, d, mid, dr, h) {   // yozuv yadrosi (sinov ham shuni ishlatadi — nusxa varaqlarda)
   const boshl = Math.round(Number(d.boshl) || 0), oy = Math.round(Number(d.oy) || 0);
   const [h3, R3b, band] = await Promise.all([aUstun(v3), G.oraliqOqi(env.aksBazaId, v3b, 'A2:B', env.googleKey, 'UNFORMATTED_VALUE'), bandRaqamlar()]);
@@ -196,7 +208,11 @@ async function shartnomaYoz(v3, v3b, u, d, mid, dr, h) {   // yozuv yadrosi (sin
   const sanaStr = ds(d.sana);
   const q3 = [no, nn, sanaStr, d.turi, mid, s(d.dokonId), Number(dr[5]), h.narx, h.foiz, boshl, Math.round(Number(d.bkun) || 0), oy, oy > 0 ? Math.round(Number(d.tkun)) : '', 'Aktiv', '', '', '', S_(d.undiruvchi), '', S_(d.izoh)];
   for (let i = 21; i <= 40; i++) q3.push(null);   // U:AN — formulalar (copyPaste); null — katakka tegilmaydi
-  q3.push(hozir(), u.fish);                         // AO:AP — Kiritildi / Kiritdi (v8.4)
+  // AO:AP — Kiritildi / Kiritdi (v8.4);  AQ — Sotuvchi (19.11.2026, direktor qarori):
+  // «Kiritdi» ilovaga yozgan odam, «Sotuvchi» esa shartnomani kim sotgani — operator boshqa xodim
+  // nomidan kiritishi mumkin. Sotuv bo'limidagi reja va voronka shu ustundan hisoblanadi.
+  q3.push(hozir(), u.fish, S_(d.sotuvchi) || u.fish);
+  await aqSarlavha(v3);
   const r3 = await qatorlarYoz(v3, h3.last + 1, [q3], F03);
   let jid = 0; R3b.slice(0, jl - 1).forEach(r => { const n = Number(r[0]) || 0; if (n > jid) jid = n; });
   const vals = h.jadval.map(j => [++jid, no, j.t, ds(j.sana), j.summa, j.summa, j.turi, 'Web App: ' + u.fish]);

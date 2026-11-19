@@ -49,7 +49,10 @@ async function shartnomaBoshlang([kodSes]) {
   // Yashirinlik shartnomaga tegishli (raqami, do'koni, to'lovi) — mijozning o'zi (F.I.Sh, pasport, manzil) yangi shartnoma uchun ko'rinaveradi.
   const Y = await KR.yopiqlar(u);
   if (Y.size) dokonlar.forEach(d => { if (d.sotuvNo && Y.has(d.sotuvNo.trim())) { d.sotuvNo = '*'; d.egasi = '*'; } if (d.ijara && Y.has(d.ijara.trim())) { d.ijara = '*'; d.ijarachi = '*'; } });
-  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
+  // 19.11.2026: masʼul sotuvchi ro'yxati — ishlayapti va «tashrif» huquqi bor xodimlar (sotuv bo'limi), yana direktor
+  const sotuvchilar = R7.filter(z => String(z.x[10] || '').trim() === 'Ishlayapti' && (huqRoy(z.x[18]).includes('tashrif') || String(z.x[0]).replace(/\.0$/, '') === '1'))
+    .map(z => String(z.x[1] || '').trim()).filter(Boolean);
+  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, sotuvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
     bugun: V.bugun() };
 }
 

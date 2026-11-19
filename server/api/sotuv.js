@@ -187,11 +187,11 @@ async function sotuvBoshlang([kodSes]) {
   try { bron = (await bronRoyxat(bugun)).filter(z => bosh || !z.kim || xodimTeng(z.kim, u.fish))
     .sort((a, b) => (a.holati === 'Faol' ? 0 : 1) - (b.holati === 'Faol' ? 0 : 1) || (a.qoldi == null ? 99 : a.qoldi) - (b.qoldi == null ? 99 : b.qoldi)); }
   catch (e) { console.error('sotuvBron:', e.message); }
-  let reja = [], shOy = [], dokonlar = [], takliflar = [];
+  let reja = [], shOy = [], shXodim = [], dokonlar = [], takliflar = [];
   try { takliflar = await taklifRoyxat(); } catch (e) { console.error('taklifRoyxat:', e.message); }
   try { dokonlar = await bosDokonlar(bugun); } catch (e) { console.error('bosDokonlar:', e.message); }
   try { reja = await rejaRoyxat(); } catch (e) { console.error('sotuvReja:', e.message); }
-  try { shOy = await shartnomaOylar(); } catch (e) { console.error('shartnomaOylar:', e.message); }
+  try { const SH = await shartnomaOylar(bugun.slice(0, 7)); shOy = SH.oylar; shXodim = SH.xodim; } catch (e) { console.error('shartnomaOylar:', e.message); }
   // режа қўйиш учун сотувчилар рўйхати (директорга) — ташриф ёзадиган ходимлар
   const XR = [...new Set(L.map(z => stXodim(z.kim)).filter(Boolean))].sort();
   son.bronFaol = bron.filter(z => z.holati === 'Faol').length;
@@ -199,7 +199,7 @@ async function sotuvBoshlang([kodSes]) {
   return { ishlar: M.slice(0, ST_ROYXAT), son, bron, bronKun: BR_KUN, bugun, bosh: ST_BOSH, admin: bosh, dir: u.admin, mening: u.fish,
     svod: bosh ? Object.values(svod).sort((a, b) => b.shartnoma - a.shartnoma || b.tashrif - a.tashrif) : [],
     natijalar: ST_NATIJA.map(x => ({ kalit: x[0], nomi: x[1], yopiq: x[2] })), sabablar: ST_SABAB,
-    sababHis: sababHisob(bosh ? L : M), reja, shOy, dokonlar, narx: NARX, takliflar: takliflar.slice(0, 200), xodimlar: bosh ? XR : [] };
+    sababHis: sababHisob(bosh ? L : M), reja, shOy, shXodim: bosh ? shXodim : [], dokonlar, narx: NARX, takliflar: takliflar.slice(0, 200), xodimlar: bosh ? XR : [] };
 }
 
 // ------------------------------------------------------------------ ✍ natija yozish
@@ -305,17 +305,21 @@ async function bosDokonlar(bugun) {
 // 📋 19.11.2026 — oyma-oy TUZILGAN SHARTNOMALAR (03_Sotuv_shartnomalar dan, bekor qilinganlarsiz).
 // Reja ekranidagi «Shartnoma» FAKTI shu yerdan olinadi, tashrif natijasidan emas: shartnoma tashrif
 // jurnalida belgilanmagan bo'lsa ham tuzilgan bo'lishi mumkin — biznes natijasi 03 da turadi.
-async function shartnomaOylar() {
-  const O = {};
+// 19.11.2026: masʼul sotuvchi — 03 AQ (43-ustun, 0 dan 42). Bo'sh bo'lsa «Kiritdi» (AP) olinadi:
+// eski shartnomalarda sotuvchi yozilmagan, ularni hech kimga yozib qo'ymaymiz — «—» bo'lib turadi.
+async function shartnomaOylar(bugunOy) {
+  const O = {}, X = {};
   try {
     (await V.qatorlar('03_Sotuv_shartnomalar')).forEach(({ x }) => {
       if (!s(x[0]).trim()) return;
       if (/bekor/i.test(s(x[13]))) return;
       const m = stIso(x[2]).slice(0, 7); if (!/^\d{4}-\d{2}$/.test(m)) return;
       O[m] = (O[m] || 0) + 1;
+      if (bugunOy && m === bugunOy) { const k = s(x[42]).trim() || '—'; X[k] = (X[k] || 0) + 1; }
     });
-  } catch (e) { console.error('shartnomaOylar:', e.message); return []; }
-  return Object.keys(O).sort().slice(-24).map(m => ({ oy: m, soni: O[m] }));
+  } catch (e) { console.error('shartnomaOylar:', e.message); return { oylar: [], xodim: [] }; }
+  return { oylar: Object.keys(O).sort().slice(-24).map(m => ({ oy: m, soni: O[m] })),
+    xodim: Object.keys(X).map(k => ({ xodim: k, soni: X[k] })).sort((a, b) => b.soni - a.soni) };
 }
 
 // 📊 reja varag'i va ro'yxati
