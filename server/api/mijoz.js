@@ -38,7 +38,8 @@ async function shartnomalar() {
 async function mijozQidir([kodSes, q]) {
   const u = await mjRuxsat(kodSes);
   const k = await KR.korish(u);
-  q = String(q || '').trim(); if (q.length < 2) return { royxat: [] };
+  q = String(q || '').trim(); const royxatRejim = q === '*';   // v27.172: «*» — ro'yxat rejimi: oxirgi 40 mijoz (sahifa ochilganda, qidiruvsiz)
+  if (!royxatRejim && q.length < 2) return { royxat: [] };
   const ql = lat(q), qd = q.replace(/\D/g, ''), qu = q.toUpperCase().replace(/\s/g, '');
   const SH = await shartnomalar();
   const R = [];
@@ -47,10 +48,11 @@ async function mijozQidir([kodSes, q]) {
     const id = String(r[0]).trim(), fish = String(r[2] || ''), tel = String(r[4] || '').replace(/\D/g, ''), tel2 = String(r[5] || '').replace(/\D/g, ''), pas = String(r[6] || '').toUpperCase().replace(/\s/g, '');
     const shA = SH[id] || [], sh = shA.filter(s => k(s.holati, s.und, s.no));
     if ((shA.length || k.cheklangan) && !sh.length) return;   // faqat yashirin shartnomalari bor mijoz (undiruvchi/yurist — shartnomasizi ham) ko'rinmaydi
-    const mos = lat(fish).indexOf(ql) >= 0 || (qd.length >= 4 && (tel.indexOf(qd) >= 0 || tel2.indexOf(qd) >= 0)) || (qu.length >= 4 && pas.indexOf(qu) >= 0) || id === q
+    const mos = royxatRejim || lat(fish).indexOf(ql) >= 0 || (qd.length >= 4 && (tel.indexOf(qd) >= 0 || tel2.indexOf(qd) >= 0)) || (qu.length >= 4 && pas.indexOf(qu) >= 0) || id === q
       || sh.some(s => s.no.toUpperCase().indexOf(qu) >= 0 && qu.length >= 3) || sh.some(s => s.dokon.toUpperCase() === qu);
     if (mos) R.push({ id, fish, tel: r[4] || '', pasport: r[6] || '', shartnomalar: sh.map(s => s.no + (s.holati && /bekor|yakun/i.test(s.holati) ? ' (' + s.holati + ')' : '')), dokonlar: sh.map(s => s.dokon).filter(Boolean) });
   });
+  if (royxatRejim) { R.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0)); return { royxat: R.slice(0, 40), jami: R.length, royxatRejim: true }; }
   return { royxat: R.slice(0, 25), jami: R.length };
 }
 
