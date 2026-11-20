@@ -293,6 +293,8 @@ async function kbTasdiq(args) {
   const { sr, x } = r; let { natija, ogoh } = r;
   const ochilmagan = sr.turi === 'Ochilmagan';
   const kelmadi = sr.turi === 'Kelmadi' || ochilmagan;   // 20.11.2026: «Ochilmagan» (ochilish nazorati) — hujjat va skansiz yo'l, Kelmadi kabi
+  // v27.179: ✅ — shartnoma bekor bo'ldi: unga bog'liq hamma ochiq topshiriqlar darhol yopiladi (skan, kelishuv, ochilish, pasport…)
+  if (ha) { try { await require('./topshiriq_yoz')._ichki.topYopShartnoma(sr.no, null, 'shartnoma bekor qilindi — direktor tasdiqladi (KB-' + sr.id + ')'); } catch (e) { console.error('kbTasdiq topshiriq yopish:', e.message); } }
   // 🏪 04b_Ochilish_nazorati qatori: ✅ — «Bekor qilindi», ✖ — so'rov tozalanadi (undiruvchi direktor bilan gaplashib qayta so'rashi mumkin)
   if (kelmadi) {   // Kelmadi (eski matn) ham, Ochilmagan ham — 04b qatori bo'lsa
     try { const O = require('../lib/ochilish'); const z = (await O.ochYangi()).find(q => q.no === sr.no && (q.sorov === String(sr.id) || q.holati === 'Bekor so\'raldi'));
@@ -413,10 +415,7 @@ async function kbKelmadi(args) {
   await yangila([KB_V]);
   // v27.176 (20.11.2026, direktor): so'rov yuborilgach xodimdagi «imzolangan skanni yuklang» (kbskan) topshirig'i DARHOL yopiladi —
   // avval 2 soatlik avtomatik tekshiruvgacha ochiq turar, xodim «hech narsa bo'lmadi» deb o'ylardi (IJ-27/82, Nurbek)
-  try { const TP = require('./topshiriq_yoz')._ichki; const R = await TP.topRowsYangi(TP.TOP_V);
-    const och = R.L.filter(z => z.holati === 'Jarayonda' && z.qoida === 'kbskan' && String(z.no || '').trim() === no);
-    for (const z of och) await TP.topYop(TP.TOP_V, z, 'Bajarildi', 'tizim', '«Ijarachi kelmadi» so\'rovi yuborildi — direktor tasdig\'i kutilmoqda (KB-' + id + ')');
-    if (och.length) await yangila([TP.TOP_V]); }
+  try { await require('./topshiriq_yoz')._ichki.topYopShartnoma(no, ['kbskan', 'ochkelmadi'], '«Ijarachi kelmadi» so\'rovi yuborildi — direktor tasdig\'i kutilmoqda (KB-' + id + ')'); }
   catch (e) { console.error('kbKelmadi topshiriq yopish:', e.message); }
   return { ok: true, id, no, ogoh, serverda: true,
     natija: no + ': «ijarachi kelmadi» so\'rovi direktorga yuborildi (Telegram). Tasdiqlagach shartnoma bekor bo\'ladi, do\'kon bo\'shaydi. Shu paytgacha shartnoma «Aktiv».' };

@@ -168,6 +168,7 @@ async function ijaraImzosizJavob(args) {
       natija = sr.no + ' bekor qilindi, do\'kon ' + x.dokon + ' bo\'shadi.' + (ogoh.length ? ' ⚠ ' + ogoh.join(' ') : '');
     } else natija = sr.no + ' bo\'yicha so\'rov rad etildi.';
     await imzJavobYoz(IMZ_VARAQ, sr, ha ? 'Tasdiqlandi' : 'Rad etildi', izoh, u.fish);
+    if (ha) { try { await require('./topshiriq_yoz')._ichki.topYopShartnoma(sr.no, null, 'imzolanmagan shartnoma bekor qilindi — direktor tasdiqladi (IM-' + sr.id + ')'); } catch (e) { console.error('imzosiz topshiriq yopish:', e.message); } }   // v27.179
     return { sr, natija, x };
   }).catch(e => { if (e.yozilmadi) return null; throw e; });
   if (!r) return eskiTizim('ijaraImzosizJavob', u, [id, ha0, izoh0]);

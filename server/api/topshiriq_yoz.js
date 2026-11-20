@@ -244,5 +244,15 @@ async function topBekorQil(args) {
   return { ok: true };
 }
 
+// v27.179 (20.11.2026): shartnoma bo'yicha ochiq topshiriqlarni DARHOL yopish — so'rov yuborilganda (kbKelmadi) yoki shartnoma bekor qilinganda (kbTasdiq, ijaraImzosizJavob).
+// Avval 2 soatlik avtomatik tekshiruvgacha ochiq turar, xodim «hech narsa bo'lmadi» deb o'ylardi. qoidalar: ro'yxat yoki null (hammasi).
+async function topYopShartnoma(no, qoidalar, dalil) {
+  no = String(no || '').trim(); if (!no) return 0;
+  const R = await topRowsYangi(TOP_V);
+  const och = R.L.filter(z => z.holati === 'Jarayonda' && String(z.no || '').trim() === no && (!qoidalar || qoidalar.indexOf(z.qoida) >= 0));
+  for (const z of och) await topYop(TOP_V, z, 'Bajarildi', 'tizim', dalil || 'shartnoma bo\'yicha so\'rov hal qilindi');
+  if (och.length) { try { await require('../lib/kozgu_tetik').varaqlarYangila([TOP_V]); } catch (e) { } }
+  return och.length;
+}
 module.exports = { topBer, topSkanTopilmadi, topBekorQil };
-module.exports._ichki = { topYoz, topYop, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, zaxiraXodim, topKimgaKochir, topKimgaKochirHammasi, koprik15, serverda, qulfBilan, TOP_V };
+module.exports._ichki = { topYoz, topYop, topYopShartnoma, topRowsYangi, topBerTekshir, topXodimlar, topTgMatn, topTg, topKimga, zaxiraXodim, topKimgaKochir, topKimgaKochirHammasi, koprik15, serverda, qulfBilan, TOP_V };
