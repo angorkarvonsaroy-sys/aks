@@ -187,12 +187,13 @@ async function topHalKerak(L) {                          // topHalHujjat_ biror 
 // v27.176 (20.11.2026, direktor): shartnomasi bo'yicha direktor tasdig'ini kutayotgan so'rov bo'lsa (06m «Tasdiq kutilmoqda», 06l «Kutilmoqda») —
 // topshiriqqa kutish = {kim, tur, vaqt} qo'shiladi; ilova tugma o'rniga «⏳ so'rov yuborildi — direktor tasdig'i kutilmoqda» ko'rsatadi, xodim ikkinchi marta bosmaydi.
 async function topKutishBelgi(L) {
-  const bor = L.filter(t => t.no && (t.holati === 'Jarayonda'));
-  if (!bor.length) return;
-  const M = {};
-  try { const KB = require('../lib/kb_hujjat'); (await KB.kbRowsKozgu()).forEach(z => { if (z.holati === 'Tasdiq kutilmoqda') M[z.no] = { kim: 'direktor', tur: z.turi === 'Kelmadi' ? 'Ijarachi kelmadi' : z.turi === 'Ochilmagan' ? 'Do\'kon ochilmadi' : 'Kelishuv bilan bekor', vaqt: (String(z.tarix || '').match(/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/g) || []).pop() || z.vaqt }; }); } catch (e) { }
-  try { (await V.qatorlar('06l_Imzosiz_sorovlar')).forEach(z => { const r = z.r || z.x || []; const no = String(r[2] || '').trim(); if (no && String(r[7] || '').trim() === 'Kutilmoqda') M[no] = { kim: 'direktor', tur: 'Imzolanmagan shartnoma', vaqt: String(r[1] || '') }; }); } catch (e) { }
-  bor.forEach(t => { const k = M[String(t.no).trim()]; if (k && /^(kbskan|skan|ochkelmadi|ochimzosiz|ochbekor|ochxat|ochtek|ochsms|ocheski)$/.test(t.qoida || '')) t.kutish = k; });
+  const bor = L.filter(t => t.no && t.holati === 'Jarayonda'); if (!bor.length) return;
+  let M = {}; try { M = await require('../lib/sorovlar').ochiqSorovlar(); } catch (e) { return; }   // v27.178: yagona manba
+  const Q = require('../lib/sorovlar').qisqa;
+  bor.forEach(t => { const L2 = M[String(t.no).trim()]; if (!L2) return;
+    const d = L2.find(z => z.kim === 'direktor' && z.manba !== '06k') || null;   // topshiriq qatorida: faqat direktor tasdig'ini kutayotgan bekor so'rovlari
+    if (d && /^(kbskan|skan|ochkelmadi|ochimzosiz|ochbekor|ochxat|ochtek|ochsms|ocheski|hj|yutop)$/.test(t.qoida || '')) t.kutish = { kim: d.kim, tur: d.tur, vaqt: d.vaqt, matn: d.matn };
+    t.sorov = Q(L2); });
 }
 async function topMening([kodSes]) {
   const u = await S.ruxsat(kodSes);

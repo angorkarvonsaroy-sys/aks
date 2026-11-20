@@ -74,7 +74,7 @@ async function xodimBosh([kodSes]) {
       .sort((a, b2) => a.iso < b2.iso ? -1 : 1).map(z => z.x);
     // v27.175: 7 kundan keyingi muddatli ishlar ham ro'yxat bilan (avval faqat soni edi — kotibaning 16 ta pasport topshirig'i bosh sahifada ko'rinmasdi)
     const keyinroq = O.filter(x => bugungi.indexOf(x) < 0 && keyingi.indexOf(x) < 0).map(x => ({ x, iso: TS.topIso(x.muddat).slice(0, 10) })).sort((a, b2) => a.iso < b2.iso ? -1 : 1).map(z => z.x);
-    const kor = x => ({ id: x.id, sarlavha: x.sarlavha, izoh: x.izoh, no: x.no, mid: x.mid, muddat: x.muddat, kechikkan: !!x.kechikkan, holati: x.holati, kalit: x.kalit, qoida: x.qoida, manba: x.manba, kimBerdi: x.kimBerdi, muhim: x.muhim, kutish: x.kutish || null, /* v27.176 */ dalil: x.dalil,
+    const kor = x => ({ id: x.id, sarlavha: x.sarlavha, izoh: x.izoh, no: x.no, mid: x.mid, muddat: x.muddat, kechikkan: !!x.kechikkan, holati: x.holati, kalit: x.kalit, qoida: x.qoida, manba: x.manba, kimBerdi: x.kimBerdi, muhim: x.muhim, kutish: x.kutish || null, sorov: x.sorov || null, /* v27.176–178 */ dalil: x.dalil,
       bugun: String(x.muddat || '').slice(0, 10) === b });
     const tartib = x => x.kechikkan ? 0 : x.holati === 'Tekshiruvda' ? 2 : 1;
     bugungi.sort((a, b2) => tartib(a) - tartib(b2) || (TS.topIso(a.muddat) < TS.topIso(b2.muddat) ? -1 : 1));

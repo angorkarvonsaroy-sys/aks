@@ -59,7 +59,9 @@ async function royxat(u) {
 
 async function hujjatBoshlang([kodSes]) {
   const u = await S.ruxsat(kodSes, 'hujjat');
-  return { royxat: await royxat(u), turlar: HUJJAT_TURLARI, bugun: V.bugun(), admin: u.admin, maxMb: HUJJAT_MAX_MB };
+  const R = await royxat(u);
+  try { const SR = require('../lib/sorovlar'); const M = await SR.ochiqSorovlar(); R.forEach(x => { if (M[x.no]) x.sorov = SR.qisqa(M[x.no]); }); } catch (e) { }   // v27.178: ochiq so'rov belgisi
+  return { royxat: R, turlar: HUJJAT_TURLARI, bugun: V.bugun(), admin: u.admin, maxMb: HUJJAT_MAX_MB };
 }
 
 function tuzatHuquq(u, h) {
