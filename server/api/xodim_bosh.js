@@ -72,13 +72,16 @@ async function xodimBosh([kodSes]) {
     const bugungi = O.filter(x => x.kechikkan || String(x.muddat || '').slice(0, 10) === b || x.holati === 'Tekshiruvda');
     const keyingi = O.filter(x => bugungi.indexOf(x) < 0).map(x => ({ x, iso: TS.topIso(x.muddat).slice(0, 10) })).filter(z => z.iso && z.iso > bugun && z.iso <= kun(7))
       .sort((a, b2) => a.iso < b2.iso ? -1 : 1).map(z => z.x);
+    // v27.175: 7 kundan keyingi muddatli ishlar ham ro'yxat bilan (avval faqat soni edi — kotibaning 16 ta pasport topshirig'i bosh sahifada ko'rinmasdi)
+    const keyinroq = O.filter(x => bugungi.indexOf(x) < 0 && keyingi.indexOf(x) < 0).map(x => ({ x, iso: TS.topIso(x.muddat).slice(0, 10) })).sort((a, b2) => a.iso < b2.iso ? -1 : 1).map(z => z.x);
     const kor = x => ({ id: x.id, sarlavha: x.sarlavha, izoh: x.izoh, no: x.no, mid: x.mid, muddat: x.muddat, kechikkan: !!x.kechikkan, holati: x.holati, kalit: x.kalit, qoida: x.qoida, manba: x.manba, kimBerdi: x.kimBerdi, muhim: x.muhim, dalil: x.dalil,
       bugun: String(x.muddat || '').slice(0, 10) === b });
     const tartib = x => x.kechikkan ? 0 : x.holati === 'Tekshiruvda' ? 2 : 1;
     bugungi.sort((a, b2) => tartib(a) - tartib(b2) || (TS.topIso(a.muddat) < TS.topIso(b2.muddat) ? -1 : 1));
     (r.yopiq || []).forEach(x => { const vq = xbVaqt(x.yopildi); if (vq.iso === bugun) { QL.push({ srt: vq.srt, vaqt: vq.hm, matn: 'Topshiriq bajarildi — ' + x.sarlavha + (x.no ? ' · ' + x.no : ''), t: 'topshiriq' }); jami.topshiriq++; } });
     return { kechikkan: r.son.kechikkan, bugun: r.son.bugun, ochiq: r.son.ochiq, tekshiruv: O.filter(x => x.holati === 'Tekshiruvda').length, hafta: r.son.hafta,
-      royxat: bugungi.map(kor), keyingi: keyingi.slice(0, XB_KEYINGI).map(kor), keyingiSoni: keyingi.length, boshqa: O.length - bugungi.length - keyingi.length };
+      royxat: bugungi.map(kor), keyingi: keyingi.slice(0, XB_KEYINGI).map(kor), keyingiSoni: keyingi.length, boshqa: O.length - bugungi.length - keyingi.length,
+      keyinroq: keyinroq.slice(0, 30).map(kor) };   // v27.175
   }, null);
 
   const diqqat = [], rol = [];
