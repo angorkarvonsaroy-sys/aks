@@ -61,11 +61,11 @@ async function topCtx(kod, bugun) {
   const skanBor = {}; (SV.jurnal || []).forEach(h => { if (h.holati === 'Faol' && h.turi === 'SHARTNOMA') skanBor[h.no] = 1; });
   const B = B0.filter(z => ['Bekor qilindi', 'Rad etildi', 'Qaytarildi'].indexOf(z.holati) < 0);
   // shartnoma → mijoz, ijara ma'lumotlari, bekorlar
-  const mid = {}, bekorNo = {}, ijOylik = {}, bepul = [], mijozShar = {}, ijMasul = {};
+  const mid = {}, bekorNo = {}, ijOylik = {}, bepul = [], mijozShar = {}, ijMasul = {}, ijHolat = {};
   aOxiri(R3).forEach(({ r }) => { const no = s(r[0]).trim(); if (!no) return; mid[no] = s(r[4]).trim();
     // 13.11.2026: YAKUNLANGAN (to'liq to'langan) shartnoma ham «faol» emas — bunday mijozga «pasportini yangilang» topshirig'i berilmaydi, borlari o'zi yopiladi
     if (/bekor/i.test(s(r[13]))) bekorNo[no] = 1; else if (!/yakun/i.test(s(r[13]))) (mijozShar[mid[no]] = mijozShar[mid[no]] || []).push({ no, kim: s(r[17]) }); });
-  aOxiri(R4).forEach(({ x }) => { const no = s(x[0]).trim(); if (!no) return; mid[no] = s(x[5]).trim(); ijOylik[no] = Number(x[14]) || 0; ijMasul[no] = s(x[20]).trim();
+  aOxiri(R4).forEach(({ x }) => { const no = s(x[0]).trim(); if (!no) return; mid[no] = s(x[5]).trim(); ijOylik[no] = Number(x[14]) || 0; ijMasul[no] = s(x[20]).trim(); ijHolat[no] = s(x[2]).trim();
     const bek = /bekor/i.test(s(x[2])); if (bek) { bekorNo[no] = 1; return; }
     (mijozShar[mid[no]] = mijozShar[mid[no]] || []).push({ no, kim: s(x[20]) });
     const bt = isoX(x[28]); if (bt && bt >= bugun && (new Date(bt + 'T12:00:00Z') - d0) / 86400000 <= 30 && !(Number(x[14]) > 0))
@@ -173,7 +173,8 @@ async function topCtx(kod, bugun) {
   // 🏪 20.11.2026 (direktor qarori): ochilish nazorati — yangi ijara shartnomasida undiruvchi, 5 kunlik zanjir (lib/ochilish.js)
   let och = [], ochMap = {};
   try { const O = require('../lib/ochilish');
-    och = (await O.ochKozgu()).map(z => Object.assign({ f: O.faza(z, bugun), masul: ijMasul[z.no] || '' }, z)); och.forEach(z => { ochMap[z.no] = z; }); }
+    och = (await O.ochKozgu()).map(z => Object.assign({ f: O.faza(z, bugun), masul: ijMasul[z.no] || '' }, z));
+    och.forEach(z => { if (ijHolat[z.no] !== 'Aktiv') z.f = { faza: 'yopiq', kun: z.f.kun }; ochMap[z.no] = z; }); }
   catch (e) { console.error('topCtx och:', e.message); }
   return { mlM, qaytBlok, kb, yuDavo, ijTush, qmXat, jshYoq, sotuv, bronlar, och, ochMap, HJ: SV.jurnal || [], P: Pl, PN, skansiz: SV.nusxasiz || [], skanBor, X: Xj, B, mid, bekorNo, ijOylik, bepul, pasport, pasMuddat, bufer,
     kunOldin: k => new Date(d0.getTime() - k * 86400000).toISOString().slice(0, 10) };   // bugun − k kun
@@ -200,11 +201,12 @@ function topHal(t, ctx, hozir) {
   if (q === 'sotuv') return (ctx.sotuv || []).some(z => z.kim === t.kalit.split('|')[1] && z.oy === t.kalit.split('|')[2]) ? '' : 'hamma tashrifga natija va keyingi qadam qo\'yildi';   // 19.11.2026
   if (q === 'bron') return (ctx.bronlar || []).some(z => z.id === id) ? '' : 'bron yopildi (shartnoma, bekor yoki uzaytirildi)';   // 19.11.2026
   // 🏪 20.11.2026 — ochilish nazorati: faza o'zgarsa topshiriq o'zi yopiladi
-  if (q === 'ochsms' || q === 'ochtek' || q === 'ochxat' || q === 'ochbekor' || q === 'ochkelmadi') {
+  if (q === 'ochsms' || q === 'ochtek' || q === 'ocheski' || q === 'ochxat' || q === 'ochbekor' || q === 'ochkelmadi' || q === 'ochimzosiz') {
     const z = (ctx.ochMap || {})[id]; if (!z) return 'nazorat qatori topilmadi';
     const f = z.f.faza;
     if (q === 'ochsms') return f === 'eslatma' ? '' : z.eslatma ? 'SMS eslatma yuborildi' : 'muddat o\'tdi — tekshiruv bosqichi';
-    if (q === 'ochtek') return f === 'tekshiruv' ? '' : z.natija ? 'tekshiruv natijasi qo\'yildi: ' + z.natija : 'nazorat yopildi (' + z.holati + ')';
+    if (q === 'ochtek' || q === 'ocheski') return f === 'tekshiruv' ? '' : z.natija ? 'tekshiruv natijasi qo\'yildi: ' + z.natija : 'nazorat yopildi (' + z.holati + ')';
+    if (q === 'ochimzosiz') return f === 'imzosiz' ? '' : 'nazorat yopildi (' + z.holati + ')';
     if (q === 'ochxat') return (f === 'xabarnoma' || f === 'pochta') ? '' : z.pochtaSana ? 'xabarnoma pochtaga topshirildi' : 'nazorat yopildi (' + z.holati + ')';
     if (q === 'ochbekor') return f === 'bekor' ? '' : z.sorov ? 'bekor qilish so\'rovi direktorga yuborildi' : 'nazorat yopildi (' + z.holati + ')';
     return f === 'eski' ? '' : z.sorov ? '«ijarachi kelmadi» so\'rovi yuborildi' : 'nazorat yopildi (' + z.holati + ')';
@@ -269,7 +271,9 @@ async function topAvto(kod, opt = {}) {
   // 🏪 20.11.2026 — ochilish nazorati zanjiri (lib/ochilish.js faza): har bosqich — alohida topshiriq, muddat shu kun 18:00
   (ctx.och || []).forEach(z => { const f = z.f.faza, kim = z.undiruvchi, bazaviy = z.no + ' · ' + z.fish + ' · ' + z.dokon + ' · muddat ' + dmy(z.muddat) + ' · ' + z.f.kun + '-kun';
     if (f === 'eslatma') nomzod('ochsms', z.no, 'Ijarachiga SMS eslatma yuboring (do\'konni ' + dmy(z.muddat) + ' gacha ochishi kerak)', bazaviy + '. Ilovada: 📎 Hujjatlar → shartnoma → 🏪 Ochilish nazorati → tayyor matn', z.no, ctx.mid[z.no], kim);
-    else if (f === 'tekshiruv') nomzod('ochtek', z.no, 'Do\'konni tekshiring: ochilganmi? (5-kun)', bazaviy + '. Borib ko\'ring: ✅ Ochilgan yoki ❌ Ochilmagan → SMS + qo\'ng\'iroq. Ilovada: 📎 Hujjatlar → shartnoma → 🏪', z.no, ctx.mid[z.no], kim);
+    else if (f === 'tekshiruv' && z.matn === 'Yangi') nomzod('ochtek', z.no, 'Do\'konni tekshiring: ochilganmi? (5-kun)', bazaviy + '. Borib ko\'ring: ✅ Ochilgan yoki ❌ Ochilmagan → SMS + qo\'ng\'iroq. Ilovada: 📎 Hujjatlar → shartnoma → 🏪', z.no, ctx.mid[z.no], kim);
+    else if (f === 'tekshiruv') nomzod('ocheski', z.no, 'Ijara do\'konini tekshiring: ochilganmi? (eski shartnoma)', bazaviy + '. Borib ko\'ring: ✅ Ochilgan / ❌ Ochilmagan; imzolangan nusxa umuman bo\'lmasa — «Imzolangan nusxa yo\'q». Ilovada: 📎 Hujjatlar → shartnoma → 🏪', z.no, ctx.mid[z.no], kim);
+    else if (f === 'imzosiz') nomzod('ochimzosiz', z.no, '✕ «Imzolanmagan» so\'rovini bering — imzolangan nusxa yo\'q', bazaviy + ' · undiruvchi: ' + (z.izoh || 'imzolangan nusxa topilmadi') + '. Ilovada: 📎 Hujjatlar → shartnoma → ✕ Imzolanmagan', z.no, ctx.mid[z.no], z.masul || kim);
     else if (f === 'xabarnoma' || f === 'pochta') nomzod('ochxat', z.no, f === 'pochta' ? 'Xabarnomani BUYURTMA XAT bilan yuboring, kvitansiyani yuklang' : 'Xabarnoma chiqaring, direktor imzolasin, buyurtma xat bilan yuboring',
       bazaviy + ' · do\'kon ochilmagan' + (z.xabNo ? ' · xabarnoma ' + z.xabNo + ' tayyor' : '') + '. Pochta kvitansiyasi yuklanmaguncha bekor qilish boshlanmaydi. Ilovada: 📎 Hujjatlar → shartnoma → 🏪', z.no, ctx.mid[z.no], kim);
     else if (f === 'bekor') nomzod('ochbekor', z.no, '✂ Shartnomani bekor qilishga yuboring (xabarnomadan 5 kun o\'tdi)', bazaviy + ' · xabarnoma ' + z.xabNo + ', pochta ' + dmy(z.pochtaSana) + ' · bekor sanasi ' + dmy(z.bekorMumkin) + '. Ilovada: 📎 Hujjatlar → shartnoma → 🏪 → «✂ Bekor qilish»', z.no, ctx.mid[z.no], kim);

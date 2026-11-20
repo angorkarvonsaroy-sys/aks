@@ -27,7 +27,7 @@ const OCH_ESLATMA_KUN = 2;    // 2-kun: SMS eslatma
 const OCH_XAT_KUN = 6;        // 6-kun: xabarnoma
 const OCH_POCHTA_KUN = 5;     // 6.3: xat pochtaga topshirilgan kundan 5 kun o'tgach topshirilgan hisoblanadi; shartnoma kamida 5 kundan keyin bekor
 const OCH_HUJJAT_KUN = 6;     // xabarnomadagi bekor sanasi = xabarnoma sanasi + 6 (1 kun pochtaga topshirishga + 5)
-const OCH_BIRIKTIR_BOSH = '2026-11-20';   // shu kundan tuzilgan ijara shartnomalariga undiruvchi avtomatik biriktiriladi (direktor qarori 20.11.2026)
+const OCH_BIRIKTIR_BOSH = '';   // 20.11.2026 09:33 direktor qarori: BARCHA «Aktiv» ijara shartnomalariga undiruvchi biriktiriladi (eskilarida ham skan va tekshiruv)
 const OCH_YOPIQ = ['Ochildi', 'Bekor qilindi', 'Yopildi'];
 const OCH_SMS = {
   eslatma: 'Hurmatli {ism}! ANGOR KARVON SAROY: {no}-ijara shartnomasi bo\'yicha {dokon} do\'konini {muddat} gacha qabul qilib olib, savdoni boshlashingiz shart (3.2.4-band). Kelmasangiz shartnoma bekor qilinadi. Tel: {tel}',
@@ -96,6 +96,7 @@ function faza(z, bugun) {
   if (yopiq) f = 'yopiq';
   else if (z.sorov) f = 'soraldi';
   else if (z.natija === 'Ochilgan') f = 'yopiq';
+  else if (z.natija === 'Imzolanmagan') f = 'imzosiz';                 // imzolangan nusxa yo'q — tuzgan xodim «✕ Imzolanmagan» so'rovini beradi
   else if (z.natija === 'Ochilmagan') {
     if (z.matn !== 'Yangi') f = 'eski';                                     // eski matn: 🚫 «Ijarachi kelmadi» yo'li
     else if (!z.xabNo) f = kun >= OCH_XAT_KUN ? 'xabarnoma' : 'ochilmagan';   // 5-kun: SMS + qo'ng'iroq; 6-kun: xabarnoma
@@ -154,8 +155,14 @@ async function biriktir(faqatNo, kim) {
   const bosh = await ochBosh();
   const R4 = (await V.qatorlar('04_Ijara_shartnomalar')).map(({ x }) => x).filter(r => r[0] && /^IJ-27\/\d+$/.test(T(r[0])));
   const L = await ochKozgu(); const bor = {}; L.forEach(z => bor[z.no] = z);
-  const nomzod = R4.filter(r => { const no = T(r[0]); if (faqatNo && no !== faqatNo) return false; if (bor[no]) return false;
-    if (T(r[2]) !== 'Aktiv') return false; const sana = isoDan(r[1]); return sana && sana >= OCH_BIRIKTIR_BOSH; });
+  const holat4 = {}; R4.forEach(r => holat4[T(r[0])] = T(r[2]));
+  // shartnomasi endi «Aktiv» bo'lmagan ochiq nazoratlar yopiladi (bekor qilindi / muddati tugadi — boshqa yo'l bilan)
+  if (!faqatNo) for (const z of L) { if (OCH_YOPIQ.indexOf(z.holati) >= 0 || holat4[z.no] === 'Aktiv') continue;
+    try { await tarixQosh(z, 'tizim: shartnoma holati «' + (holat4[z.no] || 'yo\'q') + '» — nazorat yopildi', { Holati: 'Yopildi' }); } catch (e) { console.error('ochilish yop (' + z.no + '):', e.message); } }
+  // ochiq kelishuv / kelmadi so'rovi bor shartnoma nazoratga kirmaydi (u shundoq ham bekor qilinyapti)
+  let kbOchiq = {}; try { const KBH = require('./kb_hujjat'); (await KBH.kbRowsKozgu()).forEach(q => { if (KBH.KB_OCHIQ.indexOf(q.holati) >= 0) kbOchiq[q.no] = true; }); } catch (e) { }
+  const nomzod = R4.filter(r => { const no = T(r[0]); if (faqatNo && no !== faqatNo) return false; if (bor[no] || kbOchiq[no]) return false;
+    if (T(r[2]) !== 'Aktiv') return false; const sana = isoDan(r[1]); return sana && (!OCH_BIRIKTIR_BOSH || sana >= OCH_BIRIKTIR_BOSH); });
   if (!nomzod.length) return [];
   const pool = await undiruvchilar();
   const yangi = [], L2 = L.slice();

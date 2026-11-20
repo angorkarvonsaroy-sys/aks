@@ -60,7 +60,8 @@ async function ochHolat(args) {
   const f = O.faza(z, bugun);
   const m = await O.mijozTel(x ? x.mid : '');
   const ij = await require('./xat_chiqar')._ichki.ijrochi(z.undiruvchi || u.fish);
-  const out = { bor: true, z, faza: f.faza, kun: f.kun, bugun, yangiMatn: z.matn === 'Yangi', ochBosh: bosh, ruxsat: ruxsatmi(u, z), admin: !!u.admin,
+  let skan = false; try { skan = (await V.qatorlar('06d_Hujjatlar')).some(q => T(q.x[1]) === no && T(q.x[5]) === 'SHARTNOMA' && T(q.x[13]) === 'Faol'); } catch (e) { }
+  const out = { bor: true, z, faza: f.faza, kun: f.kun, bugun, yangiMatn: z.matn === 'Yangi', ochBosh: bosh, ruxsat: ruxsatmi(u, z), admin: !!u.admin, skan,
     mijoz: { ism: O.ism(z.fish || m.fish), tel1: m.tel1, tel2: m.tel2 },
     sms: { eslatma: O.smsMatn('eslatma', z, ij.tel), ochilmagan: O.smsMatn('ochilmagan', z, ij.tel) },
     kunlar: { och: O.OCH_KUN, eslatma: O.OCH_ESLATMA_KUN, xat: O.OCH_XAT_KUN, pochta: O.OCH_POCHTA_KUN },
@@ -98,6 +99,11 @@ async function ochAmal(args) {
     natija = nat === 'Ochilgan' ? 'Do\'kon ochilgan — nazorat yopildi, shartnoma odatdagidek davom etadi.'
       : (z.matn === 'Yangi' ? 'Ochilmagan deb belgilandi. Endi SMS yuboring va qo\'ng\'iroq qiling; ' + O.OCH_XAT_KUN + '-kundan (' + O.dmy(O.kunQosh(z.bosh, O.OCH_XAT_KUN)) + ') xabarnoma chiqariladi.'
         : 'Ochilmagan deb belgilandi. Bu shartnoma eski matnda — bekor qilish 🚫 «Ijarachi kelmadi» yo\'li bilan (direktor tasdig\'i).');
+  } else if (amal === 'imzosiz') {   // 20.11.2026 09:33: imzolangan nusxa umuman yo'q — tuzgan xodim «✕ Imzolanmagan» so'rovini beradi (ochimzosiz topshirig'i)
+    const iz = T(d.izoh).slice(0, 200); if (iz.length < 3) throw xato('Kimdan so\'raganingizni va javobini yozing (masalan: Nurbekdan so\'radim — ijarachi imzolamagan).');
+    if (z.natija) throw xato('Tekshiruv natijasi allaqachon yozilgan: ' + z.natija + ' (' + z.tekVaqt + ').');
+    await O.tarixQosh(z, kim + ': imzolangan nusxa yo\'q — ' + iz, { Tekshiruv_vaqt: h.dmyHm + ' · ' + kim, Tekshiruv_natija: 'Imzolanmagan', Izoh: (z.izoh ? z.izoh + ' | ' : '') + 'Imzolanmagan: ' + iz });
+    natija = 'Belgilandi. Shartnomani tuzgan xodimga «✕ Imzolanmagan» so\'rovini berish topshirig\'i tushadi (keyingi yurishda); direktor tasdiqlasa shartnoma bekor bo\'ladi.';
   } else if (amal === 'sms2') {
     if (z.natija !== 'Ochilmagan') throw xato('Avval tekshiruv natijasini qo\'ying.');
     if (z.sms2) throw xato('SMS allaqachon yozilgan: ' + z.sms2);

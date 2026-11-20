@@ -28,7 +28,9 @@ const TOP_QOIDALAR = [   // [kalit, nomi, muddat kun, kimga]
   ['ochtek', 'Ijara: 5-kun — do\'kon ochilganini tekshirish', 0, 'ijara undiruvchisi'],
   ['ochxat', 'Ijara: 6-kun — xabarnoma, buyurtma xat, kvitansiya', 0, 'ijara undiruvchisi'],
   ['ochbekor', 'Ijara: pochtadan 5 kun o\'tdi — bekor qilishga yuborish', 0, 'ijara undiruvchisi'],
-  ['ochkelmadi', 'Ijara (eski matn): do\'kon ochilmadi — 🚫 «ijarachi kelmadi» so\'rovi', 1, 'shartnomani tuzgan xodim']];
+  ['ocheski', 'Ijara (eski shartnoma): do\'kon ochilganini tekshirish', 3, 'ijara undiruvchisi'],
+  ['ochkelmadi', 'Ijara (eski matn): do\'kon ochilmadi — 🚫 «ijarachi kelmadi» so\'rovi', 1, 'shartnomani tuzgan xodim'],
+  ['ochimzosiz', 'Ijara: imzolangan nusxa yo\'q — ✕ «imzolanmagan» so\'rovi', 1, 'shartnomani tuzgan xodim']];
 
 // TOP_QOIDA (xom) → har qoida uchun {on, kun} (topQoidaCfg_ bilan bir xil)
 function cfgDan(p) { const o = {}; TOP_QOIDALAR.forEach(q => { const c = (p || {})[q[0]] || {}; o[q[0]] = { on: c.on !== false, kun: c.kun === undefined ? q[2] : Number(c.kun) || 0 }; }); return o; }
