@@ -184,6 +184,16 @@ async function topHalKerak(L) {                          // topHalHujjat_ biror 
   const HJ = await J.hujjatJurnal(); const mlM = H.some(t => TS.topHjTur(t) === 'JSHSHIR') ? await topMlMijoz() : {};
   return H.some(t => TS.topHjTur(t) === 'JSHSHIR' ? !!(mlM[t.mid] || {}).jshshir : !!topHjHujjat(t, HJ));
 }
+// v27.176 (20.11.2026, direktor): shartnomasi bo'yicha direktor tasdig'ini kutayotgan so'rov bo'lsa (06m «Tasdiq kutilmoqda», 06l «Kutilmoqda») —
+// topshiriqqa kutish = {kim, tur, vaqt} qo'shiladi; ilova tugma o'rniga «⏳ so'rov yuborildi — direktor tasdig'i kutilmoqda» ko'rsatadi, xodim ikkinchi marta bosmaydi.
+async function topKutishBelgi(L) {
+  const bor = L.filter(t => t.no && (t.holati === 'Jarayonda'));
+  if (!bor.length) return;
+  const M = {};
+  try { const KB = require('../lib/kb_hujjat'); (await KB.kbRowsKozgu()).forEach(z => { if (z.holati === 'Tasdiq kutilmoqda') M[z.no] = { kim: 'direktor', tur: z.turi === 'Kelmadi' ? 'Ijarachi kelmadi' : z.turi === 'Ochilmagan' ? 'Do\'kon ochilmadi' : 'Kelishuv bilan bekor', vaqt: (String(z.tarix || '').match(/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/g) || []).pop() || z.vaqt }; }); } catch (e) { }
+  try { (await V.qatorlar('06l_Imzosiz_sorovlar')).forEach(z => { const r = z.r || z.x || []; const no = String(r[2] || '').trim(); if (no && String(r[7] || '').trim() === 'Kutilmoqda') M[no] = { kim: 'direktor', tur: 'Imzolanmagan shartnoma', vaqt: String(r[1] || '') }; }); } catch (e) { }
+  bor.forEach(t => { const k = M[String(t.no).trim()]; if (k && /^(kbskan|skan|ochkelmadi|ochimzosiz|ochbekor|ochxat|ochtek|ochsms|ocheski)$/.test(t.qoida || '')) t.kutish = k; });
+}
 async function topMening([kodSes]) {
   const u = await S.ruxsat(kodSes);
   const { xodimTeng } = require('../lib/xodim');
@@ -206,6 +216,7 @@ async function topMening([kodSes]) {
   const yopiq = R.filter(x => x.holati === 'Bajarildi' && TS.topIso(x.yopildi).slice(0, 10) >= hafta).reverse().slice(0, 20);
   ochiq.sort((a, b) => (b.kechikkan - a.kechikkan) || (a.muhim === 'Shoshilinch' ? -1 : 0) - (b.muhim === 'Shoshilinch' ? -1 : 0) || (TS.topIso(a.muddat) < TS.topIso(b.muddat) ? -1 : 1));
   await topMlHolat(ochiq);
+  await topKutishBelgi(ochiq);   // v27.176
   return { ok: true, fish: u.fish, ochiq, yopiq, son: { kechikkan: ochiq.filter(x => x.kechikkan).length, bugun: ochiq.filter(x => x.muddat.slice(0, 10) === bugun).length, hafta: yopiq.length, ochiq: ochiq.length } };
 }
 

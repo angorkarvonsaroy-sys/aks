@@ -411,6 +411,13 @@ async function kbKelmadi(args) {
     '🚫 <b>Ijarachi kelmadi — bir tomonlama bekor qilish so\'rovi</b> — ' + no + ' (' + kbHtml(x.fish) + ', ' + kbHtml(x.dokon) + ')\n'
     + kun + ' kundan beri do\'kon ochilmagan. Aloqa: ' + kbHtml(aloqa) + '\n«' + kbHtml(sabab) + '»\n' + u.fish + '. Tasdiqlang: ilovada 👔 Direktor → Tasdiqlar.');
   await yangila([KB_V]);
+  // v27.176 (20.11.2026, direktor): so'rov yuborilgach xodimdagi «imzolangan skanni yuklang» (kbskan) topshirig'i DARHOL yopiladi —
+  // avval 2 soatlik avtomatik tekshiruvgacha ochiq turar, xodim «hech narsa bo'lmadi» deb o'ylardi (IJ-27/82, Nurbek)
+  try { const TP = require('./topshiriq_yoz')._ichki; const R = await TP.topRowsYangi(TP.TOP_V);
+    const och = R.L.filter(z => z.holati === 'Jarayonda' && z.qoida === 'kbskan' && String(z.no || '').trim() === no);
+    for (const z of och) await TP.topYop(TP.TOP_V, z, 'Bajarildi', 'tizim', '«Ijarachi kelmadi» so\'rovi yuborildi — direktor tasdig\'i kutilmoqda (KB-' + id + ')');
+    if (och.length) await yangila([TP.TOP_V]); }
+  catch (e) { console.error('kbKelmadi topshiriq yopish:', e.message); }
   return { ok: true, id, no, ogoh, serverda: true,
     natija: no + ': «ijarachi kelmadi» so\'rovi direktorga yuborildi (Telegram). Tasdiqlagach shartnoma bekor bo\'ladi, do\'kon bo\'shaydi. Shu paytgacha shartnoma «Aktiv».' };
 }
