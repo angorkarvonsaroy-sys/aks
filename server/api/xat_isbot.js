@@ -100,11 +100,14 @@ async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla
   const XB = require('../lib/xat_tizim_bekor');
   const kech = XB.tizimBekor(h), kechSabab = s(kechSabab0 || '').replace(/\s+/g, ' ').trim();
   if (kech) {
-    const qt = XB.qaytaXat(XJ || await xatlarYangi(XAT_V), h.no, X.xatSeriya(h.shablon));
-    if (!qt || qt.raqam !== raqam) throw new S.Xato('Bu xat o\'rniga yangi xat chiqarilgan — eski xatga isbot yuklanmaydi.');
+    // 21.11.2026 (Azim undiruvchi): o'rniga chiqarilgan xat ham tizim tomonidan bekor qilingan bo'lsa — eski xatga isbot yuklanaveradi.
+    //   Avval faqat seriyadagi OXIRGI xatga ruxsat edi, shuning uchun bekor qilinganlar zanjiri isbotni butunlay yopib qo'yardi.
+    const XJ2 = XJ || await xatlarYangi(XAT_V), ser = X.xatSeriya(h.shablon);
+    const keyin = XJ2.filter(z => z.no === h.no && X.xatSeriya(z.shablon) === ser && z.qator > h.qator && z.holati !== 'Bekor');
+    if (keyin.length) throw new S.Xato('Bu xat o\'rniga yangi xat chiqarilgan (' + keyin[0].raqam + ') — eski xatga isbot yuklanmaydi.');
     if (kechSabab.length < 10) throw new S.Xato('Nega isbot kechikib yuklanayotganini yozing (kamida 10 belgi) — yurist shunga qarab tekshiradi.');
     const md = X.xatIso(h.muddat);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(String(sana || '')) && /^\d{4}-\d{2}-\d{2}$/.test(md) && sana > md) throw new S.Xato('Xat to\'lov muddati (' + h.muddat + ') o\'tgandan keyin yetkazilgan bo\'lsa — bu isbot qabul qilinmaydi: yangi xat chiqaring.');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(sana || '')) && /^\d{4}-\d{2}-\d{2}$/.test(md) && sana > md) throw new S.Xato('«Yetkazilgan sana» — xat mijozga yetib borgan kun (bugungi kun emas): ' + h.sana + ' — ' + h.muddat + ' oralig\'ida bo\'lishi kerak. Mijozga to\'lov muddatidan keyin yetgan bo\'lsa — isbot emas, yangi xat chiqariladi.');
   }
   if (h.holati !== 'Tayyorlandi' && !kech) throw new S.Xato('Bu xat holati: ' + h.holati + '. Isbot faqat «Tayyorlandi» holatidagi xatga yuklanadi.');
   if (usul !== 'qol' && usul !== 'pochta') throw new S.Xato('Yetkazish usulini tanlang.');
