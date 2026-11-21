@@ -70,7 +70,8 @@ async function xatKataklar(varaq, h, q) {
         rows: [{ values: ['Isbot_tekshiruv', 'TG_xabar'].map(t => ({ userEnteredValue: { stringValue: t }, userEnteredFormat: { textFormat: { bold: true } } })) }], fields: 'userEnteredValue,userEnteredFormat.textFormat.bold' } });
     }
     if (req.length) await G.soralar(env.aksBazaId, req, env.googleKey);
-    if (q.tek) await G.yoz(env.aksBazaId, [{ varaq, katak: 'X' + h.qator + ':Y' + h.qator, qiymat: [['Kutilmoqda|' + q.vaqt + '|' + q.fish, '']] }], env.googleKey);
+    // 21.11.2026 (direktor qarori): pochta kvitansiyasi sanasi to'lov muddati ichida bo'lsa — isbot tizim tomonidan QABUL QILINADI, yuristga bormaydi.
+    if (q.tek) await G.yoz(env.aksBazaId, [{ varaq, katak: 'X' + h.qator + ':Y' + h.qator, qiymat: [[(q.tasdiq ? 'Tasdiqlandi|' + q.vaqt + '|tizim' : 'Kutilmoqda|' + q.vaqt + '|' + q.fish), '']] }], env.googleKey);
   } catch (e) { throw yozilmadi(e); }
 }
 // undXatYozuv_: 06_Undiruv_jurnali oxiriga «Ёзма огоҳлантириш» (B — sana, K — sana-vaqt). Xato e'tiborsiz (eski kabi).
@@ -89,6 +90,19 @@ async function undXatYozIch(varaq, h, usul, sana, fish, x) {
     bosq + ' №' + h.raqam + ' · ' + usul + ' орқали етказилди', '', '', h.raqam, fish, vaqt, '', x.fish, x.dokon, x.jami, '', x.mid, 'Юборилди'], env.googleKey);
   await G.sanaYoz(env.aksBazaId, [{ varaq, qator: r, ustun: 2, iso: sana }, { varaq, qator: r, ustun: 11, iso: vaqt, naqsh: 'dd.MM.yyyy HH:mm:ss' }], env.googleKey);
   return r;
+}
+
+// 21.11.2026: xat aslida vaqtida pochtaga topshirilgan ekan — tizim o'sha xat uchun yozgan «xatbekor» qoidabuzarligi uzrli qilinadi (06q K:M).
+async function xatbekorUzr(raqam, izoh) {
+  try {
+    const IJ = require('./ijro_yoz')._ichki;
+    const D = (await IJ.ijroQatorYangi(IJ.IJRO_VARAQ, IJ.IJRO_S))
+      .filter(r => s(r.Kalit) === 'xatbekor|' + raqam && r.Holati !== 'Uzrli')
+      .map(r => ({ varaq: IJ.IJRO_VARAQ, katak: 'K' + r.qator + ':M' + r.qator, qiymat: [['Uzrli', izoh, 'tizim']] }));
+    if (!D.length) return 0;
+    await G.yoz(env.aksBazaId, D, env.googleKey);
+    return D.length;
+  } catch (e) { console.error('xatbekor uzr:', e.message); return 0; }
 }
 
 // ------------------------------------------------------------------ xatYuborildi_ (umumiy qism)
@@ -119,10 +133,14 @@ async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla
   const r = await yukla({ no: h.no, turi: usul === 'pochta' ? 'POCHTA' : 'XAT_OLDIM', sana, b64, sahifa, xatRaqam: raqam,
     izoh: raqam + ' · ' + bosq + ' · ' + (usul === 'pochta' ? 'почта ' + pochtaNo + ' (имзоланган нусха + квитанция)' : 'қўлма-қўл (мижоз имзоси билан)') });
   const tek = !/top№\d+/.test(s(h.izoh));   // v26.0: direktor talabnoma topshirig'i xati — direktor tekshiradi
-  await xatKataklar(XAT_V, h, { nom: r.nom, usul, sana, pochta: pochtaNo, tek: tek || kech, vaqt: hozir().isoHm, fish: u.fish });
+  // 21.11.2026 (direktor qarori): kech isbot POCHTA orqali bo'lsa va kvitansiya sanasi xat sanasi bilan to'lov muddati orasida bo'lsa (yuqorida tekshirildi) —
+  //   xat o'z vaqtida yuborilgan hisoblanadi: tizim isbotni o'zi qabul qiladi, yuristga bormaydi, yangi xat chiqarish talab qilinmaydi.
+  const avto = kech && usul === 'pochta';
+  await xatKataklar(XAT_V, h, { nom: r.nom, usul, sana, pochta: pochtaNo, tek: tek || kech, tasdiq: avto, vaqt: hozir().isoHm, fish: u.fish });
   if (kech) {   // yurist va direktor ko'rishi uchun: qachon chiqarilgan, muddati, isbot qachon yuklangan va nega kechikkan
     const d5 = new Date(Date.now() + 5 * 3600 * 1000), p2 = n => String(n).padStart(2, '0'), hz = p2(d5.getUTCDate()) + '.' + p2(d5.getUTCMonth() + 1) + '.' + d5.getUTCFullYear() + ' ' + p2(d5.getUTCHours()) + ':' + p2(d5.getUTCMinutes());
-    const iz = (h.izoh ? h.izoh + ' | ' : '') + 'KECH ISBOT: xat ' + h.sana + ' da chiqarilgan, muddati ' + h.muddat + '; isbot ' + hz + ' da yuklandi (' + u.fish + ') — sabab: ' + kechSabab;
+    const iz = (h.izoh ? h.izoh + ' | ' : '') + 'KECH ISBOT: xat ' + h.sana + ' da chiqarilgan, muddati ' + h.muddat + '; isbot ' + hz + ' da yuklandi (' + u.fish + ') — sabab: ' + kechSabab
+      + (avto ? ' | TIZIM QABUL QILDI: pochtaga ' + sana.split('-').reverse().join('.') + ' da topshirilgan (kvitansiya № ' + pochtaNo + ') — muddat ichida, yangi xat talab qilinmaydi (direktor qarori 21.11.2026)' : '');
     try { await G.yoz(env.aksBazaId, [{ varaq: XAT_V, katak: 'V' + h.qator, qiymat: [[iz]] }], env.googleKey); } catch (e) { console.error('kech isbot izohi yozilmadi:', e.message); }
   }
   try { const x = (await U.undShartnomalar()).find(z => z.no === h.no); if (x) await undXatYoz(UND_V, h, usul === 'pochta' ? 'почта' : 'қўлма-қўл', sana, u.fish, x); }
@@ -144,10 +162,12 @@ async function yuborildi(kodSes, u, h, usul, sana, b64, sahifa, pochtaNo0, yukla
       }
     } catch (e) { console.error('topTalabTekshir_ (server):', e.message); top = top || ''; }
   }
-  if (tek || kech) tg.push(['koprikXatTasdiqTg', raqam]);
+  if ((tek || kech) && !avto) tg.push(['koprikXatTasdiqTg', raqam]);
   if (tg.length) HY._ichki.driveKeyin(s(h.no).replace(/\//g, '-') + '/' + r.nom, async () => { for (const [fn, a] of tg) { try { await koprik.chaqir(fn, u.kod, [a]); } catch (e) { console.error(fn + ' (xat isbot):', e.message); } } });
-  await yangila([XAT_V, UND_V].concat(top ? [TOP_V] : []));
-  return { ok: true, raqam, top, tek: tek || kech, kech };
+  let uzr = 0;
+  if (avto) uzr = await xatbekorUzr(raqam, 'Xat ' + sana.split('-').reverse().join('.') + ' da pochtaga topshirilgan (kvitansiya № ' + pochtaNo + '), to\'lov muddati ' + h.muddat + ' — vaqtida yuborilgan');
+  await yangila([XAT_V, UND_V].concat(top ? [TOP_V] : []).concat(uzr ? [require('./ijro_yoz')._ichki.IJRO_VARAQ] : []));
+  return { ok: true, raqam, top, tek: (tek || kech) && !avto, kech, avto, uzr };
 }
 
 // ------------------------------------------------------------------ amallar
