@@ -152,10 +152,25 @@ async function qatorQosh(sheetId, varaq, qator, kalitFayl) {
 }
 // Kataklarga sana formati (setNumberFormat('dd.MM.yyyy') o'rni). kataklar: [{ varaq, qator (1 dan), ustun (1 dan) }]
 const gidKesh = {};
+// 22.11.2026 (Zaynab: «Ташриф натижаси» da «Google yozuv xato 400: Invalid requests[0].updateCells: No grid with id: 0»):
+//   gidKesh jarayonda BIR MARTA tuzilardi. Ishga tushgandan keyin yaratilgan varaq (01c_Tashrif_natija — sotuv bo'limi uni o'zi yaratadi)
+//   keshda bo'lmaydi → sheetId undefined → JSON dan tushib qoladi → Google uni 0 deb oladi va «No grid with id: 0» xatosini beradi.
+//   Endi: nom topilmasa kesh yangilanadi, baribir topilmasa — sheetId siz so'rov YUBORILMAYDI, tushunarli xato chiqadi.
+async function gidYangila(sheetId, kalitFayl) {
+  const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {};
+  m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); return gidKesh[sheetId];
+}
+async function gidlar(sheetId, nomlar, kalitFayl) {
+  let M = gidKesh[sheetId] || await gidYangila(sheetId, kalitFayl);
+  if (nomlar.some(x => M[x] === undefined)) M = await gidYangila(sheetId, kalitFayl);
+  const yoq = [...new Set(nomlar.filter(x => M[x] === undefined))];
+  if (yoq.length) throw new Error('Varaq topilmadi: ' + yoq.join(', '));
+  return M;
+}
 async function sanaFormat(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   if (!kataklar.length) return;
-  if (!gidKesh[sheetId]) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
-  const requests = kataklar.map(c => ({ repeatCell: { range: { sheetId: gidKesh[sheetId][c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
+  const GID = await gidlar(sheetId, kataklar.map(c => c.varaq), kalitFayl);
+  const requests = kataklar.map(c => ({ repeatCell: { range: { sheetId: GID[c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
     cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: naqsh } } }, fields: 'userEnteredFormat.numberFormat' } }));
   return yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
 }
@@ -165,11 +180,11 @@ async function sanaFormat(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
 // naqsh 'auto' — setValue(new Date()) formatsiz: DATE turi, naqshsiz (Google o'zi joy tiliga ko'ra ko'rsatadi — 06p Javob_vaqt «20.10.2026»)
 async function sanaYoz(sheetId, kataklar, kalitFayl, naqsh = 'dd.MM.yyyy') {
   if (!kataklar.length) return;
-  if (!gidKesh[sheetId]) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
+  const GID = await gidlar(sheetId, kataklar.map(c => c.varaq), kalitFayl);
   // iso: 'yyyy-MM-dd' yoki 'yyyy-MM-dd HH:mm:ss' (Toshkent vaqti) → seriya raqami (kasr — soat); c.naqsh — katakning o'z formati
   const seriya = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(String(iso)); if (!m) return 0;
     return (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 + ((+m[4] || 0) * 3600 + (+m[5] || 0) * 60 + (+m[6] || 0)) / 86400; };
-  const requests = kataklar.map(c => ({ updateCells: { range: { sheetId: gidKesh[sheetId][c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
+  const requests = kataklar.map(c => ({ updateCells: { range: { sheetId: GID[c.varaq], startRowIndex: c.qator - 1, endRowIndex: c.qator, startColumnIndex: c.ustun - 1, endColumnIndex: c.ustun },
     rows: [{ values: [{ userEnteredValue: { numberValue: seriya(c.iso) }, userEnteredFormat: { numberFormat: c.naqsh === 'auto' ? { type: 'DATE' } : { type: c.naqsh && /H/.test(c.naqsh) ? 'DATE_TIME' : 'DATE', pattern: c.naqsh || naqsh } } }] }],
     fields: 'userEnteredValue,userEnteredFormat.numberFormat' } }));
   const ik = await ikkiK(sheetId);
@@ -186,18 +201,20 @@ async function oraliqOqi(sheetId, varaq, a1, kalitFayl, render = 'FORMATTED_VALU
 }
 // Varaq nomi → ichki raqami (sheetId / gid)
 async function gid(sheetId, varaq, kalitFayl, yangila) {
-  if (yangila || !gidKesh[sheetId] || gidKesh[sheetId][varaq] === undefined) { const m = await varaqlar(sheetId, kalitFayl); gidKesh[sheetId] = {}; m.varaqlar.forEach(v => { gidKesh[sheetId][v.title] = v.sheetId; }); }
-  if (gidKesh[sheetId][varaq] === undefined) throw new Error('Varaq topilmadi: ' + varaq);
-  return gidKesh[sheetId][varaq];
+  if (yangila) await gidYangila(sheetId, kalitFayl);
+  return (await gidlar(sheetId, [varaq], kalitFayl))[varaq];
 }
 // spreadsheets:batchUpdate — bir nechta so'rov bitta urinishda (format, formula nusxasi, varaq nusxasi …); hammasi yoki hech biri
 async function soralar(sheetId, requests, kalitFayl) {
   if (!requests.length) return {};
+  // 22.11.2026: varaq qo'shilsa/o'chirilsa gid keshi darhol eskiradi — aks holda keyingi sanaYoz «No grid with id: 0» beradi
+  if (requests.some(r => r && (r.addSheet || r.deleteSheet || r.duplicateSheet || (r.updateSheetProperties && r.updateSheetProperties.properties && r.updateSheetProperties.properties.title !== undefined)))) gidTozala(sheetId);
   const ik = await ikkiK(sheetId);
   const j = await yuborYoz(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, 'POST', { requests }, kalitFayl);
   await ikkiQ(ik, sheetId, kalitFayl, [{ tur: 'soralar', requests }]);
   return j;
 }
+const gidTozala = sheetId => { delete gidKesh[sheetId]; };   // varaq qo'shilgan/o'chirilgandan keyin
 // Ichki raqam (gid) → varaq nomi (ikki tomonlama yozish: soralar so'rovlari varaqni gid bilan ko'rsatadi)
 async function varaqNomi(sheetId, g, kalitFayl) {
   const top = () => { const M = gidKesh[sheetId] || {}; return Object.keys(M).find(t => M[t] === g); };
@@ -278,4 +295,4 @@ async function driveEksport(faylId, mime, kalitFayl) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-module.exports = { sanaBolar, ajrat, qatorRaqam, xomYoz, varaqNomi, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN, SCOPE_DRIVE };
+module.exports = { sanaBolar, ajrat, qatorRaqam, xomYoz, varaqNomi, driveEksport, token, ol, varaqlar, qiymatlar, qiymatlarBir, qatorOqi, ustunOqi, oraliqOqi, yoz, qatorQosh, qatorQoshR, qatorlarQoshR, sanaFormat, sanaYoz, gid, gidTozala, soralar, kataklarOqi, driveFayl, RuxsatYoq, harfU, ustunN, SCOPE_DRIVE };
