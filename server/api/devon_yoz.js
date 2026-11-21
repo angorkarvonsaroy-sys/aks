@@ -196,6 +196,7 @@ async function devonKordi(args) {
 const TP = require('./topshiriq_yoz')._ichki;
 const DX = require('../lib/devon_xat');
 const TOP_V = TP.TOP_V, DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const QL = require('../lib/devon_qolda');
 const DEVON_TUR = { javob: '✉ Javob xati tayyorlansin', ijro: '📋 Ijro etilsin', malumot: "👁 Ma'lumot uchun" };
 const DEVON_MATN_MAX = 8000;
 let kv15 = { ok: false, t: 0 };
@@ -529,6 +530,42 @@ async function tasdiqYadro(u, id, ha, izoh, opt = {}) {
   });
   return x;
 }
+// ------------------------------------------------------------------ 📮 ESKI XATNI QO'LDA YAKUNLASH (bir martalik qoida — lib/devon_qolda.js, direktor qarori 21.11.2026)
+// Ijrochi javobni qo'lda yozadi: fayl, kvitansiya, javob xati so'ralmaydi. Xat darhol «Ijro etildi» — direktor tasdig'i kerak emas.
+async function qoldaYadro(u, d, opt = {}) {
+  const varaq = opt.varaq || DEVON_V, topV = opt.topVaraq || TOP_V;
+  const { x } = await xatTop(varaq, d.id, 'Kirim'); if (!x) throw xato('Kirim xat topilmadi.');
+  if (!QL.qolda(x, hozir().iso)) throw xato('Bu xat qo\'lda yakunlanmaydi. Qoida faqat ' + QL.OXIR.split('-').reverse().join('.') + ' gacha kirim qilingan va xat sanasi ' + QL.KUN + ' kundan eski, «Ijroda» turgan xatlarga tegishli.');
+  if (!u.admin && x.ijrochi !== u.fish) throw xato('Bu xat sizga asosiy ijroga berilmagan' + (x.yordam.indexOf(u.fish) >= 0 ? ' — siz yordamchisiz, asosiy ijrochi: ' + x.ijrochi + '.' : '.'));
+  const matn = devonS(d.matn).slice(0, 2000);
+  if (matn.length < 10) throw xato('Javob qanday va qachon berilganini yozing (kamida 10 belgi).');
+  const jr = devonS(d.javobRaqam).slice(0, 60), js = d.javobSana ? devonSana(d.javobSana, 'Javob xati sanasi') : '';
+  const J = devonIjroJ(x); J.top = J.top || {};
+  J.top[x.ijrochi] = Object.assign({ v: hozir().dmyHm, h: matn, rol: 'a', qolda: 1 }, jr ? { jr } : {}, js ? { js } : {});
+  await topQulf(async () => {
+    const T = (await TP.topRowsYangi(topV)).L;
+    const top = f => { const tid = (J.tid || {})[f]; return tid ? T.find(z => String(z.id) === String(tid)) : null; };
+    const ta = top(x.ijrochi);
+    if (ta && (ta.holati === 'Jarayonda' || ta.holati === 'Tekshiruvda')) await TP.topYop(topV, ta, 'Bajarildi', u.fish, 'Eski xat — javob qo\'lda yozib yakunlandi: ' + matn.slice(0, 200));
+    for (const f of x.yordam) { const ty = top(f); if (ty && ty.holati === 'Jarayonda') await TP.topYop(topV, ty, 'Bekor', u.fish, 'xat ijro etildi (asosiy ijrochi qo\'lda yakunladi)'); }
+    await yozK(varaq, [[kat('R', x.qator), JSON.stringify(J)], [kat('K', x.qator), 'Ijro etildi']]);
+  });
+  await devonTarix(varaq, x, 'eski xat — javob qo\'lda yozib yakunlandi (' + u.fish + ', bir martalik qoida 21.11.2026): ' + matn.slice(0, 300) + (jr ? ' · javob xati ' + jr + (js ? ' (' + js + ')' : '') : ''));
+  return { x, matn, jr, js };
+}
+async function devonQoldaYakun(args) {
+  const [kodSes, d0] = args; const d = d0 || {};
+  const u = await S.foydalanuvchi(kodSes); if (!u) throw xato('Sessiya tugagan — parolingizni qayta kiriting.');
+  if (u.sifat) throw xato('👁 Ko\'rish rejimida bajarilmaydi.');
+  const r = await qulfBilan(() => qoldaYadro(u, d)).catch(e => { if (e.yozilmadi) throw xato('Yozib bo\'lmadi — direktorga ayting (' + e.message + ').'); throw e; });
+  try {
+    await require('../lib/telegram').direktor('📮 <b>' + devonHtml(u.fish) + '</b> kirim xat №' + r.x.tartib + ' (' + devonHtml(r.x.tashkilot) + ', №' + devonHtml(r.x.raqam) + ', ' + devonHtml(r.x.sana) + ') ni <b>qo\'lda yakunladi</b> — eski xat, bir martalik qoida.'
+      + '\n\n<i>' + devonHtml(r.matn.slice(0, 600)) + '</i>' + (r.jr ? '\n\nJavob xati: ' + devonHtml(r.jr) + (r.js ? ' (' + devonHtml(r.js) + ')' : '') : '') + '\n\nXat «Ijro etildi» holatiga o\'tdi, tasdiq kerak emas.');
+  } catch (e) { console.error('devonQoldaYakun tg:', e.message); }
+  await yangila([DEVON_V, TOP_V]);
+  return { ok: true, natija: 'Xat «Ijro etildi» — javob qo\'lda yozib yakunlandi. Skan va isbot talab qilinmadi.' };
+}
+
 async function devonTasdiq(args) {
   const [kodSes, id, ha0, izoh0] = args; const ha = !!ha0;
   const u = await S.ruxsat(kodSes, 'admin');
@@ -685,6 +722,6 @@ async function devonChiqimYoz(args) {
     natija: 'Chiquvchi xat №' + x.tartib + ' (raqami ' + raqam + ') ' + (tahrir ? 'qayta yasaldi' : 'tayyorlandi') + '. Chop eting, direktor imzolagach yuboring va «📤 Yuborilganini qayd etish» orqali isbotini yuklang.' };
 }
 
-module.exports = { devonKirimSaqla, devonKordi, devonChiqimSaqla, devonChiqimYubor, devonRezolyutsiya, devonIjroTopshir, devonTasdiq, devonRezQaytar, devonBekor, devonChiqimYoz };
+module.exports = { devonQoldaYakun, devonKirimSaqla, devonKordi, devonChiqimSaqla, devonChiqimYubor, devonRezolyutsiya, devonIjroTopshir, devonTasdiq, devonRezQaytar, devonBekor, devonChiqimYoz };
 module.exports._ichki = { devonRowsYangi, devonYoz, devonTarix, devonKordiYoz, kordiYadro, kordiServerda, devonNorm, devonRaqNorm, devonFaylNom, koprik112, koprik115, DEVON_V, DEVON_S, DEVON_TUR,
   chiqimSaqlaYadro, chiqimYuborYadro, rezYadro, ijroTopshirYadro, tasdiqYadro, rezQaytarYadro, bekorYadro, chiqimYozTekshir, devonYubOl, devonYubMatn, devonPdf, bayroq2, bayroqXat };

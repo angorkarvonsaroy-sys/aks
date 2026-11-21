@@ -42,6 +42,7 @@ function devonKor(x, bugunIso, R) {
     yangi: x.turi === 'Kirim' && x.holati === 'Rezolyutsiya kutmoqda' && !Jx.kordi, kordi: Jx.kordi ? Jx.kordi.v + ' · ' + Jx.kordi.fish : '',
     holati: x.holati, tur: x.tur, turNomi: DEVON_TUR[x.tur] || '', ijrochi: x.ijrochi, yordam: x.yordam, muddat: x.muddat, rez: x.rez, rezVaqt: x.rezVaqt,
     kechikkan: !!(mIso && mIso < bugunIso && (x.holati === 'Ijroda')), ijro, tarix: x.tarix,
+    qolda: require('../lib/devon_qolda').qolda(x, bugunIso),   // 21.11.2026: eski xatni qo'lda yakunlash mumkinmi (bir martalik qoida)
     eski: (Jx.eski || []).map(e => ({ fish: e.fish, vaqt: e.v, qaytdi: e.qaytdi })),
     bogliq: bog ? { id: bog.id, turi: bog.turi, tartib: bog.tartib, raqam: bog.raqam, sana: bog.sana } : null };
 }
