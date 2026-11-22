@@ -202,6 +202,63 @@ async function sotuvBoshlang([kodSes]) {
     sababHis: sababHisob(bosh ? L : M), reja, shOy, shXodim: bosh ? shXodim : [], dokonlar, narx: NARX, takliflar: takliflar.slice(0, 200), xodimlar: bosh ? XR : [] };
 }
 
+// ------------------------------------------------------------------ 🏬 DO'KON KARTASI (23.11.2026, direktor: «bir ekranda hammasi, qayta tiqmasin»)
+// Bitta chaqiruvda do'kon kartasiga kerak bo'lgan HAMMA narsa: holati, 4 ta rasmiy tarif, ogohlantirishlar,
+// oldingi/keyingi do'kon (‹ › bilan varaqlash) va blok bir qavatlimi (bir qavatli blokda «1-qavat» yozilmaydi).
+// Narx manbai — lib/narx.js (ilova ham, taklif PDF ham shundan oladi), ikkinchi hisob yo'q.
+async function sotuvKarta(args) {
+  const [kodSes, dokon0] = args;
+  const u = await S.ruxsat(kodSes);
+  if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
+    throw new S.Xato('Do\'kon kartasiga ruxsatingiz yo\'q. Direktorga murojaat qiling.');
+  const dokon = s(dokon0).trim().toUpperCase();
+  if (!dokon) throw new S.Xato('Do\'kon tanlanmagan.');
+  const bugun = V.bugun();
+  const D = await dokonHolat(dokon, bugun);
+  if (!D.bor) throw new S.Xato('Bunday do\'kon topilmadi: ' + dokon);
+  // qo'shnilar va blok qavatlari — 01_Dokonlar tartibida
+  // ‹ › — blok ichida tartib bilan yuradi (H-1-2 → H-1-3), boshqa blokka sakramaydi
+  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim())
+    .sort((a, b) => s(a.x[2]).localeCompare(s(b.x[2])) || (Number(a.x[3]) || 0) - (Number(b.x[3]) || 0) || (Number(a.x[4]) || 0) - (Number(b.x[4]) || 0));
+  const I = R.findIndex(({ x }) => s(x[0]).trim().toUpperCase() === dokon);
+  const qav = {}; R.forEach(({ x }) => { if (s(x[2]).trim().toUpperCase() === D.blok.trim().toUpperCase()) qav[s(x[3]).trim()] = 1; });
+  const ogoh = [];
+  if (D.taqiq) ogoh.push('⛔ Do\'kon TAQIQDA — sotish uchun direktor ruxsati kerak.');
+  if (D.rais) ogoh.push('👤 Raisga ajratilgan.');
+  if (D.egasi) ogoh.push('🔴 Sotilgan: ' + D.egasi);
+  if (D.ijarada) ogoh.push('🔵 Ijarada.');
+  if (D.mamuriyat) ogoh.push('⬛ Ma\'muriyat do\'koni.');
+  if (D.bron) ogoh.push('🔒 Bronda: ' + D.bron.fish + ' (' + D.bron.tugash + ' gacha).');
+  if (D.qurilish && D.qurilish !== 'Тугалланган') ogoh.push('🚧 Qurilish: ' + D.qurilish);
+  if (!D.maydon || !D.baza) ogoh.push('⚠ Maydoni yoki baza narxi bazada yo\'q — narx hisoblanmaydi.');
+  const h = (D.maydon && D.baza) ? NR.hisobla(D.baza, D.maydon) : null;
+  const t = (k, nom, sovga) => ({ k, nom, m2: h[k].m2, jami: h[k].jami, oylik: Math.round(h[k].oylik), boshlangich: h[k].boshlangich, tejash: Math.round(h[k].tejash), sovga });
+  return { ok: true, bugun,
+    d: { id: D.id, blok: D.blok, qavat: D.qavat, no: D.no, maydon: D.maydon, baza: D.baza, qurilish: D.qurilish,
+         holat: D.xHolat, egasi: D.egasi, taqiq: D.taqiq, rais: D.rais, ijarada: D.ijarada, bron: D.bron,
+         birQavat: Object.keys(qav).length <= 1, bosh: !D.egasi && !D.ijarada && !D.mamuriyat && !D.bron },
+    narx: h ? { rasmiy: h.rasmiy, oy: NR.NARX.oy, tarif: [
+        t('naqd', '100% naqd', NR.NARX.sovga.naqd), t('120', '120 mln boshlang\'ich', NR.NARX.sovga['120']),
+        t('60', '60 mln boshlang\'ich', NR.NARX.sovga['60']), t('yoq', 'Boshlang\'ichsiz', NR.NARX.sovga['0'])] } : null,
+    qoshni: { oldingi: I > 0 ? s(R[I - 1].x[0]).trim() : '', keyingi: (I >= 0 && I < R.length - 1) ? s(R[I + 1].x[0]).trim() : '', o: I + 1, jami: R.length },
+    ogoh };
+}
+// Ixtiyoriy boshlang'ich to'lov uchun narx (hisoblagich «Hisoblash» tugmasi) — ekstrapolyatsiya bo'lsa aytiladi
+async function sotuvNarx(args) {
+  const [kodSes, dokon0, boshl0, oy0] = args;
+  await S.ruxsat(kodSes);
+  const dokon = s(dokon0).trim().toUpperCase();
+  const D = await dokonHolat(dokon, V.bugun());
+  if (!D.bor) throw new S.Xato('Bunday do\'kon topilmadi: ' + dokon);
+  if (!D.maydon || !D.baza) throw new S.Xato('Bu do\'konning maydoni yoki baza narxi bazada yo\'q.');
+  const boshl = Math.max(0, Math.round(Number(boshl0) || 0)), oy = Math.max(0, Math.round(Number(oy0) || NR.NARX.oy));
+  const r = NR.narxHisob(D.baza, boshl, oy);
+  const jami = r.narx * D.maydon;
+  if (jami < boshl) throw new S.Xato('Boshlang\'ich to\'lov do\'kon qiymatidan katta bo\'lolmaydi.');
+  return { ok: true, m2: r.narx, jami, boshlangich: boshl, oy, oylik: oy > 0 ? Math.round((jami - boshl) / oy) : 0,
+    manba: r.manba, ekstra: /ekstrapol/i.test(r.manba) };
+}
+
 // ------------------------------------------------------------------ ✍ natija yozish
 async function sotuvNatija(args) {
   const [kodSes, id0, d0] = args; const d = d0 || {};
@@ -585,6 +642,6 @@ function sotuvBosh(u, bugun, boshliqmi) {
   })();
 }
 
-module.exports = { sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
+module.exports = { sotuvKarta, sotuvNarx, sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
 module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, sotuvBosh, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };
