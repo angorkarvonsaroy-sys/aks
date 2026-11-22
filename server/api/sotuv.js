@@ -259,6 +259,51 @@ async function sotuvNarx(args) {
     manba: r.manba, ekstra: /ekstrapol/i.test(r.manba) };
 }
 
+// ------------------------------------------------------------------ 💰 MIJOZNING PULIGA QARAB TANLASH (23.11.2026)
+// Sotuvchi mijozdan ikki raqamni so'raydi: qo'lida nechcha pul bor va oyiga qanchagacha to'lay oladi.
+// Tizim BO'SH do'konlarning hammasini shu shart bo'yicha hisoblab, yaraydiganlarini chiqaradi.
+// «Qaysi do'kon bor?» deb butun xaritani kezish o'rniga — mijozga mos ro'yxat darhol ko'rinadi.
+async function sotuvTanlov(args) {
+  const [kodSes, d0] = args; const d = d0 || {};
+  const u = await S.ruxsat(kodSes);
+  if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
+    throw new S.Xato('Ruxsatingiz yo\'q.');
+  const boshl = Math.max(0, Math.round(Number(d.boshlangich) || 0));
+  const oylikMax = Math.max(0, Math.round(Number(d.oylik) || 0));
+  const oy = Math.max(1, Math.round(Number(d.oy) || NR.NARX.oy));
+  const blok = s(d.blok).trim().toUpperCase();
+  const mMin = Number(d.maydonMin) || 0, mMax = Number(d.maydonMax) || 0;
+  if (!oylikMax && !boshl) throw new S.Xato('Mijoz qo\'lidagi pulni yoki oylik to\'lov imkonini yozing.');
+  const bugun = V.bugun();
+  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim());
+  const BR = {};   // faol bronlar — ular ham band hisoblanadi
+  (await bronRoyxat(bugun)).forEach(b => { if (b.holati === 'Faol') BR[s(b.dokon).trim().toUpperCase()] = 1; });
+  const L = [];
+  for (const { x } of R) {
+    const id = s(x[0]).trim();
+    if (s(x[17]).trim()) continue;                                  // sotilgan (sotuv shartnomasi bor)
+    const ij = s(x[21]).trim();
+    if (ij && !/^IJ-YOQ/i.test(ij)) continue;                       // ijarada (IJ-YOQ-… = ijara yo'q degani)
+    if (s(x[8]).trim() === 'Ha') continue;                          // taqiqda
+    if (s(x[11]).trim() === 'Ha') continue;                         // raisga ajratilgan
+    if (BR[id.toUpperCase()]) continue;
+    const maydon = Number(x[5]) || 0, baza = Number(x[6]) || 0;
+    if (!maydon || !baza) continue;
+    if (blok && s(x[2]).trim().toUpperCase() !== blok) continue;
+    if (mMin && maydon < mMin) continue;
+    if (mMax && maydon > mMax) continue;
+    const r = NR.narxHisob(baza, boshl, oy);
+    const jami = r.narx * maydon;
+    if (jami <= boshl) { L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik: 0, naqd: true, ekstra: /ekstrapol/i.test(r.manba) }); continue; }
+    const oylik = Math.round((jami - boshl) / oy);
+    if (oylikMax && oylik > oylikMax) continue;
+    L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik, naqd: false, ekstra: /ekstrapol/i.test(r.manba) });
+  }
+  L.sort((a, b) => b.maydon - a.maydon || a.oylik - b.oylik);
+  const bloklar = [...new Set(L.map(z => z.blok))].sort();
+  return { ok: true, jami: L.length, boshlangich: boshl, oylik: oylikMax, oy, bloklar, royxat: L.slice(0, 60) };
+}
+
 // ------------------------------------------------------------------ ✍ natija yozish
 async function sotuvNatija(args) {
   const [kodSes, id0, d0] = args; const d = d0 || {};
@@ -642,6 +687,6 @@ function sotuvBosh(u, bugun, boshliqmi) {
   })();
 }
 
-module.exports = { sotuvKarta, sotuvNarx, sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
+module.exports = { sotuvKarta, sotuvNarx, sotuvTanlov, sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
 module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, sotuvBosh, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };
