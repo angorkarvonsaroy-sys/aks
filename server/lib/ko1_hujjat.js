@@ -161,7 +161,8 @@ function ogohOddiy(o) {
       <div><div class="yorl">Шундан муддати ўтган</div><div class="qiy">${pul(o.motgan)}</div></div>
 ${qm}      <div><div class="yorl">Жами қарздорлик</div><div class="qiy">${pul(o.jami)}</div></div>
     </div>
-${satr}${mot}    <div class="imzo-qator">Мурожаат учун: «ANGOR KARVON SAROY» МЧЖ &nbsp;·&nbsp; директор — Ҳайдаров Камолиддин</div>
+${satr}${mot}    <p>Тўловларингиз ва қарздорлигингизни Телеграмда кузатиб боришингиз мумкин: <b>t.me/angor_karvon_saroy_bot</b> — ботни очиб, «Рақамни юбориш» тугмасини босасиз.</p>
+    <div class="imzo-qator">Мурожаат учун: «ANGOR KARVON SAROY» МЧЖ &nbsp;·&nbsp; директор — Ҳайдаров Камолиддин</div>
   </div>`;
 }
 // o.muhr (11.11.2026, direktor): muhr FAQAT direktor chiqargan varaqda bosiladi; boshqa xodim chiqarsa — muhr o'rnida «М.Ў.» belgisi turadi (muhr qo'lda bosiladi)
