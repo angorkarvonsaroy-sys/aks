@@ -74,7 +74,9 @@ async function raqamBer(id, yil) {
   }, S.Xato);
 }
 
-async function ko1Chiqar([kodSes, id0]) {
+// muhrsiz (23.11.2026, direktor): bitta to'lovga ikki variant — muhrli (direktor chiqarganda muhr bosilgan) va
+// muhrsiz (muhr o'rnida «М.Ў.» — muhr qo'lda bosiladi). Boshqa xodim chiqargan varaq avvalgidek doim muhrsiz.
+async function ko1Chiqar([kodSes, id0, muhrsiz0]) {
   const u = await S.ruxsat(kodSes, 'tolov');
   const id = butun(id0);
   if (!id) throw new S.Xato('To\'lov ko\'rsatilmagan.');
@@ -106,11 +108,12 @@ async function ko1Chiqar([kodSes, id0]) {
   const a = KH.asosMatn(t.maqsad, t.kim);
   if (a.qolda) ogoh.push('To\'lovdagi maqsad qo\'lda yozilgan — «Асос» qatoriga umumiy matn qo\'yildi.');
   if (q.keyingi > 0) ogoh.push('Shu sanadan keyin yana to\'lov bor — eslatmadagi qarz ' + t.sana.split('-').reverse().join('.') + ' holatiga hisoblandi.');
-  const o = { muhr: !!u.admin, raqam, sana: t.sana, fish: s(M.mj[2]) || s(M.sh[20]), mid: butun(M.sh[4]), tel: M.mj[4], no: t.no, shSana: V.iso(M.sh[2]) || '',
+  const muhrsiz = muhrsiz0 === true || muhrsiz0 === 1 || s(muhrsiz0) === '1';
+  const o = { muhr: !!u.admin && !muhrsiz, raqam, sana: t.sana, fish: s(M.mj[2]) || s(M.sh[20]), mid: butun(M.sh[4]), tel: M.mj[4], no: t.no, shSana: V.iso(M.sh[2]) || '',
     blok: M.dokon.blok, qavat: M.dokon.qavat, dokon: M.dokon.nr, maydon: M.dokon.maydon, summa: t.summa, asos: a.matn,
     asosiy: q.asosiy, motgan: q.motgan, qoshimcha: q.qoshimcha, jami: q.jami, tolangan: q.tolangan, umumiy: q.umumiy, oylik: q.oylik, tolovKuni: q.tolovKuni, tugash: q.tugash };
   const pdf = await KH.pdf(o);
-  const nom = 'KO-1_' + (raqam ? raqam.replace(/[^\wА-Яа-я-]+/g, '-') + '_' : '') + t.no.replace(/\//g, '-') + '_' + t.sana.split('-').reverse().join('-') + '.pdf';
+  const nom = 'KO-1_' + (raqam ? raqam.replace(/[^\wА-Яа-я-]+/g, '-') + '_' : '') + t.no.replace(/\//g, '-') + '_' + t.sana.split('-').reverse().join('-') + (muhrsiz ? '_muhrsiz' : '') + '.pdf';
   return { ok: true, id, raqam: raqam || '', muhr: o.muhr, nom, b64: pdf.toString('base64'), ogoh };
 }
 
