@@ -230,6 +230,8 @@ async function sotuvKarta(args) {
   if (D.mamuriyat) ogoh.push('⬛ Ma\'muriyat do\'koni.');
   if (D.bron) ogoh.push('🔒 Bronda: ' + D.bron.fish + ' (' + D.bron.tugash + ' gacha).');
   if (D.qurilish && D.qurilish !== 'Тугалланган') ogoh.push('🚧 Qurilish: ' + D.qurilish);
+  if (D.bazaKotarildi) ogoh.push('⚠ Bazada 1 m² ' + D.bazaXom.toLocaleString('ru-RU').replace(/,/g, ' ') +
+    ' deb turibdi — eng past rasmiy narxdan past. Hisobga 10 530 000 olindi, 01_Dokonlar tuzatilishi kerak.');
   if (!D.maydon || !D.baza) ogoh.push('⚠ Maydoni yoki baza narxi bazada yo\'q — narx hisoblanmaydi.');
   const h = (D.maydon && D.baza) ? NR.hisobla(D.baza, D.maydon) : null;
   const t = (k, nom, sovga) => ({ k, nom, m2: h[k].m2, jami: h[k].jami, oylik: Math.round(h[k].oylik), boshlangich: h[k].boshlangich, tejash: Math.round(h[k].tejash), sovga });
@@ -287,7 +289,9 @@ async function sotuvTanlov(args) {
     if (s(x[8]).trim() === 'Ha') continue;                          // taqiqda
     if (s(x[11]).trim() === 'Ha') continue;                         // raisga ajratilgan
     if (BR[id.toUpperCase()]) continue;
-    const maydon = Number(x[5]) || 0, baza = Number(x[6]) || 0;
+    const maydon = Number(x[5]) || 0;
+    let baza = Number(x[6]) || 0;
+    if (baza && baza < NR.NARX.engPast) baza = NR.NARX.engPast;   // 23.11.2026: eng past rasmiy narx
     if (!maydon || !baza) continue;
     if (blok && s(x[2]).trim().toUpperCase() !== blok) continue;
     if (mMin && maydon < mMin) continue;
@@ -383,7 +387,12 @@ async function dokonHolat(dokonId, bugun) {
   const qur = s(x[7]).trim();
   const B = (await bronRoyxat(bugun)).find(z => z.dokon.toLowerCase() === s(dokonId).trim().toLowerCase() && z.holati === 'Faol');
   const xh = xHolat(x, !!B);
-  return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0, qurilish: qur,
+  // 23.11.2026 direktor qarori: sotilmagan do'konda baza eng past rasmiy narxdan (10 530 000) past bo'lmaydi.
+  // Bazadagi raqam past bo'lsa — hisobga eng past rasmiy narx olinadi, kartada ogohlantirish chiqadi, 01_Dokonlar tuzatilishi kerak.
+  const bazaXom = Number(x[6]) || 0, sotilganmi = !!(egasi && egasi.toUpperCase() !== 'SOTILMAGAN');
+  const past = !sotilganmi && bazaXom > 0 && bazaXom < NR.NARX.engPast;
+  return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0,
+    baza: past ? NR.NARX.engPast : bazaXom, bazaXom, bazaKotarildi: past, qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
     ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
 }
