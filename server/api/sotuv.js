@@ -306,7 +306,7 @@ async function sotuvPrays(args) {
     }
     const ekstra = NR.NARX.bazalar.indexOf(baza) < 0;
     if (ekstra) ekstraSoni++;
-    const K = blok + (qavat === '2' ? ' \u00b7 2-qavat' : '');
+    const K = blok + (Number(qavat) === 2 ? ' \u00b7 2-qavat' : '');   // 24.11: Qavat bazada raqam (2), matn emas
     if (!M[K]) M[K] = { blok: K, soni: 0, maydonMin: 0, maydonMax: 0, bazalar: [], dokonlar: [] };
     const B = M[K];
     B.soni++; jami++;
