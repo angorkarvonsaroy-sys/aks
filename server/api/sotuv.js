@@ -248,7 +248,10 @@ async function sotuvKarta(args) {
 // Ixtiyoriy boshlang'ich to'lov uchun narx (hisoblagich «Hisoblash» tugmasi) — ekstrapolyatsiya bo'lsa aytiladi
 async function sotuvNarx(args) {
   const [kodSes, dokon0, boshl0, oy0] = args;
-  await S.ruxsat(kodSes);
+  // 24.11.2026: hisoblagich ham do'kon kartasi bilan bir xil huquq so'raydi (avval faqat «tizimga kirganmi» tekshirilardi).
+  const u = await S.ruxsat(kodSes);
+  if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
+    throw new S.Xato('Narx hisoblashga ruxsatingiz yo\'q. Direktorga murojaat qiling.');
   const dokon = s(dokon0).trim().toUpperCase();
   const D = await dokonHolat(dokon, V.bugun());
   if (!D.bor) throw new S.Xato('Bunday do\'kon topilmadi: ' + dokon);
