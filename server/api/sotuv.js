@@ -264,6 +264,54 @@ async function sotuvNarx(args) {
     manba: r.manba, ekstra: /ekstrapol/i.test(r.manba) };
 }
 
+// ------------------------------------------------------------------ 📋 PRAYS (24.11.2026, direktor: «blok-blok jadval ko'rinishida»)
+// Bo'sh do'konlarning hammasi blok-blok, to'rtta rasmiy shart bo'yicha hisoblangan holda bir marta beriladi.
+// Shartni almashtirganda qayta so'ralmaydi — hisob ilovada darhol ko'rinadi.
+async function sotuvPrays(args) {
+  const [kodSes] = args;
+  const u = await S.ruxsat(kodSes);
+  if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
+    throw new S.Xato('Prays ro\'yxatiga ruxsatingiz yo\'q. Direktorga murojaat qiling.');
+  const bugun = V.bugun();
+  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim());
+  const BR = {};
+  (await bronRoyxat(bugun)).forEach(b => { if (b.holati === 'Faol') BR[s(b.dokon).trim().toUpperCase()] = 1; });
+  const M = {}; let jami = 0, ekstraSoni = 0;
+  for (const { x } of R) {
+    const id = s(x[0]).trim();
+    if (s(x[17]).trim()) continue;                                  // sotilgan
+    const ij = s(x[21]).trim();
+    if (ij && !/^IJ-YOQ/i.test(ij)) continue;                       // ijarada
+    if (s(x[8]).trim() === 'Ha') continue;                          // taqiqda
+    if (s(x[11]).trim() === 'Ha') continue;                         // raisga ajratilgan
+    if (BR[id.toUpperCase()]) continue;                             // bronda
+    const maydon = Number(x[5]) || 0;
+    let baza = Number(x[6]) || 0;
+    if (baza && baza < NR.NARX.engPast) baza = NR.NARX.engPast;     // eng past rasmiy narx
+    if (!maydon || !baza) continue;
+    const blok = s(x[2]).trim(), qavat = s(x[3]).trim();
+    const H = NR.hisobla(baza, maydon);
+    const t = [H.naqd, H['120'], H['60'], H.yoq].map(z => ({ m2: Math.round(z.m2), jami: Math.round(z.jami), oylik: Math.round(z.oylik) }));
+    const ekstra = NR.NARX.bazalar.indexOf(baza) < 0;
+    if (ekstra) ekstraSoni++;
+    const K = blok + (qavat === '2' ? ' \u00b7 2-qavat' : '');
+    if (!M[K]) M[K] = { blok: K, soni: 0, maydonMin: 0, maydonMax: 0, bazalar: [], dokonlar: [] };
+    const B = M[K];
+    B.soni++; jami++;
+    if (!B.maydonMin || maydon < B.maydonMin) B.maydonMin = maydon;
+    if (maydon > B.maydonMax) B.maydonMax = maydon;
+    if (B.bazalar.indexOf(baza) < 0) B.bazalar.push(baza);
+    B.dokonlar.push({ id, no: s(x[4]).trim(), maydon, baza, ekstra, t });
+  }
+  const bloklar = Object.keys(M).sort((a, b) => a.length - b.length || a.localeCompare(b)).map(k => {
+    const B = M[k];
+    B.dokonlar.sort((p, q) => (Number(p.no) || 0) - (Number(q.no) || 0) || p.no.localeCompare(q.no));
+    B.bazalar.sort((p, q) => p - q);
+    return B;
+  });
+  return { ok: true, sana: bugun, jami, ekstraSoni, oy: NR.NARX.oy, bloklar };
+}
+
 // ------------------------------------------------------------------ 💰 MIJOZNING PULIGA QARAB TANLASH (23.11.2026)
 // Sotuvchi mijozdan ikki raqamni so'raydi: qo'lida nechcha pul bor va oyiga qanchagacha to'lay oladi.
 // Tizim BO'SH do'konlarning hammasini shu shart bo'yicha hisoblab, yaraydiganlarini chiqaradi.
@@ -699,6 +747,6 @@ function sotuvBosh(u, bugun, boshliqmi) {
   })();
 }
 
-module.exports = { sotuvKarta, sotuvNarx, sotuvTanlov, sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
+module.exports = { sotuvKarta, sotuvNarx, sotuvTanlov, sotuvPrays, sotuvBoshlang, sotuvNatija, sotuvBron, sotuvBronAmal, sotuvRejaYoz, sotuvTaklif };
 module.exports._ichki = { tashrifRoyxat, natijaKozgu, bronRoyxat, dokonHolat, rejaRoyxat, sotuvBosh, ST_VARAQ, ST_S, BR_VARAQ, BR_S, BR_KUN, BR_OGOH_KUN, RJ_VARAQ, RJ_S,
   ST_NATIJA, ST_SABAB, ST_MAQSAD, ST_KUN, ST_BOSH, stXodim, natNomi, natYopiq, stDmy };
