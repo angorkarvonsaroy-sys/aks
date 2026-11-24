@@ -268,7 +268,9 @@ async function sotuvNarx(args) {
 // Bo'sh do'konlarning hammasi blok-blok, to'rtta rasmiy shart bo'yicha hisoblangan holda bir marta beriladi.
 // Shartni almashtirganda qayta so'ralmaydi — hisob ilovada darhol ko'rinadi.
 async function sotuvPrays(args) {
-  const [kodSes] = args;
+  // args[1] (ixtiyoriy): { boshl, oy } — direktor/sotuvchi qo'lda yozgan shart. Shunda har do'konga
+  // 5-tarif qo'shiladi (t[4]) va «maxsus» qaytadi. 24.11.2026 direktor qarori: muddat ham narxga ta'sir qiladi.
+  const [kodSes, shart0] = args;
   const u = await S.ruxsat(kodSes);
   if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
     throw new S.Xato('Prays ro\'yxatiga ruxsatingiz yo\'q. Direktorga murojaat qiling.');
@@ -276,6 +278,11 @@ async function sotuvPrays(args) {
   const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim());
   const BR = {};
   (await bronRoyxat(bugun)).forEach(b => { if (b.holati === 'Faol') BR[s(b.dokon).trim().toUpperCase()] = 1; });
+  const Q = shart0 && typeof shart0 === 'object' ? shart0 : null;
+  const mxBoshl = Q ? Math.max(0, Math.round(Number(Q.boshl) || 0)) : 0;
+  const mxOy = Q ? Math.max(1, Math.min(NR.NARX.oy, Math.round(Number(Q.oy) || NR.NARX.oy))) : 0;
+  const maxsus = Q ? { boshl: mxBoshl, oy: mxOy,
+    rasmiy: (mxOy === NR.NARX.oy && NR.NARX.shartlar.indexOf(mxBoshl) >= 0) } : null;
   const M = {}; let jami = 0, ekstraSoni = 0;
   for (const { x } of R) {
     const id = s(x[0]).trim();
@@ -292,6 +299,11 @@ async function sotuvPrays(args) {
     const blok = s(x[2]).trim(), qavat = s(x[3]).trim();
     const H = NR.hisobla(baza, maydon);
     const t = [H.naqd, H['120'], H['60'], H.yoq].map(z => ({ m2: Math.round(z.m2), jami: Math.round(z.jami), oylik: Math.round(z.oylik) }));
+    if (maxsus) {                                   // 5-tarif — qo'lda yozilgan shart
+      const m2 = NR.m2NarxOy(baza, mxBoshl, mxOy), jm = Math.round(m2 * maydon);
+      t.push(mxBoshl >= jm ? { m2, jami: jm, oylik: 0, toliq: true }
+                           : { m2, jami: jm, oylik: Math.round((jm - mxBoshl) / mxOy) });
+    }
     const ekstra = NR.NARX.bazalar.indexOf(baza) < 0;
     if (ekstra) ekstraSoni++;
     const K = blok + (qavat === '2' ? ' \u00b7 2-qavat' : '');
@@ -309,7 +321,7 @@ async function sotuvPrays(args) {
     B.bazalar.sort((p, q) => p - q);
     return B;
   });
-  return { ok: true, sana: bugun, jami, ekstraSoni, oy: NR.NARX.oy, bloklar };
+  return { ok: true, sana: bugun, jami, ekstraSoni, oy: NR.NARX.oy, maxsus, bloklar };
 }
 
 // ------------------------------------------------------------------ 💰 MIJOZNING PULIGA QARAB TANLASH (23.11.2026)
