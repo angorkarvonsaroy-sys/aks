@@ -110,6 +110,104 @@ async function xatKechikkanYangi(kod, opt, bugun, L0, xat, XD, Y, Q) {
   return { xatlar: L.length, direktorga: dir.length, guruh, xodimlar: xodim };
 }
 
+// ================================================================== 24.11.2026 DIREKTOR QARORI — ERTALABKI OGOHLANTIRISH + KECHKI NATIJA
+// Sabab: 17:00 dagi «bugun 18:15 gacha yetkazing» xabari foydasiz edi — pochta 17:00 da yopiladi, xodim o'qiganda ulgurishi imkonsiz.
+// Endi:  07:30 — ogohlantirish (direktorga + har xodimga faqat o'ziniki), 18:30 — natija (yetkazilgani ✅ / yetkazilmagani ❌, ikkalasiga ham).
+// Muhlat qoidasi O'ZGARMADI: xat chiqarilgan kundan keyingi 1 ish kuni (yakshanba o'tkaziladi; shanba — ish kuni, pochta shanba ishlaydi),
+// qoidabuzarlik 18:15 da (ijro_kechki) yoziladi. 17:00 dagi xat_kechikkan ishi jadvaldan olib tashlandi (funksiya qo'lda chaqirish uchun qoldi).
+const XAT_POCHTA_SOAT = '17:00', XAT_QOIDA_SOAT = '18:15', XAT_NATIJA_SOAT = '18:30';
+const ISBOT_IZOH = 'Исбот «✉ Yuborildi» тугмаси орқали юкланади: почта — имзоланган 2-нусха + квитанция ва жўнатма рақами; қўлма-қўл — мижоз имзолаган нусха.';
+
+// Bir joyda: yetkazilmagan xatlar (qoldi — ish kuni bo'yicha) va bugun yetkazilganlar (yetdi)
+async function xatYigim(bugun) {
+  const S = {}; (await P.xatShartnomalar(bugun)).forEach(x => { S[x.no] = x; });
+  const JX = await J.xatJurnal(), Q = require('../api/qadam')._ichki;
+  const tek = {}; JX.forEach(h => { tek[h.raqam] = s(h.tek); });
+  const qat = h => {
+    const x = S[h.no] || {};
+    const f2 = s(x.fish).split(/\s+/).slice(0, 2).map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+    const rad = /^Rad\|(\d{2})\.(\d{2})\.(\d{4})/.exec(tek[h.raqam] || '');
+    const bosh = rad ? rad[3] + '-' + rad[2] + '-' + rad[1] : X.xatIso(h.sana);
+    return { raqam: h.raqam, no: h.no, fish: xatKirill(f2), masul: s(x.undiruvchi).trim() || s(h.kim).trim(),
+      ik: Q.xatIshKun(bosh, bugun), muh: Q.xatMuhlat(bosh), rad: !!rad };
+  };
+  const yangi = h => X.xatIso(h.sana) >= X.XAT_YANGI_QOIDA;
+  return {
+    qoldi: JX.filter(h => h.holati === 'Tayyorlandi' && yangi(h) && X.xatIso(h.sana) <= bugun).map(qat).sort((a, b) => b.ik - a.ik),
+    yetdi: JX.filter(h => h.holati === 'Yuborildi' && yangi(h) && X.xatIso(h.yetSana) === bugun).map(qat)
+  };
+}
+const xatNom = h => '<b>' + h.raqam + '</b> (' + h.no + ' ' + h.fish + ')';
+function kimBoyicha(L) { const m = {}; L.forEach(h => (m[h.masul] = m[h.masul] || []).push(h)); return m; }
+
+// ------------------------------------------------------------------ xatErtalab (07:30)
+async function xatErtalab(kod, opt = {}) {
+  const bugun = V.bugun();
+  if (hafta(bugun) === 0) return { yuborilmadi: 'Yakshanba — xabar yuborilmaydi.' };
+  const { qoldi } = await xatYigim(bugun);
+  if (!qoldi.length) return { yuborilmadi: 'Yetkazilmagan xat yo\'q.' };
+  const XD = await xodimlar(), Y = yuboruvchi(kod, opt, 'xatErtalab');
+  const dir = qoldi.filter(h => h.ik >= 1);
+  let guruh = null;
+  if (dir.length) {
+    const g = ['☀️ <b>Огоҳлантириш хатлари — бугун етказилиши керак</b> — ' + dmy(bugun) + ', 07:30', ''];
+    dir.forEach(h => g.push(
+      h.ik === 1 ? '🟡 <b>' + XD.kim(h.masul) + '</b> ' + xatNom(h) + ' — бугун муҳлатнинг охирги куни.'
+      : h.ik === 2 ? '🔴 <b>' + XD.kim(h.masul) + '</b> ' + xatNom(h) + ' — муҳлати (' + dmy(h.muh) + ') ўтди, ҳалигача юборилмаган.'
+      : '⛔ <b>' + XD.kim(h.masul) + '</b> ' + xatNom(h) + ' хатни ' + h.ik + ' иш кунидан бери юбормади. Интизомий чора масаласи.'));
+    g.push('', 'Почта соат ' + XAT_POCHTA_SOAT + ' да ёпилади — ходимларга эрталабдан айтинг.',
+      'Кун якуни соат ' + XAT_NATIJA_SOAT + ' да келади: қайси бири етказилди, қайси бири йўқ.');
+    guruh = await Y.direktor(g.join('\n'));
+    if (!guruh) for (const id of XD.adm) await Y.chat(id, 'direktor', g.join('\n'));
+  }
+  const shaxsiy = h =>
+    h.ik === 0 ? 'ℹ️ ' + xatNom(h) + ' — муҳлат <b>' + dmy(h.muh) + '</b>' + (h.rad ? ' (исботи қайтарилган)' : '') + '.'
+    : h.ik === 1 ? '⚠️ ' + xatNom(h) + ' — <b>бугун муҳлатнинг охирги куни.</b>'
+    : h.ik === 2 ? '🔴 ' + xatNom(h) + ' — муҳлати (' + dmy(h.muh) + ') ўтди. Бугун етказинг.'
+    : '⛔ ' + xatNom(h) + ' — ' + h.ik + ' иш кунидан бери юборилмаган. Сизга нисбатан <b>интизомий жазо чораси</b> қўлланилиши мумкин. '
+      + 'Хат кучини йўқотади — бекор қилиниб, қайтадан чиқарилишига тўғри келади.';
+  const kim = kimBoyicha(qoldi); let xodim = 0;
+  for (const f of Object.keys(kim)) {
+    if (!XD.tg[f]) continue; xodim++;
+    await Y.chat(XD.tg[f], f, '☀️ <b>Бугун етказилиши керак бўлган хатлар</b> — ' + dmy(bugun) + '\n\n' + kim[f].map(shaxsiy).join('\n\n')
+      + '\n\nПочтага <b>бугун соат ' + XAT_POCHTA_SOAT + ' гача</b> топширинг, исботини <b>' + XAT_QOIDA_SOAT + ' гача</b> юкланг — акс ҳолда қоидабузарлик ёзилади.\n' + ISBOT_IZOH);
+  }
+  if (opt.quruq) return { quruq: true, xabarlar: Y.xabarlar, xatlar: qoldi.length, direktorga: dir.length };
+  return { xatlar: qoldi.length, direktorga: dir.length, guruh, xodimlar: xodim };
+}
+
+// ------------------------------------------------------------------ xatNatija (18:30) — qoidabuzarlik 18:15 da yozilgandan keyin
+async function xatNatija(kod, opt = {}) {
+  const bugun = V.bugun();
+  if (hafta(bugun) === 0) return { yuborilmadi: 'Yakshanba — xabar yuborilmaydi.' };
+  const { qoldi, yetdi } = await xatYigim(bugun);
+  const qolgan = qoldi.filter(h => h.ik >= 1);
+  if (!yetdi.length && !qolgan.length) return { yuborilmadi: 'Bugun muhlati tugagan yoki yetkazilgan xat yo\'q.' };
+  const XD = await xodimlar(), Y = yuboruvchi(kod, opt, 'xatNatija');
+  const g = ['🌙 <b>Огоҳлантириш хатлари — кун якуни</b> — ' + dmy(bugun)];
+  if (yetdi.length) { g.push('', '✅ <b>Етказилди — ' + yetdi.length + ' та:</b>');
+    yetdi.forEach(h => g.push('• ' + xatNom(h) + ' — ' + XD.kim(h.masul))); }
+  if (qolgan.length) { g.push('', '❌ <b>Етказилмади — ' + qolgan.length + ' та</b> (қоидабузарлик ёзилди):');
+    qolgan.forEach(h => g.push('• ' + xatNom(h) + ' — ' + XD.kim(h.masul) + (h.ik === 1 ? '' : ' · ' + h.ik + ' иш кунидан бери'))); }
+  else g.push('', '✅ Муҳлати бугун тугаган хатларнинг ҳаммаси етказилди.');
+  let guruh = await Y.direktor(g.join('\n'));
+  if (!guruh) for (const id of XD.adm) await Y.chat(id, 'direktor', g.join('\n'));
+  const kimY = kimBoyicha(yetdi), kimQ = kimBoyicha(qolgan), hammasi = {};
+  Object.keys(kimY).forEach(f => { hammasi[f] = 1; }); Object.keys(kimQ).forEach(f => { hammasi[f] = 1; });
+  let xodim = 0;
+  for (const f of Object.keys(hammasi)) {
+    if (!XD.tg[f]) continue; xodim++;
+    const m = ['🌙 <b>Кун якуни</b> — ' + dmy(bugun)];
+    if (kimY[f]) { m.push('', '✅ <b>Етказилди:</b>'); kimY[f].forEach(h => m.push('• ' + xatNom(h))); }
+    if (kimQ[f]) { m.push('', '❌ <b>Етказилмади — қоидабузарлик ёзилди:</b>'); kimQ[f].forEach(h => m.push('• ' + xatNom(h)));
+      m.push('', 'Эртага биринчи навбатда почтага топширинг ва исботини юкланг.'); }
+    else m.push('', 'Раҳмат — бугунги хатларингиз тўлиқ етказилди.');
+    await Y.chat(XD.tg[f], f, m.join('\n'));
+  }
+  if (opt.quruq) return { quruq: true, xabarlar: Y.xabarlar, yetdi: yetdi.length, qolgan: qolgan.length };
+  return { yetdi: yetdi.length, qolgan: qolgan.length, guruh, xodimlar: xodim };
+}
+
 // ------------------------------------------------------------------ bekorKechikkanTekshir
 async function bekorKechikkan(kod, opt = {}) {
   const bugun = V.bugun();
@@ -137,4 +235,4 @@ async function bekorKechikkan(kod, opt = {}) {
   return { sorovlar: L.length, qizil: qizil.length, xodimlar: xodim, guruh };
 }
 
-module.exports = { xatKechikkan, bekorKechikkan, bekorIshKun, xodimlar };
+module.exports = { xatKechikkan, xatErtalab, xatNatija, xatYigim, bekorKechikkan, bekorIshKun, xodimlar };

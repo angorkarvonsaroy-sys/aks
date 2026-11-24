@@ -12,7 +12,9 @@
 //   top_kechki  — topKechki (20:10): direktorga kun yakuni — kim nechta bajardi / qoldi / muddati o'tgan (tgYubor_ — koprikTgYubor).
 //   und_ertalab — undErtalabYubor (09:00, 12.11.2026 dan yakshanba ham): lib/ertalab.js — undiruvchilarga ertalabki topshiriq, 07c_Ertalab_svod, direktorga svod.
 //   mon_eslatma — monEslatmaYubor (09:10, yakshanbadan tashqari): lib/ertalab.js — skansiz yangi shartnomalar eslatmasi.
-//   xat_kechikkan   — xatKechikkanTekshir (17:00): lib/kechikkan.js — yetkazilmagan ogohlantirish xatlari (direktorga, mas'ulga).
+//   xat_ertalab     — xatErtalab (07:30, 24.11.2026 direktor qarori): lib/kechikkan.js — bugun muhlati tugaydigan va muhlati o'tgan xatlar —
+//                     direktorga ro'yxat, har xodimga faqat o'ziniki. Eski 17:00 xabari olib tashlandi: pochta 17:00 da yopiladi, ulgurish imkonsiz edi.
+//   xat_natija      — xatNatija (18:30): lib/kechikkan.js — kun yakuni: bugun yetkazilgani ✅ va yetkazilmagani ❌ (direktorga va har xodimga).
 //   bekor_kechikkan — bekorKechikkanTekshir (17:15): lib/kechikkan.js — bekor qilish skanlari kechikkan (xodimga, ≥2 ish kuni — direktorga).
 //   qadam_kechki — qadamKechki (18:00): lib/ijro_kun.js — direktorga «🌙 Bugungi ish natijasi» (reja bajarilmagan bo'lsa).
 //   ijro_kechki  — ijroKechki (18:15): lib/ijro_kun.js — 06r kunlik ijro, 06q qoidabuzarliklar, xodimlarga Telegram, zinapoya.
@@ -115,7 +117,8 @@ const KX = require('./kunlik_xabar');
 const ISHLAR = [
   { nom: 'top_avto', fn: 'topAvto', tavsif: '🤖 Topshiriq qoidalari (topAvto)', har: 'soat2', eski: 'topAvto — everyHours(2)', ish: topAvtoIsh },
   { nom: 'und_ertalab', fn: 'undErtalabYubor', tavsif: '☀️ Undiruvchilarga ertalabki topshiriq + 07c svod (undErtalabYubor)', har: 'kun:09:00', eski: 'undErtalabYubor — har kuni 09:00', ish: (kod, opt) => ER.undErtalab(kod, opt) },
-  { nom: 'xat_kechikkan', fn: 'xatKechikkanTekshir', tavsif: '✉️ Yetkazilmagan xatlar nazorati (xatKechikkanTekshir)', har: 'kun:17:00', eski: 'xatKechikkanTekshir — har kuni 17:00', ish: (kod, opt) => KC.xatKechikkan(kod, opt) },
+  { nom: 'xat_ertalab', fn: 'xatErtalab', tavsif: '☀️ Xatlar: bugungi muhlat ogohlantirishi (xatErtalab)', har: 'kun:07:30', eski: 'yo\'q — yangi ish (24.11.2026, 17:00 o\'rniga)', ish: (kod, opt) => KC.xatErtalab(kod, opt) },
+  { nom: 'xat_natija', fn: 'xatNatija', tavsif: '🌙 Xatlar: kun yakuni — yetkazildi / yetkazilmadi (xatNatija)', har: 'kun:18:30', eski: 'yo\'q — yangi ish (24.11.2026)', ish: (kod, opt) => KC.xatNatija(kod, opt) },
   { nom: 'bekor_kechikkan', fn: 'bekorKechikkanTekshir', tavsif: '✂️ Bekor qilish skanlari nazorati (bekorKechikkanTekshir)', har: 'kun:17:15', eski: 'bekorKechikkanTekshir — har kuni 17:15', ish: (kod, opt) => KC.bekorKechikkan(kod, opt) },
   { nom: 'yu_ertalab', fn: 'yuErtalab', tavsif: '⚖ Yuristga bugungi ish ro\'yxati (24.10 qarori — eski tizimda yo\'q edi)', har: 'kun:09:05', eski: 'yo\'q — yangi ish', ish: (kod, opt) => require('./yurist_ertalab').yuErtalab(kod, opt) },
   { nom: 'xat_eskirgan', fn: 'xatEskirganBekor', tavsif: '✉ Muddati o\'tgan, isboti yuklanmagan xatni tizim bekor qiladi + yangisini chiqarish vazifasi (13.11.2026 qarori)', har: 'daq:30', eski: 'yo\'q — yangi ish (13.11)', ish: (kod, opt) => require('./xat_tizim_bekor').bekorQil(kod, opt) },
