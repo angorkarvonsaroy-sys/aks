@@ -41,6 +41,21 @@ function m2NarxOy(baza, boshlangich, oy) {
   return Math.round((b + (o / NARX.oy) * (toliq - b)) / NARX.yaxlit) * NARX.yaxlit;
 }
 
+// 24.11.2026 (direktor qarori) — SOTILMAGAN DO'KON BAZASINI TUZATISH.
+// Faqat sotilmagan do'konga tegishli (sotilgan do'kon narxi shartnomada qotib qolgan).
+//  1) 23.11.2026: baza eng past rasmiy narxdan (10 530 000) past bo'lmaydi;
+//  2) 24.11.2026: bazada 1 000 so'mgacha ham to'g'ri kelmaydigan raqam turgan bo'lsa — bu narx emas,
+//     eski hisobning qoldig'i. Eng yaqin 10 000 so'mga keltiriladi; do'konning haqiqiy narxi
+//     (katta maydon, burchak, tarsaviy do'kon ustamasi) saqlanadi, faqat ortiqcha raqamlar olinadi.
+// Qaytaradi: { baza, xom, sabab } — sabab '' | 'past' | 'tiyin'.
+function bazaTuzat(bazaXom, sotilganmi) {
+  const x = Number(bazaXom) || 0;
+  if (!x || sotilganmi) return { baza: x, xom: x, sabab: '' };
+  if (x < NARX.engPast) return { baza: NARX.engPast, xom: x, sabab: 'past' };
+  if (x % 1000 !== 0) return { baza: Math.round(x / NARX.yaxlit) * NARX.yaxlit, xom: x, sabab: 'tiyin' };
+  return { baza: x, xom: x, sabab: '' };
+}
+
 // To'rtta tarif. t0 — boshlang'ichsiz umumiy qiymat (tejash shunga nisbatan hisoblanadi).
 function hisobla(baza, maydon) {
   const b = Number(baza) || 0, S = Number(maydon) || 0;
@@ -77,4 +92,4 @@ function narxHisob(baza, boshl, oy) {
     : Math.round(Number(oy)) + ' oy — formula bo\'yicha hisoblandi, tasdiqlang' };
 }
 
-module.exports = { NARX, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };
+module.exports = { bazaTuzat, NARX, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };
