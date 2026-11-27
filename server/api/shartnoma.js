@@ -52,7 +52,7 @@ async function shartnomaBoshlang([kodSes]) {
   // 19.11.2026: masʼul sotuvchi ro'yxati — ishlayapti va «tashrif» huquqi bor xodimlar (sotuv bo'limi), yana direktor
   const sotuvchilar = R7.filter(z => String(z.x[10] || '').trim() === 'Ishlayapti' && (huqRoy(z.x[18]).includes('tashrif') || String(z.x[0]).replace(/\.0$/, '') === '1'))
     .map(z => String(z.x[1] || '').trim()).filter(Boolean);
-  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, sotuvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
+  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), oxirgi: mx ? '27/' + mx : '', oxirgiIjara: mx4 > 99 ? 'IJ-27/' + mx4 : '',   // 27.11.2026: PDF katagiga oxirgi raqam faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, sotuvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
     bugun: V.bugun() };
 }
 
