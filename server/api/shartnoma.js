@@ -52,7 +52,8 @@ async function shartnomaBoshlang([kodSes]) {
   // 19.11.2026: masʼul sotuvchi ro'yxati — ishlayapti va «tashrif» huquqi bor xodimlar (sotuv bo'limi), yana direktor
   const sotuvchilar = R7.filter(z => String(z.x[10] || '').trim() === 'Ishlayapti' && (huqRoy(z.x[18]).includes('tashrif') || String(z.x[0]).replace(/\.0$/, '') === '1'))
     .map(z => String(z.x[1] || '').trim()).filter(Boolean);
-  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), oxirgi: mx ? '27/' + mx : '', oxirgiIjara: mx4 > 99 ? 'IJ-27/' + mx4 : '',   // 27.11.2026: PDF katagiga oxirgi raqam faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, sotuvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
+  // 27.11.2026: oxirgi / oxirgiIjara — Index pdfNo katagiga oxirgi shartnoma raqami (direktor). DIQQAT: bu qatorga «//» izoh qo'yilmaydi — 27.11 da shunday izoh qatorning qolganini yutib, Yangi shartnoma oynasi 15 daqiqa ishlamagan.
+  return { mijozlar, tashriflar, dokonlar, hud, keyingi: '27/' + (mx + 1), keyingiIjara: 'IJ-27/' + (mx4 + 1), oxirgi: mx ? '27/' + mx : '', oxirgiIjara: mx4 > 99 ? 'IJ-27/' + mx4 : '', faoliyat, turlar: SHARTNOMA_TURLARI, undiruvchilar, sotuvchilar, admin: u.admin, narxJadval: NARX_JADVAL,
     bugun: V.bugun() };
 }
 
