@@ -48,4 +48,35 @@ function tugmaChaqiruvlari(s) { const C = {}; let m;
       console.log('      ' + l.slice(m.index, m.index + 120).trim());
       yomon++; }); } }
 
+// 27.11.2026: SKRIPT ICHIDA CHAQIRILGAN, LEKIN HECH QAYERDA TA'RIFLANMAGAN FUNKSIYA. v27.192–194 da Прайс ekrani «esc(…)» ni chaqirgan
+// (to'g'risi thEsc) — sintaksis sog', tugma funksiyasi (sotuvPrays) ta'riflangan, lekin ichkarida «esc is not defined» — 3 kun hech kimda
+// ochilmagan. Yuqoridagi tekshiruv faqat onclick="…" ni ko'radi; bu esa butun kodni daraxt (acorn) orqali o'qiydi, satr ichidagi matnga
+// aldanmaydi. acorn topilmasa — qadam o'tkazib yuboriladi va aytiladi (xato emas).
+{ let acorn = null, walk = null;
+  for (const y of ['acorn', '/opt/node-tools/node_modules/acorn', '/opt/npm-tools/node_modules/acorn']) { try { acorn = require(y); walk = require(y.replace(/acorn$/, 'acorn-walk')); break; } catch (e) { } }
+  if (!acorn) console.log('  ⚠ acorn topilmadi — «ta\'riflanmagan funksiya» tekshiruvi o\'tkazib yuborildi');
+  else {
+    const GLOBAL = new Set([...ICHKI, ...'encodeURI decodeURI cancelAnimationFrame TypeError RangeError WeakMap WeakSet Blob File FileReader URL FormData XMLHttpRequest Image Audio Uint8Array Int32Array Float64Array ArrayBuffer DataView atob btoa escape unescape google structuredClone queueMicrotask localStorage sessionStorage matchMedia addEventListener removeEventListener dispatchEvent CustomEvent Event KeyboardEvent MouseEvent MutationObserver IntersectionObserver ResizeObserver AbortController Headers Request Response TextEncoder TextDecoder Intl Proxy Reflect BigInt Function Date Infinity NaN undefined globalThis self parent top frames QRCode html2canvas jspdf pdfjsLib eval arguments'.split(' ')]);
+    const SAH = []; for (const f of process.argv.slice(2)) { try { const s = fs.readFileSync(f, 'utf8'); if (s.length >= 1000) SAH.push({ f, s }); } catch (e) { } }
+    const skriptlar = z => { const B = []; z.s.replace(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi, (m, a, kod, off) => { if (!/type\s*=\s*["']?(text\/template|application\/json)/i.test(a)) B.push({ kod: kod.replace(/<\?!?=[\s\S]*?\?>/g, 'null'), qator: z.s.slice(0, off + m.indexOf(kod)).split('\n').length - 1 }); return m; }); return B; };
+    const patNom = (n, D) => { if (!n) return; if (n.type === 'Identifier') D.add(n.name); else if (n.type === 'ObjectPattern') n.properties.forEach(p => patNom(p.type === 'RestElement' ? p.argument : p.value, D)); else if (n.type === 'ArrayPattern') n.elements.forEach(e => patNom(e, D)); else if (n.type === 'AssignmentPattern') patNom(n.left, D); else if (n.type === 'RestElement') patNom(n.argument, D); };
+    const D = new Set(), G = new Set(), CH = [];   // ta'riflar (hamma sahifadan), «typeof x==='function'» bilan himoyalanganlar, chaqiruvlar
+    SAH.forEach(z => skriptlar(z).forEach((b, i) => { let ast; try { ast = acorn.parse(b.kod, { ecmaVersion: 'latest', sourceType: 'script', allowReturnOutsideFunction: true, allowAwaitOutsideFunction: true }); } catch (e) { return; }
+      walk.full(ast, n => {
+        if (n.type === 'FunctionDeclaration' || n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') { if (n.id) D.add(n.id.name); n.params.forEach(p => patNom(p, D)); }
+        else if (n.type === 'VariableDeclarator') patNom(n.id, D);
+        else if (n.type === 'ClassDeclaration' || n.type === 'ClassExpression') { if (n.id) D.add(n.id.name); }
+        else if (n.type === 'CatchClause') patNom(n.param, D);
+        else if (n.type === 'UnaryExpression' && n.operator === 'typeof' && n.argument.type === 'Identifier') G.add(n.argument.name);   // typeof xaritaOch==='function' — boshqa sahifa funksiyasi, himoyalangan
+        else if (n.type === 'AssignmentExpression') { if (n.left.type === 'Identifier') D.add(n.left.name); else if (n.left.type === 'MemberExpression' && n.left.object.type === 'Identifier' && /^(window|globalThis|self)$/.test(n.left.object.name) && n.left.property.type === 'Identifier') D.add(n.left.property.name); else patNom(n.left, D); }
+        else if ((n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.type === 'Identifier') CH.push({ nom: n.callee.name, f: z.f, qator: b.qator + b.kod.slice(0, n.start).split('\n').length });
+      }); }));
+    const yoq = {}; CH.forEach(c => { if (D.has(c.nom) || GLOBAL.has(c.nom) || G.has(c.nom)) return; const k = c.f + '\t' + c.nom; (yoq[k] = yoq[k] || []).push(c.qator); });
+    const K = Object.keys(yoq);
+    if (!K.length) console.log('  skript ichidagi chaqiruvlar: ' + CH.length + ' ta — hammasi ta\'riflangan');
+    K.forEach(k => { const [f, nom] = k.split('\t'), q = [...new Set(yoq[k])], sah = f.split('/').pop(), asosiy = /index/i.test(sah);
+      console.log('  ' + (asosiy ? '✗' : '⚠') + ' ' + sah + ': «' + nom + '(…)» chaqirilgan, lekin hech qayerda ta\'riflanmagan (' + q.length + ' joy; qator ' + q.slice(0, 5).join(', ') + ') — ishlaganda «' + nom + ' is not defined» chiqadi');
+      if (asosiy) yomon++; });
+  } }
+
 process.exit(yomon ? 2 : 0);
