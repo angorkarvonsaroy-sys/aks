@@ -262,4 +262,5 @@ async function kbHujjat(x, D) {
 }
 
 module.exports = { kbTekshir, kbHujjat, kbRowsDan, kbRowsKozgu, kbHuquq, kbAdmin, kbFam, kbLotin, kbKir, kbXodimIsm, kbS, kbDmy, Xato,
-  KB_VARAQ, KB_SARLAVHA, KB_HUQUQ, KB_OCHIQ, KB_PAPKA };
+  KB_VARAQ, KB_SARLAVHA, KB_HUQUQ, KB_OCHIQ, KB_PAPKA,
+  kbQisqa, kbM2, kbSozDa, kbSanaQ, bugunIso };   // 27.11.2026: lib/topshirish_hujjat.js uchun

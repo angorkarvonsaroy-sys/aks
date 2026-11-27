@@ -186,6 +186,8 @@ Object.assign(A, require('./qadam_xat'));
 Object.assign(A, require('./huquq'));
 // 📄 shartnomaPdf (sotuv), ijaraPdf (ijara) — PDF serverda (yozuv_yondi:shartnoma_pdf bo'lsa; Drive nusxasi va 03 S / 04 V — fonda eski tizim), aks holda eski tizim
 Object.assign(A, require('./shartnoma_pdf'));
+// 📄 topshirishPdf — ijara boshida do'konni qabul qilish-topshirish dalolatnomasi (27.11.2026, direktor) — faqat PDF, bazaga yozmaydi
+Object.assign(A, require('./topshirish'));
 // 🎲 ijroTekshirJavob (Ijro.gs) — tekshiruv qo'ng'irog'i javobi: 06p, 10, 06q (yozuv_yondi:ijro_tekshir bo'lsa), aks holda eski tizim
 // 📒 ijroUzrli (direktor — 06q K:M) va ijroTushuntir (xodim — 06q N:O) — 26.10.2026 dan serverda, shu bayroq bilan
 Object.assign(A, require('./ijro_yoz'));
