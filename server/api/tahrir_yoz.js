@@ -170,7 +170,7 @@ async function tahrirQollash(kim, no, d, usul, o = {}) {
         const fx = F[TAHRIR_02[k][0] - 1];
         if (typeof fx === 'string' && fx[0] === '=') { await matnKataklar(m2, kat); throw new S.Xato('02_Mijozlar «' + TAHRIR_02[k][1] + '» katagida formula bor — tegilmadi, direktorga ayting.'); }
         if (SANA_K.indexOf(k) >= 0) sKat.push({ varaq: m2, qator: m.qator, ustun: TAHRIR_02[k][0], iso: sanaIso(yangi[k]) }); else kat.push({ qator: m.qator, ustun: TAHRIR_02[k][0], v: yangi[k] });
-        log.push([vaqt, c.no, c.tur === 'ijara' ? 'Ijara' : 'Sotuv', c.mid, TAHRIR_02[k][1], S1(joriy[k]) || '—', yangi[k] || '—', kim, usul]);
+        log.push([vaqt, c.no, c.tur === 'ijara' ? 'Ijara' : c.tur === 'mijoz' ? 'Mijoz' : 'Sotuv', c.mid, TAHRIR_02[k][1], S1(joriy[k]) || '—', yangi[k] || '—', kim, usul]);   // 27.11: 'mijoz' — shartnomasiz tahrir (mijozTahrirSaqlash)
       }
       // 01.11.2026: manzil qismi o'zgarsa — Z «Toliq_manzil» ham yangidan yig'iladi (lib/manzil.js; jurnalga alohida yozilmaydi — qismlari yozilgan)
       if (ozgar.some(k => MANZIL_K.indexOf(k) >= 0)) {
@@ -222,6 +222,27 @@ async function tahrirSaqlash(args) {
   let t;
   try { t = await tahrirQollash(u.fish, no, d, u.admin ? 'direktor' : "o'zi (kiritgan kuni)", { c, m }); }
   catch (e) { if (e.yozilmadi) return eskiTizim('tahrirSaqlash', u, args.slice(1)); throw e; }
+  await tahrirKozgu(t);
+  return toza(t);
+}
+
+// ------------------------------------------------------------------ ✎ mijozTahrirSaqlash — mijoz kartasi, shartnomasiz (27.11.2026, direktor)
+// Mijozlar bo'limi va Yangi shartnoma oynasidagi «✎ Tahrir». Direktor — to'g'ridan-to'g'ri; xodim — faqat shartnomasi yo'q mijoz (mijozSaqlash
+// bilan o'zi kiritgan karta bilan bir xil daraja). Yozuv yadrosi tahrirQollash ning o'zi: 02 kataklari, Z manzil, 06j jurnali (tur «Mijoz», № «ID …»).
+// Eski tizimda bunday amal yo'q — serverda yozish o'chiq bo'lsa aniq xato beradi, hech narsa yozilmaydi.
+async function mijozTahrirSaqlash(args) {
+  const [kodSes, mid0, d0] = args;
+  const u = await S.ruxsat(kodSes, 'shartnoma');
+  const mid = s(mid0).trim(); if (!mid) throw new S.Xato('Mijoz ID yo\'q.');
+  if (!(await serverda(u.kod))) throw new S.Xato('Mijoz kartasini serverda tahrirlash hozir o\'chiq — shartnoma kartasidan (✎ Tahrir) foydalaning yoki direktorga ayting.');
+  const d = d0 || {}; delete d.faoliyat;
+  const m = await mijozYangi(mid);
+  const boshqa = await require('./hujjat_panel')._ichki.tahrirBoshqa(mid, '');
+  if (!u.admin && boshqa.length) throw new S.Xato('Bu mijozning shartnomasi bor (' + boshqa.join(', ') + ') — o\'zgarishni shartnoma kartasidan qiling: 📎 Hujjatlar → shartnoma → ✎ Tahrir.');
+  const c = { no: 'ID ' + mid, tur: 'mijoz', holati: '', mid, faoliyat: '', qator: 0 };
+  let t;
+  try { t = await tahrirQollash(u.fish, c.no, d, u.admin ? 'direktor' : "o'zi (shartnomasiz mijoz)", { c, m }); }
+  catch (e) { if (e.yozilmadi) throw new S.Xato('Bazaga yozib bo\'lmadi (robot ruxsati) — direktorga ayting.'); throw e; }
   await tahrirKozgu(t);
   return toza(t);
 }
@@ -369,5 +390,5 @@ async function topMalumotTasdiq(args) {
   return { ok: true, natija: ha ? (j && j.natija ? j.natija : 'Tasdiqlandi.') + ' Topshiriq yopildi.' : 'Rad etildi — xodimga Telegram xabar ketdi, topshiriq unda ochiq qoladi.' };
 }
 
-module.exports = { tahrirSaqlash, monSorovYubor, monSorovJavob, topMalumotKirit, topMalumotTasdiq };
+module.exports = { tahrirSaqlash, mijozTahrirSaqlash, monSorovYubor, monSorovJavob, topMalumotKirit, topMalumotTasdiq };
 module.exports._ichki = { shYangi, mijozYangi, matnKataklar, jurnalYoz, javobYoz, tahrirQollash, topMlSorov, TAHRIR_02, JUR_V, MIJ_V, S4_V };

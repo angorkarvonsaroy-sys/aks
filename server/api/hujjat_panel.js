@@ -82,6 +82,24 @@ async function tahrirHolat([kodSes, no]) {
     faoliyat: c.faoliyat, faoliyatlar, hud, boshqa: await tahrirBoshqa(c.mid, c.no) };
 }
 
+// 27.11.2026 (direktor): ✎ mijoz kartasini SHARTNOMASIZ ham tahrirlash — Mijozlar bo'limida va Yangi shartnoma oynasida (mijoz ID bo'yicha).
+// Direktor — to'g'ridan-to'g'ri. Xodim — faqat hech qanday shartnomasi yo'q mijozni (hujjat imzolanmagan); shartnomali mijoz — avvalgidek
+// shartnoma kartasidan (tahrirHolat / monSorovYubor). Yozish — api/tahrir_yoz.js mijozTahrirSaqlash.
+async function mijozTahrirHolat([kodSes, mid]) {
+  const u = await S.ruxsat(kodSes, 'shartnoma');
+  mid = String(mid == null ? '' : mid).trim(); if (!mid) throw new S.Xato('Mijoz ID yo\'q.');
+  const m2 = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => kor(z.r, 25));
+  const r = m2.find(x => String(x[0]).trim() === mid);
+  if (!r) throw new S.Xato('Mijoz 02_Mijozlar da topilmadi (ID ' + mid + ').');
+  const boshqa = await tahrirBoshqa(mid, '');
+  const ogoh = []; let mumkin = true, sabab = '';
+  if (!u.admin && boshqa.length) { mumkin = false; sabab = 'Bu mijozning shartnomasi bor (' + boshqa.join(', ') + ') — o\'zgarishni shartnoma kartasidan qiling: 📎 Hujjatlar → shartnoma → ✎ Tahrir (direktorga so\'rov ketadi).'; }
+  if (u.admin && boshqa.length) ogoh.push('Shartnomalari: ' + boshqa.join(', ') + ' — F.I.Sh., pasport, telefon va manzil o\'zgarishi ULARGA HAM tegadi (bazada mijoz bitta). Shartnoma matniga kirgan ma\'lumot o\'zgarsa PDF ni qayta chiqaring.');
+  const hud = oraliq(await V.qatorlar('08b_Hududlar'), 2, 210).map(z => xom(z.x, 2)).filter(x => x[0] && x[1]).map(x => [String(x[0]), String(x[1])]);
+  return { ok: true, mid, mumkin, sabab, ogoh, admin: u.admin, boshqa, hud,
+    mijoz: { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], psana: r[9], pmuddat: r[10], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] } };
+}
+
 // ------------------------------------------------------------------ ✂ BEKOR (Bekor.gs)
 // bekorShartnoma_ — panel uchun kerakli qismi (mijoz manzili va kirill ismi hujjat yasashda kerak, bu yerda emas)
 async function bekorShartnoma(no) {
@@ -197,4 +215,5 @@ async function hujjatNazorat([kodSes]) {
   return { nusxasiz, arxiv, kun: HUJJAT_NAZORAT_KUN };
 }
 
-module.exports = { tahrirHolat, bekorHolat, hujjatNazorat };
+module.exports = { tahrirHolat, mijozTahrirHolat, bekorHolat, hujjatNazorat };
+module.exports._ichki = { tahrirBoshqa };
