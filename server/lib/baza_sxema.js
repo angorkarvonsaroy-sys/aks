@@ -16,7 +16,7 @@ const JADVALLAR = [
       ["B", "tartib", "butun", "Tartib"],
       ["C", "blok", "matn", "Blok"],
       ["D", "qavat", "butun", "Qavat"],
-      ["E", "dokon_no", "butun", "Dokon_№"],
+      ["E", "dokon_no", "matn", "Dokon_№"],   // 28.11.2026: bo'lingan do'konlar «2A» / «2B» — matn
       ["F", "real_maydon", "son", "Real_maydon"],
       ["G", "baza_narx", "pul", "Baza_narx"],
       ["H", "qurilish_holati", "matn", "Qurilish_holati"],

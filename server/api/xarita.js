@@ -44,6 +44,15 @@ async function xaritaMalumot([kodSes]) {
     if (br && o.holat === 'Bron') o.bron = { id: br.id, fish: br.fish, tel: mol ? br.tel : '*', sana: br.sana, tugash: br.tugash, qoldi: br.qoldi, kim: br.kim, ogoh: br.ogoh };
     return o;
   });
+  // 28.11.2026: bo'lingan do'konlar (H-1-2A / H-1-2B) — xaritada hali bitta katak «H-1-2». Xarita qayta chizilguncha ota-katakka
+  // ikkala bo'lakning jamlangan holati beriladi: ikkalasi bo'sh → Bo'sh; bittasi sotilgan/ijarada → o'sha; maydon — yig'indi; egasi — ikkalasi.
+  const ota = {};
+  dokonlar.forEach(o => { const m = /^(.+?)([AB])$/.exec(o.id); if (!m || !/-\d+$/.test(m[1])) return; (ota[m[1]] = ota[m[1]] || []).push(o); });
+  const DAR = { 'Sotilgan+ijara': 5, 'Sotilgan': 4, "Bo'sh+ijara": 3, 'Bron': 2, "Bo'sh": 1, "Ma'muriyat": 0 };
+  Object.keys(ota).forEach(id => { const L = ota[id].slice().sort((a, b) => (DAR[b.holat] || 0) - (DAR[a.holat] || 0)); if (dokonlar.some(o => o.id === id)) return;
+    const o = Object.assign({}, L[0], { id, maydon: Math.round(L.reduce((a, x) => a + x.maydon, 0) * 1000) / 1000, bolaklar: L.map(x => x.id + ': ' + x.holat),
+      egasi: [...new Set(L.map(x => x.egasi).filter(Boolean))].join(' / ') });
+    dokonlar.push(o); });
   return { moliya: mol, dokonlar };
 }
 

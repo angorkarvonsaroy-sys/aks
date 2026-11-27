@@ -23,6 +23,7 @@ const ST_S = ['Tashrif_ID', 'Natija', 'Sabab', 'Keyingi_qadam', 'Qadam_sana', 'I
 // 🔒 BRON (19.11.2026, direktor qarori). Xaritadagi «Брон» — bu bron emas, shartnomaning «Шартнома олмаган» holati.
 // Haqiqiy bron shu yerda: do'kon 3 kunga band qilinadi, muddat tugasa o'zi bo'shaydi va sotuvchiga topshiriq tushadi.
 const BR_VARAQ = '01d_Bronlar';
+const dkSon = v => { const n = parseInt(String(v == null ? '' : v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; };   // 28.11.2026: bo'lingan do'kon «2A» → 2
 const BR_S = ['Bron_ID', 'Dokon_ID', 'Mijoz_FISH', 'Telefon', 'Bron_sana', 'Tugash_sana', 'Holati', 'Uzaytirildi', 'Uzaytirish_sababi', 'Izoh', 'Kim', 'Vaqt', 'Yakun_izoh'];
 const BR_KUN = 3;          // bron muddati
 const BR_UZAYTIR = 3;      // uzaytirilganda qo'shiladigan kun
@@ -219,7 +220,7 @@ async function sotuvKarta(args) {
   // qo'shnilar va blok qavatlari — 01_Dokonlar tartibida
   // ‹ › — blok ichida tartib bilan yuradi (H-1-2 → H-1-3), boshqa blokka sakramaydi
   const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim())
-    .sort((a, b) => s(a.x[2]).localeCompare(s(b.x[2])) || (Number(a.x[3]) || 0) - (Number(b.x[3]) || 0) || (Number(a.x[4]) || 0) - (Number(b.x[4]) || 0));
+    .sort((a, b) => s(a.x[2]).localeCompare(s(b.x[2])) || (Number(a.x[3]) || 0) - (Number(b.x[3]) || 0) || dkSon(a.x[4]) - dkSon(b.x[4]) || s(a.x[4]).localeCompare(s(b.x[4])));   // 28.11: «2A»/«2B» — raqam, keyin harf
   const I = R.findIndex(({ x }) => s(x[0]).trim().toUpperCase() === dokon);
   const qav = {}; R.forEach(({ x }) => { if (s(x[2]).trim().toUpperCase() === D.blok.trim().toUpperCase()) qav[s(x[3]).trim()] = 1; });
   const ogoh = [];
