@@ -32,7 +32,7 @@ async function shartnomaBoshlang([kodSes]) {
     id: String(r[0]), blok: String(r[2]), qavat: Number(r[3]), no: Number(r[4]), maydon: Number(r[5]), baza: Number(r[6]),
     umumiy: Number(r[15]), qurilish: String(r[7]), taqiq: String(r[8]) === 'Ha', rais: String(r[11]) === 'Ha', zona: r[16] === '' ? '' : Number(r[16]),
     sotuvNo: String(r[17] || ''), egasi: String(r[18] || ''), ijara: String(r[21] || ''), ijarachi: String(r[22] || '') }));
-  const faoliyat = oraliq(RL, 2, 30).map(z => String(xom(z.x, 8)[7] || '')).filter(Boolean);
+  const faoliyat = oraliq(RL, 2, 300).map(z => String(xom(z.x, 8)[7] || '').trim()).filter(Boolean);   // 27.11.2026: 30 → 300 — xodim yozgan yangi turlar H ustuniga qo'shilib boradi (ijaraSaqlash)
   let mx4 = 99; for (const z of aOxiri(R4)) { const mm = /^IJ-27\/(\d+)$/.exec(String(z.x[0] || '')); if (mm) mx4 = Math.max(mx4, Number(mm[1])); }
   const hud = oraliq(RH, 2, 210).map(z => xom(z.x, 2)).filter(r => r[0] && r[1]).map(r => [String(r[0]), String(r[1])]);
   let mx = 0; for (const z of aOxiri(R3)) { const mm = /^27\/(\d+)$/.exec(String(z.x[0] || '')); if (mm) mx = Math.max(mx, Number(mm[1])); }

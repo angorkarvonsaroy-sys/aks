@@ -74,7 +74,7 @@ async function tahrirHolat([kodSes, no]) {
     if (kirKun !== bugun) ogoh.push('Kiritilgan kun o\'tgan (' + (kirKun || 'noma\'lum') + ').');
   }
   let faoliyatlar = [];
-  if (c.tur === 'ijara') faoliyatlar = oraliq(await V.qatorlar('08_Lugatlar'), 2, 30).map(z => String(xom(z.x, 8)[7] || '')).filter(Boolean);
+  if (c.tur === 'ijara') faoliyatlar = oraliq(await V.qatorlar('08_Lugatlar'), 2, 300).map(z => String(xom(z.x, 8)[7] || '').trim()).filter(Boolean);   // 27.11: 30 → 300
   const hud = oraliq(await V.qatorlar('08b_Hududlar'), 2, 210).map(z => xom(z.x, 2)).filter(x => x[0] && x[1]).map(x => [String(x[0]), String(x[1])]);
   return { ok: true, no: c.no, tur: c.tur, dokon: c.dokon, mid: c.mid, holati: c.holati, sana: String(c.sana || ''),
     kiritdi: c.kiritdi || '—', kiritildi: c.kiritildi || '', skan, mumkin, sabab, ogoh, admin: u.admin,

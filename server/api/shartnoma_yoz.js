@@ -293,7 +293,9 @@ async function ijaraTekshir(d) {
   const oylikS = oylik || (m2 ? Math.round(m2 * Number(dr[5])) : 0);   // 0 = bepul ijara (ruxsat etiladi)
   if (oylikS > 0 && muddat <= bepul) throw new S.Xato('Pullik ijara uchun umumiy muddat bepul davrdan katta bo\'lishi kerak (masalan 12 oy, shundan 6 oy bepul).');
   if (oylikS > 50000000) throw new S.Xato('Oylik ijara haqi juda katta (' + oylikS.toLocaleString('ru-RU') + ') — tekshiring.');
+  d.faoliyat = s(d.faoliyat).replace(/\s+/g, ' ').trim();
   if (!d.faoliyat) throw new S.Xato('Faoliyat turini tanlang.');
+  if (d.faoliyat.length > 60) throw new S.Xato('Faoliyat turi juda uzun (60 belgigacha).');
   const tkun = Math.round(Number(d.tkun) || 1);
   const tug = oyQosh(utc(d.boshlanish), muddat, utc(d.boshlanish).getUTCDate());
   return { mid, dr, sotilgan, beruvchi, muddat, bepul, m2, oylikS, tkun, tug };
@@ -310,11 +312,25 @@ async function ijaraYoz(v4, u, d, t) {   // yozuv yadrosi (sinov ham shuni ishla
   const r = await qatorlarYoz(v4, h4.last + 1, [q], F04);
   return { no, qator: r };
 }
+// 27.11.2026 (direktor): «✎ O'zim yozaman» — xodim yozgan yangi faoliyat turi 08_Lugatlar H ustuniga (ro'yxat) qo'shiladi, keyingi safar
+// ro'yxatda turadi. Ro'yxatda bor bo'lsa (katta-kichik harf farqisiz) — bor imlosi ishlatiladi, qo'shilmaydi. Xato bo'lsa shartnomaga ta'sir qilmaydi.
+const LUG_V = '08_Lugatlar';
+async function faoliyatLugat(d) {
+  const nom = s(d.faoliyat).trim(); if (!nom) return '';
+  const H = await G.oraliqOqi(env.aksBazaId, LUG_V, 'H1:H300', env.googleKey);
+  let last = 0; const bor = {}; H.forEach((r, i) => { const v = s(r && r[0]).trim(); if (v) { last = i + 1; bor[v.toLowerCase()] = v; } });
+  if (bor[nom.toLowerCase()]) { d.faoliyat = bor[nom.toLowerCase()]; return ''; }
+  if (last < 1) last = 1;   // H1 — sarlavha
+  await G.yoz(env.aksBazaId, [{ varaq: LUG_V, katak: 'H' + (last + 1), qiymat: [[nom]] }], env.googleKey);
+  await kut(tetik.varaqlarYangila([LUG_V]).catch(e => console.error('ko\'zgu (lugat):', e.message)), 15000);
+  return nom;
+}
 async function ijaraSaqlash(args) {
   const [kodSes, d0] = args; const d = d0 || {};
   const u = await S.ruxsat(kodSes, 'shartnoma');
   if (!(await serverda())) return eskiTizim('ijaraSaqlash', u, [d0]);
   const t = await ijaraTekshir(d);
+  let yangiTur = ''; try { yangiTur = await faoliyatLugat(d); } catch (e) { console.error('faoliyatLugat:', e.message); }   // 27.11: yangi tur lug'atga (shartnomadan oldin — imlo moslansin)
   let yoq = false;
   const w = await qulfBilan(async () => {
     const dr2 = await dokon(d.dokonId);
@@ -326,7 +342,7 @@ async function ijaraSaqlash(args) {
   await kut(tetik.varaqlarYangila([T04, T01]).catch(e => console.error('ko\'zgu (ijara):', e.message)), 15000);
   // 🏪 20.11.2026 (direktor qarori): yangi ijaraga undiruvchi avtomatik biriktiriladi, skan va 5-kun tekshiruvi topshiriqlari unga tushadi (api/ochilish.js, fon)
   try { require('./ochilish')._ichki.biriktirFon(w.no, u.fish); } catch (e) { console.error('ochilish biriktirFon:', e.message); }
-  return { ok: true, no: w.no, beruvchi: t.beruvchi, oylik: t.oylikS, tugash: isoG(t.tug), egasi: t.sotilgan ? s(t.dr[18]) : '', tashrif: tsh };
+  return { ok: true, no: w.no, beruvchi: t.beruvchi, oylik: t.oylikS, tugash: isoG(t.tug), egasi: t.sotilgan ? s(t.dr[18]) : '', tashrif: tsh, yangiTur };
 }
 
 module.exports = { mijozSaqlash, shartnomaSaqlash, ijaraSaqlash };
