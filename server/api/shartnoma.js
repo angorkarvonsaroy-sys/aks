@@ -28,7 +28,7 @@ async function shartnomaBoshlang([kodSes]) {
   }
   const mijozTel = new Set(mijozlar.map(x => x.tel));
   const tashriflar = Object.values(byTel).filter(x => !mijozTel.has(x.tel));
-  const dokonlar = oraliq(R1, 2, 640).map(z => xom(z.x, 26)).filter(r => r[0]).map(r => ({
+  const dokonlar = R1.filter(V.dokonMi).map(z => xom(z.x, 26)).filter(r => r[0]).map(r => ({
     id: String(r[0]), blok: String(r[2]), qavat: Number(r[3]), no: String(r[4] == null ? '' : r[4]).trim(), maydon: Number(r[5]), baza: Number(r[6]),   // 28.11: no matn («2A»)
     umumiy: Number(r[15]), qurilish: String(r[7]), taqiq: String(r[8]) === 'Ha', rais: String(r[11]) === 'Ha', zona: r[16] === '' ? '' : Number(r[16]),
     sotuvNo: String(r[17] || ''), egasi: String(r[18] || ''), ijara: String(r[21] || ''), ijarachi: String(r[22] || '') }));

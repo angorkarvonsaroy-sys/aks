@@ -77,7 +77,7 @@ async function dokonlar() {
   try { (await ST.bronRoyxat(V.bugun())).forEach(z => { if (z.holati === 'Faol' && z.dokon) BR[z.dokon.trim().toUpperCase()] = 1; }); }
   catch (e) { /* 01d_Bronlar hali yo'q */ }
   const dok = {};
-  for (let n = 2; n <= 641; n++) { const x = bor[n] || []; const h = xHolat(x, !!BR[s(x[0]).trim().toUpperCase()]); dok[h] = (dok[h] || 0) + 1; }
+  for (let n = 2; n <= V.DOKON_OXIRI; n++) { const x = bor[n]; if (!x || !s(x[0]).trim()) continue; const h = xHolat(x, !!BR[s(x[0]).trim().toUpperCase()]); dok[h] = (dok[h] || 0) + 1; }
   return dok;
 }
 function davrChegara(davr, bugun) {

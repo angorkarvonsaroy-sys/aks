@@ -10,7 +10,7 @@ const V = require('../lib/varaq');
 const s = v => String(v == null ? '' : v);
 const son = V.son;
 const r2 = n => Math.round(n * 100) / 100;
-const DOKON_OXIRI = 641;                      // 01_Dokonlar: 2–641 qator = 640 do'kon
+const DOKON_OXIRI = V.DOKON_OXIRI;            // 28.11.2026: bitta manba (lib/varaq.js); avval 641 = 640 do'kon
 // Direktor qarori 27.10.2026: do'kon «sotilgan» deb FAQAT shu to'rt holatda sanaladi (Registrator_Shartnoma AS ustunidagidek).
 // Passiv, Kutilmoqda, Noqonuniy hududda va Bekor qilindi — sanalmaydi, ularning do'koni bo'sh hisoblanadi.
 const SOTILGAN_HOLAT = ['aktiv', 'shartnoma olmagan', 'kredit asosida', 'yakunlangan'];

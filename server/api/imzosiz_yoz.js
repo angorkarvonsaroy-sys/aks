@@ -99,7 +99,7 @@ async function imzBekorQil(u, x, sabab, usul, v = {}) {
     else ogoh.push('06j_Tahrir_jurnali varag\'i topilmadi — jurnalga yozilmadi.');
   } catch (e) { throw yozilmadi(e); }
   if (x.dokon && !v.s4) {   // 01 formulalari — faqat haqiqiy 04 dan keyin ma'noli
-    const D = await G.oraliqOqi(env.aksBazaId, D1_V, 'A2:V641', env.googleKey);
+    const D = await G.oraliqOqi(env.aksBazaId, D1_V, 'A2:V' + V.DOKON_OXIRI, env.googleKey);
     const k = D.findIndex(z => s(z[0]).trim() === x.dokon);
     if (k < 0) ogoh.push('Do\'kon ' + x.dokon + ' 01_Dokonlar da topilmadi — qo\'lda tekshiring.');
     else if (s(D[k][21]).trim() === x.no) ogoh.push('01_Dokonlar hali ham ' + x.no + ' ni ko\'rsatyapti — bazani tekshiring.');

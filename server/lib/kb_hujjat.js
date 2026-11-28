@@ -160,7 +160,7 @@ async function kbTekshir(no, ozId, R06m, opt = {}) {
   if (x.oylik > 0) x.ogoh.push('Bu shartnomada oylik ijara ' + kbPul(x.oylik) + ' so\'m — ijara haqi bo\'yicha qarz yo\'qligini buxgalteriyada tekshiring.');
   x.tel = kbTel(x.tel);
   // 01 — do'kon (eski: 2-qatordan 640 qator, 6 ustun)
-  const d = (await V.qatorlar('01_Dokonlar')).filter(z => z.n <= 641).map(z => xom(z.x, 6)).find(z => T(z[0]) === x.dokon);
+  const d = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi).map(z => xom(z.x, 6)).find(z => T(z[0]) === x.dokon);
   x.dk = d ? { blok: T(d[2]), qavat: T(d[3]), nomer: T(d[4]), maydon: Number(d[5]) || 0 } : null;
   if (!x.dk) { const p = x.dokon.split('-'); x.dk = { blok: p[0] || '', qavat: p[1] || '', nomer: p[2] || '', maydon: 0 }; x.ogoh.push('Do\'kon ' + x.dokon + ' 01_Dokonlar da topilmadi — raqami ID dan olindi.'); }
   if (!x.maydon) x.maydon = x.dk.maydon;

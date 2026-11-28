@@ -317,7 +317,7 @@ async function kbTasdiq(args) {
     } catch (e) { ogoh.push('Skan «📎 Hujjatlar»ga yozilmadi (' + e.message + ') — fayl 07 BEKOR QILISH / Kelishuv papkasida turibdi.'); }
     // 4) 01 nazorati — do'kon bo'shadimi
     if (x.dokon) {
-      const D = await G.oraliqOqi(env.aksBazaId, '01_Dokonlar', 'A2:V641', env.googleKey);
+      const D = await G.oraliqOqi(env.aksBazaId, '01_Dokonlar', 'A2:V' + V.DOKON_OXIRI, env.googleKey);
       const k = D.findIndex(z => s(z[0]).trim() === x.dokon);
       if (k < 0) ogoh.push('Do\'kon ' + x.dokon + ' 01_Dokonlar da topilmadi — qo\'lda tekshiring.');
       else if (s(D[k][21]).trim() === x.no) ogoh.push('01_Dokonlar hali ham ' + x.no + ' ni ko\'rsatyapti — bazani tekshiring.');
@@ -326,7 +326,7 @@ async function kbTasdiq(args) {
   }
   if (x && kelmadi) {   // 19.11.2026: hujjat va skan yo'q — faqat 01 nazorati
     if (x.dokon) {
-      const D = await G.oraliqOqi(env.aksBazaId, '01_Dokonlar', 'A2:V641', env.googleKey);
+      const D = await G.oraliqOqi(env.aksBazaId, '01_Dokonlar', 'A2:V' + V.DOKON_OXIRI, env.googleKey);
       const k = D.findIndex(z => s(z[0]).trim() === x.dokon);
       if (k < 0) ogoh.push('Do\'kon ' + x.dokon + ' 01_Dokonlar da topilmadi — qo\'lda tekshiring.');
       else if (s(D[k][21]).trim() === x.no) ogoh.push('01_Dokonlar hali ham ' + x.no + ' ni ko\'rsatyapti — bazani tekshiring.');

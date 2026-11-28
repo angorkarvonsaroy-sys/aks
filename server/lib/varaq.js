@@ -34,4 +34,9 @@ function bugun() {
 
 function tozala() { kesh.clear(); }
 
-module.exports = { qatorlar, matn, iso, dmy, son, korSana, bugun, tozala };
+// 28.11.2026: 01_Dokonlar OXIRGI QATORI — bitta joyda. Avval 14 joyda «641» (640 do'kon) qattiq yozilgan edi; 36 do'kon bo'linib
+// B qatorlar 642–677 ga yozilgach, ular xaritada, praysda, do'kon tanlashda va shartnomada ko'rinmay qoldi (Nurbek, 28.11 12:28).
+// Endi: 2..DOKON_OXIRI oralig'idagi, ID si bo'sh bo'lmagan qatorlar — do'kon. Yangi qator qo'shilsa hech narsa o'zgartirilmaydi.
+const DOKON_OXIRI = 1200;
+const dokonMi = z => z && z.n >= 2 && z.n <= DOKON_OXIRI && String((z.x || [])[0] == null ? '' : z.x[0]).trim() !== '';
+module.exports = { qatorlar, matn, iso, dmy, son, korSana, bugun, tozala, DOKON_OXIRI, dokonMi };

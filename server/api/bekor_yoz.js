@@ -126,7 +126,7 @@ async function bekorShartnoma(no) {
   x.manzil = m ? U.mijozManzil(m) : '';
   x.tel = m ? s(m[4]) : '';
   // bekorDokonQosh_ (01_Dokonlar 2..641)
-  const d = oraliq(await V.qatorlar('01_Dokonlar'), 2, 640).map(z => ({ n: z.n, r: xom(z.x, 26) })).find(z => s(z.r[0]) === s(x.dokon));
+  const d = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi).map(z => ({ n: z.n, r: xom(z.x, 26) })).find(z => s(z.r[0]) === s(x.dokon));
   if (!d) x.dk = null;
   else {
     const r = d.r;

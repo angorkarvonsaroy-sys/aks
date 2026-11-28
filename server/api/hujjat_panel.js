@@ -118,7 +118,7 @@ async function bekorShartnoma(no) {
       undiruvchi: String(r3[17] || '').trim(), fish: String(r3[20] || ''), tolangan: Number(r3[27]) || 0, masul: '' };
   }
   // bekorDokonQosh_: 01_Dokonlar 2..641 (bo'sh qatorlar ham)
-  const D = oraliq(await V.qatorlar('01_Dokonlar'), 2, 640).map(z => xom(z.x, 26));
+  const D = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi).map(z => xom(z.x, 26));
   const d = D.find(z => String(z[0]) === String(x.dokon));
   x.dk = d ? { qurilish: String(d[7] || ''), egasi: String(d[18] || ''), ijaraNo: String(d[21] || '') } : null;
   if (x.tur === 'sotuv') {

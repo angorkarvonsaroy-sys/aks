@@ -219,7 +219,7 @@ async function sotuvKarta(args) {
   if (!D.bor) throw new S.Xato('Bunday do\'kon topilmadi: ' + dokon);
   // qo'shnilar va blok qavatlari — 01_Dokonlar tartibida
   // ‹ › — blok ichida tartib bilan yuradi (H-1-2 → H-1-3), boshqa blokka sakramaydi
-  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim())
+  const R = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi)
     .sort((a, b) => s(a.x[2]).localeCompare(s(b.x[2])) || (Number(a.x[3]) || 0) - (Number(b.x[3]) || 0) || dkSon(a.x[4]) - dkSon(b.x[4]) || s(a.x[4]).localeCompare(s(b.x[4])));   // 28.11: «2A»/«2B» — raqam, keyin harf
   const I = R.findIndex(({ x }) => s(x[0]).trim().toUpperCase() === dokon);
   const qav = {}; R.forEach(({ x }) => { if (s(x[2]).trim().toUpperCase() === D.blok.trim().toUpperCase()) qav[s(x[3]).trim()] = 1; });
@@ -280,7 +280,7 @@ async function sotuvPrays(args) {
   if (!(u.admin || (u.huquq || []).some(h => h === 'tashrif' || h === 'xarita' || h === 'xarita_moliya' || h === 'shartnoma')))
     throw new S.Xato('Prays ro\'yxatiga ruxsatingiz yo\'q. Direktorga murojaat qiling.');
   const bugun = V.bugun();
-  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim());
+  const R = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi);
   const BR = {};
   (await bronRoyxat(bugun)).forEach(b => { if (b.holati === 'Faol') BR[s(b.dokon).trim().toUpperCase()] = 1; });
   const Q = shart0 && typeof shart0 === 'object' ? shart0 : null;
@@ -345,7 +345,7 @@ async function sotuvTanlov(args) {
   const mMin = Number(d.maydonMin) || 0, mMax = Number(d.maydonMax) || 0;
   if (!oylikMax && !boshl) throw new S.Xato('Mijoz qo\'lidagi pulni yoki oylik to\'lov imkonini yozing.');
   const bugun = V.bugun();
-  const R = (await V.qatorlar('01_Dokonlar')).filter(({ n, x }) => n <= 641 && s(x[0]).trim());
+  const R = (await V.qatorlar('01_Dokonlar')).filter(V.dokonMi);
   const BR = {};   // faol bronlar — ular ham band hisoblanadi
   (await bronRoyxat(bugun)).forEach(b => { if (b.holati === 'Faol') BR[s(b.dokon).trim().toUpperCase()] = 1; });
   const L = [];
@@ -472,7 +472,7 @@ async function bosDokonlar(bugun) {
   const br = {}; B.forEach(z => { if (z.holati === 'Faol' && z.dokon) br[z.dokon.trim().toUpperCase()] = 1; });
   const L = [];
   R1.forEach(({ n, x }) => {
-    if (n > 641 || !s(x[0]).trim()) return;
+    if (n > V.DOKON_OXIRI || !s(x[0]).trim()) return;
     const h = xHolat(x, !!br[s(x[0]).trim().toUpperCase()]);
     if (h !== 'Bo\'sh') return;
     L.push({ id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0,

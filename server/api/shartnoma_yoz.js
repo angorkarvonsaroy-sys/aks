@@ -154,7 +154,7 @@ async function mijozSaqlash(args) {
 
 // ------------------------------------------------------------------ 🏬 do'kon (01_Dokonlar, getValues 640×26)
 async function dokon(id) {
-  const R = await G.oraliqOqi(env.aksBazaId, T01, 'A2:Z641', env.googleKey, 'UNFORMATTED_VALUE');
+  const R = await G.oraliqOqi(env.aksBazaId, T01, 'A2:Z' + V.DOKON_OXIRI, env.googleKey, 'UNFORMATTED_VALUE');
   const r = R.find(x => x[0] !== '' && x[0] != null && s(x[0]) === s(id)); if (!r) return null;
   const o = []; for (let k = 0; k < 26; k++) o.push(r[k] == null ? '' : r[k]); return o;
 }
