@@ -60,18 +60,29 @@ function tugmaChaqiruvlari(s) { const C = {}; let m;
     const SAH = []; for (const f of process.argv.slice(2)) { try { const s = fs.readFileSync(f, 'utf8'); if (s.length >= 1000) SAH.push({ f, s }); } catch (e) { } }
     const skriptlar = z => { const B = []; z.s.replace(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi, (m, a, kod, off) => { if (!/type\s*=\s*["']?(text\/template|application\/json)/i.test(a)) B.push({ kod: kod.replace(/<\?!?=[\s\S]*?\?>/g, 'null'), qator: z.s.slice(0, off + m.indexOf(kod)).split('\n').length - 1 }); return m; }); return B; };
     const patNom = (n, D) => { if (!n) return; if (n.type === 'Identifier') D.add(n.name); else if (n.type === 'ObjectPattern') n.properties.forEach(p => patNom(p.type === 'RestElement' ? p.argument : p.value, D)); else if (n.type === 'ArrayPattern') n.elements.forEach(e => patNom(e, D)); else if (n.type === 'AssignmentPattern') patNom(n.left, D); else if (n.type === 'RestElement') patNom(n.argument, D); };
-    const D = new Set(), G = new Set(), CH = [];   // ta'riflar (hamma sahifadan), «typeof x==='function'» bilan himoyalanganlar, chaqiruvlar
+    const D = new Set(), G = new Set(), CH = [], SC = new WeakMap();   // ta'riflar (hamma sahifadan), «typeof x==='function'» bilan himoyalanganlar, chaqiruvlar
     SAH.forEach(z => skriptlar(z).forEach((b, i) => { let ast; try { ast = acorn.parse(b.kod, { ecmaVersion: 'latest', sourceType: 'script', allowReturnOutsideFunction: true, allowAwaitOutsideFunction: true }); } catch (e) { return; }
-      walk.full(ast, n => {
-        if (n.type === 'FunctionDeclaration' || n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') { if (n.id) D.add(n.id.name); n.params.forEach(p => patNom(p, D)); }
-        else if (n.type === 'VariableDeclarator') patNom(n.id, D);
-        else if (n.type === 'ClassDeclaration' || n.type === 'ClassExpression') { if (n.id) D.add(n.id.name); }
-        else if (n.type === 'CatchClause') patNom(n.param, D);
+      // 28.11.2026: QAMROV hisobga olinadi. Avval hamma ta'rif bitta to'plamga yig'ilardi — ochChiz() ichidagi «const dmy» prChiz() dagi dmy() ni
+      // «ta'riflangan» qilib ko'rsatdi, Прайс esa ReferenceError bilan yiqildi. Endi: funksiya/blok ichidagi ta'rif faqat o'sha qamrov ichidagi
+      // chaqiruvni qoplaydi; Program (sahifa) darajasidagi ta'rif, window.x= va e'lon qilinmagan o'zgaruvchiga yozish — hamma joyda (D).
+      const QAM = n => n && (n.type === 'Program' || n.type === 'FunctionDeclaration' || n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression');
+      const BLOK = n => QAM(n) || (n && (n.type === 'BlockStatement' || n.type === 'ForStatement' || n.type === 'ForInStatement' || n.type === 'ForOfStatement' || n.type === 'SwitchStatement' || n.type === 'CatchClause' || n.type === 'StaticBlock'));
+      const qoy = (nom, qam) => { if (!nom) return; if (!qam || qam.type === 'Program') D.add(nom); else { let S = SC.get(qam); if (!S) SC.set(qam, S = new Set()); S.add(nom); } };
+      const topQam = (anc, test, tashla) => { for (let i = anc.length - 1 - (tashla ? 1 : 0); i >= 0; i--) if (test(anc[i])) return anc[i]; return null; };
+      const nomlar = n => { const N = new Set(); patNom(n, N); return [...N]; };
+      walk.fullAncestor(ast, (n, st, anc) => {
+        if (n.type === 'FunctionDeclaration' || n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') {
+          if (n.id) qoy(n.id.name, n.type === 'FunctionDeclaration' ? topQam(anc, QAM, true) : n);   // funksiya nomi — tashqi qamrovda (ifoda bo'lsa — o'zida)
+          n.params.forEach(p => nomlar(p).forEach(x => qoy(x, n))); }
+        else if (n.type === 'VariableDeclarator') { const dek = anc[anc.length - 2]; const varmi = dek && dek.kind === 'var'; nomlar(n.id).forEach(x => qoy(x, topQam(anc, varmi ? QAM : BLOK, true))); }
+        else if (n.type === 'ClassDeclaration' || n.type === 'ClassExpression') { if (n.id) qoy(n.id.name, n.type === 'ClassDeclaration' ? topQam(anc, BLOK, true) : n); }
+        else if (n.type === 'CatchClause') nomlar(n.param).forEach(x => qoy(x, n));
         else if (n.type === 'UnaryExpression' && n.operator === 'typeof' && n.argument.type === 'Identifier') G.add(n.argument.name);   // typeof xaritaOch==='function' — boshqa sahifa funksiyasi, himoyalangan
-        else if (n.type === 'AssignmentExpression') { if (n.left.type === 'Identifier') D.add(n.left.name); else if (n.left.type === 'MemberExpression' && n.left.object.type === 'Identifier' && /^(window|globalThis|self)$/.test(n.left.object.name) && n.left.property.type === 'Identifier') D.add(n.left.property.name); else patNom(n.left, D); }
-        else if ((n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.type === 'Identifier') CH.push({ nom: n.callee.name, f: z.f, qator: b.qator + b.kod.slice(0, n.start).split('\n').length });
+        else if (n.type === 'AssignmentExpression') { if (n.left.type === 'Identifier') D.add(n.left.name); else if (n.left.type === 'MemberExpression' && n.left.object.type === 'Identifier' && /^(window|globalThis|self)$/.test(n.left.object.name) && n.left.property.type === 'Identifier') D.add(n.left.property.name); else nomlar(n.left).forEach(x => D.add(x)); }
+        else if ((n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.type === 'Identifier') CH.push({ nom: n.callee.name, f: z.f, qator: b.qator + b.kod.slice(0, n.start).split('\n').length, anc: anc.slice(0, -1) });
       }); }));
-    const yoq = {}; CH.forEach(c => { if (D.has(c.nom) || GLOBAL.has(c.nom) || G.has(c.nom)) return; const k = c.f + '\t' + c.nom; (yoq[k] = yoq[k] || []).push(c.qator); });
+    const ichida = c => c.anc.some(a => { const S = SC.get(a); return S && S.has(c.nom); });
+    const yoq = {}; CH.forEach(c => { if (D.has(c.nom) || GLOBAL.has(c.nom) || G.has(c.nom) || ichida(c)) return; const k = c.f + '\t' + c.nom; (yoq[k] = yoq[k] || []).push(c.qator); });
     const K = Object.keys(yoq);
     if (!K.length) console.log('  skript ichidagi chaqiruvlar: ' + CH.length + ' ta — hammasi ta\'riflangan');
     K.forEach(k => { const [f, nom] = k.split('\t'), q = [...new Set(yoq[k])], sah = f.split('/').pop(), asosiy = /index/i.test(sah);
