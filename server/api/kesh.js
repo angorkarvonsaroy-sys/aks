@@ -25,7 +25,7 @@ const OQISH = new Set(('qadamBoshlang qadamMijoz qadamNazorat qadamTarix qadamJa
   'ijaraImzosizRoyxat ijaraImzosizHolat topRoyxat topMening topHozir topXodimlar tqRoyxat tasdiqRoyxat undBoshlang undMijoz ' +
   'xatBoshlang xatNazorat hujjatBoshlang hujjatNazorat hujjatlarRoyxati yuristBoshlang yuristIsh monBoshlang ' +
   'shartnomalar shartnomaBoshlang reyestrSotuv reyestrIjara hisobotMalumot bugungiTolovlar bugungiTashriflarHammasi ' +
-  'devonBoshlang devonIjroHolat devonChiqimOl taminotBoshlang taminotSvodOl qaytaOchiq qaytaKor qaytaHujjatlar ijroKorish kbHolat tahrirHolat mijozTahrirHolat topshirishPdf dokonBolishKorish ' +
+  'devonBoshlang devonIjroHolat devonChiqimOl taminotBoshlang taminotSvodOl qaytaOchiq qaytaKor qaytaHujjatlar ijroKorish kbHolat tahrirHolat mijozTahrirHolat topshirishPdf dokonBolishKorish xaritaFaylOl ' +
   'mijozKarta jadvalHisob').split(/\s+/));
 const FAYL = new Set('qadamFayl kbFayl devonFayl bekorFayl tqFayl tasdiqFayl yhAloqaFayl'.split(' '));
 

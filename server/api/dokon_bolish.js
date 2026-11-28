@@ -110,5 +110,16 @@ async function dokonBolish([kodSes, ids]) {
   return { ok: true, soni: t.reja.length, yangiQator: r1, baza: BOLISH_BAZA, royxat: t.reja.map(r => r.id + ' → ' + r.id + 'A / ' + r.id + 'B') };
 }
 
-module.exports = { dokonBolishKorish, dokonBolish };
+// 28.11.2026: direktor iPhone'dan — serverdagi joriy Xarita.html ni ilovadan yuklab olish (bo'laklarni chizish uchun Claude'ga beriladi).
+// Faqat direktor. Faylda sir yo'q (geometriya va sahifa kodi), lekin baribir ochiq yo'l emas — sessiya + admin.
+async function xaritaFaylOl([kodSes]) {
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!u.admin) throw new S.Xato('Faqat direktor.');
+  const fs = require('fs');
+  let b; try { b = fs.readFileSync(env.xaritaFayl); } catch (e) { throw new S.Xato('Xarita.html serverda topilmadi: ' + env.xaritaFayl); }
+  const crypto = require('crypto');
+  return { ok: true, nom: 'Xarita_' + V.bugun().replace(/-/g, '') + '.html', hajm: b.length, md5: crypto.createHash('md5').update(b).digest('hex'), b64: b.toString('base64') };
+}
+
+module.exports = { dokonBolishKorish, dokonBolish, xaritaFaylOl };
 module.exports._ichki = { ROYXAT, BOLISH_BAZA, tekshir };
