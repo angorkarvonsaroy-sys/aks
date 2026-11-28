@@ -127,8 +127,14 @@ async function bugungiTashriflarHammasi([kodSes, dan, gacha]) {
   if (d2 < d1) { const t = d1; d1 = d2; d2 = t; }
   if ((new Date(d2) - new Date(d1)) / 864e5 > 366) throw new S.Xato('Oraliq 1 yildan oshmasin');
   const R = aOxiri(await V.qatorlar('01b_Tashrif_jurnali'));
+  // 28.11.2026 (Zaynab): ro'yxatda mijoz haqida yozilgani ham ko'rinsin — tashrif izohi, manzili, natijasi va keyingi qadam (01c natijalar)
+  const N = {}; try { const ST = require('./sotuv')._ichki; (await ST.natijaKozgu()).forEach(z => { N[String(z.Tashrif_ID == null ? '' : z.Tashrif_ID).trim()] = z; }); } catch (e) { }
+  const nomi = k => { try { return require('./sotuv')._ichki.natNomi(k); } catch (e) { return String(k || ''); } };
   const royxat = R.filter(z => z.n >= 2).map(z => kor(z.r, 17)).filter(r => { const i = r[0] && isoOl(r[1]); return i && i >= d1 && i <= d2; })   // 📞 turi — 01b Q «Murojaat_turi» (bo'sh = Tashrif)
-    .map(r => ({ fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], sana: String(r[1]).slice(0, 10), vaqt: String(r[9]).slice(11, 16), turi: r[16].trim() === 'Telefon' ? 'Telefon' : 'Tashrif' }));
+    .map(r => { const n = N[String(r[0]).trim()] || null;
+      return { fish: r[2], tel: r[3], maqsad: r[6], kim: r[8], sana: String(r[1]).slice(0, 10), vaqt: String(r[9]).slice(11, 16), turi: r[16].trim() === 'Telefon' ? 'Telefon' : 'Tashrif',
+        manzil: String(r[4] || ''), izoh: String(r[7] || ''),
+        natija: n ? nomi(n.Natija) : '', sabab: n ? String(n.Sabab || '') : '', qadam: n ? String(n.Keyingi_qadam || '') : '', qadamSana: n && n.Qadam_sana ? V.iso(n.Qadam_sana) : '', natIzoh: n ? String(n.Izoh || '') : '' }; });
   return { royxat: royxat.reverse(), dan: d1, gacha: d2, bugun };
 }
 

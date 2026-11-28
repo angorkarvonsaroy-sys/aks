@@ -26,7 +26,7 @@ const { redis } = require('../lib/db');
 const DEVON_V = '11_Devonxona';
 const DEVON_S = ['ID', 'Turi', 'Tartib', 'Kiritildi', 'Kim_kiritdi', 'Tashkilot', 'Xat_raqami', 'Xat_sanasi', 'Mazmun', 'Fayl_ID',
   'Holati', 'Ijro_turi', 'Ijrochi', 'Yordamchilar', 'Muddat', 'Rezolyutsiya', 'Rez_vaqt', 'Ijro', 'Tarix', 'Bogliq_ID'];
-const DEVON_MAX_MB = 20;
+const DEVON_MAX_MB = 40;   // 28.11.2026: sud qarori PDF 22,8 MB sig'madi (Zaynab); nginx/fastify chegarasi 64 MB (base64 bilan 53 MB)
 const s = v => String(v == null ? '' : v);
 const kut = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
 const yangila = nomlar => kut(tetik.varaqlarYangila(nomlar).catch(e => console.error('ko\'zgu (devon):', e.message)), 15000);

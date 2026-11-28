@@ -111,12 +111,15 @@ async function tashrifRoyxat(bugun) {
     const maqsad = s(x[6]); if (ST_MAQSAD.indexOf(maqsad) < 0) return;
     const n = N[id] || null;
     const sana = stIso(x[1]);
+    // 28.11.2026 (Zaynab): shartnoma saqlanganda tizim o'zi yozgan tashrif (izohi «Шартнома 27/368», «… (қайта тузиш)») — natijasi
+    // o'zi «Shartnoma tuzildi», yopiq. Avval «Natija yo'q» bo'lib «Ishlanishi kerak» ro'yxatida osilib turardi, xodim nima yozishni bilmasdi.
+    const avto = !n && /^Шартнома\s+(IJ-)?\d+\/\d+/i.test(s(x[7]).trim());
     L.push({ id, sana, fish: s(x[2]), tel: s(x[3]), manzil: s(x[4]), maqsad, izoh: s(x[7]), kim: s(x[8]),
       turi: s(x[16]).trim() === 'Telefon' ? 'Telefon' : 'Tashrif',
-      natija: n ? s(n.Natija) : '', natijaNomi: n ? natNomi(n.Natija) : '', sabab: n ? s(n.Sabab) : '',
-      qadam: n ? s(n.Keyingi_qadam) : '', qadamSana: n ? stIso(n.Qadam_sana) : '', natIzoh: n ? s(n.Izoh) : '',
+      natija: n ? s(n.Natija) : (avto ? 'shartnoma' : ''), natijaNomi: n ? natNomi(n.Natija) : (avto ? natNomi('shartnoma') : ''), sabab: n ? s(n.Sabab) : '',
+      qadam: n ? s(n.Keyingi_qadam) : '', qadamSana: n ? stIso(n.Qadam_sana) : '', natIzoh: n ? s(n.Izoh) : (avto ? 'тизим: шартнома сақланганда ёзилди' : ''),
       natKim: n ? s(n.Kim) : '', natVaqt: n ? s(n.Vaqt) : '',
-      yopiq: n ? natYopiq(n.Natija) : false });
+      yopiq: n ? natYopiq(n.Natija) : avto });
   });
   L.forEach(z => {
     z.kechikkan = 0; z.holat = 'ochiq';
