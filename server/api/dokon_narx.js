@@ -25,7 +25,10 @@ async function dokonQator(id) {
   const t = s(id).trim().toUpperCase();
   const z = (await V.qatorlar(DK_V)).filter(V.dokonMi).find(q => s(q.x[0]).trim().toUpperCase() === t);
   if (!z) throw new S.Xato('Bunday do\'kon topilmadi: ' + s(id));
-  return z;
+  // 28.11.2026 tuzatish: V.qatorlar qator raqamini «n» da qaytaradi (z.qator emas edi — «G undefined» xatosi chiqdi)
+  const qator = Number(z.n) || 0;
+  if (!qator) throw new S.Xato('Do\'konning jadvaldagi qatori aniqlanmadi (' + s(id) + ') — sahifani yangilab qayta urinib ko\'ring.');
+  return { x: z.x, qator };
 }
 const bandMi = x => {
   const ij = s(x[21]).trim();
