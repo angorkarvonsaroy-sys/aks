@@ -10,11 +10,18 @@
 
 const NARX = {
   k1: 1.045, k2: 0.3795, yarim: 60000000, yaxlit: 10000, oy: 36,
-  bazalar: [10530000, 12510000, 13410000, 14310000],
+  bazalar: [10530000, 10690000, 12510000, 13410000, 14310000],   // 10 690 000 — 28.11.2026: ikkiga bo'lingan 72 ta do'kon (10 530 000 + 160 000, o'rta devor)
   engPast: 10530000,   // 23.11.2026 direktor qarori: sotilmagan do'konda baza shundan past bo'lmaydi
   shartlar: [0, 60000000, 120000000],
-  jadval: { '10530000': [15000000, 13000000, 12000000], '12510000': [17820000, 15440000, 14260000],
+  jadval: { '10530000': [15000000, 13000000, 12000000], '10690000': [15230000, 13200000, 12190000],
+            '12510000': [17820000, 15440000, 14260000],
             '13410000': [19100000, 16560000, 15280000], '14310000': [20385000, 17670000, 16310000] },
+  // 28.11.2026 (direktor qarori): prays-listda e'lon qilinmagan, lekin DIREKTOR O'ZI QO'YGAN narxlar.
+  // Bular bitta-bitta do'konga tegishli, yangi prays-list bazasi emas — shuning uchun «Rasmiy» tugmalariga
+  // chiqmaydi va bekor qilinganda qayta tiklanmaydi; faqat «prays-listda yo'q — tasdiqlang» ogohlantirishi
+  // ko'rsatilmaydi. 16 200 000 — L-1-12/13 hojatxona, 20 630 000 — B2-1-22 hojatxona (13 410 000 × 20/13),
+  // qolganlari — 28.11.2026 da bekor qilingan shartnoma narxlari o'rniga direktor qo'ygan narxlar.
+  tasdiq: [11610000, 11700000, 12900000, 15470000, 16200000, 20630000],
   sovga: { naqd: '«Умра» сафарига йўлланма ва замонавий телевизор', '120': '12-ўлчамли кондиционер',
            '60': 'Замонавий телевизор', '0': 'Мотивацион эсдалик совғалари' }
 };
@@ -26,6 +33,8 @@ function m2Narx(baza, boshlangich) {
   return Math.round(baza * (NARX.k1 + NARX.k2 * Math.pow(0.5, boshlangich / NARX.yarim)) / NARX.yaxlit) * NARX.yaxlit;
 }
 const rasmiy = baza => NARX.bazalar.indexOf(Number(baza)) >= 0;
+// prays-listda bormi YOKI direktor tasdiqlaganmi — ogohlantirish shu bo'yicha ko'rsatiladi
+const tasdiqlangan = baza => rasmiy(baza) || NARX.tasdiq.indexOf(Number(baza)) >= 0;
 
 // 24.11.2026 (direktor qarori) — MUDDAT NARXGA TA'SIR QILADI.
 // Qoida: 0 oy = 100 % naqd (1 m² = bazaning o'zi), 36 oy = bugungi rasmiy narx (jadval yoki formula),
@@ -62,7 +71,7 @@ function hisobla(baza, maydon) {
   const p0 = m2Narx(b, 0), p60 = m2Narx(b, 60000000), p120 = m2Narx(b, 120000000);
   const t0 = p0 * S, t60 = p60 * S, t120 = p120 * S, tN = b * S;
   return {
-    rasmiy: rasmiy(b), baza: b, maydon: S,
+    rasmiy: rasmiy(b), tasdiq: tasdiqlangan(b), baza: b, maydon: S,
     naqd: { m2: b, jami: tN, tejash: t0 - tN, oylik: 0, boshlangich: 0 },
     '120': { m2: p120, jami: t120, oylik: (t120 - 120000000) / NARX.oy, tejash: t0 - t120, boshlangich: 120000000 },
     '60':  { m2: p60,  jami: t60,  oylik: (t60 - 60000000) / NARX.oy,   tejash: t0 - t60,  boshlangich: 60000000 },
@@ -100,7 +109,7 @@ function narxHisob(baza, boshl, oy) {
 // Qoida: shu blok va qavatdagi BO'SH do'konlarning rasmiy bazasi olinadi — avval maydoni teng
 // (±0,5 m²) bo'lganlardan, bo'lmasa butun blok-qavatdan. Bitta aniq g'olib bo'lmasa — tizim narxni
 // o'zgartirmaydi va direktorga «qo'lda qo'ying» deb aytadi (o'zicha nolga yaxlitlab yubormaydi).
-const RASMIY_BAZA = [10530000, 10690000, 12510000, 13410000, 14310000];
+const RASMIY_BAZA = NARX.bazalar;   // yagona manba — prays-list bazalari
 function praysBaza(R, blok, qavat, maydon) {
   const s = v => String(v == null ? '' : v).trim();
   const qav = z => s(z).replace(/\.0+$/, '');
@@ -111,6 +120,7 @@ function praysBaza(R, blok, qavat, maydon) {
   const N = [];
   R.forEach(({ x }) => {
     if (!s(x[0]) || s(x[2]) !== s(blok) || qav(x[3]) !== qav(qavat) || !bosh(x)) return;
+    if (s(x[14])) return;   // 28.11.2026: izohli do'kon (ҲОЖАТХОНА kabi) maxsus narxda — namuna bo'lmaydi
     const b = Number(x[6]) || 0;
     if (RASMIY_BAZA.indexOf(b) >= 0) N.push({ b, m: Number(x[5]) || 0 });
   });
@@ -125,4 +135,4 @@ function praysBaza(R, blok, qavat, maydon) {
   return (m ? golib(N.filter(z => Math.abs(z.m - m) <= 0.5)) : 0) || golib(N);
 }
 
-module.exports = { bazaTuzat, NARX, praysBaza, RASMIY_BAZA, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };
+module.exports = { bazaTuzat, NARX, praysBaza, RASMIY_BAZA, tasdiqlangan, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };

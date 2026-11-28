@@ -247,7 +247,7 @@ async function sotuvKarta(args) {
     d: { id: D.id, blok: D.blok, qavat: D.qavat, no: D.no, maydon: D.maydon, baza: D.baza, qurilish: D.qurilish,
          holat: D.xHolat, egasi: D.egasi, taqiq: D.taqiq, rais: D.rais, ijarada: D.ijarada, izoh: D.izoh, bron: D.bron,
          birQavat: Object.keys(qav).length <= 1, bosh: !D.egasi && !D.ijarada && !D.mamuriyat && !D.bron },
-    narx: h ? { rasmiy: h.rasmiy, oy: NR.NARX.oy, tarif: [
+    narx: h ? { rasmiy: h.tasdiq, oy: NR.NARX.oy, tarif: [
         t('naqd', '100% naqd', NR.NARX.sovga.naqd), t('120', '120 mln boshlang\'ich', NR.NARX.sovga['120']),
         t('60', '60 mln boshlang\'ich', NR.NARX.sovga['60']), t('yoq', 'Boshlang\'ichsiz', NR.NARX.sovga['0'])] } : null,
     qoshni: { oldingi: I > 0 ? s(R[I - 1].x[0]).trim() : '', keyingi: (I >= 0 && I < R.length - 1) ? s(R[I + 1].x[0]).trim() : '', o: I + 1, jami: R.length },
@@ -314,7 +314,7 @@ async function sotuvPrays(args) {
       t.push(mxBoshl >= jm ? { m2, jami: jm, oylik: 0, toliq: true }
                            : { m2, jami: jm, oylik: Math.round((jm - mxBoshl) / mxOy) });
     }
-    const ekstra = NR.NARX.bazalar.indexOf(baza) < 0;
+    const ekstra = !NR.tasdiqlangan(baza);   // 28.11.2026: direktor tasdiqlagan narx ham ogohlantirmaydi
     if (ekstra) ekstraSoni++; if (taqiq) taqiqSoni++; if (rais) raisSoni++;
     const K = blok + (Number(qavat) === 2 ? ' \u00b7 2-qavat' : '');   // 24.11: Qavat bazada raqam (2), matn emas
     if (!M[K]) M[K] = { blok: K, soni: 0, maydonMin: 0, maydonMax: 0, bazalar: [], dokonlar: [] };
