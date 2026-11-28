@@ -291,7 +291,7 @@ async function sotuvPrays(args) {
   const mxOy = Q ? Math.max(1, Math.min(NR.NARX.oy, Math.round(Number(Q.oy) || NR.NARX.oy))) : 0;
   const maxsus = Q ? { boshl: mxBoshl, oy: mxOy,
     rasmiy: (mxOy === NR.NARX.oy && NR.NARX.shartlar.indexOf(mxBoshl) >= 0) } : null;
-  const M = {}; let jami = 0, ekstraSoni = 0, taqiqSoni = 0;
+  const M = {}; let jami = 0, ekstraSoni = 0, taqiqSoni = 0, raisSoni = 0;
   for (const { x } of R) {
     const id = s(x[0]).trim();
     if (s(x[17]).trim()) continue;                                  // sotilgan
@@ -299,7 +299,7 @@ async function sotuvPrays(args) {
     if (ij && !/^IJ-YOQ/i.test(ij)) continue;                       // ijarada
     // 28.11.2026 (direktor): taqiqdagi do'kon ham praysda chiqadi — narxi ko'rinib tursin, ⛔ belgi bilan; sotish esa faqat direktor ruxsati bilan (taqiq_ruxsat)
     const taqiq = s(x[8]).trim() === 'Ha';
-    if (s(x[11]).trim() === 'Ha') continue;                         // raisga ajratilgan
+    const rais = s(x[11]).trim() === 'Ha';                          // 28.11.2026 (direktor): raisga ajratilgan ham sotiladi — praysda 👤 belgi bilan chiqadi
     if (BR[id.toUpperCase()]) continue;                             // bronda
     const maydon = Number(x[5]) || 0;
     let baza = Number(x[6]) || 0;
@@ -314,7 +314,7 @@ async function sotuvPrays(args) {
                            : { m2, jami: jm, oylik: Math.round((jm - mxBoshl) / mxOy) });
     }
     const ekstra = NR.NARX.bazalar.indexOf(baza) < 0;
-    if (ekstra) ekstraSoni++; if (taqiq) taqiqSoni++;
+    if (ekstra) ekstraSoni++; if (taqiq) taqiqSoni++; if (rais) raisSoni++;
     const K = blok + (Number(qavat) === 2 ? ' \u00b7 2-qavat' : '');   // 24.11: Qavat bazada raqam (2), matn emas
     if (!M[K]) M[K] = { blok: K, soni: 0, maydonMin: 0, maydonMax: 0, bazalar: [], dokonlar: [] };
     const B = M[K];
@@ -322,7 +322,7 @@ async function sotuvPrays(args) {
     if (!B.maydonMin || maydon < B.maydonMin) B.maydonMin = maydon;
     if (maydon > B.maydonMax) B.maydonMax = maydon;
     if (B.bazalar.indexOf(baza) < 0) B.bazalar.push(baza);
-    B.dokonlar.push({ id, no: s(x[4]).trim(), maydon, baza, ekstra, taqiq, t });
+    B.dokonlar.push({ id, no: s(x[4]).trim(), maydon, baza, ekstra, taqiq, rais, t });
   }
   const bloklar = Object.keys(M).sort((a, b) => a.length - b.length || a.localeCompare(b)).map(k => {
     const B = M[k];
@@ -330,7 +330,7 @@ async function sotuvPrays(args) {
     B.bazalar.sort((p, q) => p - q);
     return B;
   });
-  return { ok: true, sana: bugun, jami, ekstraSoni, taqiqSoni, oy: NR.NARX.oy, maxsus, bloklar };
+  return { ok: true, sana: bugun, jami, ekstraSoni, taqiqSoni, raisSoni, oy: NR.NARX.oy, maxsus, bloklar };
 }
 
 // ------------------------------------------------------------------ 💰 MIJOZNING PULIGA QARAB TANLASH (23.11.2026)
@@ -359,7 +359,7 @@ async function sotuvTanlov(args) {
     const ij = s(x[21]).trim();
     if (ij && !/^IJ-YOQ/i.test(ij)) continue;                       // ijarada (IJ-YOQ-… = ijara yo'q degani)
     const taqiq = s(x[8]).trim() === 'Ha';                          // 28.11: taqiqdagi ham chiqadi (⛔ belgi), sotish — direktor ruxsati bilan
-    if (s(x[11]).trim() === 'Ha') continue;                         // raisga ajratilgan
+    const rais = s(x[11]).trim() === 'Ha';                          // 28.11 (direktor): raisga ajratilgan ham sotiladi — 👤 belgi bilan
     if (BR[id.toUpperCase()]) continue;
     const maydon = Number(x[5]) || 0;
     let baza = Number(x[6]) || 0;
@@ -370,10 +370,10 @@ async function sotuvTanlov(args) {
     if (mMax && maydon > mMax) continue;
     const r = NR.narxHisob(baza, boshl, oy);
     const jami = r.narx * maydon;
-    if (jami <= boshl) { L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik: 0, naqd: true, ekstra: /ekstrapol/i.test(r.manba), taqiq }); continue; }
+    if (jami <= boshl) { L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik: 0, naqd: true, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais }); continue; }
     const oylik = Math.round((jami - boshl) / oy);
     if (oylikMax && oylik > oylikMax) continue;
-    L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik, naqd: false, ekstra: /ekstrapol/i.test(r.manba), taqiq });
+    L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik, naqd: false, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais });
   }
   L.sort((a, b) => b.maydon - a.maydon || a.oylik - b.oylik);
   const bloklar = [...new Set(L.map(z => z.blok))].sort();
@@ -635,7 +635,7 @@ async function sotuvBron(args) {
   if (D.mamuriyat) throw new S.Xato('Бу дўкон маъмурият хонаси.');
   if (D.ijarada) throw new S.Xato('Бу дўкон ижарада.');
   if (D.taqiq) throw new S.Xato('Бу дўкон тақиқда — директордан рухсат керак.');
-  if (D.rais && !u.admin) throw new S.Xato('Бу дўкон раисга ажратилган — директордан рухсат керак.');
+  // 28.11.2026 (direktor): raisga ajratilgan do'kon ham oddiy sotiladi — bronga to'siq yo'q (faqat belgi). Sotilmaydigani: sotilgan va ijaradagi.
   if (D.bron) throw new S.Xato('Бу дўкон аллақачон бронда: ' + D.bron.fish + ' (' + D.bron.kim + '), ' + stDmy(D.bron.tugash) + ' гача.');
   await brVaraqTayyor();
   const L = await brYangi();
