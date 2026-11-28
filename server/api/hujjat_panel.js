@@ -53,7 +53,7 @@ async function tahrirBoshqa(mid, no) {
   return L;
 }
 async function tahrirHolat([kodSes, no]) {
-  const u = await S.ruxsat(kodSes, 'shartnoma');
+  const { u, faqatPasport } = await require('./tahrir_yoz')._ichki.tahrirRuxsat(kodSes);   // 28.11: undiruvchi — faqat pasport/telefon
   if (!(await require('./hujjat')._ichki.royxatda(u, no))) throw new S.Xato('Shartnoma topilmadi: ' + no);   // holati bo'yicha yashirin
   const c = await tahrirSh(no);
   const m2 = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => kor(z.r, 25));
@@ -76,7 +76,7 @@ async function tahrirHolat([kodSes, no]) {
   let faoliyatlar = [];
   if (c.tur === 'ijara') faoliyatlar = oraliq(await V.qatorlar('08_Lugatlar'), 2, 300).map(z => String(xom(z.x, 8)[7] || '').trim()).filter(Boolean);   // 27.11: 30 → 300
   const hud = oraliq(await V.qatorlar('08b_Hududlar'), 2, 210).map(z => xom(z.x, 2)).filter(x => x[0] && x[1]).map(x => [String(x[0]), String(x[1])]);
-  return { ok: true, no: c.no, tur: c.tur, dokon: c.dokon, mid: c.mid, holati: c.holati, sana: String(c.sana || ''),
+  return { ok: true, faqatPasport, no: c.no, tur: c.tur, dokon: c.dokon, mid: c.mid, holati: c.holati, sana: String(c.sana || ''),
     kiritdi: c.kiritdi || '—', kiritildi: c.kiritildi || '', skan, mumkin, sabab, ogoh, admin: u.admin,
     mijoz: { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], psana: r[9], pmuddat: r[10], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] },
     faoliyat: c.faoliyat, faoliyatlar, hud, boshqa: await tahrirBoshqa(c.mid, c.no) };
@@ -86,7 +86,7 @@ async function tahrirHolat([kodSes, no]) {
 // Direktor — to'g'ridan-to'g'ri. Xodim — faqat hech qanday shartnomasi yo'q mijozni (hujjat imzolanmagan); shartnomali mijoz — avvalgidek
 // shartnoma kartasidan (tahrirHolat / monSorovYubor). Yozish — api/tahrir_yoz.js mijozTahrirSaqlash.
 async function mijozTahrirHolat([kodSes, mid]) {
-  const u = await S.ruxsat(kodSes, 'shartnoma');
+  const { u, faqatPasport } = await require('./tahrir_yoz')._ichki.tahrirRuxsat(kodSes);   // 28.11
   mid = String(mid == null ? '' : mid).trim(); if (!mid) throw new S.Xato('Mijoz ID yo\'q.');
   const m2 = aOxiri(await V.qatorlar('02_Mijozlar')).map(z => kor(z.r, 25));
   const r = m2.find(x => String(x[0]).trim() === mid);
@@ -96,7 +96,7 @@ async function mijozTahrirHolat([kodSes, mid]) {
   if (!u.admin && boshqa.length) { mumkin = false; sabab = 'Bu mijozning shartnomasi bor (' + boshqa.join(', ') + ') — o\'zgarishni shartnoma kartasidan qiling: 📎 Hujjatlar → shartnoma → ✎ Tahrir (direktorga so\'rov ketadi).'; }
   if (u.admin && boshqa.length) ogoh.push('Shartnomalari: ' + boshqa.join(', ') + ' — F.I.Sh., pasport, telefon va manzil o\'zgarishi ULARGA HAM tegadi (bazada mijoz bitta). Shartnoma matniga kirgan ma\'lumot o\'zgarsa PDF ni qayta chiqaring.');
   const hud = oraliq(await V.qatorlar('08b_Hududlar'), 2, 210).map(z => xom(z.x, 2)).filter(x => x[0] && x[1]).map(x => [String(x[0]), String(x[1])]);
-  return { ok: true, mid, mumkin, sabab, ogoh, admin: u.admin, boshqa, hud,
+  return { ok: true, faqatPasport, mid, mumkin, sabab, ogoh, admin: u.admin, boshqa, hud,
     mijoz: { fish: r[2], tel: r[4], tel2: r[5], pasport: r[6], psana: r[9], pmuddat: r[10], jshshir: r[11], mv: r[13], mt: r[14], mfy: r[15], kocha: r[16], uy: r[17], xon: r[18] } };
 }
 

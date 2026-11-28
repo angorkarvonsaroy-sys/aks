@@ -357,9 +357,11 @@ async function topAvto(kod, opt = {}) {
   // 14.11.2026: yangi «kbskan» topshiriqlari faqat ish vaqtida (08:00–20:00) yaratiladi — xodimga tunda bir nechta Telegram xabar bormasin.
   // Nomzodlar ro'yxati (C) tunda ham to'liq — aks holda ochiq topshiriqlar «sabab bartaraf bo'ldi» deb yopilib ketardi.
   const soatT = new Date(Date.now() + 5 * 3600 * 1000).getUTCHours(), tun = soatT < 8 || soatT >= 20;
+  // 28.11.2026: egasiz topshiriqni zaxira lavozimdagi bir necha xodim orasida yuki kamiga berish uchun — har xodimdagi ochiq topshiriq soni
+  const yuk = {}; R.L.forEach(t => { if (t.holati === 'Jarayonda' && t.kimga) yuk[t.kimga] = (yuk[t.kimga] || 0) + 1; });
   for (const c of C) {
     if (!quruq && tun && c.qoida === 'kbskan') continue;
-    if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw, c.qoida);
+    if (band[c.kalit]) continue; band[c.kalit] = 1; const k = TP.topKimga(XD, c.raw, c.qoida, yuk); if (k.fish) yuk[k.fish] = (yuk[k.fish] || 0) + 1;
     const o = { manba: 'Tizim', qoida: c.qoida, kalit: c.kalit, sarlavha: c.sarlavha, izoh: c.izoh + (k.egasiz && c.qoida !== 'bufer' ? (k.zaxira ? ' · ⚠ shartnomada mas\'ul xodim belgilanmagan — bo\'lim o\'zi taqsimlaydi' : ' · ⚠ mas\'ul topilmadi — qayta topshiring') : ''), no: c.no, mid: c.mid, kimga: k.fish, kimBerdi: 'tizim', muddat: qosh(cfg[c.qoida].kun), muhim: c.qoida === 'davo' || c.qoida === 'vada' || c.qoida === 'yudavo' ? 'Shoshilinch' : 'Oddiy' };
     if (quruq) { yangi.push(o); continue; }
     const row = await TP.topYoz(TOP_V, o, R);
@@ -388,16 +390,23 @@ async function topAvto(kod, opt = {}) {
   const UND = {};
   try { (await UY.undShartnomalar()).forEach(z => { UND[s(z.no)] = s(z.undiruvchi).trim(); }); }
   catch (e) { console.error('topAvto und:', e.message); }
+  // 28.11.2026 (direktor): «pasport» topshirig'i kotibada (Zaynab) turgan bo'lsa ham ko'chadi — zaxira endi undiruv xodimi.
+  // Avval faqat direktordagilar ko'chardi; 16 ta pasport topshirig'i kotibada qolib ketgan edi (shartnomada undiruvchi yo'q).
+  const kotibaMi = fish => { const x = XD.find(z => xTeng(z.fish, fish)); return !!(x && /kotiba/i.test(s(x.lavozim))); };
+  const yuk2 = {}; R.L.forEach(t => { if (t.holati === 'Jarayonda' && t.kimga) yuk2[t.kimga] = (yuk2[t.kimga] || 0) + 1; });
   for (const t of R.L) {
-    if (t.holati !== 'Jarayonda' || !t.kalit || !dirF || !xTeng(t.kimga, dirF)) continue;
+    if (t.holati !== 'Jarayonda' || !t.kalit || !dirF) continue;
     const q0 = s(t.qoida) || s(t.kalit).split('|')[0];
+    const dirda = xTeng(t.kimga, dirF), kotibada = q0 === 'pasport' && kotibaMi(t.kimga);
+    if (!dirda && !kotibada) continue;
     const no0 = s(t.no) || s(t.kalit).split('|')[1];
-    const egasiz = /mas'ul topilmadi/.test(s(t.izoh)) || (UND_QOIDA[q0] && no0 && UND[no0] === '');
+    const egasiz = /mas'ul topilmadi|mas'ul xodim belgilanmagan/.test(s(t.izoh)) || (UND_QOIDA[q0] && no0 && UND[no0] === '') || kotibada;
     if (!egasiz) continue;
-    const yangiKim = TP.zaxiraXodim(XD, q0);
+    const yangiKim = TP.zaxiraXodim(XD, q0, yuk2);
     if (!yangiKim || xTeng(yangiKim, t.kimga)) continue;
-    const iz = s(t.izoh).replace(/\s*·\s*⚠\s*mas'ul topilmadi[^·]*$/, '')
-      + ' · ⚠ shartnomada mas\'ul xodim belgilanmagan — bo\'lim o\'zi taqsimlaydi';
+    yuk2[yangiKim] = (yuk2[yangiKim] || 0) + 1; if (yuk2[t.kimga]) yuk2[t.kimga]--;
+    const iz = s(t.izoh).replace(/\s*·\s*⚠\s*(mas'ul topilmadi|shartnomada mas'ul xodim belgilanmagan)[^·]*$/, '')
+      + ' · ⚠ shartnomada mas\'ul xodim belgilanmagan — bo\'lim o\'zi taqsimlaydi' + (kotibada ? ' (kotibadan undiruvchiga, 28.11.2026)' : '');
     kochdi.push({ id: t.id, qoida: q0, no: no0, sarlavha: t.sarlavha, eski: t.kimga, yangi: yangiKim, qator: t.qator, iz });
     if (kochdi.length >= 40) break;              // bir yurishda ko'pi bilan 40 ta — qolgani keyingi yurishda
   }

@@ -161,24 +161,29 @@ async function topBer(args) {
 // lavozimga boradi; lavozim topilmasa — direktorga (avvalgidek).
 // «bufer» ataylab ro'yxatda yo'q: bufer to'lov qarori direktorning o'zida (TOP_QOIDALAR da ham «direktor»).
 const ZAXIRA_ROL = {
-  pasport: 'kotiba', skan: 'kotiba', skanq: 'kotiba', kbskan: 'kotiba', bekor: 'kotiba', xat: 'kotiba', bepul: 'kotiba',
+  // 28.11.2026 (direktor): pasport — kotibaga emas, maydondagi undiruv xodimiga (mijozga o'zi boradi)
+  pasport: 'undxodim', skan: 'kotiba', skanq: 'kotiba', kbskan: 'kotiba', bekor: 'kotiba', xat: 'kotiba', bepul: 'kotiba',
   skanu: 'undiruv', davo: 'undiruv', vada: 'undiruv', tolov: 'undiruv', qmxat: 'undiruv', jshshir: 'undiruv',
   ochsms: 'undiruv', ochtek: 'undiruv', ocheski: 'undiruv', ochxat: 'undiruv', ochbekor: 'undiruv', ochkelmadi: 'kotiba', ochimzosiz: 'kotiba',   // 20.11.2026: ochilish nazorati
   yudavo: 'yurist', sotuv: 'rop', bron: 'rop'
 };
-const ZAXIRA_LAVOZIM = { kotiba: /kotiba/i, undiruv: /undiruv\s*(yurist|bo.?lim)/i, yurist: /undiruv\s*yurist/i, rop: /^\s*rop\s*$|sotuv\s*bo/i };
+const ZAXIRA_LAVOZIM = { kotiba: /kotiba/i, undiruv: /undiruv\s*(yurist|bo.?lim)/i, undxodim: /undiruv\s*xodim/i, yurist: /undiruv\s*yurist/i, rop: /^\s*rop\s*$|sotuv\s*bo/i };
 // qoida → shu ishni oladigan xodim (direktordan boshqa, ishlayotgan). Topilmasa '' — chaqiruvchi direktorga beradi.
-function zaxiraXodim(XD, qoida) {
+// yuk — {fish: ochiq topshiriq soni}: bir lavozimda bir necha xodim bo'lsa (ikki undiruv xodimi) — kamroq yuklangani oladi (28.11.2026)
+function zaxiraXodim(XD, qoida, yuk) {
   const re = ZAXIRA_LAVOZIM[ZAXIRA_ROL[s(qoida).trim()]];
   if (!re) return '';
-  const x = XD.find(z => !z.admin && re.test(s(z.lavozim)));
-  return x ? x.fish : '';
+  const L = XD.filter(z => !z.admin && re.test(s(z.lavozim)));
+  if (!L.length) return '';
+  if (!yuk) return L[0].fish;
+  let eng = L[0]; L.forEach(z => { if ((yuk[z.fish] || 0) < (yuk[eng.fish] || 0)) eng = z; });
+  return eng.fish;
 }
 // topKimga_: istalgan yozuvdagi ismni 07 dagi xodimga bog'lash; topilmasa — qoida zaxirasi, u ham bo'lmasa direktor
-function topKimga(XD, raw, qoida) {
+function topKimga(XD, raw, qoida, yuk) {
   raw = s(raw).trim(); const dir = (XD.find(x => x.admin) || {}).fish || '';
   if (raw && raw !== '—') { const x = XD.find(z => xodimTeng(raw, z.fish)); if (x) return { fish: x.fish, egasiz: false }; }
-  const z = zaxiraXodim(XD, qoida);
+  const z = zaxiraXodim(XD, qoida, yuk);
   return { fish: z || dir, egasiz: true, zaxira: !!z };
 }
 // 19.11.2026 (direktor qarori): ochiq topshiriqni boshqa xodimga o'tkazish — G (Izoh) va J (Kimga).

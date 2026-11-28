@@ -200,9 +200,20 @@ async function tahrirKozgu(t, qoshimcha = []) {   // 03/04 dagi F.I.Sh. — 02 g
 const toza = t => { const o = Object.assign({}, t); delete o._fish; delete o._f; return o; };
 
 // ------------------------------------------------------------------ ✎ tahrirSaqlash (xodim o'zi — shartlar bajarilganda, yoki admin)
+// 28.11.2026 (direktor qarori): mijoz pasporti va telefonini UNDIRUVCHI ham yangilaydi — «pasportini yangilang» topshirig'i endi unda.
+// «shartnoma» huquqi bo'lmasa, faqat shu maydonlar: pasport, psana, pmuddat, jshshir, tel, tel2 (F.I.Sh., manzil, faoliyat — yo'q).
+const PAS_MAYDON = ['pasport', 'psana', 'pmuddat', 'jshshir', 'tel', 'tel2'];
+async function tahrirRuxsat(kodSes) {
+  const u = await S.ruxsat(kodSes);
+  const H = u.huquq || [];
+  if (u.admin || H.includes('shartnoma')) return { u, faqatPasport: false };
+  if (H.includes('undiruv')) return { u, faqatPasport: true };
+  throw new S.Xato('Bu bo\'limga ruxsatingiz yo\'q.');
+}
+function pasportgaTor(d, faqatPasport) { if (!faqatPasport) return d; const o = {}; PAS_MAYDON.forEach(k => { if (d[k] !== undefined) o[k] = d[k]; }); return o; }
 async function tahrirSaqlash(args) {
-  const [kodSes, no, d0] = args;
-  const u = await S.ruxsat(kodSes, 'shartnoma');
+  const [kodSes, no, d00] = args;
+  const { u, faqatPasport } = await tahrirRuxsat(kodSes); const d0 = pasportgaTor(d00 || {}, faqatPasport);
   if (!(await serverda(u.kod))) return eskiTizim('tahrirSaqlash', u, args.slice(1));
   const d = d0 || {};
   // tahrirHolat: shartnoma, mijoz, keyin ruxsat
@@ -231,8 +242,8 @@ async function tahrirSaqlash(args) {
 // bilan o'zi kiritgan karta bilan bir xil daraja). Yozuv yadrosi tahrirQollash ning o'zi: 02 kataklari, Z manzil, 06j jurnali (tur «Mijoz», № «ID …»).
 // Eski tizimda bunday amal yo'q — serverda yozish o'chiq bo'lsa aniq xato beradi, hech narsa yozilmaydi.
 async function mijozTahrirSaqlash(args) {
-  const [kodSes, mid0, d0] = args;
-  const u = await S.ruxsat(kodSes, 'shartnoma');
+  const [kodSes, mid0, d00] = args;
+  const { u, faqatPasport } = await tahrirRuxsat(kodSes); const d0 = pasportgaTor(d00 || {}, faqatPasport);
   const mid = s(mid0).trim(); if (!mid) throw new S.Xato('Mijoz ID yo\'q.');
   if (!(await serverda(u.kod))) throw new S.Xato('Mijoz kartasini serverda tahrirlash hozir o\'chiq — shartnoma kartasidan (✎ Tahrir) foydalaning yoki direktorga ayting.');
   const d = d0 || {}; delete d.faoliyat;
@@ -391,4 +402,4 @@ async function topMalumotTasdiq(args) {
 }
 
 module.exports = { tahrirSaqlash, mijozTahrirSaqlash, monSorovYubor, monSorovJavob, topMalumotKirit, topMalumotTasdiq };
-module.exports._ichki = { shYangi, mijozYangi, matnKataklar, jurnalYoz, javobYoz, tahrirQollash, topMlSorov, TAHRIR_02, JUR_V, MIJ_V, S4_V };
+module.exports._ichki = { tahrirRuxsat, PAS_MAYDON, shYangi, mijozYangi, matnKataklar, jurnalYoz, javobYoz, tahrirQollash, topMlSorov, TAHRIR_02, JUR_V, MIJ_V, S4_V };
