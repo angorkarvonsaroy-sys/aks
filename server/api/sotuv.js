@@ -245,7 +245,7 @@ async function sotuvKarta(args) {
   const t = (k, nom, sovga) => ({ k, nom, m2: h[k].m2, jami: h[k].jami, oylik: Math.round(h[k].oylik), boshlangich: h[k].boshlangich, tejash: Math.round(h[k].tejash), sovga });
   return { ok: true, bugun,
     d: { id: D.id, blok: D.blok, qavat: D.qavat, no: D.no, maydon: D.maydon, baza: D.baza, qurilish: D.qurilish,
-         holat: D.xHolat, egasi: D.egasi, taqiq: D.taqiq, rais: D.rais, ijarada: D.ijarada, bron: D.bron,
+         holat: D.xHolat, egasi: D.egasi, taqiq: D.taqiq, rais: D.rais, ijarada: D.ijarada, izoh: D.izoh, bron: D.bron,
          birQavat: Object.keys(qav).length <= 1, bosh: !D.egasi && !D.ijarada && !D.mamuriyat && !D.bron },
     narx: h ? { rasmiy: h.rasmiy, oy: NR.NARX.oy, tarif: [
         t('naqd', '100% naqd', NR.NARX.sovga.naqd), t('120', '120 mln boshlang\'ich', NR.NARX.sovga['120']),
@@ -300,6 +300,7 @@ async function sotuvPrays(args) {
     // 28.11.2026 (direktor): taqiqdagi do'kon ham praysda chiqadi — narxi ko'rinib tursin, ⛔ belgi bilan; sotish esa faqat direktor ruxsati bilan (taqiq_ruxsat)
     const taqiq = s(x[8]).trim() === 'Ha';
     const rais = s(x[11]).trim() === 'Ha';                          // 28.11.2026 (direktor): raisga ajratilgan ham sotiladi — praysda 👤 belgi bilan chiqadi
+    const izoh = s(x[14]).trim();                                   // 28.11.2026: O ustuni belgisi (masalan «ҲОЖАТХОНА») — praysda ko'rinadi
     if (BR[id.toUpperCase()]) continue;                             // bronda
     const maydon = Number(x[5]) || 0;
     let baza = Number(x[6]) || 0;
@@ -322,7 +323,7 @@ async function sotuvPrays(args) {
     if (!B.maydonMin || maydon < B.maydonMin) B.maydonMin = maydon;
     if (maydon > B.maydonMax) B.maydonMax = maydon;
     if (B.bazalar.indexOf(baza) < 0) B.bazalar.push(baza);
-    B.dokonlar.push({ id, no: s(x[4]).trim(), maydon, baza, ekstra, taqiq, rais, t });
+    B.dokonlar.push({ id, no: s(x[4]).trim(), maydon, baza, ekstra, taqiq, rais, izoh, t });
   }
   const bloklar = Object.keys(M).sort((a, b) => a.length - b.length || a.localeCompare(b)).map(k => {
     const B = M[k];
@@ -360,6 +361,7 @@ async function sotuvTanlov(args) {
     if (ij && !/^IJ-YOQ/i.test(ij)) continue;                       // ijarada (IJ-YOQ-… = ijara yo'q degani)
     const taqiq = s(x[8]).trim() === 'Ha';                          // 28.11: taqiqdagi ham chiqadi (⛔ belgi), sotish — direktor ruxsati bilan
     const rais = s(x[11]).trim() === 'Ha';                          // 28.11 (direktor): raisga ajratilgan ham sotiladi — 👤 belgi bilan
+    const izoh = s(x[14]).trim();
     if (BR[id.toUpperCase()]) continue;
     const maydon = Number(x[5]) || 0;
     let baza = Number(x[6]) || 0;
@@ -370,10 +372,10 @@ async function sotuvTanlov(args) {
     if (mMax && maydon > mMax) continue;
     const r = NR.narxHisob(baza, boshl, oy);
     const jami = r.narx * maydon;
-    if (jami <= boshl) { L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik: 0, naqd: true, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais }); continue; }
+    if (jami <= boshl) { L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik: 0, naqd: true, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais, izoh }); continue; }
     const oylik = Math.round((jami - boshl) / oy);
     if (oylikMax && oylik > oylikMax) continue;
-    L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik, naqd: false, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais });
+    L.push({ id, blok: s(x[2]).trim(), no: s(x[4]).trim(), maydon, jami, oylik, naqd: false, ekstra: /ekstrapol/i.test(r.manba), taqiq, rais, izoh });
   }
   L.sort((a, b) => b.maydon - a.maydon || a.oylik - b.oylik);
   const bloklar = [...new Set(L.map(z => z.blok))].sort();
@@ -456,6 +458,7 @@ async function dokonHolat(dokonId, bugun) {
   // 01_Dokonlar: H(7) Qurilish, I(8) Taqiq, L(11) Rais, S(18) Egasi. Xarita holati lib/dokon.js da hisoblanadi
   // (Bo'sh / Bo'sh+ijara / Sotilgan / Sotilgan+ijara / Ma'muriyat / Bron) — xarita va bosh ekran bilan bitta manba.
   const egasi = s(x[18]).trim(), taqiq = /^ha$/i.test(s(x[8]).trim()), rais = /^ha$/i.test(s(x[11]).trim());
+  const izoh = s(x[14]).trim();   // 28.11.2026 (direktor): O ustuni — «ҲОЖАТХОНА» kabi belgi; xarita, prays va kartada ko'rinadi
   const qur = s(x[7]).trim();
   const B = (await bronRoyxat(bugun)).find(z => z.dokon.toLowerCase() === s(dokonId).trim().toLowerCase() && z.holati === 'Faol');
   const xh = xHolat(x, !!B);
@@ -466,7 +469,7 @@ async function dokonHolat(dokonId, bugun) {
   return { bor: true, id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0,
     baza: BZ.baza, bazaXom, bazaSabab: BZ.sabab, bazaKotarildi: BZ.sabab === 'past', qurilish: qur,
     egasi: egasi && egasi.toUpperCase() !== 'SOTILMAGAN' ? egasi : '', xHolat: xh,
-    ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, bron: B || null };
+    ijarada: /ijara/i.test(xh), mamuriyat: /ma.?muriyat/i.test(xh), taqiq, rais, izoh, bron: B || null };
 }
 
 // 🏬 Sotuvga bo'sh do'konlar ro'yxati: xHolat — «Bo'sh» (sotilmagan, ijarasiz, ma'muriy emas, broni yo'q).
@@ -480,7 +483,7 @@ async function bosDokonlar(bugun) {
     const h = xHolat(x, !!br[s(x[0]).trim().toUpperCase()]);
     if (h !== 'Bo\'sh') return;
     L.push({ id: s(x[0]).trim(), blok: s(x[2]), qavat: s(x[3]), no: s(x[4]), maydon: Number(x[5]) || 0, baza: Number(x[6]) || 0,
-      qurilish: s(x[7]), taqiq: /^ha$/i.test(s(x[8])), rais: /^ha$/i.test(s(x[11])) });
+      qurilish: s(x[7]), taqiq: /^ha$/i.test(s(x[8])), rais: /^ha$/i.test(s(x[11])), izoh: s(x[14]).trim() });
   });
   return L;
 }
