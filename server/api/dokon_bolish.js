@@ -54,6 +54,31 @@ async function tekshir(ids) {
   return { reja, xato };
 }
 
+// 2-qatordagi P/Z/AC formulalari — jadvalning O'Z ko'rinishida (lokal ajratuvchi bilan); qator raqami n ga almashtiriladi.
+async function formulaNamuna() {
+  const r = (await G.oraliqOqi(env.aksBazaId, DK_V, 'A2:AD2', env.googleKey, 'FORMULA'))[0] || [];
+  const al = (f, n) => s(f).replace(/(\$?[A-Z]{1,2})2\b/g, '$1' + n);   // $AD2 → $ADn, F2 → Fn (05_Tolovlar!$D$2 — $ dan keyin 2 emas, tegilmaydi)
+  const P = s(r[15]), Z = s(r[25]), AC = s(r[28]);
+  if (!/^=/.test(P) || !/^=/.test(Z) || !/^=/.test(AC)) throw new S.Xato('01_Dokonlar 2-qatorda P/Z/AC formulalari topilmadi — bo\'lish to\'xtatildi.');
+  return { P: n => al(P, n), Z: n => al(Z, n), AC: n => al(AC, n) };
+}
+
+// 28.11.2026 10:22 da bo'lingan 36 ta B qator: Z va AC «,» bilan yozilgani uchun #ERROR!. Bu amal A/B qatorlarning P/Z/AC
+// formulalarini 2-qator namunasidan qayta yozadi. Faqat direktor. Qayta bosish zararsiz (bir xil formula).
+async function dokonBolishTuzat([kodSes]) {
+  const u = await S.ruxsat(kodSes, 'admin');
+  if (!u.admin) throw new S.Xato('Faqat direktor.');
+  const NAM = await formulaNamuna();
+  const R = await V.qatorlar(DK_V);
+  const f = []; const ids = [];
+  R.forEach(z => { const id = s(z.x[0]).trim(); if (!/-\d+[AB]$/.test(id)) return; ids.push(id);
+    f.push({ varaq: DK_V, katak: 'P' + z.n, qiymat: [[NAM.P(z.n)]] }); f.push({ varaq: DK_V, katak: 'Z' + z.n, qiymat: [[NAM.Z(z.n)]] }); f.push({ varaq: DK_V, katak: 'AC' + z.n, qiymat: [[NAM.AC(z.n)]] }); });
+  if (!f.length) throw new S.Xato('A/B qator topilmadi.');
+  await G.yoz(env.aksBazaId, f, env.googleKey);
+  await kut(tetik.varaqlarYangila([DK_V]).catch(e => console.error('ko\'zgu (tuzat):', e.message)), 20000);
+  return { ok: true, soni: ids.length, namuna: { Z: NAM.Z(999).slice(0, 60), AC: NAM.AC(999).slice(0, 60) } };
+}
+
 async function dokonBolishKorish([kodSes, ids]) {
   const u = await S.ruxsat(kodSes, 'admin');
   if (!u.admin) throw new S.Xato('Do\'konni bo\'lish — faqat direktor.');
@@ -81,21 +106,18 @@ async function dokonBolish([kodSes, ids]) {
   // 2) yangi qatorlar → B (A..AD = 30 ustun; P, Z, AC — formulalar, qator raqami append'dan keyin aniq bo'ladi → avval o'rin, keyin formulalar)
   const A = await G.ustunOqi(env.aksBazaId, DK_V, 'A', env.googleKey);
   const bosh = A.length + 1;   // birinchi yangi qator (append shu yerdan)
+  const NAM = await formulaNamuna();   // 28.11.2026 10:22 saboqi: «,» bilan yozilgan Z/AC jadval lokalida (;) #ERROR! berdi — namuna 2-qatordan, o'z ko'rinishida
   const qatorlar = t.reja.map((r, i) => {
     const n = bosh + i, q = r.x.slice(0, 30); while (q.length < 30) q.push('');
     q[0] = r.id + 'B'; q[4] = r.no + 'B'; q[5] = r.yarim; q[6] = BOLISH_BAZA; q[14] = izoh;
-    q[15] = '=F' + n + '*G' + n;
-    q[25] = '=IF($AD' + n + '<>"","Ma\'muriyat",IF($T' + n + '="Shartnoma olmagan","Bron",IF($S' + n + '<>"SOTILMAGAN",IF($V' + n + '<>"","Sotilgan+ijara","Sotilgan"),IF($V' + n + '<>"","Bo\'sh+ijara","Bo\'sh"))))';
-    q[28] = '=IF($R' + n + '="",0,SUMIFS(\'05_Tolovlar\'!$D$2:$D$4996,\'05_Tolovlar\'!$C$2:$C$4996,$R' + n + '))';
+    q[15] = NAM.P(n); q[25] = NAM.Z(n); q[28] = NAM.AC(n);
     return q.map(v => v == null ? '' : v);
   });
   await G.yoz(env.aksBazaId, yoz, env.googleKey);
   const r1 = await G.qatorlarQoshR(env.aksBazaId, DK_V, bosh, qatorlar, env.googleKey);
   if (r1 !== bosh) {   // append boshqa qatordan boshlagan bo'lsa — formulalarni haqiqiy qator raqami bilan qayta yozish
     const f = []; t.reja.forEach((r, i) => { const n = r1 + i;
-      f.push({ varaq: DK_V, katak: 'P' + n, qiymat: [['=F' + n + '*G' + n]] });
-      f.push({ varaq: DK_V, katak: 'Z' + n, qiymat: [[qatorlar[i][25].replace(new RegExp('\\$([A-Z]+)' + (bosh + i) + '\\b', 'g'), '$$$1' + n)]] });
-      f.push({ varaq: DK_V, katak: 'AC' + n, qiymat: [[qatorlar[i][28].replace(new RegExp('\\$R' + (bosh + i) + '\\b', 'g'), '$R' + n)]] }); });
+      f.push({ varaq: DK_V, katak: 'P' + n, qiymat: [[NAM.P(n)]] }); f.push({ varaq: DK_V, katak: 'Z' + n, qiymat: [[NAM.Z(n)]] }); f.push({ varaq: DK_V, katak: 'AC' + n, qiymat: [[NAM.AC(n)]] }); });
     await G.yoz(env.aksBazaId, f, env.googleKey);
   }
   // 3) jurnal
@@ -121,5 +143,5 @@ async function xaritaFaylOl([kodSes]) {
   return { ok: true, nom: 'Xarita_' + V.bugun().replace(/-/g, '') + '.html', hajm: b.length, md5: crypto.createHash('md5').update(b).digest('hex'), b64: b.toString('base64') };
 }
 
-module.exports = { dokonBolishKorish, dokonBolish, xaritaFaylOl };
+module.exports = { dokonBolishKorish, dokonBolish, dokonBolishTuzat, xaritaFaylOl };
 module.exports._ichki = { ROYXAT, BOLISH_BAZA, tekshir };
