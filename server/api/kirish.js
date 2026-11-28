@@ -19,6 +19,7 @@ const S = require('./sessiya');
 const { q, redis } = require('../lib/db');
 const TK = require('../lib/tg_kirish');
 const TG = require('../lib/telegram');
+const ISM = require('../lib/ism');
 const P = require('../lib/pochta');
 
 const s = v => String(v == null ? '' : v);
@@ -62,9 +63,10 @@ async function gmailSaqla(id, gmail, kim) {
 }
 
 // ---------------------------------------------------------------- xodimlar
-const XS = `xodim_id, fish, tel_raqam, holat, huquqlar, kirish_kodi, telegram_id, qator_no`;
+const XS = `xodim_id, fish, lavozim, tel_raqam, holat, huquqlar, kirish_kodi, telegram_id, qator_no`;
 const xod = r => ({ id: s(r.xodim_id), fish: s(r.fish), ism: s(r.fish).split(/\s+/)[1] || s(r.fish), kod: s(r.kirish_kodi).trim(),
-  qator: Number(r.qator_no), tg: s(r.telegram_id).trim().replace(/\.0+$/, ''), tel: TK.telNorm(r.tel_raqam) });
+  qator: Number(r.qator_no), tg: s(r.telegram_id).trim().replace(/\.0+$/, ''), tel: TK.telNorm(r.tel_raqam),
+  lavozim: s(r.lavozim).trim(), huquq: Array.isArray(r.huquqlar) ? r.huquqlar.map(h => s(h).trim().toLowerCase()).filter(Boolean) : [] });
 const faol = r => r.holat === 'Ishlayapti' && r.huquqlar && r.huquqlar.length;
 async function telXodimlar(t) {   // telefon (9 raqam) → shu raqamli ishlayotgan xodimlar (odatda bitta)
   return (await q(`SELECT ${XS} FROM v_xodimlar WHERE right(tel_raqam, 9) = $1`, [t])).rows.filter(faol).map(xod);
@@ -105,6 +107,87 @@ function vaqtMatn(x, p) {
       + 'Kirish: https://aks-tizim.uz — telefon raqamingiz va shu parol. 24 soat amal qiladi; kirgach o\'zingizga yangi parol qo\'yasiz.\n'
       + 'Agar buni siz so\'ramagan bo\'lsangiz — e\'tibor bermang, eski parolingiz ham ishlayveradi.',
   };
+}
+
+
+// ---------------------------------------------------------------- 28.11.2026 (direktor): xodimga TO'LIQ kirish xati
+// «Assalomu alaykum <to'liq F.I.Sh.>, siz … AKS TIZIM ilovasiga kirishingiz uchun havola …, qanday kiriladi, tizimda qanday imkoniyatlar bor» —
+// tanlangan alifboda (lotin / kirill). Direktor «🔑 Parolni tiklash» bosganda: Telegram'ga avtomat ketadi (bot ulangan bo'lsa) + Gmail; oynada
+// Telegram ulashish / SMS / nusxa — o'sha to'liq matn. To'liq F.I.Sh. — 07_Xodimlar C (FISH_toliq, kirillda); bo'lmasa B.
+const IMK = [   // huquq → [lotin, kirill] — oddiy so'z bilan (xodim nimani ko'radi)
+  ['tolov', "💵 Kassa — mijozdan to'lov qabul qilish", '💵 Касса — мижоздан тўлов қабул қилиш'],
+  ['tashrif', "📞 Tashriflar va telefon murojaatlarini yozish", '📞 Ташрифлар ва телефон мурожаатларини ёзиш'],
+  ['shartnoma', "📝 Yangi mijoz va shartnoma tuzish (sotuv, ijara)", '📝 Янги мижоз ва шартнома тузиш (сотув, ижара)'],
+  ['hujjat', "📎 Hujjatlar — skan yuklash va tuzatish", '📎 Ҳужжатлар — скан юклаш ва тузатиш'],
+  ['skan', "👁 Shartnoma skanlarini ko'rish", '👁 Шартнома сканларини кўриш'],
+  ['reyestr', "📑 Ijara va sotuv reyestri (PDF / Excel)", '📑 Ижара ва сотув реестри (PDF / Excel)'],
+  ['hisobot', "📊 Hisobotlar", '📊 Ҳисоботлар'],
+  ['tasischi', "📈 Ta'sischi hisoboti (1-ilova)", '📈 Таъсисчи ҳисоботи (1-илова)'],
+  ['xarita', "🗺 Do'konlar xaritasi va narxlar (Prays)", '🗺 Дўконлар харитаси ва нархлар (Прайс)'],
+  ['xarita_moliya', "💰 Xaritada qarz va to'lov ma'lumotlari", '💰 Харитада қарз ва тўлов маълумотлари'],
+  ['undiruv', "📋 Undiruv — o'zingizga biriktirilgan qarzdorlar, «Bugungi ish», pasport va telefonni yangilash", '📋 Ундирув — ўзингизга бириктирилган қарздорлар, «Бугунги иш», паспорт ва телефонни янгилаш'],
+  ['sotuv_boshliq', "🛒 Sotuv bo'limi — butun voronka, bronlar, oylik reja, sabablar, xodimlar ishi", '🛒 Сотув бўлими — бутун воронка, бронлар, ойлик режа, сабаблар, ходимлар иши'],
+  ['sotuvchi', "🛒 Sotuv — «Mening kunim»: muddati o'tganlar, bugungi ishlar, bronlar, oy rejasi", '🛒 Сотув — «Менинг куним»: муддати ўтганлар, бугунги ишлар, бронлар, ой режаси'],
+  ['yurist', "⚖ Yurist bo'limi — yuristga o'tkazilgan qarzdorlar", '⚖ Юрист бўлими — юристга ўтказилган қарздорлар'],
+  ['xat', "✉ Ogohlantirish xatlari", '✉ Огоҳлантириш хатлари'],
+  ['devon', "📨 Devonxona — kirim va chiqim xatlar", '📨 Девонхона — кирим ва чиқим хатлар'],
+  ['taminot', "🛍 Ta'minot — xarid va to'lov so'rovlari", '🛍 Таъминот — харид ва тўлов сўровлари'],
+  ['ijara_kelishuv', "🤝 Ijarani kelishuv bilan bekor qilish", '🤝 Ижарани келишув билан бекор қилиш'],
+  ['bekor_korish', "🗂 Bekor qilingan shartnomalarni ko'rish", '🗂 Бекор қилинган шартномаларни кўриш'],
+  ['tekshiruv', "✅ Isbotlarni tekshirish (nazorat)", '✅ Исботларни текшириш (назорат)'],
+  ['kompyuter_rejim', "💻 Kompyuterda — chap menyuli qulay ko'rinish", '💻 Компьютерда — чап менюли қулай кўриниш'],
+];
+const XAT = {
+  lo: { salom: n => 'Assalomu alaykum, ' + n + '!',
+    ulandi: 'Siz «ANGOR KARVON SAROY» MChJ ning AKS TIZIM ilovasiga xodim sifatida ulandingiz.',
+    lavozim: 'Lavozimingiz:', havola: 'Ilovaga kirish havolasi:',
+    qanday: '📲 Qanday kiriladi:',
+    q1: '1. Havolani oching — telefon raqamingiz tayyor turadi.',
+    q2: p => '2. Vaqtinchalik parol: ' + p + ' (24 soat amal qiladi).',
+    q3: "3. Kirgach tizim o'zi doimiy parol qo'yishni so'raydi — o'zingizga qulay parol yozing (keyin ham: yuqoridagi ism belgisi → Parolni o'zgartirish).",
+    imk: '🧭 Tizimda sizning imkoniyatlaringiz:',
+    bosh: "🏠 Bosh sahifa — bugungi ishlaringiz va tez amallar",
+    ishlar: "📋 Ishlar — sizga berilgan topshiriqlar: xatni ko'rish, yuklab olish, bajarilganini «topshirish»",
+    hamma: "🔓 Direktor huquqi — tizimning barcha bo'limlari",
+    yakun: "Savol bo'lsa — direktor Kamoliddin Haydarovga murojaat qiling.\nParol faqat sizga — hech kimga bermang.",
+    mavzu: 'AKS TIZIM — ilovaga kirish' },
+  kr: { salom: n => 'Ассалому алайкум, ' + n + '!',
+    ulandi: 'Сиз «ANGOR KARVON SAROY» МЧЖ нинг AKS TIZIM иловасига ходим сифатида уландингиз.',
+    lavozim: 'Лавозимингиз:', havola: 'Иловага кириш ҳаволаси:',
+    qanday: '📲 Қандай кирилади:',
+    q1: '1. Ҳаволани очинг — телефон рақамингиз тайёр туради.',
+    q2: p => '2. Вақтинчалик парол: ' + p + ' (24 соат амал қилади).',
+    q3: '3. Киргач тизим ўзи доимий парол қўйишни сўрайди — ўзингизга қулай парол ёзинг (кейин ҳам: юқоридаги исм белгиси → Паролни ўзгартириш).',
+    imk: '🧭 Тизимда сизнинг имкониятларингиз:',
+    bosh: '🏠 Бош саҳифа — бугунги ишларингиз ва тез амаллар',
+    ishlar: '📋 Ишлар — сизга берилган топшириқлар: хатни кўриш, юклаб олиш, бажарилганини «топшириш»',
+    hamma: '🔓 Директор ҳуқуқи — тизимнинг барча бўлимлари',
+    yakun: 'Савол бўлса — директор Камолиддин Ҳайдаровга мурожаат қилинг.\nПарол фақат сизга — ҳеч кимга берманг.',
+    mavzu: 'AKS TIZIM — иловага кириш' },
+};
+async function fishToliq(id) {   // 07_Xodimlar C (FISH_toliq)
+  try {
+    const r = (await q(`SELECT COALESCE(data->>2,'') f FROM kozgu.qatorlar WHERE varaq='07_Xodimlar' AND regexp_replace(COALESCE(data->>0,''), '\\.0$', '') = $1 LIMIT 1`, [s(id)])).rows[0];
+    return r ? s(r.f).replace(/\s+/g, ' ').trim() : '';
+  } catch (e) { return ''; }
+}
+function kirishXati(x, p, alif, toliq) {
+  const kr = alif === 'kr', T = XAT[kr ? 'kr' : 'lo'];
+  const nom = (kr ? (toliq || x.fish) : ISM.lotinga(toliq || x.fish)), H = x.huquq || [], adm = H.includes('admin');
+  const lav = x.lavozim ? (kr ? ISM.xatKirill(x.lavozim) : x.lavozim) : '';
+  const havola = 'https://aks-tizim.uz/?t=' + x.tel;
+  const imk = [T.bosh, T.ishlar];
+  if (adm) imk.push(T.hamma);
+  else IMK.forEach(z => { if (z[0] === 'sotuvchi' && H.includes('sotuv_boshliq')) return; if (H.includes(z[0])) imk.push(z[kr ? 2 : 1]); });
+  const Q = [T.salom(nom), '', T.ulandi, lav ? T.lavozim + ' ' + lav : '', '', '🔗 ' + T.havola, havola, '', T.qanday, T.q1, T.q2(p), T.q3, '', T.imk]
+    .concat(imk.map(z => '• ' + z)).concat(['', T.yakun]);
+  const matn = Q.filter((z, i, a) => !(z === '' && (i === 0 || a[i - 1] === ''))).join('\n');
+  const tg = Q.filter((z, i, a) => !(z === '' && (i === 0 || a[i - 1] === ''))).map(z => {
+    if (z === T.qanday || z === T.imk) return '<b>' + esc(z) + '</b>';
+    if (z === T.q2(p)) return esc(z).replace(p, '<code>' + p + '</code>');
+    if (z === T.salom(nom)) return '<b>' + esc(z) + '</b>';
+    return esc(z); }).join('\n');
+  return { matn, tg, mavzu: T.mavzu, pochta: matn };
 }
 
 // ================================================================== /api/kirish — telefon + parol
@@ -231,16 +314,17 @@ R.xodimGmailYoz = async ([kodSes, id, gmail]) => {
 };
 
 // 👔 direktor: xodimga vaqtinchalik parol (Telegram/Gmail'ga ketadi; ikkalasi ham bo'lmasa — direktor og'zaki aytadi)
-R.parolTiklaDir = async ([kodSes, id]) => {
+R.parolTiklaDir = async ([kodSes, id, alif]) => {
   const u = await S.ruxsat(kodSes, 'admin'); if (!u.admin) throw new S.Xato('Faqat direktor uchun.');
   const x = await idXodim(id); if (!x) throw new S.Xato('Xodim topilmadi.');
   if (!x.faol) throw new S.Xato('Xodim «Ishlayapti» emas yoki huquqi yo\'q — u baribir kira olmaydi.');
   if (!x.tel) throw new S.Xato('Xodimning telefon raqami yo\'q — avval «✏️ Ma\'lumotlarini o\'zgartirish» dan raqamini yozing (u telefon bilan kiradi).');
-  const p = vaqtParol(), M = vaqtMatn(x, p);
+  alif = alif === 'kr' ? 'kr' : 'lo';   // 28.11.2026: xat alifbosi — direktor tanlaydi (lotin / kirill)
+  const p = vaqtParol(), M = kirishXati(x, p, alif, await fishToliq(x.id));
   await redis.set('parol_tmp:' + x.id, await izYasa(p), 'EX', VAQT_SEK);
   const ket = await xabarla(x, M.tg, M.mavzu, M.pochta, p);
   try { await redis.lpush('huquq_jurnal', JSON.stringify({ vaqt: new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', ' '), kim: u.fish, xodim: x.fish, id: x.id, qoshildi: ['vaqtinchalik parol berildi'], olindi: [], tahrir: true })); } catch (e) { }
-  return { ok: true, parol: p, kanallar: ket, tel: x.tel };
+  return { ok: true, parol: p, kanallar: ket, tel: x.tel, alif, matn: M.matn };
 };
 
-module.exports = { kirishTel, unutdim, R, parolNorm, izYasa, izTekshir, izSaqla, qatorOl, kalitYangila, xabarla, _ichki: { telXodimlar, idXodim, KLAV } };
+module.exports = { kirishTel, unutdim, R, parolNorm, izYasa, izTekshir, izSaqla, qatorOl, kalitYangila, xabarla, _ichki: { telXodimlar, idXodim, KLAV, kirishXati, IMK } };
