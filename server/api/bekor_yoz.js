@@ -24,6 +24,8 @@ const XP = require('../lib/xat_pdf');
 const BH = require('../lib/bekor_hujjat');
 const BW = require('../lib/bekor_word');
 const { xatKirill } = require('../lib/ism');
+const NR = require('../lib/narx');   // 28.11.2026: bekor qilinganda baza narxi prays-listga qaytadi (praysBaza)
+const pulM = n => Math.round(Number(n) || 0).toLocaleString('ru-RU').replace(/[\u00a0\u202f,]/g, ' ') + ' so\'m';
 const { xodimTeng } = require('../lib/xodim');
 const QY = require('./qadam_yoz')._ichki;
 const XC = require('./xat_chiqar')._ichki;
@@ -493,8 +495,15 @@ async function tasdiqQollash(u, z, izoh, vaqt, qosh) {
         D.push({ varaq: '01_Dokonlar', katak: harfU(ustun) + x.dk.qator, qiymat: [[qiymat]] });
       };
       if (x.tur === 'sotuv') {
-        eski.sotuvNo = sotuvNo; eski.egasi = egasi; eski.holat = holat;
+        eski.sotuvNo = sotuvNo; eski.egasi = egasi; eski.holat = holat; eski.baza = s(V[6]);
         yoz(18, '', 'Sotuv_shartnoma_№'); yoz(19, 'SOTILMAGAN', 'Egasi'); yoz(26, ijaraNo ? 'Bo\'sh+ijara' : 'Bo\'sh', 'Holat');
+        // 28.11.2026 (direktor qarori): do'kon bo'shagach G ustunidagi shartnoma narxi prays-listga qaytadi
+        {
+          const hozirgi = Number(V[6]) || 0;
+          const prays = NR.praysBaza(await V.qatorlar('01_Dokonlar'), s(V[2]), s(V[3]), Number(V[5]) || 0);
+          if (!prays) ogoh.push('Do\'kon bazasida shartnoma narxi qolgan (' + pulM(hozirgi) + ') — prays-list narxini 01_Dokonlar G ustuniga qo\'lda qo\'ying.');
+          else if (prays !== hozirgi) { yoz(7, prays, 'Baza_narx'); ogoh.push('Baza narx prays-listga qaytarildi: ' + pulM(hozirgi) + ' → ' + pulM(prays) + ' (1 m²).'); }
+        }
         if (ijaraNo) ogoh.push('Do\'konda faol ijara bor (' + ijaraNo + ', ' + ijarachi + ') — 04 ga tegilmadi, ijarani alohida ko\'rib chiqing.');
       } else {
         eski.ijaraNo = ijaraNo; eski.ijarachi = ijarachi; eski.holat = holat;
@@ -534,7 +543,8 @@ async function bekorQaytarish(args) {
         if (formulami(F[ustun - 1])) { ogoh.push('01_Dokonlar ' + nomi + ' ustunida FORMULA bor — qo\'lda tekshiring.'); return; }
         D.push({ varaq: '01_Dokonlar', katak: harfU(ustun) + x.dk.qator, qiymat: [[qiymat]] });
       };
-      if (x.tur === 'sotuv') { yoz(18, eski.sotuvNo, 'Sotuv_shartnoma_№'); yoz(19, eski.egasi, 'Egasi'); yoz(26, eski.holat, 'Holat'); }
+      if (x.tur === 'sotuv') { yoz(18, eski.sotuvNo, 'Sotuv_shartnoma_№'); yoz(19, eski.egasi, 'Egasi'); yoz(26, eski.holat, 'Holat');
+        if (eski.baza !== undefined && eski.baza !== '') yoz(7, Number(eski.baza) || eski.baza, 'Baza_narx'); }
       else { yoz(22, eski.ijaraNo, 'Ijara_№'); yoz(23, eski.ijarachi, 'Ijarachi'); yoz(26, eski.holat, 'Holat'); }
     }
     if (x.tur === 'sotuv') D.push({ varaq: '03_Sotuv_shartnomalar', katak: 'N' + x.qator, qiymat: [['Aktiv']] });

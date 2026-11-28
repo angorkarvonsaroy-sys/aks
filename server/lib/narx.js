@@ -92,4 +92,37 @@ function narxHisob(baza, boshl, oy) {
     : Math.round(Number(oy)) + ' oy — formula bo\'yicha hisoblandi, tasdiqlang' };
 }
 
-module.exports = { bazaTuzat, NARX, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };
+
+// 28.11.2026 (direktor qarori) — SHARTNOMA BEKOR QILINGANDA NARX PRAYS-LISTGA QAYTADI.
+// Sabab: sotilgan do'konda G ustunida shartnomaning o'z 1 m² narxi turadi. Shartnoma bekor qilinib
+// do'kon bo'shaganda o'sha eski narx qolib ketar edi (28.11.2026 holatiga 9 ta do'kon shunday edi:
+// H-1-23, Q-1-11, O-1-24, R-1-14 — bekor qilingan shartnomalardan; qolganlari eski davr qoldig'i).
+// Qoida: shu blok va qavatdagi BO'SH do'konlarning rasmiy bazasi olinadi — avval maydoni teng
+// (±0,5 m²) bo'lganlardan, bo'lmasa butun blok-qavatdan. Bitta aniq g'olib bo'lmasa — tizim narxni
+// o'zgartirmaydi va direktorga «qo'lda qo'ying» deb aytadi (o'zicha nolga yaxlitlab yubormaydi).
+const RASMIY_BAZA = [10530000, 10690000, 12510000, 13410000, 14310000];
+function praysBaza(R, blok, qavat, maydon) {
+  const s = v => String(v == null ? '' : v).trim();
+  const qav = z => s(z).replace(/\.0+$/, '');
+  const bosh = x => {
+    const ij = s(x[21]);
+    return !s(x[17]) && (!ij || /^IJ-YOQ/i.test(ij));
+  };
+  const N = [];
+  R.forEach(({ x }) => {
+    if (!s(x[0]) || s(x[2]) !== s(blok) || qav(x[3]) !== qav(qavat) || !bosh(x)) return;
+    const b = Number(x[6]) || 0;
+    if (RASMIY_BAZA.indexOf(b) >= 0) N.push({ b, m: Number(x[5]) || 0 });
+  });
+  const golib = L => {
+    if (!L.length) return 0;
+    const c = {}; L.forEach(z => { c[z.b] = (c[z.b] || 0) + 1; });
+    const K = Object.keys(c).sort((a, b) => c[b] - c[a]);
+    if (K.length > 1 && c[K[0]] === c[K[1]]) return 0;    // teng chiqdi — tanlamaymiz
+    return Number(K[0]);
+  };
+  const m = Number(maydon) || 0;
+  return (m ? golib(N.filter(z => Math.abs(z.m - m) <= 0.5)) : 0) || golib(N);
+}
+
+module.exports = { bazaTuzat, NARX, praysBaza, RASMIY_BAZA, m2Narx, m2NarxOy, rasmiy, hisobla, NARX_JADVAL, narxHisob };
